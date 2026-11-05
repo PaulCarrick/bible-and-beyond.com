@@ -1,0 +1,11 @@
+INFO:     Will watch for changes in these directories: ['/Users/paul/src/BibleAnswers/ml-service']
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [98742] using WatchFiles
+INFO:     Started server process [98745]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [98745]
+INFO:     Stopping reloader process [98742]
