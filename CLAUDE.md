@@ -25,6 +25,6 @@ A web app that answers Bible questions using AI/ML.
 - Never commit secrets; use `.env` files (gitignored) and keep a `.env.example`.
 
 ## Testing
-- Python: pytest (to be added)
+- Python: pytest — `cd ml-service && source .venv/bin/activate && python -m pytest`
 - Frontend: Vitest (to be added)
 - Drupal: PHPUnit via `ddev exec vendor/bin/phpunit` (to be added)
