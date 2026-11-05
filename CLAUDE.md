@@ -28,3 +28,9 @@ A web app that answers Bible questions using AI/ML.
 - Python: pytest — `cd ml-service && source .venv/bin/activate && python -m pytest`
 - Frontend: Vitest (to be added)
 - Drupal: PHPUnit via `ddev exec vendor/bin/phpunit` (to be added)
+## Bible database
+- Postgres 17 + pgvector in Docker (`docker compose up -d` from the repo root), container `bibleanswers-database`, host port 5434.
+- Connection string lives in `ml-service/.env` as `DATABASE_URL` (never commit `.env`).
+- Schema: `ml-service/database/schema.sql` — tables `translations`, `books` (canonical 1–66 with USFM codes and name aliases), `verses`, `verse_embeddings`. Applying it drops and recreates these tables.
+- Import a translation: `.venv/bin/python scripts/import_bible.py data/<file>.txt --code BSB --name "Berean Standard Bible" --license "Public domain"`.
+- Search in public-domain text (BSB); copyrighted translations like ESV are only fetched for display, never stored.

@@ -1,0 +1,16 @@
+services:
+  database:
+    image: pgvector/pgvector:pg17
+    container_name: bibleanswers-database
+    environment:
+      POSTGRES_USER: bibleanswers
+      POSTGRES_PASSWORD: bibleanswers
+      POSTGRES_DB: bibleanswers
+    ports:
+      - "5434:5432"
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  database_data:
