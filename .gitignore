@@ -31,3 +31,6 @@ drupal/web/sites/*/settings.ddev.php
 # Logs
 *.log
 log/
+
+# Downloaded archives (the extracted .txt files are committed)
+ml-service/data/*.zip

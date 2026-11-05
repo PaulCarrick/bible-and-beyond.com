@@ -1,8 +1,10 @@
 """Import a verse-per-line Bible text file into Postgres.
 
-The file must have one verse per line in the form:
-    Book Chapter:Verse<TAB>Text
-Lines that don't match (headers, notes) are skipped.
+Two line formats are supported (detected per line):
+    Genesis 1:1<TAB>In the beginning...      (Berean Bible bsb.txt)
+    GEN 1:1 In the beginning...              (eBible.org *_vpl.txt)
+Book names and codes are matched against books.name, books.code and books.aliases.
+Lines that don't match either format (headers, notes) are skipped.
 
 Apply the schema first (database/schema.sql), then run, for example:
     .venv/bin/python scripts/import_bible.py data/bsb.txt \
@@ -10,6 +12,13 @@ Apply the schema first (database/schema.sql), then run, for example:
         --name "Berean Standard Bible" \
         --license "Public domain" \
         --source-url "https://berean.bible"
+
+    .venv/bin/python scripts/import_bible.py data/eng-kjv2006_vpl.txt \
+        --code KJV \
+        --name "King James Version" \
+        --license "Public domain" \
+        --source-url "https://ebible.org/find/details.php?id=eng-kjv2006" \
+        --strip-brackets
 
 Re-running for the same translation code replaces that translation's verses.
 """
@@ -22,7 +31,8 @@ import sys
 import psycopg
 from dotenv import load_dotenv
 
-VERSE_LINE_PATTERN = re.compile(r"^(?P<book>.+?) (?P<chapter>\d+):(?P<verse>\d+)\t(?P<text>.+)$")
+TAB_SEPARATED_LINE_PATTERN = re.compile(r"^(?P<book>.+?) (?P<chapter>\d+):(?P<verse>\d+)\t(?P<text>.+)$")
+BOOK_CODE_LINE_PATTERN = re.compile(r"^(?P<book>[1-4]?[A-Z]{2,3}) (?P<chapter>\d+):(?P<verse>\d+) (?P<text>.+)$")
 
 
 def normalize_book_name(book_name):
@@ -38,22 +48,40 @@ def parse_arguments():
     parser.add_argument("--license", required=True, help="License, e.g. 'Public domain'")
     parser.add_argument("--language", default="en", help="Language code (default: en)")
     parser.add_argument("--source-url", default=None, help="Where the text came from")
+    parser.add_argument(
+        "--strip-brackets",
+        action="store_true",
+        help="Remove [ and ] around words (KJV marks supplied words this way)",
+    )
+    parser.add_argument(
+        "--skip-unmatched-books",
+        action="store_true",
+        help="Skip books not in the books table (e.g. Apocrypha) instead of stopping",
+    )
     return parser.parse_args()
 
 
-def read_verse_lines(file_path):
+def clean_text(text, strip_brackets):
+    text = text.replace("\u00b6", "")  # KJV paragraph marks (pilcrow)
+    if strip_brackets:
+        text = text.replace("[", "").replace("]", "")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def read_verse_lines(file_path, strip_brackets):
     verse_lines = []
 
     with open(file_path, encoding="utf-8-sig") as bible_file:
         for line in bible_file:
-            match = VERSE_LINE_PATTERN.match(line.rstrip("\n"))
+            line = line.rstrip("\r\n")
+            match = TAB_SEPARATED_LINE_PATTERN.match(line) or BOOK_CODE_LINE_PATTERN.match(line)
             if match:
                 verse_lines.append(
                     (
                         match["book"].strip(),
                         int(match["chapter"]),
                         int(match["verse"]),
-                        match["text"].strip(),
+                        clean_text(match["text"], strip_brackets),
                     )
                 )
 
@@ -61,11 +89,11 @@ def read_verse_lines(file_path):
 
 
 def load_book_lookup(cursor):
-    cursor.execute("SELECT number, name, aliases FROM books")
+    cursor.execute("SELECT number, code, name, aliases FROM books")
     book_lookup = {}
 
-    for book_number, book_name, aliases in cursor.fetchall():
-        for name in [book_name, *aliases]:
+    for book_number, book_code, book_name, aliases in cursor.fetchall():
+        for name in [book_code, book_name, *aliases]:
             book_lookup[normalize_book_name(name)] = book_number
 
     return book_lookup
@@ -111,9 +139,12 @@ def main():
     if not database_url:
         sys.exit("DATABASE_URL is not set. Add it to ml-service/.env.")
 
-    verse_lines = read_verse_lines(arguments.file_path)
+    verse_lines = read_verse_lines(arguments.file_path, arguments.strip_brackets)
     if not verse_lines:
-        sys.exit(f"No verse lines found in {arguments.file_path}. Expected 'Book Chapter:Verse<TAB>Text'.")
+        sys.exit(
+            f"No verse lines found in {arguments.file_path}. "
+            "Expected 'Book Chapter:Verse<TAB>Text' or 'CODE Chapter:Verse Text'."
+        )
 
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
@@ -122,11 +153,14 @@ def main():
                 sys.exit("The books table is empty. Apply database/schema.sql first.")
 
             mapped_verses, unmatched_book_names = map_verses_to_books(verse_lines, book_lookup)
-            if unmatched_book_names:
+            if unmatched_book_names and arguments.skip_unmatched_books:
+                print("Skipping unmatched books: " + ", ".join(unmatched_book_names))
+            elif unmatched_book_names:
                 sys.exit(
                     "These book names don't match any book name or alias: "
                     + ", ".join(unmatched_book_names)
-                    + "\nAdd them to the aliases column in database/schema.sql (or the books table) and re-run."
+                    + "\nAdd them to the aliases column in database/schema.sql (or the books table) and re-run,"
+                    + "\nor pass --skip-unmatched-books to leave them out."
                 )
 
             translation_id = save_translation(cursor, arguments)
