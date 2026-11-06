@@ -2,9 +2,19 @@ import type { Book, Copyright, SearchParameters, SearchResponse, Translation } f
 
 const mlServiceUrl = import.meta.env.VITE_ML_SERVICE_URL ?? 'http://localhost:8000'
 
+const tooManyRequestsMessage =
+  "You're searching too quickly. Please wait a few seconds and try again."
+const serverErrorMessage =
+  'The search service is not available right now. Please try again in a moment.'
+
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}`
+    // The web server answers a visitor who is over the rate limit with a plain page, not JSON.
+    if (response.status === 429) {
+      throw new Error(tooManyRequestsMessage)
+    }
+    let message =
+      response.status >= 500 ? serverErrorMessage : `Request failed with status ${response.status}`
     try {
       const body = await response.json()
       if (typeof body.detail === 'string') {
