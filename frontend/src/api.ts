@@ -1,4 +1,11 @@
-import type { Book, Copyright, SearchParameters, SearchResponse, Translation } from './types'
+import type {
+  Book,
+  Copyright,
+  SearchParameters,
+  SearchResponse,
+  Translation,
+  VerseContext,
+} from './types'
 
 const mlServiceUrl = import.meta.env.VITE_ML_SERVICE_URL ?? 'http://localhost:8000'
 
@@ -30,6 +37,23 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function fetchTranslations(): Promise<Translation[]> {
   return readJson(await fetch(`${mlServiceUrl}/translations`))
+}
+
+// The verses around one verse. How many come before and after is set by an administrator.
+export async function fetchContext(
+  translation: string,
+  book: number,
+  chapter: number,
+  verse: number,
+  signal: AbortSignal,
+): Promise<VerseContext> {
+  const queryString = new URLSearchParams({
+    translation,
+    book: String(book),
+    chapter: String(chapter),
+    verse: String(verse),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/context?${queryString}`, { signal }))
 }
 
 export async function fetchCopyrights(): Promise<Copyright[]> {

@@ -49,6 +49,13 @@ CREATE TABLE verse_embeddings (
     PRIMARY KEY (verse_id, model)
 );
 
+-- Not dropped above: these settings are not Bible data and should survive a schema reset.
+CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 INSERT INTO books (number, code, name, testament, aliases) VALUES
     (1, 'GEN', 'Genesis', 'OT', '{"Gen"}'),
     (2, 'EXO', 'Exodus', 'OT', '{"Exod"}'),

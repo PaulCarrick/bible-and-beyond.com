@@ -32,3 +32,11 @@ bible_admin.change:
     _permission: 'administer bibles'
     action: 'publish|unpublish|delete'
     code: '[A-Z0-9]{2,10}'
+
+bible_admin.settings:
+  path: '/admin/bibles/settings'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SearchSettingsForm'
+    _title: 'Search settings'
+  requirements:
+    _permission: 'administer bibles'

@@ -52,6 +52,24 @@ export interface BookCount {
   count: number
 }
 
+export interface ContextVerse {
+  chapter: number
+  verse: number
+  text: string
+  is_target: boolean
+}
+
+export interface VerseContext {
+  translation: string
+  book_number: number
+  book_name: string
+  chapter: number
+  verse: number
+  verses_before: number
+  verses_after: number
+  verses: ContextVerse[]
+}
+
 export interface SearchResponse {
   source: TranslationSource
   fums_token?: string | null

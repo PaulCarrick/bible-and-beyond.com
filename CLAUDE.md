@@ -62,6 +62,11 @@ A web app that answers Bible questions using AI/ML.
 - Adding a file format (USFM, XML, ...): write a reader class in `ml-service/bible_import/formats.py` (same members as `TabSeparatedReader`: `id`, `name`, `description`, `score`, `read`) and add it to `READERS`. Detection, the preview, the import and the Drupal format list pick it up automatically. Add tests in `ml-service/tests/test_bible_import.py`.
 - The Drupal module has no automated tests yet (PHPUnit is not set up); the Python side does.
 
+## Show in Context
+- Each verse in a result from a Bible stored on this site has a "Show in Context" link. It replaces the result list with a window: the verse in the middle (highlighted, search words in bold only there), some verses before and after it in reading order, chapter headings when it crosses a chapter, and an X (or Escape) that goes back to the same results. Results from the licensed Bibles (NIV, NASB, The Message) have no link: it would cost API.Bible requests and the text would have to be split into verses.
+- The window stops at the start and end of the book. How many verses come before and after is set in Drupal at https://cms.bible-and-beyond.com/admin/bibles/settings (defaults 5 before and 10 after, each 0 to 50). They live in the `site_settings` table (migration 002), so changes apply to the public site at once. Same permission as the Bibles page.
+- Code: `GET /context` in `ml-service/main.py` and `ml-service/context.py`; settings in `ml-service/site_settings.py` and `scripts/manage_settings.py` (JSON, used by Drupal); frontend `ContextWindow.tsx` and `SearchResults.tsx`.
+
 ## Deploying
 - Push to `main`, then run `deploy/deploy.sh` from your Mac (`--all` rebuilds and restarts everything). It pulls on the server, then only redoes what changed: Python dependencies and an ML service restart, the frontend build (`VITE_ML_SERVICE_URL=/api`), Composer, Drupal database updates and a cache rebuild. It then checks health, including from outside. The server deploys what is on GitHub, not your working copy.
 - It unlocks Drupal's read-only settings folder only while git updates files, and locks it again afterwards (`555`, not `444`, because git tracks `settings.php` as executable).

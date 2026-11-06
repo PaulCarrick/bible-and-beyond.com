@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
+from context import get_context
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
+from site_settings import get_settings
 
 # Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -123,3 +125,22 @@ def search(
     )
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/context")
+def context(
+  translation: str = Query(min_length=1),
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+  verse: int = Query(ge=1),
+):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"Show in Context is not available for {code}.")
+  settings = get_settings()
+  result = get_context(
+    code, book, chapter, verse, settings["context_verses_before"], settings["context_verses_after"]
+  )
+  if result is None:
+    raise HTTPException(status_code=404, detail="That verse was not found.")
+  return result

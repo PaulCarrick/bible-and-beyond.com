@@ -1,7 +1,18 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { fetchContext } from './api'
+import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
+import { highlight } from './highlight'
 import { parsePerPage, perPageOptions } from './perPage'
-import type { Book, PerPage, SearchParameters, SearchResponse, SortField } from './types'
+import type {
+  Book,
+  PerPage,
+  SearchParameters,
+  SearchResponse,
+  SearchResult,
+  SortField,
+  VerseContext,
+} from './types'
 
 // Space needed below the list for the page buttons, the collapsed options bar, and padding.
 const heightBelowList = 140
@@ -50,22 +61,12 @@ interface SearchResultsProps {
   onShowCopyrights: () => void
 }
 
-function escapeRegularExpression(text: string) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function highlight(text: string, terms: string[], wholeWords: boolean) {
-  const alternatives = terms
-    .map((term) => escapeRegularExpression(term))
-    .map((term) => (wholeWords ? `\\b${term}\\b` : term))
-  if (alternatives.length === 0) {
-    return text
-  }
-  const pieces = text.split(new RegExp(`(${alternatives.join('|')})`, 'i'))
-  // With one capture group, split puts every match at an odd index.
-  return pieces.map((piece, index) =>
-    index % 2 === 1 ? <strong key={index}>{piece}</strong> : piece,
-  )
+interface ContextState {
+  // The results that were on screen when the window was opened. A new search closes the window.
+  openedFor: SearchResponse
+  result: SearchResult
+  context: VerseContext | null
+  errorMessage: string
 }
 
 function SearchResults({
@@ -83,6 +84,9 @@ function SearchResults({
   onClearSort,
   onShowCopyrights,
 }: SearchResultsProps) {
+  const [contextState, setContextState] = useState<ContextState | null>(null)
+  const contextRequest = useRef<AbortController | null>(null)
+  const contextTrigger = useRef<HTMLElement | null>(null)
   const listReference = useRef<HTMLOListElement>(null)
   // The copyright line under licensed results takes room that the rows cannot use.
   const citationHeight = () =>
@@ -150,6 +154,51 @@ function SearchResults({
   }, [response])
 
   const isLicensed = response?.source === 'api_bible'
+  const showContext = contextState !== null && contextState.openedFor === response && !isLoading
+
+  function openContext(result: SearchResult, trigger: HTMLElement) {
+    if (response === null) {
+      return
+    }
+    contextRequest.current?.abort()
+    const controller = new AbortController()
+    contextRequest.current = controller
+    contextTrigger.current = trigger
+    setContextState({ openedFor: response, result, context: null, errorMessage: '' })
+
+    fetchContext(result.translation, result.book_number, result.chapter, result.verse, controller.signal)
+      .then((context) =>
+        setContextState((current) => (current?.result === result ? { ...current, context } : current)),
+      )
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return
+        }
+        const errorMessage = error instanceof Error ? error.message : 'Could not load the verses around this one.'
+        setContextState((current) => (current?.result === result ? { ...current, errorMessage } : current))
+      })
+  }
+
+  const closeContext = useCallback(() => {
+    contextRequest.current?.abort()
+    setContextState(null)
+    // Put the keyboard focus back on the link that was used, once the list is visible again.
+    const trigger = contextTrigger.current
+    window.setTimeout(() => trigger?.focus(), 0)
+  }, [])
+
+  useEffect(() => {
+    if (!showContext) {
+      return
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeContext()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showContext, closeContext])
   const countsByBook = new Map(
     (response?.book_counts ?? []).map((entry) => [entry.book_number, entry.count]),
   )
@@ -178,103 +227,129 @@ function SearchResults({
         {isLoading && !response && <p>Searching…</p>}
         {response && response.total === 0 && <p>No verses matched your search.</p>}
 
-        {response && response.total > 0 && (
-          <div className="result-header">
-            {sortColumns.map((column) => {
-              if (isLicensed && column.field === 'text') {
+        <div hidden={showContext}>
+          {response && response.total > 0 && (
+            <div className="result-header">
+              {sortColumns.map((column) => {
+                if (isLicensed && column.field === 'text') {
+                  return (
+                    <span key={column.field} className={column.className}>
+                      {column.label}
+                    </span>
+                  )
+                }
+                const isSorted = searchParameters.sortBy === column.field
+                const isDescending = isSorted && searchParameters.sortDirection === 'desc'
                 return (
-                  <span key={column.field} className={column.className}>
+                  <button
+                    type="button"
+                    key={column.field}
+                    className={`${column.className} sort-button${isSorted ? ' sorted' : ''}`}
+                    aria-sort={isSorted ? (isDescending ? 'descending' : 'ascending') : 'none'}
+                    onClick={() => onSort(column.field)}
+                  >
                     {column.label}
-                  </span>
+                    {isSorted && <span aria-hidden="true">{isDescending ? ' ▼' : ' ▲'}</span>}
+                  </button>
                 )
-              }
-              const isSorted = searchParameters.sortBy === column.field
-              const isDescending = isSorted && searchParameters.sortDirection === 'desc'
-              return (
-                <button
-                  type="button"
-                  key={column.field}
-                  className={`${column.className} sort-button${isSorted ? ' sorted' : ''}`}
-                  aria-sort={isSorted ? (isDescending ? 'descending' : 'ascending') : 'none'}
-                  onClick={() => onSort(column.field)}
-                >
-                  {column.label}
-                  {isSorted && <span aria-hidden="true">{isDescending ? ' ▼' : ' ▲'}</span>}
+              })}
+              {searchParameters.sortBy !== null && (
+                <button type="button" className="link-button clear-sort" onClick={onClearSort}>
+                  Clear Sort
                 </button>
-              )
-            })}
-            {searchParameters.sortBy !== null && (
-              <button type="button" className="link-button clear-sort" onClick={onClearSort}>
-                Clear Sort
+              )}
+            </div>
+          )}
+
+          <ol ref={listReference} className={isLoading ? 'result-list is-loading' : 'result-list'}>
+            {response?.results.map((result) => (
+              <li
+                className="result"
+                key={`${result.translation}-${result.book_number}-${result.chapter}-${result.verse}`}
+              >
+                <span className="reference">
+                  {result.reference}
+                  {showTranslationCode && <span className="translation-code"> {result.translation}</span>}
+                </span>
+                <div className="verse-column">
+                  <span className="verse-text">
+                    {highlight(result.text, response.terms, searchParameters.wholeWords)}
+                  </span>
+                  {response.source === 'local' && (
+                    <button
+                      type="button"
+                      className="link-button context-link"
+                      onClick={(event) => openContext(result, event.currentTarget)}
+                    >
+                      Show in Context
+                      <span className="visually-hidden"> for {result.reference}</span>
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          {isLicensed && response?.copyright && (
+            <p className="citation" ref={citationReference}>
+              {response.copyright} Scripture text provided through{' '}
+              <a href="https://api.bible" target="_blank" rel="noreferrer">
+                API.Bible
+              </a>
+              .{' '}
+              <button type="button" className="link-button" onClick={onShowCopyrights}>
+                Bible copyright notices
               </button>
-            )}
-          </div>
-        )}
+            </p>
+          )}
 
-        <ol ref={listReference} className={isLoading ? 'result-list is-loading' : 'result-list'}>
-          {response?.results.map((result) => (
-            <li
-              className="result"
-              key={`${result.translation}-${result.book_number}-${result.chapter}-${result.verse}`}
-            >
-              <span className="reference">
-                {result.reference}
-                {showTranslationCode && <span className="translation-code"> {result.translation}</span>}
+          {response && pageCount > 1 && (
+            <nav className="pagination" aria-label="Result pages">
+              <button
+                type="button"
+                disabled={response.page <= 1}
+                onClick={() => onChangePage(1)}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                disabled={response.page <= 1}
+                onClick={() => onChangePage(response.page - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {response.page} of {pageCount}
               </span>
-              <span className="verse-text">
-                {highlight(result.text, response.terms, searchParameters.wholeWords)}
-              </span>
-            </li>
-          ))}
-        </ol>
+              <button
+                type="button"
+                disabled={response.page >= pageCount}
+                onClick={() => onChangePage(response.page + 1)}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                disabled={response.page >= pageCount}
+                onClick={() => onChangePage(pageCount)}
+              >
+                Last
+              </button>
+            </nav>
+          )}
+        </div>
 
-        {isLicensed && response?.copyright && (
-          <p className="citation" ref={citationReference}>
-            {response.copyright} Scripture text provided through{' '}
-            <a href="https://api.bible" target="_blank" rel="noreferrer">
-              API.Bible
-            </a>
-            .{' '}
-            <button type="button" className="link-button" onClick={onShowCopyrights}>
-              Bible copyright notices
-            </button>
-          </p>
-        )}
-
-        {response && pageCount > 1 && (
-          <nav className="pagination" aria-label="Result pages">
-            <button
-              type="button"
-              disabled={response.page <= 1}
-              onClick={() => onChangePage(1)}
-            >
-              First
-            </button>
-            <button
-              type="button"
-              disabled={response.page <= 1}
-              onClick={() => onChangePage(response.page - 1)}
-            >
-              Previous
-            </button>
-            <span>
-              Page {response.page} of {pageCount}
-            </span>
-            <button
-              type="button"
-              disabled={response.page >= pageCount}
-              onClick={() => onChangePage(response.page + 1)}
-            >
-              Next
-            </button>
-            <button
-              type="button"
-              disabled={response.page >= pageCount}
-              onClick={() => onChangePage(pageCount)}
-            >
-              Last
-            </button>
-          </nav>
+        {showContext && contextState && (
+          <ContextWindow
+            translation={contextState.result.translation}
+            reference={contextState.result.reference}
+            context={contextState.context}
+            errorMessage={contextState.errorMessage}
+            terms={response?.terms ?? []}
+            wholeWords={searchParameters.wholeWords}
+            onClose={closeContext}
+          />
         )}
       </div>
 

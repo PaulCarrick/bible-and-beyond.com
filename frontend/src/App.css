@@ -254,6 +254,103 @@ select:disabled {
   line-height: 1.5;
 }
 
+.verse-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.context-link {
+  font-size: 13px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.context-window {
+  position: relative;
+  margin-top: 1rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.context-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.context-close {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.context-close:hover,
+.context-close:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.context-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+}
+
+.context-text {
+  margin: 0;
+  line-height: 1.8;
+}
+
+.context-chapter {
+  display: block;
+  margin: 0.75rem 0 0.25rem;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.context-chapter:first-child {
+  margin-top: 0;
+}
+
+.verse-number {
+  margin-right: 0.15rem;
+  color: var(--text);
+  font-size: 0.7em;
+}
+
+.context-verse.target {
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
 .pagination {
   display: flex;
   align-items: center;

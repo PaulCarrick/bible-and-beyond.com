@@ -80,6 +80,33 @@ class BibleManager {
     return $result;
   }
 
+  /**
+   * The search settings and the largest number an administrator may choose.
+   *
+   * @return array
+   *   Keys: settings (context_verses_before, context_verses_after) and context_limit.
+   */
+  public function getSearchSettings(): array {
+    return $this->run(['get'], 'manage_settings.py');
+  }
+
+  /**
+   * Saves how many verses "Show in Context" shows. The public site uses them straight away.
+   */
+  public function saveSearchSettings(int $before, int $after): array {
+    $result = $this->run([
+      'set',
+      '--context-verses-before=' . $before,
+      '--context-verses-after=' . $after,
+    ], 'manage_settings.py');
+    $this->logger->notice('@user set Show in Context to @before before and @after after.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@before' => $before,
+      '@after' => $after,
+    ]);
+    return $result;
+  }
+
   public function setPublished(string $code, bool $published): void {
     $this->run([$published ? 'publish' : 'unpublish', $code]);
     $this->logger->notice('@user @action @code.', [
@@ -201,15 +228,15 @@ class BibleManager {
   }
 
   /**
-   * Runs the Python tool and returns its JSON answer.
+   * Runs one of the Python tools and returns its JSON answer.
    */
-  private function run(array $arguments): array {
+  private function run(array $arguments, string $tool = 'manage_bibles.py'): array {
     $directory = $this->mlDirectory();
     $python = $directory . '/.venv/bin/python';
-    $script = $directory . '/scripts/manage_bibles.py';
+    $script = $directory . '/scripts/' . $tool;
     foreach ([$python, $script] as $required) {
       if (!is_file($required)) {
-        throw new BibleManagerException('The Bible importer is not installed on this server.');
+        throw new BibleManagerException('The Bible tools are not installed on this server.');
       }
     }
 

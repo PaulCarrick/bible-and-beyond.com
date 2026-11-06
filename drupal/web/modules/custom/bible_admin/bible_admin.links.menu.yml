@@ -4,3 +4,10 @@ bible_admin.list:
   route_name: bible_admin.list
   parent: system.admin
   weight: -5
+
+bible_admin.settings:
+  title: 'Search settings'
+  description: 'Choose how many verses "Show in Context" shows.'
+  route_name: bible_admin.settings
+  parent: bible_admin.list
+  weight: 10

@@ -3,3 +3,9 @@ bible_admin.upload_action:
   title: 'Upload a Bible'
   appears_on:
     - bible_admin.list
+
+bible_admin.settings_action:
+  route_name: bible_admin.settings
+  title: 'Search settings'
+  appears_on:
+    - bible_admin.list
