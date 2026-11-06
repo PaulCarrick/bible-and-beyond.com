@@ -346,3 +346,9 @@ export interface DevotionalUnit {
   previous: DevotionalNeighbour | null
   next: DevotionalNeighbour | null
 }
+
+// The two texts an administrator sets in Drupal: the name of the site and its copyright line.
+export interface SiteSettings {
+  title: string
+  copyright: string
+}

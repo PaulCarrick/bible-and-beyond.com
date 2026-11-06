@@ -3,12 +3,14 @@ import { fetchCopyrights } from './api'
 import type { Copyright } from './types'
 
 interface SiteFooterProps {
+  // The site's own copyright line, as the administrator has set it (empty shows none).
+  copyrightText: string
   onShowCopyrightNotices: () => void
 }
 
 // The bottom of every page: the copyright notice of each Bible that is licensed to us, the credits for
 // the data that asks for them, and the copyright of the site.
-function SiteFooter({ onShowCopyrightNotices }: SiteFooterProps) {
+function SiteFooter({ copyrightText, onShowCopyrightNotices }: SiteFooterProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
 
   // The notices come from API.Bible with the text (the server keeps them for a day). If they cannot be
@@ -61,7 +63,7 @@ function SiteFooter({ onShowCopyrightNotices }: SiteFooterProps) {
           ). The other Bibles, the commentaries and the devotionals are in the public domain.
         </p>
       </div>
-      <p className="site-copyright">Copyright © 2026 by Paul Carrick. All Rights Reserved.</p>
+      {copyrightText && <p className="site-copyright">{copyrightText}</p>}
     </footer>
   )
 }

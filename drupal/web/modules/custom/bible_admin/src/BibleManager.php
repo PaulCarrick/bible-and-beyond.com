@@ -81,51 +81,46 @@ class BibleManager {
   }
 
   /**
-   * The search settings and the smallest and largest number an administrator may choose for each.
+   * The site settings an administrator can change, and what each may be.
    *
    * @return array
-   *   Keys: settings (context_verses_before, context_verses_after, related_verses_limit) and
-   *   limits (for each setting, min and max).
+   *   Keys: settings (the three verse-window numbers, site_title and copyright_text), limits (for
+   *   each number, min and max) and text_limits (for each text, the fewest and most characters).
    */
-  public function getSearchSettings(): array {
+  public function getSiteSettings(): array {
     return $this->run(['get'], 'manage_settings.py');
   }
 
   /**
-   * Saves how many verses "Show in Context" shows and how many related verses are listed.
-   * The public site uses them straight away.
+   * Saves the settings that are given; any that are left out stay as they were.
+   *
+   * The public site uses them straight away. The email settings are not among them: they live in
+   * Drupal (see MailSettings).
+   *
+   * @param array $values
+   *   Any of: context_verses_before, context_verses_after, related_verses_limit (whole numbers),
+   *   site_title and copyright_text (text).
    */
-  public function saveSearchSettings(int $before, int $after, int $related): array {
-    $result = $this->run([
-      'set',
-      '--context-verses-before=' . $before,
-      '--context-verses-after=' . $after,
-      '--related-verses-limit=' . $related,
-    ], 'manage_settings.py');
-    $this->logger->notice('@user set Show in Context to @before before and @after after, and Related Verses to @related.', [
+  public function saveSiteSettings(array $values): array {
+    $options = [
+      'context_verses_before' => '--context-verses-before=',
+      'context_verses_after' => '--context-verses-after=',
+      'related_verses_limit' => '--related-verses-limit=',
+      'site_title' => '--site-title=',
+      'copyright_text' => '--copyright-text=',
+    ];
+    $arguments = ['set'];
+    $changed = [];
+    foreach ($options as $key => $option) {
+      if (array_key_exists($key, $values)) {
+        $arguments[] = $option . $values[$key];
+        $changed[] = $key;
+      }
+    }
+    $result = $this->run($arguments, 'manage_settings.py');
+    $this->logger->notice('@user changed the site settings: @changed.', [
       '@user' => $this->currentUser->getAccountName(),
-      '@before' => $before,
-      '@after' => $after,
-      '@related' => $related,
-    ]);
-    return $result;
-  }
-
-  public function setPublished(string $code, bool $published): void {
-    $this->run([$published ? 'publish' : 'unpublish', $code]);
-    $this->logger->notice('@user @action @code.', [
-      '@user' => $this->currentUser->getAccountName(),
-      '@action' => $published ? 'published' : 'hid',
-      '@code' => $code,
-    ]);
-  }
-
-  public function delete(string $code): array {
-    $result = $this->run(['delete', $code]);
-    $this->logger->notice('@user deleted @code (@count verses).', [
-      '@user' => $this->currentUser->getAccountName(),
-      '@code' => $code,
-      '@count' => $result['deleted_verse_count'],
+      '@changed' => implode(', ', $changed),
     ]);
     return $result;
   }

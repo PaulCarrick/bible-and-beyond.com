@@ -7,6 +7,7 @@ function joinList(items: string[]) {
 }
 
 interface WelcomePageProps {
+  siteTitle: string
   translations: Translation[]
   commentaries: CommentarySource[]
   devotionals: DevotionalInfo[]
@@ -14,7 +15,7 @@ interface WelcomePageProps {
 }
 
 // The page the site opens on: what it is, what is in it and how to use it.
-function WelcomePage({ translations, commentaries, devotionals, onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -22,9 +23,9 @@ function WelcomePage({ translations, commentaries, devotionals, onNavigate }: We
 
   return (
     <div className="welcome">
-      <h1>Welcome to Bible and Beyond</h1>
+      <h1>Welcome to {siteTitle}</h1>
       <p className="welcome-lead">
-        Bible and Beyond is a free, non-commercial site for reading and studying the Bible. It brings together
+        {siteTitle} is a free, non-commercial site for reading and studying the Bible. It brings together
         public-domain Bibles, the Hebrew and Greek behind the English, cross references, classic commentaries and
         devotional books, so that from a single verse you can see what it says in the original languages, what other
         verses it points to, and what great teachers have written about it.

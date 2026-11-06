@@ -28,7 +28,7 @@ from search import (
   parse_strong_query,
   search_verses,
 )
-from site_settings import get_settings
+from site_settings import get_public_settings, get_settings
 
 # Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -356,3 +356,9 @@ def devotional_unit(
   if result is None:
     raise HTTPException(status_code=404, detail="That day or chapter was not found.")
   return result
+
+
+@app.get("/site-settings")
+def site_settings():
+  """The site title and copyright line that the pages show. Nothing private is ever in this answer."""
+  return get_public_settings()

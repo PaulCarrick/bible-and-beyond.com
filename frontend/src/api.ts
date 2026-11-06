@@ -18,6 +18,7 @@ import type {
   RelatedResponse,
   SearchParameters,
   SearchResponse,
+  SiteSettings,
   Translation,
   VerseContext,
 } from './types'
@@ -269,4 +270,8 @@ export async function fetchDevotionalUnit(
 ): Promise<DevotionalUnit> {
   const queryString = new URLSearchParams({ devotional, section: String(section), unit: String(unit) })
   return readJson(await fetch(`${mlServiceUrl}/devotional-unit?${queryString}`, { signal }))
+}
+
+export async function fetchSiteSettings(): Promise<SiteSettings> {
+  return readJson(await fetch(`${mlServiceUrl}/site-settings`))
 }

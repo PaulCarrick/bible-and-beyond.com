@@ -1,10 +1,11 @@
-"""Read and change the site settings. Used by the Drupal "Search settings" page.
+"""Read and change the site settings. Used by the Drupal "Site settings" page.
 
 Every command prints one JSON object. On success it has "ok": true. On failure it has
 "ok": false and an "error" written for the administrator, and the exit status is not 0.
 
     manage_settings.py get
-    manage_settings.py set --context-verses-before 5 --context-verses-after 10 --related-verses-limit 10
+    manage_settings.py set --context-verses-before=5 --context-verses-after=10 --related-verses-limit=10
+    manage_settings.py set --site-title="Bible and Beyond" --copyright-text="Copyright 2026 ..."
 
 On "set", any setting you leave out is not changed.
 """
@@ -17,7 +18,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from site_settings import CONTEXT_LIMIT, LIMITS, SettingsProblem, get_settings, save_settings  # noqa: E402
+from site_settings import (  # noqa: E402
+    CONTEXT_LIMIT,
+    LIMITS,
+    TEXT_LIMITS,
+    SettingsProblem,
+    get_settings,
+    save_settings,
+)
 
 
 def parse_arguments():
@@ -28,12 +36,21 @@ def parse_arguments():
     change.add_argument("--context-verses-before", type=int)
     change.add_argument("--context-verses-after", type=int)
     change.add_argument("--related-verses-limit", type=int)
+    change.add_argument("--site-title", type=str)
+    change.add_argument("--copyright-text", type=str)
     return parser.parse_args()
 
 
 def describe(settings):
     limits = {key: {"min": smallest, "max": largest} for key, (smallest, largest) in LIMITS.items()}
-    return {"ok": True, "settings": settings, "limits": limits, "context_limit": CONTEXT_LIMIT}
+    text_limits = {key: {"min": smallest, "max": largest} for key, (smallest, largest) in TEXT_LIMITS.items()}
+    return {
+        "ok": True,
+        "settings": settings,
+        "limits": limits,
+        "text_limits": text_limits,
+        "context_limit": CONTEXT_LIMIT,
+    }
 
 
 def run(arguments):
@@ -43,6 +60,8 @@ def run(arguments):
         "context_verses_before": arguments.context_verses_before,
         "context_verses_after": arguments.context_verses_after,
         "related_verses_limit": arguments.related_verses_limit,
+        "site_title": arguments.site_title,
+        "copyright_text": arguments.copyright_text,
     }
     changes = {key: value for key, value in chosen.items() if value is not None}
     if not changes:

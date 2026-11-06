@@ -1,4 +1,6 @@
 interface SiteHeaderProps {
+  // The name of the site, as the administrator has set it.
+  title: string
   // On a phone the sidebar is a menu that the button opens and closes.
   isMenuOpen: boolean
   onToggleMenu: () => void
@@ -6,7 +8,7 @@ interface SiteHeaderProps {
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ isMenuOpen, onToggleMenu, onGoHome }: SiteHeaderProps) {
+function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -21,7 +23,7 @@ function SiteHeader({ isMenuOpen, onToggleMenu, onGoHome }: SiteHeaderProps) {
       </button>
       <button type="button" className="site-title" onClick={onGoHome}>
         <img className="site-icon" src="/logo-icon.svg" alt="" width="44" height="44" />
-        <span className="site-name">Bible and Beyond</span>
+        <span className="site-name">{title}</span>
       </button>
       <span className="site-tagline">Read, search and study the Bible</span>
     </header>

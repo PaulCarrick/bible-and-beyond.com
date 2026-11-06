@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchBooks, fetchCommentarySources, fetchDevotionals, fetchTranslations } from './api'
+import { fetchBooks, fetchCommentarySources, fetchDevotionals, fetchSiteSettings, fetchTranslations } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import CopyrightPage from './CopyrightPage'
@@ -10,15 +10,22 @@ import type { NavGroup } from './SideNav'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
-import type { Book, CommentarySource, DevotionalInfo, Translation } from './types'
+import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
 import type { View } from './views'
 import './App.css'
+
+// What the pages show until the administrator's settings arrive, and if they cannot be had.
+const defaultSiteSettings: SiteSettings = {
+  title: 'Bible and Beyond',
+  copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
+}
 
 function App() {
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [activeView, setActiveView] = useState<View>('welcome')
   // On a phone the sidebar is a menu under the header.
@@ -43,6 +50,18 @@ function App() {
       .then(setDevotionals)
       .catch(() => setDevotionals([]))
   }, [])
+
+  // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
+  // the site: it shows the ones it started with.
+  useEffect(() => {
+    fetchSiteSettings()
+      .then(setSiteSettings)
+      .catch(() => setSiteSettings(defaultSiteSettings))
+  }, [])
+
+  useEffect(() => {
+    document.title = siteSettings.title
+  }, [siteSettings.title])
 
   function navigate(view: View) {
     setActiveView(view)
@@ -78,7 +97,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <SiteHeader isMenuOpen={isMenuOpen} onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} onGoHome={() => navigate('welcome')} />
+      <SiteHeader title={siteSettings.title} isMenuOpen={isMenuOpen} onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} onGoHome={() => navigate('welcome')} />
 
       <div className="site-body">
         <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
@@ -90,6 +109,7 @@ function App() {
 
             {activeView === 'welcome' && (
               <WelcomePage
+              siteTitle={siteSettings.title}
                 translations={translations}
                 commentaries={commentaries}
                 devotionals={devotionals}
@@ -128,7 +148,7 @@ function App() {
             )}
           </main>
 
-          <SiteFooter onShowCopyrightNotices={() => navigate('copyright')} />
+          <SiteFooter copyrightText={siteSettings.copyright} onShowCopyrightNotices={() => navigate('copyright')} />
         </div>
       </div>
     </div>

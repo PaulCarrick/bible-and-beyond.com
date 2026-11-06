@@ -1,0 +1,31 @@
+bible_admin.mail:
+  type: config_object
+  label: 'Email server settings'
+  mapping:
+    smtp_host:
+      type: string
+      label: 'Email server (SMTP host)'
+    smtp_port:
+      type: integer
+      label: 'Email server port'
+    smtp_username:
+      type: string
+      label: 'Email server user name'
+    smtp_password:
+      type: string
+      label: 'Email server password'
+    smtp_authentication:
+      type: string
+      label: 'Email server authentication'
+    default_domain:
+      type: string
+      label: 'Email server default domain'
+    from_address:
+      type: string
+      label: 'Contact "Email From:"'
+    to_address:
+      type: string
+      label: 'Contact email to'
+    subject:
+      type: string
+      label: 'Contact email subject'
