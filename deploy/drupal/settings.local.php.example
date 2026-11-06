@@ -1,0 +1,27 @@
+<?php
+
+// Copy to drupal/web/sites/default/settings.local.php on the server (git-ignored) and fill in
+// the hash salt. The database uses the MariaDB account named after the server user, which
+// logs in through the local socket, so there is no password to keep.
+
+$databases['default']['default'] = [
+  'driver' => 'mysql',
+  'database' => 'bibleandbeyond_drupal',
+  'username' => 'paul',
+  'password' => '',
+  'host' => 'localhost',
+  'unix_socket' => '/run/mysqld/mysqld.sock',
+  'prefix' => '',
+  'collation' => 'utf8mb4_general_ci',
+  'namespace' => 'Drupal\\mysql\\Driver\\Database\\mysql',
+  'autoload' => 'core/modules/mysql/src/Driver/Database/mysql/',
+];
+
+// Generate with: php -r 'echo bin2hex(random_bytes(32));'
+$settings['hash_salt'] = 'REPLACE_WITH_A_RANDOM_VALUE';
+
+$settings['trusted_host_patterns'] = ['^cms\.bible-and-beyond\.com$'];
+
+// Outside the web root, so these are never served directly.
+$settings['file_private_path'] = '/home/paul/drupal-private';
+$settings['config_sync_directory'] = '/home/paul/drupal-config';
