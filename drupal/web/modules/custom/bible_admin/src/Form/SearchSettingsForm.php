@@ -11,7 +11,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * How many verses "Show in Context" shows around a verse on the public search page.
+ * Numbers an administrator can change for the links under each verse on the public search page.
  */
 class SearchSettingsForm extends FormBase {
 
@@ -33,34 +33,40 @@ class SearchSettingsForm extends FormBase {
       $this->messenger()->addError($exception->getMessage());
       return $form;
     }
-    $limit = (int) $current['context_limit'];
-    $form_state->set('context_limit', $limit);
+    $limits = $current['limits'];
+    $form_state->set('limits', $limits);
 
     $form['intro'] = [
       '#type' => 'html_tag',
       '#tag' => 'p',
-      '#value' => $this->t('On the search page, each verse in the results has a "Show in Context" link. It opens a window with the verse in the middle and these numbers of verses around it, in reading order. The window stops at the start and end of the book. Changes apply to the public site straight away.'),
+      '#value' => $this->t('On the search page, each verse in the results has links that open a window. These numbers control two of them. Changes apply to the public site straight away.'),
     ];
-    $form['context_verses_before'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Verses before'),
-      '#description' => $this->t('From 0 to @limit.', ['@limit' => $limit]),
-      '#default_value' => $current['settings']['context_verses_before'],
-      '#min' => 0,
-      '#max' => $limit,
-      '#step' => 1,
-      '#required' => TRUE,
+
+    $form['context'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Show in Context'),
+      '#description' => $this->t('Shows the verse in the middle with this many verses around it, in reading order. The window stops at the start and end of the book.'),
     ];
-    $form['context_verses_after'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Verses after'),
-      '#description' => $this->t('From 0 to @limit.', ['@limit' => $limit]),
-      '#default_value' => $current['settings']['context_verses_after'],
-      '#min' => 0,
-      '#max' => $limit,
-      '#step' => 1,
-      '#required' => TRUE,
-    ];
+    foreach (self::fields() as $key => $label) {
+      $group = $key === 'related_verses_limit' ? 'related' : 'context';
+      if ($group === 'related' && !isset($form['related'])) {
+        $form['related'] = [
+          '#type' => 'fieldset',
+          '#title' => $this->t('Related Verses'),
+          '#description' => $this->t('Lists the verses that readers have cross-referenced with the chosen verse, best-voted first. Showing more is slower to read.'),
+        ];
+      }
+      $form[$group][$key] = [
+        '#type' => 'number',
+        '#title' => $label,
+        '#description' => $this->t('From @min to @max.', ['@min' => $limits[$key]['min'], '@max' => $limits[$key]['max']]),
+        '#default_value' => $current['settings'][$key],
+        '#min' => $limits[$key]['min'],
+        '#max' => $limits[$key]['max'],
+        '#step' => 1,
+        '#required' => TRUE,
+      ];
+    }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
@@ -71,12 +77,25 @@ class SearchSettingsForm extends FormBase {
     return $form;
   }
 
+  /**
+   * The settings on this page and what each is called.
+   */
+  private static function fields(): array {
+    return [
+      'context_verses_before' => t('Verses before'),
+      'context_verses_after' => t('Verses after'),
+      'related_verses_limit' => t('Related verses to show'),
+    ];
+  }
+
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    $limit = (int) $form_state->get('context_limit');
-    foreach (['context_verses_before' => $this->t('Verses before'), 'context_verses_after' => $this->t('Verses after')] as $key => $label) {
+    $limits = $form_state->get('limits');
+    foreach (self::fields() as $key => $label) {
       $value = $form_state->getValue($key);
-      if (!is_numeric($value) || (string) (int) $value !== trim((string) $value) || (int) $value < 0 || (int) $value > $limit) {
-        $form_state->setErrorByName($key, $this->t('@label must be a whole number from 0 to @limit.', ['@label' => $label, '@limit' => $limit]));
+      $min = (int) $limits[$key]['min'];
+      $max = (int) $limits[$key]['max'];
+      if (!is_numeric($value) || (string) (int) $value !== trim((string) $value) || (int) $value < $min || (int) $value > $max) {
+        $form_state->setErrorByName($key, $this->t('@label must be a whole number from @min to @max.', ['@label' => $label, '@min' => $min, '@max' => $max]));
       }
     }
   }
@@ -86,6 +105,7 @@ class SearchSettingsForm extends FormBase {
       $this->manager->saveSearchSettings(
         (int) $form_state->getValue('context_verses_before'),
         (int) $form_state->getValue('context_verses_after'),
+        (int) $form_state->getValue('related_verses_limit'),
       );
     }
     catch (BibleManagerException $exception) {

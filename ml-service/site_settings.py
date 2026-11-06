@@ -9,9 +9,17 @@ from search import connect
 # The most verses that can be shown before or after a verse in "Show in Context".
 CONTEXT_LIMIT = 50
 
+# Each setting with the smallest and largest whole number an administrator may choose.
+LIMITS = {
+  "context_verses_before": (0, CONTEXT_LIMIT),
+  "context_verses_after": (0, CONTEXT_LIMIT),
+  "related_verses_limit": (1, 50),
+}
+
 DEFAULTS = {
   "context_verses_before": 5,
   "context_verses_after": 10,
+  "related_verses_limit": 10,
 }
 
 
@@ -19,8 +27,9 @@ class SettingsProblem(ValueError):
   """A value is not allowed. The message is written for the administrator."""
 
 
-def is_valid_count(value):
-  return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= CONTEXT_LIMIT
+def is_valid(key, value):
+  smallest, largest = LIMITS[key]
+  return isinstance(value, int) and not isinstance(value, bool) and smallest <= value <= largest
 
 
 def get_settings():
@@ -30,7 +39,7 @@ def get_settings():
     ).fetchall()
   stored = dict(rows)
   return {
-    key: stored[key] if is_valid_count(stored.get(key)) else default
+    key: stored[key] if is_valid(key, stored.get(key)) else default
     for key, default in DEFAULTS.items()
   }
 
@@ -41,9 +50,10 @@ def save_settings(values):
   if unknown:
     raise SettingsProblem(f"Unknown setting: {', '.join(unknown)}.")
   for key, value in values.items():
-    if not is_valid_count(value):
+    if not is_valid(key, value):
+      smallest, largest = LIMITS[key]
       label = key.replace("_", " ")
-      raise SettingsProblem(f"The {label} must be a whole number from 0 to {CONTEXT_LIMIT}.")
+      raise SettingsProblem(f"The {label} must be a whole number from {smallest} to {largest}.")
 
   with connect() as connection:
     for key, value in values.items():

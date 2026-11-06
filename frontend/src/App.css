@@ -526,3 +526,52 @@ select:disabled {
   color: var(--text);
   font-size: 12px;
 }
+
+.related-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.related-item {
+  padding: 0.6rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.related-item:last-child {
+  border-bottom: 0;
+}
+
+.related-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.related-reference {
+  color: var(--text-h);
+}
+
+.related-votes {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.related-text,
+.related-missing {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.related-missing {
+  color: var(--text);
+  font-style: italic;
+}
+
+.related-note {
+  margin: 0.75rem 0 0;
+  color: var(--text);
+  font-size: 12px;
+}

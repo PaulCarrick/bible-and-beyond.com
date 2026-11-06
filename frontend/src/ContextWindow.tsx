@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
+import CrossReferenceCredit from './CrossReferenceCredit'
 import { highlight } from './highlight'
-import type { ContextKind, ParallelVerse, VerseContext } from './types'
+import type { ContextKind, ParallelVerse, RelatedResponse, VerseContext } from './types'
 
 // Space kept free below the window for the options bar, the footer, and padding.
 const heightBelowWindow = 185
@@ -10,9 +11,11 @@ interface ContextWindowProps {
   kind: ContextKind
   translation: string
   reference: string
-  // The answer for Show in Context or Full Chapter, or for Other Translations. One is null.
+  // The answer for Show in Context or Full Chapter, for Other Translations, or for Related Verses.
+  // Only the one that matches the kind is filled in.
   context: VerseContext | null
   parallel: ParallelVerse | null
+  related: RelatedResponse | null
   errorMessage: string
   // Search words are shown in bold in the chosen verse only, so the passage stays easy to read.
   terms: string[]
@@ -41,6 +44,8 @@ function describe(kind: ContextKind, reference: string) {
       return `Full chapter for ${reference}`
     case 'parallel':
       return `Other translations of ${reference}`
+    case 'related':
+      return `Verses related to ${reference}`
     default:
       return `${reference} in context`
   }
@@ -52,6 +57,7 @@ function ContextWindow({
   reference,
   context,
   parallel,
+  related,
   errorMessage,
   terms,
   wholeWords,
@@ -100,13 +106,18 @@ function ContextWindow({
         ...parallel.translations.filter((entry) => entry.code !== translation),
       ]
     : []
-  const hasAnswer = kind === 'parallel' ? parallel !== null : context !== null
+  const hasAnswer = kind === 'parallel' ? parallel !== null : kind === 'related' ? related !== null : context !== null
 
   return (
     <section className="context-window" aria-label={describe(kind, reference)}>
       <header className="context-header">
         <h2>
-          {kind === 'parallel' ? (
+          {kind === 'related' ? (
+            <>
+              Related to {related ? `${related.book_name} ${related.chapter}:${related.verse}` : reference}
+              <span className="translation-code"> {translation}</span>
+            </>
+          ) : kind === 'parallel' ? (
             <>
               {parallel ? `${parallel.book_name} ${parallel.chapter}:${parallel.verse}` : reference}
               <span className="translation-code"> in {parallel ? parallel.translations.length : '…'} Bibles</span>
@@ -150,6 +161,49 @@ function ContextWindow({
               </Fragment>
             ))}
           </p>
+        )}
+
+        {related && (
+          <>
+            {related.references.length === 0 && <p>No related verses were found for this verse.</p>}
+            <ol className="related-list">
+              {related.references.map((entry) => (
+                <li key={`${entry.book_number}-${entry.chapter}-${entry.verse}`} className="related-item">
+                  <div className="related-head">
+                    <strong className="related-reference">{entry.reference}</strong>
+                    <span className="related-votes">
+                      {entry.votes.toLocaleString()} {entry.votes === 1 ? 'vote' : 'votes'}
+                    </span>
+                  </div>
+                  {entry.verses.length === 0 ? (
+                    <p className="related-missing">This verse is not in {related.translation}.</p>
+                  ) : (
+                    <p className="related-text">
+                      {entry.verses.map((verse, index) => (
+                        <Fragment key={`${verse.chapter}-${verse.verse}`}>
+                          {entry.verses.length > 1 && (
+                            <sup className="verse-number">
+                              {index > 0 && verse.chapter !== entry.verses[index - 1].chapter
+                                ? `${verse.chapter}:${verse.verse}`
+                                : verse.verse}
+                            </sup>
+                          )}
+                          {verse.text}{' '}
+                        </Fragment>
+                      ))}
+                      {entry.has_more_verses && <span className="related-more">…</span>}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <p className="related-note">
+              {related.total > related.shown
+                ? `Showing the ${related.shown} best-voted of ${related.total} related verses. `
+                : ''}
+              Votes rank how useful the link is. <CrossReferenceCredit />
+            </p>
+          </>
         )}
 
         {parallel && (

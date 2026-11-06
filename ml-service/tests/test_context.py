@@ -43,24 +43,24 @@ def references(body):
 # --- the settings -----------------------------------------------------------------------------
 
 
-def test_the_defaults_are_five_before_and_ten_after():
-  assert get_settings() == {"context_verses_before": 5, "context_verses_after": 10}
+def test_the_defaults_are_five_before_ten_after_and_ten_related_verses():
+  assert get_settings() == {"context_verses_before": 5, "context_verses_after": 10, "related_verses_limit": 10}
   assert DEFAULTS == get_settings()
 
 
 def test_saved_settings_are_used():
   saved = save_settings({"context_verses_before": 2, "context_verses_after": 7})
 
-  assert saved == {"context_verses_before": 2, "context_verses_after": 7}
+  assert saved == {"context_verses_before": 2, "context_verses_after": 7, "related_verses_limit": 10}
   assert get_settings() == saved
 
 
-def test_changing_one_setting_keeps_the_other():
-  save_settings({"context_verses_before": 3, "context_verses_after": 4})
+def test_changing_one_setting_keeps_the_others():
+  save_settings({"context_verses_before": 3, "context_verses_after": 4, "related_verses_limit": 6})
 
   save_settings({"context_verses_before": 9})
 
-  assert get_settings() == {"context_verses_before": 9, "context_verses_after": 4}
+  assert get_settings() == {"context_verses_before": 9, "context_verses_after": 4, "related_verses_limit": 6}
 
 
 @pytest.mark.parametrize("bad_value", [-1, CONTEXT_LIMIT + 1, "5", 2.5, True, None])
@@ -70,7 +70,20 @@ def test_values_that_are_not_allowed_are_rejected_and_nothing_is_saved(bad_value
   with pytest.raises(SettingsProblem, match="whole number"):
     save_settings({"context_verses_before": 8, "context_verses_after": bad_value})
 
-  assert get_settings() == {"context_verses_before": 3, "context_verses_after": 4}
+  assert get_settings() == {"context_verses_before": 3, "context_verses_after": 4, "related_verses_limit": 10}
+
+
+@pytest.mark.parametrize("bad_value", [0, -3, 51, "10", 2.5, True, None])
+def test_the_related_verses_limit_must_be_from_1_to_50(bad_value):
+  with pytest.raises(SettingsProblem, match="from 1 to 50"):
+    save_settings({"related_verses_limit": bad_value})
+
+  assert get_settings()["related_verses_limit"] == 10
+
+
+def test_the_related_verses_limit_can_be_1_or_50():
+  assert save_settings({"related_verses_limit": 1})["related_verses_limit"] == 1
+  assert save_settings({"related_verses_limit": 50})["related_verses_limit"] == 50
 
 
 def test_an_unknown_setting_is_rejected():
@@ -94,13 +107,22 @@ def test_the_settings_tool_reads_and_writes_json():
 
   status, result = run("get")
   assert status == 0 and result["settings"] == DEFAULTS and result["context_limit"] == CONTEXT_LIMIT
+  assert result["limits"]["related_verses_limit"] == {"min": 1, "max": 50}
+  assert result["limits"]["context_verses_before"] == {"min": 0, "max": 50}
 
   status, result = run("set", "--context-verses-before", "6", "--context-verses-after", "12")
-  assert status == 0 and result["settings"] == {"context_verses_before": 6, "context_verses_after": 12}
+  assert status == 0 and result["settings"] == {"context_verses_before": 6, "context_verses_after": 12, "related_verses_limit": 10}
+
+  status, result = run("set", "--related-verses-limit", "7")
+  assert status == 0 and result["settings"]["related_verses_limit"] == 7 and result["settings"]["context_verses_before"] == 6
 
   status, result = run("set", "--context-verses-before", "6", "--context-verses-after", "999")
   assert status == 1 and result["ok"] is False and "0 to 50" in result["error"]
-  assert run("get")[1]["settings"]["context_verses_after"] == 12
+  status, result = run("set", "--related-verses-limit", "0")
+  assert status == 1 and "from 1 to 50" in result["error"]
+  status, result = run("set")
+  assert status == 1 and "at least one" in result["error"]
+  assert run("get")[1]["settings"] == {"context_verses_before": 6, "context_verses_after": 12, "related_verses_limit": 7}
 
 
 # --- the context ------------------------------------------------------------------------------

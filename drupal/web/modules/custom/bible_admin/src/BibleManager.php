@@ -81,28 +81,32 @@ class BibleManager {
   }
 
   /**
-   * The search settings and the largest number an administrator may choose.
+   * The search settings and the smallest and largest number an administrator may choose for each.
    *
    * @return array
-   *   Keys: settings (context_verses_before, context_verses_after) and context_limit.
+   *   Keys: settings (context_verses_before, context_verses_after, related_verses_limit) and
+   *   limits (for each setting, min and max).
    */
   public function getSearchSettings(): array {
     return $this->run(['get'], 'manage_settings.py');
   }
 
   /**
-   * Saves how many verses "Show in Context" shows. The public site uses them straight away.
+   * Saves how many verses "Show in Context" shows and how many related verses are listed.
+   * The public site uses them straight away.
    */
-  public function saveSearchSettings(int $before, int $after): array {
+  public function saveSearchSettings(int $before, int $after, int $related): array {
     $result = $this->run([
       'set',
       '--context-verses-before=' . $before,
       '--context-verses-after=' . $after,
+      '--related-verses-limit=' . $related,
     ], 'manage_settings.py');
-    $this->logger->notice('@user set Show in Context to @before before and @after after.', [
+    $this->logger->notice('@user set Show in Context to @before before and @after after, and Related Verses to @related.', [
       '@user' => $this->currentUser->getAccountName(),
       '@before' => $before,
       '@after' => $after,
+      '@related' => $related,
     ]);
     return $result;
   }

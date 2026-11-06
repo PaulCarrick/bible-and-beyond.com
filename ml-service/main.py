@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
-from context import get_chapter, get_context, get_parallel
+from context import get_chapter, get_context, get_parallel, get_related
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 from site_settings import get_settings
 
@@ -169,6 +169,22 @@ def parallel(
   verse: int = Query(ge=1),
 ):
   result = get_parallel(book, chapter, verse)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That verse was not found.")
+  return result
+
+
+@app.get("/related")
+def related(
+  translation: str = Query(min_length=1),
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+  verse: int = Query(ge=1),
+):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"Related Verses is not available for {code}.")
+  result = get_related(code, book, chapter, verse, get_settings()["related_verses_limit"])
   if result is None:
     raise HTTPException(status_code=404, detail="That verse was not found.")
   return result

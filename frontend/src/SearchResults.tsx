@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchContext, fetchParallel } from './api'
+import { fetchContext, fetchParallel, fetchRelated } from './api'
 import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
 import { highlight } from './highlight'
@@ -11,6 +11,7 @@ import type {
   SearchResponse,
   ContextKind,
   ParallelVerse,
+  RelatedResponse,
   SearchResult,
   SortField,
   VerseContext,
@@ -70,6 +71,7 @@ interface ContextState {
   result: SearchResult
   context: VerseContext | null
   parallel: ParallelVerse | null
+  related: RelatedResponse | null
   errorMessage: string
 }
 
@@ -168,16 +170,15 @@ function SearchResults({
     const controller = new AbortController()
     contextRequest.current = controller
     contextTrigger.current = trigger
-    setContextState({ kind, openedFor: response, result, context: null, parallel: null, errorMessage: '' })
+    setContextState({ kind, openedFor: response, result, context: null, parallel: null, related: null, errorMessage: '' })
 
+    const { translation, book_number: book, chapter, verse } = result
     const request =
       kind === 'parallel'
-        ? fetchParallel(result.book_number, result.chapter, result.verse, controller.signal).then(
-            (parallel) => ({ parallel }),
-          )
-        : fetchContext(kind, result.translation, result.book_number, result.chapter, result.verse, controller.signal).then(
-            (context) => ({ context }),
-          )
+        ? fetchParallel(book, chapter, verse, controller.signal).then((parallel) => ({ parallel }))
+        : kind === 'related'
+          ? fetchRelated(translation, book, chapter, verse, controller.signal).then((related) => ({ related }))
+          : fetchContext(kind, translation, book, chapter, verse, controller.signal).then((context) => ({ context }))
     request
       .then((answer) =>
         setContextState((current) =>
@@ -317,6 +318,14 @@ function SearchResults({
                         Other Translations
                         <span className="visually-hidden"> of {result.reference}</span>
                       </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('related', result, event.currentTarget)}
+                      >
+                        Related Verses
+                        <span className="visually-hidden"> for {result.reference}</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -381,6 +390,7 @@ function SearchResults({
             reference={contextState.result.reference}
             context={contextState.context}
             parallel={contextState.parallel}
+            related={contextState.related}
             errorMessage={contextState.errorMessage}
             terms={response?.terms ?? []}
             wholeWords={searchParameters.wholeWords}

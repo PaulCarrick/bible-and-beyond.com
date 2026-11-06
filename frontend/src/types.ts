@@ -71,7 +71,37 @@ export interface VerseContext {
   verses: ContextVerse[]
 }
 
-export type ContextKind = 'context' | 'chapter' | 'parallel'
+export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related'
+
+export interface RelatedVerse {
+  book_name: string
+  chapter: number
+  verse: number
+  text: string
+}
+
+// One cross reference: a verse, or a range of verses, with its text in the Bible that was searched.
+export interface RelatedReference {
+  votes: number
+  reference: string
+  book_number: number
+  chapter: number
+  verse: number
+  verses: RelatedVerse[]
+  has_more_verses: boolean
+}
+
+// The best-voted cross references of one verse (the number shown is set by an administrator).
+export interface RelatedResponse {
+  translation: string
+  book_number: number
+  book_name: string
+  chapter: number
+  verse: number
+  total: number
+  shown: number
+  references: RelatedReference[]
+}
 
 export interface ParallelTranslation {
   code: string

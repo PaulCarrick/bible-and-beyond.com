@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchCopyrights } from './api'
+import CrossReferenceCredit from './CrossReferenceCredit'
 import type { Copyright } from './types'
 
 interface CopyrightPageProps {
@@ -47,6 +48,12 @@ function CopyrightPage({ onBack }: CopyrightPageProps) {
           )}
         </section>
       ))}
+
+      <h3>Cross references</h3>
+      <p>
+        <CrossReferenceCredit /> Used under the Creative Commons Attribution 4.0 license. The data was
+        reformatted for this site.
+      </p>
     </div>
   )
 }

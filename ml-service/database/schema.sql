@@ -7,6 +7,7 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS cross_references CASCADE;
 DROP TABLE IF EXISTS verse_embeddings CASCADE;
 DROP TABLE IF EXISTS verses CASCADE;
 DROP TABLE IF EXISTS books CASCADE;
@@ -55,6 +56,24 @@ CREATE TABLE IF NOT EXISTS site_settings (
     value JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Cross references (OpenBible.info). Reload them after a schema reset: scripts/import_cross_references.py.
+CREATE TABLE IF NOT EXISTS cross_references (
+    from_book SMALLINT NOT NULL REFERENCES books (number),
+    from_chapter INTEGER NOT NULL,
+    from_verse INTEGER NOT NULL,
+    to_book SMALLINT NOT NULL REFERENCES books (number),
+    to_chapter INTEGER NOT NULL,
+    to_verse INTEGER NOT NULL,
+    to_end_book SMALLINT REFERENCES books (number),
+    to_end_chapter INTEGER,
+    to_end_verse INTEGER,
+    votes INTEGER NOT NULL,
+    PRIMARY KEY (from_book, from_chapter, from_verse, to_book, to_chapter, to_verse)
+);
+
+CREATE INDEX IF NOT EXISTS cross_references_by_votes
+    ON cross_references (from_book, from_chapter, from_verse, votes DESC);
 
 INSERT INTO books (number, code, name, testament, aliases) VALUES
     (1, 'GEN', 'Genesis', 'OT', '{"Gen"}'),

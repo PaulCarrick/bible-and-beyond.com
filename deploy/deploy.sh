@@ -73,6 +73,12 @@ else
   echo "  no changes"
 fi
 
+# The data itself is loaded by hand (see "Related Verses" in CLAUDE.md); say so if it is missing.
+if [ "$(psql -d bibleandbeyond -tAc 'SELECT COUNT(*) FROM cross_references' 2>/dev/null || echo 0)" = "0" ]; then
+  echo "  note: the cross_references table is empty, so Related Verses has nothing to show."
+  echo "        Load it with: ml-service/.venv/bin/python ml-service/scripts/import_cross_references.py <file>"
+fi
+
 echo "== ML service"
 if touched '^ml-service/requirements.txt$'; then
   ml-service/.venv/bin/pip install -q -r ml-service/requirements.txt
