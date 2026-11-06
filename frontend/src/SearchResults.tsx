@@ -9,6 +9,7 @@ import type {
   PerPage,
   SearchParameters,
   SearchResponse,
+  ContextKind,
   SearchResult,
   SortField,
   VerseContext,
@@ -62,6 +63,7 @@ interface SearchResultsProps {
 }
 
 interface ContextState {
+  kind: ContextKind
   // The results that were on screen when the window was opened. A new search closes the window.
   openedFor: SearchResponse
   result: SearchResult
@@ -156,7 +158,7 @@ function SearchResults({
   const isLicensed = response?.source === 'api_bible'
   const showContext = contextState !== null && contextState.openedFor === response && !isLoading
 
-  function openContext(result: SearchResult, trigger: HTMLElement) {
+  function openContext(kind: ContextKind, result: SearchResult, trigger: HTMLElement) {
     if (response === null) {
       return
     }
@@ -164,18 +166,22 @@ function SearchResults({
     const controller = new AbortController()
     contextRequest.current = controller
     contextTrigger.current = trigger
-    setContextState({ openedFor: response, result, context: null, errorMessage: '' })
+    setContextState({ kind, openedFor: response, result, context: null, errorMessage: '' })
 
-    fetchContext(result.translation, result.book_number, result.chapter, result.verse, controller.signal)
+    fetchContext(kind, result.translation, result.book_number, result.chapter, result.verse, controller.signal)
       .then((context) =>
-        setContextState((current) => (current?.result === result ? { ...current, context } : current)),
+        setContextState((current) =>
+          current?.result === result && current.kind === kind ? { ...current, context } : current,
+        ),
       )
       .catch((error) => {
         if (controller.signal.aborted) {
           return
         }
-        const errorMessage = error instanceof Error ? error.message : 'Could not load the verses around this one.'
-        setContextState((current) => (current?.result === result ? { ...current, errorMessage } : current))
+        const errorMessage = error instanceof Error ? error.message : 'Could not load the verses.'
+        setContextState((current) =>
+          current?.result === result && current.kind === kind ? { ...current, errorMessage } : current,
+        )
       })
   }
 
@@ -276,14 +282,24 @@ function SearchResults({
                     {highlight(result.text, response.terms, searchParameters.wholeWords)}
                   </span>
                   {response.source === 'local' && (
-                    <button
-                      type="button"
-                      className="link-button context-link"
-                      onClick={(event) => openContext(result, event.currentTarget)}
-                    >
-                      Show in Context
-                      <span className="visually-hidden"> for {result.reference}</span>
-                    </button>
+                    <div className="verse-links">
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('context', result, event.currentTarget)}
+                      >
+                        Show in Context
+                        <span className="visually-hidden"> for {result.reference}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('chapter', result, event.currentTarget)}
+                      >
+                        Full Chapter
+                        <span className="visually-hidden"> containing {result.reference}</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </li>
@@ -342,6 +358,7 @@ function SearchResults({
 
         {showContext && contextState && (
           <ContextWindow
+            kind={contextState.kind}
             translation={contextState.result.translation}
             reference={contextState.result.reference}
             context={contextState.context}

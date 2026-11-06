@@ -1,5 +1,6 @@
 import type {
   Book,
+  ContextKind,
   Copyright,
   SearchParameters,
   SearchResponse,
@@ -39,8 +40,10 @@ export async function fetchTranslations(): Promise<Translation[]> {
   return readJson(await fetch(`${mlServiceUrl}/translations`))
 }
 
-// The verses around one verse. How many come before and after is set by an administrator.
+// Show in Context: the verses around one verse. How many come before and after is set by an
+// administrator. Full Chapter: every verse of the chapter that contains the verse.
 export async function fetchContext(
+  kind: ContextKind,
   translation: string,
   book: number,
   chapter: number,
@@ -53,7 +56,8 @@ export async function fetchContext(
     chapter: String(chapter),
     verse: String(verse),
   })
-  return readJson(await fetch(`${mlServiceUrl}/context?${queryString}`, { signal }))
+  const path = kind === 'chapter' ? 'chapter' : 'context'
+  return readJson(await fetch(`${mlServiceUrl}/${path}?${queryString}`, { signal }))
 }
 
 export async function fetchCopyrights(): Promise<Copyright[]> {

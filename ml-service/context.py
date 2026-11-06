@@ -1,6 +1,51 @@
-"""The verses around a verse, for "Show in Context"."""
+"""The verses around a verse ("Show in Context") and the whole chapter of a verse ("Full Chapter")."""
 
 from search import connect
+
+
+def find_translation_and_book(connection, translation_code, book_number):
+  """The id and code of a published translation and the name of the book, or None if either is missing."""
+  translation = connection.execute(
+    "SELECT id, code FROM translations WHERE code = %s AND is_published", (translation_code,)
+  ).fetchone()
+  book = connection.execute("SELECT name FROM books WHERE number = %s", (book_number,)).fetchone()
+  if translation is None or book is None:
+    return None
+  return translation[0], translation[1], book[0]
+
+
+def get_chapter(translation_code, book_number, chapter, verse):
+  """Return every verse of the chapter that contains the verse, with that verse marked.
+
+  Returns None when the translation is unknown or hidden, or the verse does not exist.
+  """
+  with connect() as connection:
+    found = find_translation_and_book(connection, translation_code, book_number)
+    if found is None:
+      return None
+    translation_id, code, book_name = found
+    rows = connection.execute(
+      """
+      SELECT verse, text FROM verses
+      WHERE translation_id = %s AND book_number = %s AND chapter = %s
+      ORDER BY verse
+      """,
+      (translation_id, book_number, chapter),
+    ).fetchall()
+
+  if not any(row_verse == verse for row_verse, _text in rows):
+    return None
+  return {
+    "translation": code,
+    "book_number": book_number,
+    "book_name": book_name,
+    "chapter": chapter,
+    "verse": verse,
+    "verses": [
+      {"chapter": chapter, "verse": row_verse, "text": text, "is_target": row_verse == verse}
+      for row_verse, text in rows
+    ],
+  }
 
 
 def get_context(translation_code, book_number, chapter, verse, before, after):
@@ -10,14 +55,10 @@ def get_context(translation_code, book_number, chapter, verse, before, after):
   book. Returns None when the translation is unknown or hidden, or the verse does not exist.
   """
   with connect() as connection:
-    translation = connection.execute(
-      "SELECT id, code FROM translations WHERE code = %s AND is_published", (translation_code,)
-    ).fetchone()
-    if translation is None:
+    found = find_translation_and_book(connection, translation_code, book_number)
+    if found is None:
       return None
-    book = connection.execute("SELECT name FROM books WHERE number = %s", (book_number,)).fetchone()
-    if book is None:
-      return None
+    translation_id, code, book_name = found
 
     rows = connection.execute(
       """
@@ -36,7 +77,7 @@ def get_context(translation_code, book_number, chapter, verse, before, after):
       ORDER BY position
       """,
       {
-        "translation_id": translation[0],
+        "translation_id": translation_id,
         "book_number": book_number,
         "chapter": chapter,
         "verse": verse,
@@ -48,9 +89,9 @@ def get_context(translation_code, book_number, chapter, verse, before, after):
   if not rows:
     return None
   return {
-    "translation": translation[1],
+    "translation": code,
     "book_number": book_number,
-    "book_name": book[0],
+    "book_name": book_name,
     "chapter": chapter,
     "verse": verse,
     "verses_before": before,

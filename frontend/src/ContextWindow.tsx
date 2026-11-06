@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { highlight } from './highlight'
-import type { VerseContext } from './types'
+import type { ContextKind, VerseContext } from './types'
 
 // Space kept free below the window for the options bar, the footer, and padding.
 const heightBelowWindow = 185
 const minimumBodyHeight = 200
 
 interface ContextWindowProps {
+  kind: ContextKind
   translation: string
   reference: string
   context: VerseContext | null
@@ -17,7 +18,10 @@ interface ContextWindowProps {
   onClose: () => void
 }
 
-function formatRange(context: VerseContext) {
+function formatTitle(kind: ContextKind, context: VerseContext) {
+  if (kind === 'chapter') {
+    return `${context.book_name} ${context.chapter}`
+  }
   const first = context.verses[0]
   const last = context.verses[context.verses.length - 1]
   if (first.chapter !== last.chapter) {
@@ -30,6 +34,7 @@ function formatRange(context: VerseContext) {
 }
 
 function ContextWindow({
+  kind,
   translation,
   reference,
   context,
@@ -76,10 +81,13 @@ function ContextWindow({
   const showChapters = context !== null && new Set(context.verses.map((entry) => entry.chapter)).size > 1
 
   return (
-    <section className="context-window" aria-label={`${reference} in context`}>
+    <section
+      className="context-window"
+      aria-label={kind === 'chapter' ? `Full chapter for ${reference}` : `${reference} in context`}
+    >
       <header className="context-header">
         <h2>
-          {context ? formatRange(context) : reference}
+          {context ? formatTitle(kind, context) : reference}
           <span className="translation-code"> {translation}</span>
         </h2>
         <button

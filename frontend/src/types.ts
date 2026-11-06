@@ -65,10 +65,13 @@ export interface VerseContext {
   book_name: string
   chapter: number
   verse: number
-  verses_before: number
-  verses_after: number
+  // Only in the answer for Show in Context, not for Full Chapter.
+  verses_before?: number
+  verses_after?: number
   verses: ContextVerse[]
 }
+
+export type ContextKind = 'context' | 'chapter'
 
 export interface SearchResponse {
   source: TranslationSource

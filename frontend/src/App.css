@@ -262,8 +262,19 @@ select:disabled {
   gap: 0.35rem;
 }
 
+.verse-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
 .context-link {
   font-size: 13px;
+}
+
+.context-link + .context-link {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
 }
 
 .visually-hidden {

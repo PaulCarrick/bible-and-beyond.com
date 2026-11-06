@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
-from context import get_context
+from context import get_chapter, get_context
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 from site_settings import get_settings
 
@@ -141,6 +141,22 @@ def context(
   result = get_context(
     code, book, chapter, verse, settings["context_verses_before"], settings["context_verses_after"]
   )
+  if result is None:
+    raise HTTPException(status_code=404, detail="That verse was not found.")
+  return result
+
+
+@app.get("/chapter")
+def chapter_of_verse(
+  translation: str = Query(min_length=1),
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+  verse: int = Query(ge=1),
+):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"Full Chapter is not available for {code}.")
+  result = get_chapter(code, book, chapter, verse)
   if result is None:
     raise HTTPException(status_code=404, detail="That verse was not found.")
   return result

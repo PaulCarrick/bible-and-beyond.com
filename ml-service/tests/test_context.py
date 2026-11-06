@@ -205,3 +205,82 @@ def test_a_hidden_bible_has_no_context(tmp_path):
   finally:
     with connect() as connection:
       connection.execute("DELETE FROM translations WHERE code = 'ZZCTX'")
+
+
+# --- the full chapter -------------------------------------------------------------------------
+
+
+def chapter(book, chapter_number, verse, translation="KJV"):
+  return client.get(
+    "/chapter", params={"translation": translation, "book": book, "chapter": chapter_number, "verse": verse}
+  )
+
+
+def test_the_full_chapter_has_every_verse_with_the_chosen_one_marked():
+  response = chapter(JOHN, 3, 16)
+
+  body = response.json()
+  assert response.status_code == 200
+  assert body["book_name"] == "John" and body["translation"] == "KJV"
+  assert references(body) == [(3, number) for number in range(1, 37)]  # John 3 has 36 verses
+  assert [entry["verse"] for entry in body["verses"] if entry["is_target"]] == [16]
+  assert "God so loved the world" in body["verses"][15]["text"]
+
+
+def test_the_full_chapter_does_not_depend_on_the_context_numbers(monkeypatch):
+  monkeypatch.setattr(main, "get_settings", lambda: {"context_verses_before": 0, "context_verses_after": 0})
+
+  assert len(chapter(JOHN, 3, 16).json()["verses"]) == 36
+
+
+def test_the_chosen_verse_can_be_the_first_or_the_last_of_the_chapter():
+  first = chapter(GENESIS, 1, 1).json()
+  last = chapter(REVELATION, 22, 21).json()
+
+  assert len(first["verses"]) == 31 and first["verses"][0]["is_target"]
+  assert len(last["verses"]) == 21 and last["verses"][-1]["is_target"]
+
+
+def test_a_very_long_chapter_comes_back_whole():
+  assert len(chapter(19, 119, 1).json()["verses"]) == 176  # Psalm 119
+
+
+def test_the_full_chapter_uses_the_requested_translation():
+  kjv = chapter(JOHN, 3, 16, "KJV").json()["verses"][15]["text"]
+  bsb = chapter(JOHN, 3, 16, "bsb").json()["verses"][15]["text"]
+
+  assert kjv != bsb and "For God so loved the world" in bsb
+
+
+@pytest.mark.parametrize(
+  "parameters, status",
+  [
+    ({"translation": "NOPE", "book": JOHN, "chapter": 3, "verse": 16}, 404),
+    ({"translation": "KJV", "book": JOHN, "chapter": 99, "verse": 1}, 404),
+    ({"translation": "KJV", "book": JOHN, "chapter": 3, "verse": 999}, 404),
+    ({"translation": "NIV", "book": JOHN, "chapter": 3, "verse": 16}, 422),
+    ({"translation": "nasb", "book": JOHN, "chapter": 3, "verse": 16}, 422),
+    ({"translation": "KJV", "book": 0, "chapter": 3, "verse": 16}, 422),
+    ({"translation": "KJV", "book": JOHN, "chapter": 0, "verse": 16}, 422),
+    ({"translation": "KJV", "book": JOHN, "chapter": 3}, 422),
+  ],
+)
+def test_chapter_requests_that_cannot_be_answered_are_refused(parameters, status):
+  assert client.get("/chapter", params=parameters).status_code == status
+
+
+def test_a_hidden_bible_has_no_full_chapter(tmp_path):
+  from bible_import.importer import TranslationDetails, import_file
+  from bible_import import catalog
+
+  path = tmp_path / "hidden.txt"
+  path.write_text("John 3:16\tFor God so loved the world.\n", encoding="utf-8")
+  import_file(path, TranslationDetails(code="ZZCHAP", name="Hidden Test", license="Public domain"))
+
+  try:
+    assert chapter(JOHN, 3, 16, "ZZCHAP").status_code == 404
+    catalog.set_published("ZZCHAP", True)
+    assert chapter(JOHN, 3, 16, "ZZCHAP").status_code == 200
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM translations WHERE code = 'ZZCHAP'")
