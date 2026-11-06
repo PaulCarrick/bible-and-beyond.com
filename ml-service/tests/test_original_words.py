@@ -16,6 +16,8 @@ from original_words import (
   BOOK_NUMBERS,
   OriginalWordsProblem,
   clean_definition,
+  clean_original,
+  clean_transliteration,
   link_words_to_lexicon,
   parse_greek_line,
   parse_hebrew_line,
@@ -68,6 +70,21 @@ def test_a_hebrew_word_keeps_its_main_strongs_number_and_not_the_prefix():
   assert word.verse == (GENESIS, 1, 1) and word.position == 1
   assert word.original == "בְּ/רֵאשִׁ֖ית" and word.transliteration == "be./re.Shit"
   assert word.english == "in/ beginning" and word.strong_code == "H7225G" and word.grammar == "HR/Ncfsa"
+
+
+def test_punctuation_that_came_with_the_words_is_stripped():
+  assert clean_original("εὐδόκησα.¶", True) == "εὐδόκησα"
+  assert clean_original("κόσμον,", True) == "κόσμον"
+  assert clean_original("τίς;", True) == "τίς"
+  assert clean_original("ἀλλ᾽", True) == "ἀλλ᾽"  # the apostrophe of an elided word stays
+  assert clean_original("הָאָֽרֶץ׃", False) == "הָאָֽרֶץ"
+  assert clean_original("בֶן\\־", False) == "בֶן"
+  assert clean_original("אֶחָֽד\\׃\\ \\פ", False) == "אֶחָֽד"  # verse end and paragraph letter
+  assert clean_original("כְּדָרְ\\־לָעֹ֔מֶר", False) == "כְּדָרְ־לָעֹ֔מֶר"  # two words joined as one name
+  assert clean_original("בְּ/רֵאשִׁ֖ית", False) == "בְּ/רֵאשִׁ֖ית"  # prefixes stay joined
+  assert clean_original("׆", False) == "׆"  # never leave a word empty
+  assert clean_transliteration("ven-") == "ven"
+  assert clean_transliteration("be./re.Shit") == "be./re.Shit"
 
 
 def test_the_english_verse_number_is_used_when_the_hebrew_numbering_differs():

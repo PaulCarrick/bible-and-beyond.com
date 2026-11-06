@@ -66,6 +66,33 @@ class LexiconEntry:
   definition: str
 
 
+# The files keep the punctuation of the printed text with the words. Greek: commas, full stops, the
+# Greek question mark and raised dot, paragraph marks and editors' brackets. Hebrew: the verse
+# end, paseq, and the maqaf (hyphen) that joins a word to the next. The apostrophe of an elided
+# Greek word (ἀλλ᾽) and the "/" between Hebrew prefixes are part of the word and stay.
+GREEK_PUNCTUATION = ",.\u00b7;\u037e\u0387\u00b6[]\u00ac"
+HEBREW_MARKS = "\u05c3\u05c0\u05c6"  # verse end, paseq, nun hafukha
+MAQAF = "\u05be"
+
+
+def clean_original(text, is_greek):
+  """The word without the punctuation that came with it in the file."""
+  if is_greek:
+    cleaned = text.translate({ord(character): None for character in GREEK_PUNCTUATION})
+  else:
+    # "X\׃\ \פ": the word, then the verse end and a paragraph letter, each joined with a backslash.
+    cleaned = re.split(r"\\[" + HEBREW_MARKS + " ]", text)[0]
+    # A backslash before a maqaf joins two words into one (Kedor-laomer); keep the maqaf only.
+    cleaned = cleaned.replace("\\" + MAQAF, MAQAF).replace("\\", "")
+    cleaned = cleaned.translate({ord(character): None for character in HEBREW_MARKS}).strip(MAQAF)
+  return cleaned.strip() or text.strip()
+
+
+def clean_transliteration(text):
+  """The sound of the word without the hyphen that marks a Hebrew maqaf."""
+  return text.strip().rstrip("-").strip() or text.strip()
+
+
 def read_reference(text, line_number):
   """Return ((book, chapter, verse), position, kind) for a word row, or None for any other line."""
   match = WORD_REFERENCE.match(text)
@@ -88,7 +115,10 @@ def parse_hebrew_line(line, line_number):
   braced = BRACED_STRONG_CODE.search(columns[4])
   anywhere = STRONG_CODE.search(columns[4])
   strong_code = braced[1] if braced else (anywhere[0] if anywhere else None)
-  return OriginalWord(verse, position, columns[1], columns[2], columns[3], strong_code, columns[5])
+  return OriginalWord(
+    verse, position, clean_original(columns[1], False), clean_transliteration(columns[2]),
+    columns[3], strong_code, columns[5],
+  )
 
 
 def parse_greek_line(line, line_number):
@@ -103,7 +133,8 @@ def parse_greek_line(line, line_number):
     greek, bracketed = columns[1], ""
   codes = GREEK_STRONG_CODE.findall(columns[3])
   return OriginalWord(
-    verse, position, greek.strip(), bracketed.rstrip(")").strip(), columns[2],
+    verse, position, clean_original(greek, True), clean_transliteration(bracketed.rstrip(")")),
+    columns[2],
     codes[-1] if codes else None,
     columns[3].partition("=")[2] if "=" in columns[3] else "",
   )
