@@ -1,10 +1,10 @@
-"""Import a verse-per-line Bible text file into Postgres.
+"""Import a verse-per-line Bible text file into Postgres from the command line.
 
-Two line formats are supported (detected per line):
+Two line formats are supported (detected automatically, or choose one with --format):
     Genesis 1:1<TAB>In the beginning...      (Berean Bible bsb.txt)
     GEN 1:1 In the beginning...              (eBible.org *_vpl.txt)
 Book names and codes are matched against books.name, books.code and books.aliases.
-Lines that don't match either format (headers, notes) are skipped.
+Lines that don't match the format (headers, notes) are skipped.
 
 Apply the schema first (database/schema.sql), then run, for example:
     .venv/bin/python scripts/import_bible.py data/bsb.txt \
@@ -20,24 +20,20 @@ Apply the schema first (database/schema.sql), then run, for example:
         --source-url "https://ebible.org/find/details.php?id=eng-kjv2006" \
         --strip-brackets
 
+A translation imported here is published straight away (add --unpublished to keep it hidden).
 Re-running for the same translation code replaces that translation's verses.
+The Drupal "Bibles" page uses the same code through scripts/manage_bibles.py.
 """
 
 import argparse
-import os
-import re
 import sys
+from pathlib import Path
 
-import psycopg
-from dotenv import load_dotenv
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-TAB_SEPARATED_LINE_PATTERN = re.compile(r"^(?P<book>.+?) (?P<chapter>\d+):(?P<verse>\d+)\t(?P<text>.+)$")
-BOOK_CODE_LINE_PATTERN = re.compile(r"^(?P<book>[1-4]?[A-Z]{2,3}) (?P<chapter>\d+):(?P<verse>\d+) (?P<text>.+)$")
-
-
-def normalize_book_name(book_name):
-    """Make book names comparable: case, spaces and periods are ignored."""
-    return re.sub(r"[\s.]", "", book_name).lower()
+from bible_import.errors import ImportProblem  # noqa: E402
+from bible_import.formats import READERS  # noqa: E402
+from bible_import.importer import TranslationDetails, import_file, preview_file  # noqa: E402
 
 
 def parse_arguments():
@@ -49,6 +45,13 @@ def parse_arguments():
     parser.add_argument("--language", default="en", help="Language code (default: en)")
     parser.add_argument("--source-url", default=None, help="Where the text came from")
     parser.add_argument(
+        "--format",
+        default="auto",
+        choices=["auto", *[reader.id for reader in READERS]],
+        dest="format_id",
+        help="File format (default: detect it)",
+    )
+    parser.add_argument(
         "--strip-brackets",
         action="store_true",
         help="Remove [ and ] around words (KJV marks supplied words this way)",
@@ -58,129 +61,54 @@ def parse_arguments():
         action="store_true",
         help="Skip books not in the books table (e.g. Apocrypha) instead of stopping",
     )
-    return parser.parse_args()
-
-
-def clean_text(text, strip_brackets):
-    text = text.replace("\u00b6", "")  # KJV paragraph marks (pilcrow)
-    if strip_brackets:
-        text = text.replace("[", "").replace("]", "")
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def read_verse_lines(file_path, strip_brackets):
-    verse_lines = []
-
-    with open(file_path, encoding="utf-8-sig") as bible_file:
-        for line in bible_file:
-            line = line.rstrip("\r\n")
-            match = TAB_SEPARATED_LINE_PATTERN.match(line) or BOOK_CODE_LINE_PATTERN.match(line)
-            if match:
-                verse_lines.append(
-                    (
-                        match["book"].strip(),
-                        int(match["chapter"]),
-                        int(match["verse"]),
-                        clean_text(match["text"], strip_brackets),
-                    )
-                )
-
-    return verse_lines
-
-
-def load_book_lookup(cursor):
-    cursor.execute("SELECT number, code, name, aliases FROM books")
-    book_lookup = {}
-
-    for book_number, book_code, book_name, aliases in cursor.fetchall():
-        for name in [book_code, book_name, *aliases]:
-            book_lookup[normalize_book_name(name)] = book_number
-
-    return book_lookup
-
-
-def map_verses_to_books(verse_lines, book_lookup):
-    mapped_verses = []
-    unmatched_book_names = []
-
-    for book_name, chapter, verse, text in verse_lines:
-        book_number = book_lookup.get(normalize_book_name(book_name))
-        if book_number is None:
-            if book_name not in unmatched_book_names:
-                unmatched_book_names.append(book_name)
-            continue
-        mapped_verses.append((book_number, chapter, verse, text))
-
-    return mapped_verses, unmatched_book_names
-
-
-def save_translation(cursor, arguments):
-    cursor.execute(
-        """
-        INSERT INTO translations (code, name, language, license, source_url)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (code) DO UPDATE
-            SET name = EXCLUDED.name,
-                language = EXCLUDED.language,
-                license = EXCLUDED.license,
-                source_url = EXCLUDED.source_url
-        RETURNING id
-        """,
-        (arguments.code, arguments.name, arguments.language, arguments.license, arguments.source_url),
+    parser.add_argument(
+        "--unpublished",
+        action="store_true",
+        help="Keep a new translation hidden from search until it is published",
     )
-    return cursor.fetchone()[0]
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be imported; save nothing")
+    return parser.parse_args()
 
 
 def main():
     arguments = parse_arguments()
+    details = TranslationDetails(
+        code=arguments.code,
+        name=arguments.name,
+        language=arguments.language,
+        license=arguments.license,
+        source_url=arguments.source_url,
+    )
 
-    load_dotenv()
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        sys.exit("DATABASE_URL is not set. Add it to ml-service/.env.")
-
-    verse_lines = read_verse_lines(arguments.file_path, arguments.strip_brackets)
-    if not verse_lines:
-        sys.exit(
-            f"No verse lines found in {arguments.file_path}. "
-            "Expected 'Book Chapter:Verse<TAB>Text' or 'CODE Chapter:Verse Text'."
-        )
-
-    with psycopg.connect(database_url) as connection:
-        with connection.cursor() as cursor:
-            book_lookup = load_book_lookup(cursor)
-            if not book_lookup:
-                sys.exit("The books table is empty. Apply database/schema.sql first.")
-
-            mapped_verses, unmatched_book_names = map_verses_to_books(verse_lines, book_lookup)
-            if unmatched_book_names and arguments.skip_unmatched_books:
-                print("Skipping unmatched books: " + ", ".join(unmatched_book_names))
-            elif unmatched_book_names:
-                sys.exit(
-                    "These book names don't match any book name or alias: "
-                    + ", ".join(unmatched_book_names)
-                    + "\nAdd them to the aliases column in database/schema.sql (or the books table) and re-run,"
-                    + "\nor pass --skip-unmatched-books to leave them out."
-                )
-
-            translation_id = save_translation(cursor, arguments)
-            cursor.execute("DELETE FROM verses WHERE translation_id = %s", (translation_id,))
-
-            with cursor.copy(
-                "COPY verses (translation_id, book_number, chapter, verse, text) FROM STDIN"
-            ) as copy:
-                for book_number, chapter, verse, text in mapped_verses:
-                    copy.write_row((translation_id, book_number, chapter, verse, text))
-
-            cursor.execute(
-                "SELECT COUNT(DISTINCT book_number), COUNT(*) FROM verses WHERE translation_id = %s",
-                (translation_id,),
+    try:
+        if arguments.dry_run:
+            preview = preview_file(
+                arguments.file_path, details, arguments.format_id, arguments.strip_brackets, arguments.skip_unmatched_books
             )
-            book_count, verse_count = cursor.fetchone()
+            print(
+                f"Would import {preview['code']}: {preview['verse_count']} verses in {preview['book_count']} books "
+                f"({preview['format']['name']})"
+            )
+            for line in [*preview["warnings"], *preview["blocking_errors"]]:
+                print(f"  {line}")
+            sys.exit(0 if preview["can_import"] else 1)
 
-    print(f"Imported {arguments.code}: {verse_count} verses in {book_count} books")
-    if book_count != 66:
-        print(f"Warning: expected 66 books, found {book_count}.")
+        result = import_file(
+            arguments.file_path,
+            details,
+            arguments.format_id,
+            arguments.strip_brackets,
+            arguments.skip_unmatched_books,
+            publish_new=not arguments.unpublished,
+        )
+    except ImportProblem as problem:
+        sys.exit(str(problem))
+
+    print(f"Imported {result['code']}: {result['verse_count']} verses in {result['book_count']} books")
+    for warning in result["warnings"]:
+        print(f"Note: {warning}")
+    if result["book_count"] != 66:
+        print(f"Warning: expected 66 books, found {result['book_count']}.")
 
 
 if __name__ == "__main__":

@@ -62,6 +62,17 @@ else
   echo "$changed" | sed 's/^/    /'
 fi
 
+echo "== Database changes"
+# Every file in ml-service/database/migrations is written to be safe to run again.
+if touched '^ml-service/database/migrations/'; then
+  for migration in ml-service/database/migrations/*.sql; do
+    psql -d bibleandbeyond -v ON_ERROR_STOP=1 -q -f "$migration"
+    echo "  applied $(basename "$migration")"
+  done
+else
+  echo "  no changes"
+fi
+
 echo "== ML service"
 if touched '^ml-service/requirements.txt$'; then
   ml-service/.venv/bin/pip install -q -r ml-service/requirements.txt
@@ -72,7 +83,7 @@ if touched '^deploy/systemd/'; then
   systemctl --user daemon-reload
   echo "  service file updated"
 fi
-if touched '^ml-service/(requirements\.txt|[^/]+\.py)$|^deploy/systemd/'; then
+if touched '^ml-service/(requirements\.txt|[^/]+\.py|bible_import/|scripts/)|^deploy/systemd/'; then
   systemctl --user restart bible-and-beyond-ml.service
   echo "  service restarted"
 else
@@ -99,6 +110,10 @@ fi
 if touched '^drupal/'; then
   (
     cd drupal
+    # Our own module: switch it on the first time it is deployed.
+    if ! vendor/bin/drush pm:list --status=enabled --field=name | grep -qx bible_admin; then
+      vendor/bin/drush pm:install bible_admin -y 2>&1 | tail -2
+    fi
     vendor/bin/drush updatedb -y 2>&1 | tail -2
     vendor/bin/drush cache:rebuild 2>&1 | tail -1
   )

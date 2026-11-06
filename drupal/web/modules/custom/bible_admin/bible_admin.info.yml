@@ -1,0 +1,5 @@
+name: Bible administration
+type: module
+description: 'Upload, preview, publish and delete the Bible translations that the search page uses.'
+package: Bible and Beyond
+core_version_requirement: ^11

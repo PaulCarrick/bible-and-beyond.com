@@ -1,0 +1,4 @@
+services:
+  bible_admin.manager:
+    class: Drupal\bible_admin\BibleManager
+    arguments: ['@file_system', '@logger.factory', '@current_user']

@@ -1,0 +1,6 @@
+bible_admin.list:
+  title: 'Bibles'
+  description: 'Upload, publish and remove Bible translations.'
+  route_name: bible_admin.list
+  parent: system.admin
+  weight: -5

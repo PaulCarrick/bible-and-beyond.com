@@ -1,0 +1,4 @@
+administer bibles:
+  title: 'Administer Bibles'
+  description: 'Upload, publish, hide and delete the Bible translations in the search database.'
+  restrict access: true

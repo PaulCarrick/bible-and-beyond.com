@@ -36,6 +36,8 @@ A web app that answers Bible questions using AI/ML.
 - Schema: `ml-service/database/schema.sql` — tables `translations`, `books` (canonical 1–66 with USFM codes and name aliases), `verses`, `verse_embeddings`. Applying it drops and recreates these tables.
 - Import a translation (BSB tab format or eBible `*_vpl.txt` format): `.venv/bin/python scripts/import_bible.py data/<file>.txt --code BSB --name "Berean Standard Bible" --license "Public domain"`. KJV also needs `--strip-brackets`.
 - Search in public-domain text (BSB); copyrighted translations like ESV are only fetched for display, never stored.
+- Each translation has an `is_published` flag. Search and the Bible picker only see published ones. Database changes live in `ml-service/database/migrations/` as files that are safe to run twice; `deploy/deploy.sh` applies them. `schema.sql` is kept in step for fresh databases.
+- The importer lives in `ml-service/bible_import/`; `scripts/import_bible.py` (command line, publishes at once unless `--unpublished`) and `scripts/manage_bibles.py` (JSON output, used by Drupal) both call it.
 
 ## Licensed Bibles (API.Bible)
 - NIV, NASB 2020 and The Message come from API.Bible (free Starter plan: non-commercial only, 5,000 requests a month). Code is in `ml-service/api_bible.py`; the key and endpoint are `API_BIBLE_KEY` and `API_BIBLE_ENDPOINT` in `ml-service/.env`.
@@ -51,6 +53,14 @@ A web app that answers Bible questions using AI/ML.
 - Secrets exist only on the server and are never committed (this repository is public): `ml-service/.env` (mode 600), `drupal/web/sites/default/settings.local.php` (git-ignored; template in `deploy/drupal/settings.local.php.example`), and the TLS private keys in `/etc/ssl/private` (root only).
 - Rate limits live in nginx (`deploy/nginx/bible-and-beyond-limits.conf`): the API allows about 5 requests a second per visitor, searches in the licensed Bibles 20 a minute, and Drupal's login page 10 a minute. The ML service also stops calling API.Bible at 4,500 requests a month (`API_BIBLE_MONTHLY_LIMIT`; the count is kept in `ml-service/data/api_bible_usage.json`).
 - Drupal: it was installed fresh, not imported from DDEV. Nothing in the app calls it yet. For a one-time admin login link: `ssh bible-and-beyond 'cd ~/bible-and-beyond.com/drupal && vendor/bin/drush user:login --name=admin --uri=https://cms.bible-and-beyond.com'`. Drupal keeps `sites/default` read-only on purpose.
+
+## Managing Bibles from Drupal
+- Drupal is the admin screen for the main site; the Bible text goes into the main PostgreSQL database, never into Drupal's. Page: https://cms.bible-and-beyond.com/admin/bibles (Drupal module `drupal/web/modules/custom/bible_admin`).
+- Flow: upload a `.txt` file with a code, name, language and license; see a preview (format, verse and book counts, sample verses, warnings); confirm to import. A new Bible is **hidden until published** (Publish / Hide / Delete on the list page). Re-importing an existing code replaces its text and keeps its published state. The last published Bible cannot be hidden or deleted. The codes NIV, NASB and MSG are refused (they belong to API.Bible).
+- Drupal runs `ml-service/scripts/manage_bibles.py` with a fixed argument list (no shell). The uploaded file is kept in `/home/paul/drupal-private/bible-uploads/` only until the import is confirmed or cancelled, and stale ones are removed by cron after a day. Check the Drupal log (type `bible_admin`) to see who imported, published or deleted what.
+- Roles: `administrator` (everything, including adding users) and `Bible administrator` (only the Bibles page). Add people at People > Add user. The server cannot send email, so set each new user's first password yourself and tell them privately.
+- Adding a file format (USFM, XML, ...): write a reader class in `ml-service/bible_import/formats.py` (same members as `TabSeparatedReader`: `id`, `name`, `description`, `score`, `read`) and add it to `READERS`. Detection, the preview, the import and the Drupal format list pick it up automatically. Add tests in `ml-service/tests/test_bible_import.py`.
+- The Drupal module has no automated tests yet (PHPUnit is not set up); the Python side does.
 
 ## Deploying
 - Push to `main`, then run `deploy/deploy.sh` from your Mac (`--all` rebuilds and restarts everything). It pulls on the server, then only redoes what changed: Python dependencies and an ML service restart, the frontend build (`VITE_ML_SERVICE_URL=/api`), Composer, Drupal database updates and a cache rebuild. It then checks health, including from outside. The server deploys what is on GitHub, not your working copy.

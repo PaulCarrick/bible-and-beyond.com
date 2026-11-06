@@ -18,7 +18,8 @@ CREATE TABLE translations (
     name TEXT NOT NULL,
     language TEXT NOT NULL DEFAULT 'en',
     license TEXT NOT NULL,
-    source_url TEXT
+    source_url TEXT,
+    is_published BOOLEAN NOT NULL DEFAULT TRUE  -- hidden from search until an administrator publishes it
 );
 
 CREATE TABLE books (

@@ -1,0 +1,5 @@
+bible_admin.upload_action:
+  route_name: bible_admin.upload
+  title: 'Upload a Bible'
+  appears_on:
+    - bible_admin.list

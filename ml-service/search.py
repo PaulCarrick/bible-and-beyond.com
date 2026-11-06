@@ -71,7 +71,7 @@ def search_verses(
   with connect() as connection:
     with connection.cursor() as cursor:
       cursor.execute(
-        "SELECT id, code FROM translations WHERE code = ANY(%s)",
+        "SELECT id, code FROM translations WHERE code = ANY(%s) AND is_published",
         (translation_codes,),
       )
       translation_rows = cursor.fetchall()
@@ -143,7 +143,7 @@ def search_verses(
 def list_translations() -> list[dict]:
   with connect() as connection:
     with connection.cursor() as cursor:
-      cursor.execute("SELECT code, name FROM translations ORDER BY code")
+      cursor.execute("SELECT code, name FROM translations WHERE is_published ORDER BY code")
       return [{"code": code, "name": name, "source": "local"} for code, name in cursor.fetchall()]
 
 

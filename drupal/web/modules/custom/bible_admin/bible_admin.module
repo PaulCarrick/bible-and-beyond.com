@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Bible administration: upload, preview, publish and delete Bible translations.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_cron().
+ *
+ * Uploads that were never confirmed or cancelled are removed after a day.
+ */
+function bible_admin_cron(): void {
+  \Drupal::service('bible_admin.manager')->removeStaleUploads();
+}
