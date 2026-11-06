@@ -57,6 +57,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
     errorMessage: stripErrorMessage,
     visibleChapter,
     start,
+    scrollToTop,
     registerChapter,
     topSentinel,
     bottomSentinel,
@@ -130,6 +131,42 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
     }
     wasShowingWindow.current = windowIsOpen
   }, [windowIsOpen])
+
+  // Home (and Ctrl+Home, Cmd+Up Arrow) goes to the top of the page. The browser's own jump to the top
+  // would be undone by chapters being added above, so it is done here. Home still works as usual in
+  // the verse box and the choosers.
+  useEffect(() => {
+    if (isHidden || windowIsOpen) {
+      return
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      const isHome = event.key === 'Home' && !event.shiftKey && !event.altKey && !event.metaKey
+      const isCommandUp = event.key === 'ArrowUp' && event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey
+      const target = event.target as HTMLElement | null
+      const isTyping =
+        target !== null && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+      if ((isHome || isCommandUp) && !isTyping) {
+        event.preventDefault()
+        scrollToTop()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isHidden, windowIsOpen, scrollToTop])
+
+  // The "Top" button appears once the reader has scrolled a screenful or so down.
+  const [isScrolledDown, setIsScrolledDown] = useState(false)
+  useEffect(() => {
+    if (isHidden) {
+      return
+    }
+    function handleScroll() {
+      setIsScrolledDown(window.scrollY > 500)
+    }
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isHidden])
 
   const books = contents?.books ?? []
   const shownBook = visibleChapter?.book ?? goal?.book ?? books[0]?.number ?? 0
@@ -338,6 +375,12 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
             </section>
           ))}
 
+          <div className="browse-to-top">
+            <button type="button" className="link-button" onClick={scrollToTop}>
+              ↑ Back to top
+            </button>
+          </div>
+
           <div className="browse-edge" ref={bottomSentinel}>
             {extending === 'next'
               ? 'Loading the next chapter…'
@@ -347,6 +390,16 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
           </div>
         </div>
       )}
+
+      <button
+        type="button"
+        className="back-to-top"
+        aria-label="Back to top"
+        hidden={!isScrolledDown || windowIsOpen || chapters.length === 0}
+        onClick={scrollToTop}
+      >
+        ↑ Top
+      </button>
 
       {windowIsOpen && currentView && (
         <ContextWindow

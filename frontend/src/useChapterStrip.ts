@@ -17,6 +17,8 @@ export interface StripChapter {
 const maximumLoadedChapters = 9
 // Start loading the next chapter this long before it would scroll into view.
 const loadAheadMargin = '1200px 0px'
+// After a jump to the top, chapters are not added above until the reader has scrolled this far down.
+const releaseTopDistance = 800
 
 export function chapterKey(book: number, chapter: number) {
   return `${book}:${chapter}`
@@ -50,6 +52,8 @@ export function useChapterStrip<Chapter extends StripChapter>(
   const elements = useRef(new Map<string, HTMLElement>())
   const anchor = useRef<{ key: string; top: number } | null>(null)
   const extendRef = useRef<(direction: 'previous' | 'next') => void>(() => {})
+  // Set by a jump to the top. Adding chapters above would carry the reader away from the top again.
+  const isHoldingTop = useRef(false)
 
   useEffect(() => {
     loadRef.current = load
@@ -114,7 +118,7 @@ export function useChapterStrip<Chapter extends StripChapter>(
     }
     const edgeChapter = direction === 'previous' ? list[0] : list[list.length - 1]
     const neighbour = direction === 'previous' ? edgeChapter.previous : edgeChapter.next
-    if (neighbour === null) {
+    if (neighbour === null || (direction === 'previous' && isHoldingTop.current)) {
       return
     }
     isBusy.current = true
@@ -124,7 +128,7 @@ export function useChapterStrip<Chapter extends StripChapter>(
       const latest = chaptersRef.current
       const latestEdge = direction === 'previous' ? latest[0] : latest[latest.length - 1]
       // Something else was started or loaded while this was on its way.
-      if (request.signal.aborted || latestEdge !== edgeChapter) {
+      if (request.signal.aborted || latestEdge !== edgeChapter || (direction === 'previous' && isHoldingTop.current)) {
         return
       }
       captureAnchor()
@@ -190,6 +194,9 @@ export function useChapterStrip<Chapter extends StripChapter>(
       }
     }
     function handleScroll() {
+      if (window.scrollY > releaseTopDistance) {
+        isHoldingTop.current = false
+      }
       if (frame === 0) {
         frame = window.requestAnimationFrame(update)
       }
@@ -199,6 +206,13 @@ export function useChapterStrip<Chapter extends StripChapter>(
       window.removeEventListener('scroll', handleScroll)
       window.cancelAnimationFrame(frame)
     }
+  }, [])
+
+  // Go to the very top of the page. Until the reader scrolls down again no chapters are added above,
+  // because adding them would move the page and the top would slip away.
+  const scrollToTop = useCallback(() => {
+    isHoldingTop.current = true
+    window.scrollTo(0, 0)
   }, [])
 
   const registerChapter = useCallback(
@@ -220,6 +234,7 @@ export function useChapterStrip<Chapter extends StripChapter>(
     errorMessage,
     visibleChapter,
     start,
+    scrollToTop,
     registerChapter,
     topSentinel: setTopElement,
     bottomSentinel: setBottomElement,

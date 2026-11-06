@@ -920,3 +920,35 @@ select:disabled {
     scroll-margin-top: 12px;
   }
 }
+
+/* A way back to the top of a long read: a button that follows the reader, and a link at the end. */
+.back-to-top {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.back-to-top:hover,
+.back-to-top:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.back-to-top[hidden] {
+  display: none;
+}
+
+.browse-to-top {
+  padding: 0.75rem 0 0;
+  text-align: center;
+}
