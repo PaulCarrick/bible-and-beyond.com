@@ -303,6 +303,19 @@ function SearchResults({
             </strong>{' '}
             from {searchParameters.translations.join(', ')}
           </p>
+          {response?.strong && (
+            <p className="strong-note">
+              Verses with the {response.strong.language === 'hebrew' ? 'Hebrew' : 'Greek'} word{' '}
+              <span
+                lang={response.strong.language === 'hebrew' ? 'he' : 'el'}
+                dir={response.strong.language === 'hebrew' ? 'rtl' : 'ltr'}
+              >
+                {response.strong.original}
+              </span>{' '}
+              ({response.strong.transliteration}), {response.strong.code}: {response.strong.gloss}. Choose Original
+              Words under a result to see the full lexicon entry.
+            </p>
+          )}
         </div>
 
         {errorMessage && <p className="error">{errorMessage}</p>}

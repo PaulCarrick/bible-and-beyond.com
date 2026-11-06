@@ -8,7 +8,14 @@ from pydantic import BaseModel
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from context import get_chapter, get_context, get_parallel, get_related
 from original_words import get_lexicon_entry, get_original_words
-from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
+from search import (
+  FIRST_BOOK_NUMBER,
+  LAST_BOOK_NUMBER,
+  list_books,
+  list_translations,
+  parse_strong_query,
+  search_verses,
+)
 from site_settings import get_settings
 
 # Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
@@ -85,6 +92,11 @@ def search(
   if book_start > book_end:
     raise HTTPException(status_code=422, detail="book_start must not come after book_end.")
   api_codes = [code for code in translations if code in API_BIBLES]
+  if api_codes and parse_strong_query(query):
+    raise HTTPException(
+      status_code=422,
+      detail=f"Searching by Strong's number is not available for {', '.join(api_codes)}.",
+    )
   if api_codes:
     if len(translations) > 1:
       raise HTTPException(

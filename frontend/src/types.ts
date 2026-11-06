@@ -147,6 +147,16 @@ export interface SearchResponse {
   per_page: number
   book_counts: BookCount[]
   results: SearchResult[]
+  // Only when the query was a Strong's number such as G0025: the word it stands for.
+  strong?: StrongWord
+}
+
+export interface StrongWord {
+  code: string
+  language: 'hebrew' | 'greek'
+  original: string
+  transliteration: string
+  gloss: string
 }
 
 // Original Words: the Hebrew or Greek words of one verse, each with its meaning in the lexicon.

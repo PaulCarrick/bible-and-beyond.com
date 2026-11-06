@@ -40,6 +40,46 @@ def parse_terms(query: str, match_mode: str) -> list[str]:
   return terms
 
 
+# A query that is only a Strong's number (G25, g0025, H7225, H7225G) searches by that Hebrew or
+# Greek word instead of by English words. A number without a letter also matches its senses.
+STRONG_QUERY = re.compile(r"^\s*([GgHh])\s*0*(\d{1,4})([A-Za-z])?\s*$")
+SENSE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def parse_strong_query(query: str) -> dict | None:
+  """The Strong's number a query asks for, or None for an ordinary query.
+
+  Returns {"code": "G0025", "codes": [...]}: the number as typed and every word tag it matches.
+  """
+  match = STRONG_QUERY.match(query)
+  if match is None:
+    return None
+  base = f"{match[1].upper()}{int(match[2]):04d}"
+  if match[3]:
+    code = base + match[3].upper()
+    return {"code": code, "codes": [code]}
+  return {"code": base, "codes": [base, *(base + letter for letter in SENSE_LETTERS)]}
+
+
+def find_strong_entry(connection, strong: dict) -> dict | None:
+  """The lexicon entry that describes a Strong's number: the number itself, else its "G" sense,
+  else the first sense. None when the lexicon has no such number."""
+  base = strong["codes"][0]
+  row = connection.execute(
+    "SELECT strong_code, language, original, transliteration, gloss FROM lexicon_entries "
+    "WHERE strong_code = ANY(%s) ORDER BY (strong_code = %s) DESC, (strong_code = %s) DESC, strong_code "
+    "LIMIT 1",
+    (strong["codes"], base, base + "G"),
+  ).fetchone()
+  if row is None:
+    return None
+  code, language, original, transliteration, gloss = row
+  return {
+    "code": code, "language": language, "original": original,
+    "transliteration": transliteration, "gloss": gloss,
+  }
+
+
 def build_pattern(term: str, whole_words: bool) -> str:
   pattern = re.escape(term)
   if whole_words:
@@ -60,13 +100,22 @@ def search_verses(
   sort_by: str = "verse",
   sort_direction: str = "asc",
 ) -> dict:
-  terms = parse_terms(query, match_mode)
-  if not terms:
-    raise ValueError("Enter at least one word or phrase to search for.")
-
-  joiner = " OR " if match_mode == "any" else " AND "
-  text_condition = joiner.join(["v.text ~* %s"] * len(terms))
-  patterns = [build_pattern(term, whole_words) for term in terms]
+  strong = parse_strong_query(query)
+  if strong:
+    # Verses that contain a Hebrew or Greek word with this number; nothing to highlight.
+    terms = []
+    text_condition = (
+      "(v.book_number, v.chapter, v.verse) IN (SELECT book_number, chapter, verse "
+      "FROM original_words WHERE strong_code = ANY(%s))"
+    )
+    patterns = [strong["codes"]]
+  else:
+    terms = parse_terms(query, match_mode)
+    if not terms:
+      raise ValueError("Enter at least one word or phrase to search for.")
+    joiner = " OR " if match_mode == "any" else " AND "
+    text_condition = joiner.join(["v.text ~* %s"] * len(terms))
+    patterns = [build_pattern(term, whole_words) for term in terms]
 
   with connect() as connection:
     with connection.cursor() as cursor:
@@ -80,6 +129,11 @@ def search_verses(
       if unknown_codes:
         raise ValueError(f"Unknown translation: {', '.join(unknown_codes)}")
       translation_ids = [translation_id for translation_id, _ in translation_rows]
+      strong_entry = None
+      if strong:
+        strong_entry = find_strong_entry(connection, strong)
+        if strong_entry is None:
+          raise ValueError(f"No Hebrew or Greek word has the Strong's number {strong['code']}.")
 
       base_conditions = (
         f"v.translation_id = ANY(%s) AND v.book_number BETWEEN %s AND %s AND ({text_condition})"
@@ -128,7 +182,7 @@ def search_verses(
         for translation_code, book_number, book_name, chapter, verse, text in cursor.fetchall()
       ]
 
-  return {
+  response = {
     "source": "local",
     "query": query,
     "terms": terms,
@@ -138,6 +192,9 @@ def search_verses(
     "book_counts": book_counts,
     "results": results,
   }
+  if strong_entry:
+    response["strong"] = strong_entry
+  return response
 
 
 def list_translations() -> list[dict]:

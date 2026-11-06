@@ -95,7 +95,7 @@ function SearchForm({
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder='Example "Jesus love"'
+          placeholder='Example "Jesus love" or G0025'
         />
         <button type="submit" className="primary-button" disabled={!canSearch}>
           Search for keyword or phrase

@@ -179,6 +179,7 @@ select:disabled {
 
 .results-heading {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.75rem;
@@ -732,4 +733,11 @@ select:disabled {
       'english english'
       'gloss gloss';
   }
+}
+
+.strong-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
 }

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import original_words
+import search
 from original_words import (
   BOOK_NUMBERS,
   OriginalWordsProblem,
@@ -24,7 +25,7 @@ from original_words import (
   resolve_strong_code,
 )
 from main import app
-from search import connect
+from search import connect, find_strong_entry, parse_strong_query
 
 client = TestClient(app)
 GENESIS, JOHN = 1, 43
@@ -175,6 +176,7 @@ def loaded(tmp_path, monkeypatch):
     return psycopg.connect(os.environ["DATABASE_URL"], options="-c search_path=words_test,public")
 
   monkeypatch.setattr(original_words, "connect", connect_to_test_schema)
+  monkeypatch.setattr(search, "connect", connect_to_test_schema)
   hebrew = write(tmp_path, "tahot1.txt", HEBREW_HEADER + HEBREW_SECOND + HEBREW_FIRST)
   greek = write(tmp_path, "tagnt1.txt", GREEK_HEADER + GREEK_LOVED + GREEK_LOVED_AGAIN)
   lexicon = write(tmp_path, "tbesg.txt", GREEK_LEXICON_ROW + HEBREW_LEXICON_ROW)
@@ -242,3 +244,76 @@ def test_the_lexicon_verse_list_is_capped_but_the_total_is_not(loaded):
 
   assert entry["verse_total"] == 2 and entry["shown"] == 1
   assert entry["verses"][0]["reference"] == "John 3:16"
+
+
+# --- searching by Strong's number ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+  "query, expected_code, expected_codes",
+  [
+    ("G0025", "G0025", ["G0025", *("G0025" + letter for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ")]),
+    (" g25 ", "G0025", None),
+    ("H 7225g", "H7225G", ["H7225G"]),
+    ("h0430", "H0430", None),
+  ],
+)
+def test_a_strongs_number_is_recognised_however_it_is_typed(query, expected_code, expected_codes):
+  strong = parse_strong_query(query)
+
+  assert strong["code"] == expected_code
+  if expected_codes:
+    assert strong["codes"] == expected_codes
+
+
+@pytest.mark.parametrize("query", ["love", "G", "G12345", "G25 love", "Genesis", "1 John", "H7225GG", '"G0025"'])
+def test_other_queries_are_not_strongs_numbers(query):
+  assert parse_strong_query(query) is None
+
+
+def search_for(query, **extra):
+  return client.get("/search", params={"query": query, "translations": "BSB", **extra})
+
+
+def test_searching_a_number_finds_the_verses_with_that_word(loaded):
+  body = search_for("G0025").json()
+
+  assert body["total"] == 2 and body["terms"] == []
+  assert [result["reference"] for result in body["results"]] == ["John 3:16", "John 3:17"]
+  assert body["strong"] == {
+    "code": "G0025", "language": "greek", "original": "ἀγαπάω",
+    "transliteration": "agapaō", "gloss": "to love",
+  }
+  assert body["book_counts"] == [{"book_number": JOHN, "count": 2}]
+
+
+def test_a_number_without_a_letter_also_finds_its_senses_and_a_letter_narrows_it(loaded):
+  assert search_for("H7225").json()["total"] == 1
+  assert search_for("H7225G").json()["total"] == 1
+  assert search_for("H7225H").status_code == 422  # no such sense in the lexicon
+
+
+def test_the_usual_search_options_still_apply(loaded):
+  assert search_for("G0025", book=JOHN, per_page=1, page=2).json()["results"][0]["reference"] == "John 3:17"
+  assert search_for("G0025", book_start=1, book_end=39).json()["total"] == 0
+  newest_first = search_for("G0025", sort_direction="desc").json()["results"]
+  assert newest_first[0]["reference"] == "John 3:17"
+
+
+def test_a_number_not_in_the_lexicon_is_refused_clearly(loaded):
+  response = search_for("G9999")
+
+  assert response.status_code == 422 and "G9999" in response.json()["detail"]
+
+
+def test_the_licensed_bibles_cannot_be_searched_by_number(loaded):
+  response = client.get("/search", params={"query": "G0025", "translations": "NIV"})
+
+  assert response.status_code == 422 and "Strong" in response.json()["detail"]
+
+
+def test_the_entry_chosen_for_a_bare_number_prefers_the_main_sense(loaded):
+  with connect() as connection:
+    entry = find_strong_entry(connection, parse_strong_query("H7225"))
+
+  assert entry["code"] == "H7225G"
