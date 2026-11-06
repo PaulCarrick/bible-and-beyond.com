@@ -66,7 +66,14 @@ A web app that answers Bible questions using AI/ML.
 ## DNS
 - DNS for `bible-and-beyond.com` is at Network Solutions (nameservers `ns83.worldnic.com` and `ns84.worldnic.com`). A records `@`, `www`, `cms` and `www.cms` point to `54.200.249.10` with a 15 minute TTL. The domain has no mail records.
 
+## Backups
+- Manual only. Both databases live only on the server, so keep a copy off it. The first backup is in `~/Documents/bible-and-beyond-backups/2026-11-06/` on the maintainer's Mac, with restore commands in its `RESTORE.txt`.
+- To take one, on the server as `paul`: `pg_dump --no-owner --no-privileges bibleandbeyond | gzip -9 > postgres.sql.gz` and `mariadb-dump --single-transaction --routines --triggers --no-tablespaces bibleandbeyond_drupal | gzip -9 > drupal.sql.gz`. Copy the files to your Mac with `scp`, check them against a `sha256sum` list, and delete the server copies.
+- Test a backup by restoring it into a scratch database and comparing row counts (verses: 124,372 at the last backup) before trusting it, then drop the scratch database.
+- Not in the database backups, on purpose: `ml-service/.env`, `settings.local.php` and the TLS private keys (secrets), and the code (it is in GitHub). Without the `.env` and `settings.local.php`, a rebuilt server needs new keys and a new Drupal hash salt.
+- A Lightsail snapshot of the whole instance is the one thing that also captures those files; take one from the Lightsail console before big changes if you want that safety net.
+
 ## Open items
-- Backups are not set up. Both databases exist only on the server. Plan: nightly `pg_dump` and `mariadb-dump` with rotation, plus Lightsail snapshots.
+- Backups are manual only, by choice (no scheduled jobs, to keep the server light). Take one before risky changes; see "Backups". The last one was 2026-11-06.
 - The old Network Solutions hosting service on this domain is no longer used and expires 2026-12-06; cancel it if it is not needed.
 - Drupal's admin account email is a placeholder (`admin@bible-and-beyond.com`); set a real one in Drupal.
