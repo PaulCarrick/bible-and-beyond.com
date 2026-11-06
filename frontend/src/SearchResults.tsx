@@ -10,13 +10,22 @@ const maximumMeasurements = 3
 const resizeDelayMilliseconds = 250
 const maximumPerPage = 100
 
-function calculateFitCount(list: HTMLOListElement | null, rowHeight: number) {
+function calculateFitCount(
+  list: HTMLOListElement | null,
+  rowHeight: number,
+  extraHeightBelowList: number,
+) {
   // A hidden list (for example while the copyright page is open) has no size to measure.
   if (list === null || list.offsetParent === null || rowHeight === 0) {
     return null
   }
   const listTop = list.getBoundingClientRect().top + window.scrollY
-  const availableHeight = window.innerHeight - listTop - heightBelowList
+  const footer = document.querySelector('.site-footer')
+  const footerHeight = footer
+    ? footer.getBoundingClientRect().height + parseFloat(getComputedStyle(footer).marginTop)
+    : 0
+  const availableHeight =
+    window.innerHeight - listTop - heightBelowList - extraHeightBelowList - footerHeight
   return Math.min(maximumPerPage, Math.max(1, Math.floor(availableHeight / rowHeight)))
 }
 
@@ -75,7 +84,11 @@ function SearchResults({
   onShowCopyrights,
 }: SearchResultsProps) {
   const listReference = useRef<HTMLOListElement>(null)
+  // The copyright line under licensed results takes room that the rows cannot use.
+  const citationHeight = () =>
+    citationReference.current ? citationReference.current.offsetHeight + 16 : 0
   const averageRowHeight = useRef(0)
+  const citationReference = useRef<HTMLParagraphElement>(null)
   const measurementCount = useRef(0)
   const currentPerPage = useRef(0)
   const isAutomatic = searchParameters.perPage === 'automatic'
@@ -88,17 +101,15 @@ function SearchResults({
       return
     }
     currentPerPage.current = response.per_page
-    // Licensed Bibles cost one request per page, so they keep the first page size estimate.
-    if (response.source !== 'local') {
-      return
-    }
     const list = listReference.current
-    if (measurementCount.current >= maximumMeasurements || list === null || list.children.length === 0) {
+    // Licensed Bibles cost a request per page, so they get a single correction.
+    const measurementLimit = response.source === 'local' ? maximumMeasurements : 1
+    if (measurementCount.current >= measurementLimit || list === null || list.children.length === 0) {
       return
     }
     measurementCount.current += 1
     averageRowHeight.current = list.getBoundingClientRect().height / list.children.length
-    const fitCount = calculateFitCount(list, averageRowHeight.current)
+    const fitCount = calculateFitCount(list, averageRowHeight.current, citationHeight())
     const everythingAlreadyShown = fitCount !== null && response.total <= Math.min(fitCount, response.per_page)
     if (fitCount !== null && fitCount !== response.per_page && !everythingAlreadyShown) {
       onFit(fitCount)
@@ -114,7 +125,11 @@ function SearchResults({
     function handleResize() {
       window.clearTimeout(timer)
       timer = window.setTimeout(() => {
-        const fitCount = calculateFitCount(listReference.current, averageRowHeight.current)
+        const fitCount = calculateFitCount(
+          listReference.current,
+          averageRowHeight.current,
+          citationHeight(),
+        )
         if (fitCount !== null && fitCount !== currentPerPage.current) {
           onFit(fitCount)
         }
@@ -214,7 +229,7 @@ function SearchResults({
         </ol>
 
         {isLicensed && response?.copyright && (
-          <p className="citation">
+          <p className="citation" ref={citationReference}>
             {response.copyright} Scripture text provided through{' '}
             <a href="https://api.bible" target="_blank" rel="noreferrer">
               API.Bible
