@@ -17,6 +17,11 @@ $databases['default']['default'] = [
   'autoload' => 'core/modules/mysql/src/Driver/Database/mysql/',
 ];
 
+// Drupal recommends READ COMMITTED; MariaDB defaults to REPEATABLE READ.
+$databases['default']['default']['init_commands'] = [
+  'isolation_level' => 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED',
+];
+
 // Generate with: php -r 'echo bin2hex(random_bytes(32));'
 $settings['hash_salt'] = 'REPLACE_WITH_A_RANDOM_VALUE';
 
