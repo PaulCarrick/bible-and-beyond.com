@@ -76,4 +76,3 @@ A web app that answers Bible questions using AI/ML.
 ## Open items
 - Backups are manual only, by choice (no scheduled jobs, to keep the server light). Take one before risky changes; see "Backups". The last one was 2026-11-06.
 - The old Network Solutions hosting service on this domain is no longer used and expires 2026-12-06; cancel it if it is not needed.
-- Drupal's admin account email is a placeholder (`admin@bible-and-beyond.com`); set a real one in Drupal.
