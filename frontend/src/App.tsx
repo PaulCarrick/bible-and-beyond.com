@@ -52,6 +52,7 @@ function App() {
             onClick={() => {
               setActiveMode(tab.mode)
               setIsShowingCopyrights(false)
+              window.scrollTo(0, 0)
             }}
           >
             {tab.label}

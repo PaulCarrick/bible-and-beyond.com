@@ -273,6 +273,9 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
             Go
           </button>
         </form>
+        <button type="button" className="browse-tabs-link" onClick={scrollToTop}>
+          ↑ Back to tabs
+        </button>
       </div>
 
       {(errorMessage || stripErrorMessage) && <p className="error">{errorMessage || stripErrorMessage}</p>}
@@ -377,7 +380,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
 
           <div className="browse-to-top">
             <button type="button" className="link-button" onClick={scrollToTop}>
-              ↑ Back to top
+              ↑ Back to tabs
             </button>
           </div>
 
@@ -393,12 +396,11 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
 
       <button
         type="button"
-        className="back-to-top"
-        aria-label="Back to top"
+        className="primary-button back-to-top"
         hidden={!isScrolledDown || windowIsOpen || chapters.length === 0}
         onClick={scrollToTop}
       >
-        ↑ Top
+        ↑ Back to tabs
       </button>
 
       {windowIsOpen && currentView && (

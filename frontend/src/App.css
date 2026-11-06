@@ -921,31 +921,34 @@ select:disabled {
   }
 }
 
-/* A way back to the top of a long read: a button that follows the reader, and a link at the end. */
+/* A way back to the tabs at the top of the page from a long read: a bold button that follows the
+   reader, a link in the choosers, and a link under the last chapter. */
 .back-to-top {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
   z-index: 20;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--border);
+  margin: 0;
+  padding: 0.6rem 1.1rem;
   border-radius: 999px;
-  background: var(--bg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.back-to-top:hover,
-.back-to-top:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  font-weight: 600;
 }
 
 .back-to-top[hidden] {
   display: none;
+}
+
+.browse-tabs-link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1a6ebd;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .browse-to-top {
