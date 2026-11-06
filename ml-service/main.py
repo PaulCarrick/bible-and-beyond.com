@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
+from commentaries import get_commentaries
 from context import get_chapter, get_context, get_parallel, get_related
 from original_words import get_lexicon_entry, get_original_words
 from search import (
@@ -231,4 +232,17 @@ def lexicon(
   result = get_lexicon_entry(code, normalized, MAXIMUM_LEXICON_VERSES)
   if result is None:
     raise HTTPException(status_code=404, detail="That word was not found.")
+  return result
+
+
+@app.get("/commentaries")
+def commentaries(
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+  verse: int = Query(ge=1),
+  commentary: str | None = Query(default=None, max_length=60),
+):
+  result = get_commentaries(book, chapter, verse, commentary)
+  if result is None:
+    raise HTTPException(status_code=404, detail="No commentary has notes on that verse.")
   return result

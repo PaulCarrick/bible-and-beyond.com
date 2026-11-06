@@ -7,6 +7,9 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS commentary_introductions CASCADE;
+DROP TABLE IF EXISTS commentary_entries CASCADE;
+DROP TABLE IF EXISTS commentaries CASCADE;
 DROP TABLE IF EXISTS verse_word_links CASCADE;
 DROP TABLE IF EXISTS original_words CASCADE;
 DROP TABLE IF EXISTS lexicon_entries CASCADE;
@@ -184,4 +187,34 @@ CREATE TABLE IF NOT EXISTS verse_word_links (
     verse_id INTEGER PRIMARY KEY REFERENCES verses (id) ON DELETE CASCADE,
     text_hash TEXT NOT NULL,
     links JSONB NOT NULL
+);
+
+-- Public-domain commentaries. Reload them after a schema reset: scripts/import_commentaries.py.
+CREATE TABLE IF NOT EXISTS commentaries (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    short_name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    license_url TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS commentary_entries (
+    id BIGSERIAL PRIMARY KEY,
+    commentary_id TEXT NOT NULL REFERENCES commentaries (id) ON DELETE CASCADE,
+    book_number SMALLINT NOT NULL REFERENCES books (number),
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    end_verse INTEGER,
+    text TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS commentary_entries_by_verse
+    ON commentary_entries (commentary_id, book_number, chapter, verse);
+
+CREATE TABLE IF NOT EXISTS commentary_introductions (
+    commentary_id TEXT NOT NULL REFERENCES commentaries (id) ON DELETE CASCADE,
+    book_number SMALLINT NOT NULL REFERENCES books (number),
+    chapter INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (commentary_id, book_number, chapter)
 );

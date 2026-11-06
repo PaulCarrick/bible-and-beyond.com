@@ -1,4 +1,5 @@
 import type {
+  CommentaryResponse,
   Book,
   ContextKind,
   Copyright,
@@ -122,6 +123,25 @@ export async function fetchLexiconEntry(
 ): Promise<LexiconEntry> {
   const queryString = new URLSearchParams({ translation, strong_code: strongCode })
   return readJson(await fetch(`${mlServiceUrl}/lexicon?${queryString}`, { signal }))
+}
+
+// Commentaries: public-domain commentary notes on a verse (the first one that has notes unless one is named).
+export async function fetchCommentaries(
+  book: number,
+  chapter: number,
+  verse: number,
+  commentary: string | null,
+  signal: AbortSignal,
+): Promise<CommentaryResponse> {
+  const queryString = new URLSearchParams({
+    book: String(book),
+    chapter: String(chapter),
+    verse: String(verse),
+  })
+  if (commentary) {
+    queryString.set('commentary', commentary)
+  }
+  return readJson(await fetch(`${mlServiceUrl}/commentaries?${queryString}`, { signal }))
 }
 
 export async function fetchCopyrights(): Promise<Copyright[]> {

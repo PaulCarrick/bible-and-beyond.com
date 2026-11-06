@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { highlight, highlightLinked } from './highlight'
+import CommentaryPanel from './CommentaryPanel'
 import LexiconPanel from './LexiconPanel'
 import RelatedPanel from './RelatedPanel'
 import WordsPanel from './WordsPanel'
 import type {
+  CommentaryResponse,
   ContextKind,
   LexiconEntry,
   OriginalWordsResponse,
@@ -18,7 +20,7 @@ import type {
 const heightBelowWindow = 185
 const minimumBodyHeight = 200
 
-// What one window shows: one of the six kinds of answer, for one verse (or one Strong's number).
+// What one window shows: one of the seven kinds of answer, for one verse (or one Strong's number).
 export interface WindowView {
   id: number
   kind: ContextKind
@@ -30,6 +32,9 @@ export interface WindowView {
   related: RelatedResponse | null
   words: OriginalWordsResponse | null
   lexicon: LexiconEntry | null
+  commentary: CommentaryResponse | null
+  // The commentary asked for (null for the first that has notes).
+  commentaryId: string | null
   errorMessage: string
 }
 
@@ -44,6 +49,7 @@ interface ContextWindowProps {
   onClose: () => void
   onOpenVerse: (kind: ContextKind, target: VerseTarget) => void
   onChangeDirection: (direction: RelatedDirection) => void
+  onChangeCommentary: (commentaryId: string) => void
 }
 
 function formatTitle(kind: ContextKind, context: VerseContext) {
@@ -73,6 +79,8 @@ function describe(kind: ContextKind, reference: string) {
       return `Original words of ${reference}`
     case 'lexicon':
       return `Lexicon entry ${reference}`
+    case 'commentary':
+      return `Commentaries on ${reference}`
     default:
       return `${reference} in context`
   }
@@ -87,8 +95,9 @@ function ContextWindow({
   onClose,
   onOpenVerse,
   onChangeDirection,
+  onChangeCommentary,
 }: ContextWindowProps) {
-  const { kind, context, parallel, related, words, lexicon, errorMessage } = view
+  const { kind, context, parallel, related, words, lexicon, commentary, errorMessage } = view
   const { translation, reference } = view.target
   const closeButton = useRef<HTMLButtonElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -133,7 +142,7 @@ function ContextWindow({
         ...parallel.translations.filter((entry) => entry.code !== translation),
       ]
     : []
-  const answers = { parallel, related, words, lexicon, context, chapter: context }
+  const answers = { parallel, related, words, lexicon, commentary, context, chapter: context }
   const hasAnswer = answers[kind] !== null
 
   return (
@@ -145,7 +154,9 @@ function ContextWindow({
           </button>
         )}
         <h2>
-          {kind === 'words' ? (
+          {kind === 'commentary' ? (
+            <>Commentaries on {commentary ? `${commentary.book_name} ${commentary.chapter}:${commentary.verse}` : reference}</>
+          ) : kind === 'words' ? (
             <>
               Original words of {words ? `${words.book_name} ${words.chapter}:${words.verse}` : reference}
             </>
@@ -230,6 +241,14 @@ function ContextWindow({
             direction={view.direction}
             onChangeDirection={onChangeDirection}
             onOpenVerse={onOpenVerse}
+          />
+        )}
+
+        {commentary && (
+          <CommentaryPanel
+            commentary={commentary}
+            requestedId={view.commentaryId ?? commentary.selected}
+            onChangeCommentary={onChangeCommentary}
           />
         )}
 

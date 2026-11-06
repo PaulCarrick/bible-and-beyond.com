@@ -74,7 +74,7 @@ export interface VerseContext {
   verses: ContextVerse[]
 }
 
-export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related' | 'words' | 'lexicon'
+export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related' | 'words' | 'lexicon' | 'commentary'
 
 // A verse that a window is about, named well enough to ask for more about it.
 export interface VerseTarget {
@@ -201,4 +201,27 @@ export interface LexiconEntry {
   verse_total: number
   shown: number
   verses: LexiconVerse[]
+}
+
+// Commentaries: the public-domain commentaries that have notes on a verse, and the text of one.
+export interface CommentaryChoice {
+  id: string
+  name: string
+  short_name: string
+  characters: number
+  // The verses the note covers, such as "John 3:1–21".
+  covers: string
+}
+
+export interface CommentaryResponse {
+  book_number: number
+  book_name: string
+  chapter: number
+  verse: number
+  commentaries: CommentaryChoice[]
+  selected: string
+  covers: string
+  text: string
+  chapter_introduction: string | null
+  book_introduction: string | null
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchCopyrights } from './api'
+import CommentaryCredit from './CommentaryCredit'
 import CrossReferenceCredit from './CrossReferenceCredit'
 import StepBibleCredit from './StepBibleCredit'
 import type { Copyright } from './types'
@@ -59,6 +60,12 @@ function CopyrightPage({ onBack }: CopyrightPageProps) {
       <h3>Hebrew and Greek words</h3>
       <p>
         <StepBibleCredit /> Used under the Creative Commons Attribution 4.0 license.
+      </p>
+
+      <h3>Commentaries</h3>
+      <p>
+        Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin, and Keil and Delitzsch.{' '}
+        <CommentaryCredit />
       </p>
     </div>
   )

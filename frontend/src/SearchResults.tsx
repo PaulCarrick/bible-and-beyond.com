@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchContext, fetchLexiconEntry, fetchOriginalWords, fetchParallel, fetchRelated } from './api'
+import {
+  fetchCommentaries,
+  fetchContext,
+  fetchLexiconEntry,
+  fetchOriginalWords,
+  fetchParallel,
+  fetchRelated,
+} from './api'
 import ContextWindow from './ContextWindow'
 import type { WindowView } from './ContextWindow'
 import { reportView } from './fums'
@@ -188,9 +195,13 @@ function SearchResults({
               ? fetchLexiconEntry(translation, view.target.strong_code ?? '', controller.signal).then(
                   (lexicon) => ({ lexicon }),
                 )
-              : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
-                  (context) => ({ context }),
-                )
+              : view.kind === 'commentary'
+                ? fetchCommentaries(book, chapter, verse, view.commentaryId, controller.signal).then(
+                    (commentary) => ({ commentary }),
+                  )
+                : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
+                    (context) => ({ context }),
+                  )
     request
       .then((answer) => updateView(view.id, { ...answer, errorMessage: '' }))
       .catch((error) => {
@@ -215,6 +226,8 @@ function SearchResults({
       related: null,
       words: null,
       lexicon: null,
+      commentary: null,
+      commentaryId: null,
       errorMessage: '',
     }
   }
@@ -276,6 +289,15 @@ function SearchResults({
     }
     updateView(currentView.id, { direction, errorMessage: '' })
     loadView({ ...currentView, direction })
+  }
+
+  // Switch to another commentary. The text on screen stays until the new one arrives.
+  function changeCommentary(commentaryId: string) {
+    if (currentView === null || (currentView.commentaryId ?? currentView.commentary?.selected) === commentaryId) {
+      return
+    }
+    updateView(currentView.id, { commentaryId, errorMessage: '' })
+    loadView({ ...currentView, commentaryId })
   }
 
   const closeContext = useCallback(() => {
@@ -437,6 +459,14 @@ function SearchResults({
                         Original Words
                         <span className="visually-hidden"> of {result.reference}</span>
                       </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('commentary', result, event.currentTarget)}
+                      >
+                        Commentaries
+                        <span className="visually-hidden"> on {result.reference}</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -505,6 +535,7 @@ function SearchResults({
             onClose={closeContext}
             onOpenVerse={openVerse}
             onChangeDirection={changeDirection}
+            onChangeCommentary={changeCommentary}
           />
         )}
       </div>

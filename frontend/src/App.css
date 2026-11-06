@@ -716,7 +716,6 @@ select:disabled {
 .lexicon-definition {
   margin: 0.5rem 0 0;
   line-height: 1.6;
-  white-space: pre-line;
 }
 
 .lexicon-usage {
@@ -765,4 +764,31 @@ select:disabled {
   background: var(--accent-bg);
   text-decoration: underline dotted;
   text-underline-offset: 3px;
+}
+
+.commentary-covers {
+  margin: 0 0 0.5rem;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.commentary-text p {
+  margin: 0 0 0.75rem;
+  line-height: 1.65;
+}
+
+.commentary-introduction {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.commentary-introduction summary {
+  cursor: pointer;
+  color: var(--text-h);
+}
+
+.commentary-introduction p {
+  margin: 0.5rem 0 0;
+  line-height: 1.6;
 }

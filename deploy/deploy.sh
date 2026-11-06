@@ -89,6 +89,11 @@ if [ "$(psql -d bibleandbeyond -tAc 'SELECT COUNT(*) FROM verse_word_links' 2>/d
   echo "        Load it with: ml-service/.venv/bin/python ml-service/scripts/import_word_links.py <bsb_tables.tsv>"
 fi
 
+if [ "$(psql -d bibleandbeyond -tAc 'SELECT COUNT(*) FROM commentary_entries' 2>/dev/null || echo 0)" = "0" ]; then
+  echo "  note: the commentary_entries table is empty, so Commentaries has nothing to show."
+  echo "        Load it with: ml-service/.venv/bin/python ml-service/scripts/import_commentaries.py <folder>"
+fi
+
 echo "== ML service"
 if touched '^ml-service/requirements.txt$'; then
   ml-service/.venv/bin/pip install -q -r ml-service/requirements.txt
