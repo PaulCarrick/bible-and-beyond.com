@@ -5,9 +5,13 @@ for a short time. API.Bible's terms require a copyright notice with the text, us
 (FUMS), and non-commercial use on the free plan.
 """
 
+import json
 import os
 import re
+import threading
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 
@@ -26,9 +30,56 @@ MAXIMUM_CACHE_ENTRIES = 500
 
 _cache: dict = {}
 
+# The free plan allows 5,000 requests a month. Stop a little short of that so a burst of
+# traffic cannot use it all up; the count survives restarts in a small file.
+DEFAULT_MONTHLY_LIMIT = 4500
+_usage_lock = threading.Lock()
+
 
 class ApiBibleError(Exception):
   """API.Bible could not be reached, is not configured, or refused the request."""
+
+
+def _usage_path() -> Path:
+  return Path(os.environ.get("API_BIBLE_USAGE_FILE", Path(__file__).parent / "data" / "api_bible_usage.json"))
+
+
+def _current_month() -> str:
+  return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def _read_usage() -> dict:
+  try:
+    usage = json.loads(_usage_path().read_text())
+  except (OSError, ValueError):
+    usage = {}
+  if usage.get("month") != _current_month():
+    usage = {"month": _current_month(), "requests": 0}
+  return usage
+
+
+def requests_used_this_month() -> int:
+  with _usage_lock:
+    return _read_usage()["requests"]
+
+
+def _count_request() -> None:
+  """Count one real request to API.Bible, refusing it once the monthly limit is reached."""
+  limit = int(os.environ.get("API_BIBLE_MONTHLY_LIMIT", DEFAULT_MONTHLY_LIMIT))
+  with _usage_lock:
+    usage = _read_usage()
+    if usage["requests"] >= limit:
+      raise ApiBibleError(
+        "The licensed Bibles (NIV, NASB and The Message) have reached this month's usage limit "
+        "and will be available again next month. The other Bibles still work."
+      )
+    usage["requests"] += 1
+    try:
+      path = _usage_path()
+      path.parent.mkdir(parents=True, exist_ok=True)
+      path.write_text(json.dumps(usage))
+    except OSError:
+      pass  # Keep serving; the in-file count is only a safety net.
 
 
 def request_json(path: str, parameters: dict, cache_seconds: int) -> dict:
@@ -42,6 +93,7 @@ def request_json(path: str, parameters: dict, cache_seconds: int) -> dict:
   if cached is not None and time.monotonic() - cached[0] < cache_seconds:
     return cached[1]
 
+  _count_request()
   try:
     response = httpx.get(
       f"{endpoint}{path}", headers={"api-key": api_key}, params=parameters, timeout=30

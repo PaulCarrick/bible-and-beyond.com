@@ -37,3 +37,6 @@ log/
 
 # Downloaded archives (the extracted .txt files are committed)
 ml-service/data/*.zip
+
+# Running count of API.Bible requests (kept on each machine)
+ml-service/data/api_bible_usage.json

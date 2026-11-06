@@ -41,6 +41,15 @@ FAKE_SEARCH = {
 }
 
 
+@pytest.fixture(autouse=True)
+def usage_file(monkeypatch, tmp_path):
+  """Keep the request counter away from the real one."""
+  path = tmp_path / "api_bible_usage.json"
+  monkeypatch.setenv("API_BIBLE_USAGE_FILE", str(path))
+  api_bible._cache.clear()
+  return path
+
+
 @pytest.fixture
 def calls(monkeypatch):
   recorded = []
@@ -193,3 +202,40 @@ def test_usage_limit_is_reported_clearly(monkeypatch):
 
   with pytest.raises(api_bible.ApiBibleError, match="usage limit"):
     api_bible.request_json("/bibles/x", {}, cache_seconds=60)
+
+
+def test_only_real_requests_count_and_the_monthly_limit_is_enforced(monkeypatch):
+  monkeypatch.setenv("API_BIBLE_KEY", "test-key")
+  monkeypatch.setenv("API_BIBLE_MONTHLY_LIMIT", "2")
+  sent = []
+
+  def fake_get(url, headers, params, timeout):
+    sent.append(url)
+    return FakeResponse(200, {"data": {}})
+
+  monkeypatch.setattr(api_bible.httpx, "get", fake_get)
+
+  api_bible.request_json("/bibles/x", {"query": "one"}, cache_seconds=60)
+  api_bible.request_json("/bibles/x", {"query": "one"}, cache_seconds=60)  # cached, not counted
+  api_bible.request_json("/bibles/x", {"query": "two"}, cache_seconds=60)
+  assert api_bible.requests_used_this_month() == 2
+
+  with pytest.raises(api_bible.ApiBibleError, match="usage limit"):
+    api_bible.request_json("/bibles/x", {"query": "three"}, cache_seconds=60)
+  assert len(sent) == 2
+
+
+def test_reaching_the_limit_gives_a_friendly_error_from_the_api(monkeypatch):
+  monkeypatch.setenv("API_BIBLE_KEY", "test-key")
+  monkeypatch.setenv("API_BIBLE_MONTHLY_LIMIT", "0")
+
+  response = client.get("/search", params={"query": "love", "translations": "NIV"})
+
+  assert response.status_code == 503
+  assert "available again next month" in response.json()["detail"]
+
+
+def test_the_count_starts_over_each_month(usage_file):
+  usage_file.write_text('{"month": "2000-01", "requests": 4499}')
+
+  assert api_bible.requests_used_this_month() == 0

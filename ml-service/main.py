@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -7,11 +8,14 @@ from pydantic import BaseModel
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 
+# Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app = FastAPI(title="Bible and Beyond ML Service")
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=["http://localhost:5173"],
+  allow_origins=ALLOWED_ORIGINS,
   allow_methods=["*"],
   allow_headers=["*"],
 )
