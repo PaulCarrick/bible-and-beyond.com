@@ -5,19 +5,14 @@ import BrowseTab from './BrowseTab'
 import CopyrightPage from './CopyrightPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
-import type { SearchMode } from './SearchTab'
+import SideNav from './SideNav'
+import type { NavGroup } from './SideNav'
+import SiteFooter from './SiteFooter'
+import SiteHeader from './SiteHeader'
+import WelcomePage from './WelcomePage'
 import type { Book, CommentarySource, DevotionalInfo, Translation } from './types'
+import type { View } from './views'
 import './App.css'
-
-type TabMode = SearchMode | 'read' | 'browse' | 'devotionals'
-
-const tabs: { mode: TabMode; label: string }[] = [
-  { mode: 'read', label: 'Read the Bible' },
-  { mode: 'bible', label: 'Search for specific words or phrases' },
-  { mode: 'commentary', label: 'Search the commentaries' },
-  { mode: 'browse', label: 'Browse the commentaries' },
-  { mode: 'devotionals', label: 'Devotionals' },
-]
 
 function App() {
   const [translations, setTranslations] = useState<Translation[]>([])
@@ -25,8 +20,9 @@ function App() {
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeMode, setActiveMode] = useState<TabMode>('read')
-  const [isShowingCopyrights, setIsShowingCopyrights] = useState(false)
+  const [activeView, setActiveView] = useState<View>('welcome')
+  // On a phone the sidebar is a menu under the header.
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([fetchTranslations(), fetchBooks(), fetchCommentarySources()])
@@ -40,88 +36,99 @@ function App() {
       )
   }, [])
 
-  // The devotionals are optional: the tab only appears when there are some, and a failure to load them
-  // must not stop the rest of the site.
+  // The devotionals are optional: their entry only appears when there are some, and a failure to load
+  // them must not stop the rest of the site.
   useEffect(() => {
     fetchDevotionals()
       .then(setDevotionals)
       .catch(() => setDevotionals([]))
   }, [])
 
-  // The commentary tabs only appear once there are commentaries to search.
-  const visibleTabs = tabs.filter((tab) => {
-    if (tab.mode === 'devotionals') {
-      return devotionals.length > 0
-    }
-    return tab.mode === 'read' || tab.mode === 'bible' || commentaries.length > 0
-  })
-  const searchTabs = visibleTabs.filter(
-    (tab): tab is { mode: SearchMode; label: string } => tab.mode === 'bible' || tab.mode === 'commentary',
-  )
+  function navigate(view: View) {
+    setActiveView(view)
+    setIsMenuOpen(false)
+    window.scrollTo(0, 0)
+  }
+
+  // The commentaries and the devotionals only appear in the sidebar once there are some.
+  const navGroups: NavGroup[] = [
+    { entries: [{ view: 'welcome', label: 'Welcome' }] },
+    {
+      heading: 'Bible',
+      entries: [
+        { view: 'read', label: 'Read the Bible' },
+        { view: 'bible', label: 'Search the Bible' },
+      ],
+    },
+    ...(commentaries.length > 0
+      ? [
+          {
+            heading: 'Commentaries',
+            entries: [
+              { view: 'commentary' as View, label: 'Search the commentaries' },
+              { view: 'browse' as View, label: 'Browse the commentaries' },
+            ],
+          },
+        ]
+      : []),
+    ...(devotionals.length > 0
+      ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
+      : []),
+  ]
 
   return (
-    <main className="app">
-      <img className="site-logo" src="/logo.svg" alt="Bible and Beyond" />
-      <nav className="tabs" aria-label="Sections">
-        {visibleTabs.map((tab) => (
-          <button
-            type="button"
-            key={tab.mode}
-            className={tab.mode === activeMode ? 'tab active' : 'tab'}
-            aria-current={tab.mode === activeMode ? 'page' : undefined}
-            onClick={() => {
-              setActiveMode(tab.mode)
-              setIsShowingCopyrights(false)
-              window.scrollTo(0, 0)
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+    <div className="app-shell">
+      <SiteHeader isMenuOpen={isMenuOpen} onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} onGoHome={() => navigate('welcome')} />
 
-      {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
-      {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} devotionals={devotionals} />}
-      <BibleTab translations={translations} isHidden={isShowingCopyrights || activeMode !== 'read'} />
+      <div className="site-body">
+        <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
 
-      {searchTabs.map((tab) => (
-        <SearchTab
-          key={tab.mode}
-          mode={tab.mode}
-          translations={translations}
-          books={books}
-          commentaries={commentaries}
-          isHidden={isShowingCopyrights || tab.mode !== activeMode}
-          onShowCopyrights={() => setIsShowingCopyrights(true)}
-        />
-      ))}
-      {commentaries.length > 0 && (
-        <BrowseTab
-          commentaries={commentaries}
-          translations={translations}
-          isHidden={isShowingCopyrights || activeMode !== 'browse'}
-        />
-      )}
+        <main className="site-main" id="content">
+          {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
 
-      {devotionals.length > 0 && (
-        <DevotionalsTab
-          devotionals={devotionals}
-          translations={translations}
-          isHidden={isShowingCopyrights || activeMode !== 'devotionals'}
-        />
-      )}
+          {activeView === 'welcome' && (
+            <WelcomePage
+              translations={translations}
+              commentaries={commentaries}
+              devotionals={devotionals}
+              onNavigate={navigate}
+            />
+          )}
+          {activeView === 'copyright' && (
+            <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
+          )}
 
-      <footer className="site-footer">
-        Scripture for the NIV, NASB and The Message is provided through{' '}
-        <a href="https://api.bible" target="_blank" rel="noreferrer">
-          API.Bible
-        </a>
-        .{' '}
-        <button type="button" className="link-button" onClick={() => setIsShowingCopyrights(true)}>
-          Bible copyright notices
-        </button>
-      </footer>
-    </main>
+          {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
+          <BibleTab translations={translations} isHidden={activeView !== 'read'} />
+          <SearchTab
+            mode="bible"
+            translations={translations}
+            books={books}
+            commentaries={commentaries}
+            isHidden={activeView !== 'bible'}
+            onShowCopyrights={() => navigate('copyright')}
+          />
+          {commentaries.length > 0 && (
+            <>
+              <SearchTab
+                mode="commentary"
+                translations={translations}
+                books={books}
+                commentaries={commentaries}
+                isHidden={activeView !== 'commentary'}
+                onShowCopyrights={() => navigate('copyright')}
+              />
+              <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
+            </>
+          )}
+          {devotionals.length > 0 && (
+            <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
+          )}
+        </main>
+      </div>
+
+      <SiteFooter onShowCopyrightNotices={() => navigate('copyright')} />
+    </div>
   )
 }
 

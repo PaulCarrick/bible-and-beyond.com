@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchCommentaryChapter, fetchCommentaryContents } from './api'
 import ContextWindow from './ContextWindow'
-import BackToTabsButton from './BackToTabs'
+import BackToTopButton from './BackToTop'
 import { chooseContextTranslation } from './contextTranslation'
 import NoteText from './NoteText'
 import type { CommentaryChapter, CommentaryContents, CommentaryNote, CommentarySource, Translation } from './types'
-import { useBackToTabs } from './useBackToTabs'
+import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
 
@@ -124,7 +124,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
     element?.scrollIntoView({ block: 'start' })
   }, [chapters])
 
-  const isScrolledDown = useBackToTabs(isHidden, windowIsOpen, scrollToTop)
+  const isScrolledDown = useBackToTop(isHidden, windowIsOpen, scrollToTop)
 
   const books = contents?.books ?? []
   const shownBook = visibleChapter?.book ?? goal?.book ?? books[0]?.number ?? 0
@@ -228,8 +228,8 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
             Go
           </button>
         </form>
-        <button type="button" className="browse-tabs-link" onClick={scrollToTop}>
-          ↑ Back to tabs
+        <button type="button" className="browse-top-link" onClick={scrollToTop}>
+          ↑ Back to top
         </button>
       </div>
 
@@ -335,7 +335,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
 
           <div className="browse-to-top">
             <button type="button" className="link-button" onClick={scrollToTop}>
-              ↑ Back to tabs
+              ↑ Back to top
             </button>
           </div>
 
@@ -349,7 +349,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
         </div>
       )}
 
-      <BackToTabsButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
+      <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
 
       {windowIsOpen && currentView && (
         <ContextWindow

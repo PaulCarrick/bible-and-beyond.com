@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchBibleChapter, fetchBibleContents } from './api'
-import BackToTabsButton from './BackToTabs'
+import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
 import { highlightLinked } from './highlight'
 import VerseMenu from './VerseMenu'
 import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Translation } from './types'
-import { useBackToTabs } from './useBackToTabs'
+import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
 
@@ -129,7 +129,7 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
     element?.scrollIntoView({ block: 'start' })
   }, [chapters])
 
-  const isScrolledDown = useBackToTabs(isHidden, windowIsOpen, scrollToTop)
+  const isScrolledDown = useBackToTop(isHidden, windowIsOpen, scrollToTop)
 
   const books = contents?.books ?? []
   const shownBook = visibleChapter?.book ?? goal?.book ?? books[0]?.number ?? 0
@@ -287,8 +287,8 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
             Go
           </button>
         </form>
-        <button type="button" className="browse-tabs-link" onClick={scrollToTop}>
-          ↑ Back to tabs
+        <button type="button" className="browse-top-link" onClick={scrollToTop}>
+          ↑ Back to top
         </button>
       </div>
 
@@ -368,7 +368,7 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
 
           <div className="browse-to-top">
             <button type="button" className="link-button" onClick={scrollToTop}>
-              ↑ Back to tabs
+              ↑ Back to top
             </button>
           </div>
 
@@ -393,7 +393,7 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
         />
       )}
 
-      <BackToTabsButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
+      <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
 
       {windowIsOpen && currentView && (
         <ContextWindow

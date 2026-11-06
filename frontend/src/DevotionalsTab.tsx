@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDevotionalContents, fetchDevotionalUnit } from './api'
-import BackToTabsButton from './BackToTabs'
+import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
 import { chooseContextTranslation } from './contextTranslation'
 import DevotionalCredit from './DevotionalCredit'
 import NoteText from './NoteText'
 import type { DevotionalContents, DevotionalEntry, DevotionalInfo, Translation } from './types'
-import { useBackToTabs } from './useBackToTabs'
+import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import type { StripChapter } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
@@ -129,7 +129,7 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
     document.getElementById(`reading-${first.section}-${first.unit}`)?.scrollIntoView({ block: 'start' })
   }, [readings])
 
-  const isScrolledDown = useBackToTabs(isHidden, windowIsOpen, scrollToTop)
+  const isScrolledDown = useBackToTop(isHidden, windowIsOpen, scrollToTop)
 
   const sections = contents?.sections ?? []
   const shownSection = visibleChapter?.book ?? goal?.section ?? sections[0]?.number ?? 0
@@ -211,8 +211,8 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
             Today
           </button>
         )}
-        <button type="button" className="browse-tabs-link" onClick={scrollToTop}>
-          ↑ Back to tabs
+        <button type="button" className="browse-top-link" onClick={scrollToTop}>
+          ↑ Back to top
         </button>
       </div>
 
@@ -256,7 +256,7 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
 
           <div className="browse-to-top">
             <button type="button" className="link-button" onClick={scrollToTop}>
-              ↑ Back to tabs
+              ↑ Back to top
             </button>
           </div>
 
@@ -273,7 +273,7 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
         </div>
       )}
 
-      <BackToTabsButton isVisible={isScrolledDown && !windowIsOpen && readings.length > 0} onClick={scrollToTop} />
+      <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && readings.length > 0} onClick={scrollToTop} />
 
       {windowIsOpen && currentView && (
         <ContextWindow

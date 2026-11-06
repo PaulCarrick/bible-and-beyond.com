@@ -3,40 +3,189 @@
   text-align: left;
 }
 
-.app {
-  padding: 1rem;
+/* The page: a header on top, the sidebar and the page content side by side, and a footer below. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
   font-size: 15px;
   color: var(--text-h);
 }
 
-.site-logo {
-  display: block;
-  width: 240px;
-  max-width: 100%;
-  height: auto;
-  margin-bottom: 1rem;
-}
-
-.tabs {
+.site-header {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
-.tab {
-  padding: 0.5rem 0;
+.site-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0;
   border: 0;
-  border-bottom: 2px solid transparent;
   background: none;
-  color: var(--text);
+  color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
-.tab.active {
-  border-bottom-color: #b5300f;
+.site-icon {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.site-name {
+  color: var(--text-h);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.site-tagline {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.menu-button {
+  display: none;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.site-body {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  flex: 1;
+}
+
+/* The column runs the whole height of the page, so its divider does; what is in it stays in view. */
+.side-nav {
+  border-right: 1px solid var(--border);
+}
+
+.side-nav-inner {
+  position: sticky;
+  top: 0;
+  max-height: 100svh;
+  overflow-y: auto;
+  padding: 1rem 0.75rem;
+}
+
+.side-nav-group + .side-nav-group {
+  margin-top: 1.1rem;
+}
+
+.side-nav-heading {
+  padding: 0 0.6rem 0.3rem;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.side-nav-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-nav-item:hover,
+.side-nav-item:focus-visible {
+  background: var(--accent-bg);
+}
+
+.side-nav-item.active {
+  border-left-color: #b5300f;
+  background: var(--accent-bg);
   color: #b5300f;
+  font-weight: 600;
+}
+
+.site-main {
+  min-width: 0;
+  padding: 1rem 1.25rem;
+}
+
+/* On a phone the sidebar is a menu that the header's button opens under the header. */
+@media (max-width: 800px) {
+  .menu-button {
+    display: inline-block;
+  }
+
+  .site-tagline {
+    display: none;
+  }
+
+  .site-name {
+    font-size: 21px;
+    white-space: nowrap;
+  }
+
+  .site-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .site-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side-nav {
+    display: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .side-nav-inner {
+    position: static;
+    max-height: none;
+  }
+
+  /* The header stays at the top of the screen, so the menu button is always there, and the open menu
+     covers the page under it whatever the reader has scrolled to. */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .side-nav.is-open {
+    display: block;
+    position: fixed;
+    top: 4rem;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 29;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  .site-main {
+    padding: 1rem;
+  }
 }
 
 .panel {
@@ -461,15 +610,101 @@ select:disabled {
 }
 
 .site-footer {
-  margin-top: 1.5rem;
-  padding-top: 0.75rem;
+  padding: 0.9rem 1.25rem 1.1rem;
   border-top: 1px solid var(--border);
   color: var(--text);
   font-size: 12px;
+  line-height: 1.55;
+}
+
+.site-footer p {
+  margin: 0 0 0.4rem;
 }
 
 .site-footer .link-button {
   font-size: 12px;
+}
+
+.footer-copyrights {
+  margin: 0 0 0.5rem;
+  padding-left: 1.1rem;
+}
+
+.site-copyright {
+  margin: 0.6rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-h);
+  font-size: 13px;
+}
+
+/* The welcome page. */
+.welcome {
+  max-width: 62rem;
+}
+
+.welcome h1 {
+  margin: 0.2rem 0 0.75rem;
+  font-size: 34px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.welcome h2 {
+  margin: 1.75rem 0 0.6rem;
+}
+
+.welcome p,
+.welcome li {
+  line-height: 1.65;
+}
+
+.welcome-lead {
+  font-size: 17px;
+}
+
+.welcome-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.welcome-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.welcome-card p {
+  flex: 1;
+}
+
+.welcome-card .primary-button {
+  align-self: flex-start;
+  margin: 0;
+}
+
+.welcome-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.welcome-tips {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.welcome-tips li + li {
+  margin-top: 0.45rem;
 }
 
 .copyright-page section {
@@ -921,8 +1156,8 @@ select:disabled {
   }
 }
 
-/* A way back to the tabs at the top of the page from a long read: a bold button that follows the
-   reader, a link in the choosers, and a link under the last chapter. */
+/* A way back to the top of the page from a long read: a bold button that follows the reader, a link in
+   the choosers, and a link under the last chapter. */
 .back-to-top {
   position: fixed;
   right: 1rem;
@@ -939,7 +1174,7 @@ select:disabled {
   display: none;
 }
 
-.browse-tabs-link {
+.browse-top-link {
   margin-left: auto;
   padding: 0;
   border: 0;

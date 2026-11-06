@@ -31,12 +31,8 @@ function calculateFitCount(
     return null
   }
   const listTop = list.getBoundingClientRect().top + window.scrollY
-  const footer = document.querySelector('.site-footer')
-  const footerHeight = footer
-    ? footer.getBoundingClientRect().height + parseFloat(getComputedStyle(footer).marginTop)
-    : 0
-  const availableHeight =
-    window.innerHeight - listTop - heightBelowList - extraHeightBelowList - footerHeight
+  // The footer is below the results and the reader scrolls to it, so it takes no room from the rows.
+  const availableHeight = window.innerHeight - listTop - heightBelowList - extraHeightBelowList
   return Math.min(maximumPerPage, Math.max(1, Math.floor(availableHeight / rowHeight)))
 }
 

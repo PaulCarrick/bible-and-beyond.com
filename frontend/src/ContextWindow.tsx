@@ -16,8 +16,9 @@ import type {
   VerseTarget,
 } from './types'
 
-// Space kept free below the window for the options bar, the footer, and padding.
-const heightBelowWindow = 185
+// Space kept free below the window for the options bar and padding (the footer is further down, and
+// the reader scrolls to it).
+const heightBelowWindow = 120
 const minimumBodyHeight = 200
 
 // What one window shows: one of the seven kinds of answer, for one verse (or one Strong's number).
@@ -114,10 +115,8 @@ function ContextWindow({
       if (element === null) {
         return
       }
-      const footer = document.querySelector('.site-footer')
-      const footerHeight = footer ? footer.getBoundingClientRect().height : 0
       const top = element.getBoundingClientRect().top + window.scrollY
-      const available = window.innerHeight - top - heightBelowWindow - footerHeight
+      const available = window.innerHeight - top - heightBelowWindow
       element.style.maxHeight = `${Math.max(minimumBodyHeight, available)}px`
     }
     fitToWindow()
