@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/BibleAnswers.iml" filepath="$PROJECT_DIR$/.idea/BibleAnswers.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/bible-and-beyond.iml" filepath="$PROJECT_DIR$/.idea/bible-and-beyond.iml" />
     </modules>
   </component>
 </project>

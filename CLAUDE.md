@@ -1,4 +1,4 @@
-# BibleAnswers
+# Bible and Beyond
 
 A web app that answers Bible questions using AI/ML.
 
@@ -8,7 +8,7 @@ A web app that answers Bible questions using AI/ML.
 - `frontend/` — React + TypeScript + Vite. The public web UI; calls ml-service and Drupal.
 
 ## Local URLs
-- Drupal: https://bibleanswers.ddev.site
+- Drupal: https://bible-and-beyond.ddev.site
 - ML service: http://localhost:8000 (API docs at /docs)
 - Frontend: http://localhost:5173
 
@@ -29,7 +29,7 @@ A web app that answers Bible questions using AI/ML.
 - Frontend: Vitest (to be added)
 - Drupal: PHPUnit via `ddev exec vendor/bin/phpunit` (to be added)
 ## Bible database
-- Postgres 17 + pgvector in Docker (`docker compose up -d` from the repo root), container `bibleanswers-database`, host port 5434.
+- Postgres 17 + pgvector in Docker (`docker compose up -d` from the repo root), container `bible-and-beyond-database`, host port 5434.
 - Connection string lives in `ml-service/.env` as `DATABASE_URL` (never commit `.env`).
 - Schema: `ml-service/database/schema.sql` — tables `translations`, `books` (canonical 1–66 with USFM codes and name aliases), `verses`, `verse_embeddings`. Applying it drops and recreates these tables.
 - Import a translation (BSB tab format or eBible `*_vpl.txt` format): `.venv/bin/python scripts/import_bible.py data/<file>.txt --code BSB --name "Berean Standard Bible" --license "Public domain"`. KJV also needs `--strip-brackets`.

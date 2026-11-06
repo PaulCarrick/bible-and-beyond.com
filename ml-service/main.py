@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 
-app = FastAPI(title="BibleAnswers ML Service")
+app = FastAPI(title="Bible and Beyond ML Service")
 
 app.add_middleware(
   CORSMiddleware,

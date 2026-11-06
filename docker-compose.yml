@@ -1,11 +1,13 @@
+name: bible-and-beyond
+
 services:
   database:
     image: pgvector/pgvector:pg17
-    container_name: bibleanswers-database
+    container_name: bible-and-beyond-database
     environment:
-      POSTGRES_USER: bibleanswers
-      POSTGRES_PASSWORD: bibleanswers
-      POSTGRES_DB: bibleanswers
+      POSTGRES_USER: bibleandbeyond
+      POSTGRES_PASSWORD: bibleandbeyond
+      POSTGRES_DB: bibleandbeyond
     ports:
       - "5434:5432"
     volumes:

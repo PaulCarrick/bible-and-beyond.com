@@ -1,9 +1,9 @@
--- BibleAnswers database schema: multiple translations, canonical books, embeddings.
+-- Bible and Beyond database schema: multiple translations, canonical books, embeddings.
 --
 -- WARNING: this drops and recreates all Bible tables. Re-run the importer afterwards.
 --
 -- Apply with:
---   docker exec -i bibleanswers-database psql -U bibleanswers -v ON_ERROR_STOP=1 < database/schema.sql
+--   docker exec -i bible-and-beyond-database psql -U bibleandbeyond -v ON_ERROR_STOP=1 < database/schema.sql
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
