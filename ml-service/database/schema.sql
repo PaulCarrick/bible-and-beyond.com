@@ -7,6 +7,8 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS original_words CASCADE;
+DROP TABLE IF EXISTS lexicon_entries CASCADE;
 DROP TABLE IF EXISTS cross_references CASCADE;
 DROP TABLE IF EXISTS verse_embeddings CASCADE;
 DROP TABLE IF EXISTS verses CASCADE;
@@ -145,3 +147,33 @@ INSERT INTO books (number, code, name, testament, aliases) VALUES
     (64, '3JN', '3 John', 'NT', '{"III John","Third John","3JO"}'),
     (65, 'JUD', 'Jude', 'NT', '{}'),
     (66, 'REV', 'Revelation', 'NT', '{"Revelations","The Revelation","Revelation of John","Apocalypse"}');
+
+-- Hebrew and Greek words and their lexicon (STEPBible.org). Reload them after a schema reset: scripts/import_original_words.py.
+CREATE TABLE IF NOT EXISTS lexicon_entries (
+    strong_code TEXT PRIMARY KEY,
+    language TEXT NOT NULL,
+    original TEXT NOT NULL,
+    transliteration TEXT NOT NULL,
+    morphology TEXT NOT NULL,
+    gloss TEXT NOT NULL,
+    definition TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS original_words (
+    id BIGSERIAL PRIMARY KEY,
+    book_number SMALLINT NOT NULL REFERENCES books (number),
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    original TEXT NOT NULL,
+    transliteration TEXT NOT NULL,
+    english TEXT NOT NULL,
+    strong_code TEXT,
+    grammar TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS original_words_by_verse
+    ON original_words (book_number, chapter, verse, position);
+
+CREATE INDEX IF NOT EXISTS original_words_by_strong
+    ON original_words (strong_code, book_number, chapter, verse);

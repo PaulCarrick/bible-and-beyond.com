@@ -71,7 +71,7 @@ export interface VerseContext {
   verses: ContextVerse[]
 }
 
-export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related'
+export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related' | 'words' | 'lexicon'
 
 // A verse that a window is about, named well enough to ask for more about it.
 export interface VerseTarget {
@@ -80,6 +80,8 @@ export interface VerseTarget {
   chapter: number
   verse: number
   reference: string
+  // Only for a lexicon entry: the Strong's number whose entry the window shows.
+  strong_code?: string
 }
 
 // Related Verses can look two ways: where the verse points to, and which verses point at it.
@@ -145,4 +147,45 @@ export interface SearchResponse {
   per_page: number
   book_counts: BookCount[]
   results: SearchResult[]
+}
+
+// Original Words: the Hebrew or Greek words of one verse, each with its meaning in the lexicon.
+export interface OriginalWord {
+  original: string
+  transliteration: string
+  english: string
+  strong_code: string | null
+  grammar: string
+  gloss: string | null
+}
+
+export interface OriginalWordsResponse {
+  book_number: number
+  book_name: string
+  chapter: number
+  verse: number
+  language: 'hebrew' | 'greek'
+  words: OriginalWord[]
+}
+
+// One lexicon entry (a Strong's number) with the first verses that use the word.
+export interface LexiconVerse {
+  book_number: number
+  reference: string
+  chapter: number
+  verse: number
+  text: string | null
+}
+
+export interface LexiconEntry {
+  strong_code: string
+  language: 'hebrew' | 'greek'
+  original: string
+  transliteration: string
+  morphology: string
+  gloss: string
+  definition: string
+  verse_total: number
+  shown: number
+  verses: LexiconVerse[]
 }

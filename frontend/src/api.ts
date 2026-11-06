@@ -3,6 +3,8 @@ import type {
   ContextKind,
   Copyright,
   ParallelVerse,
+  LexiconEntry,
+  OriginalWordsResponse,
   RelatedDirection,
   RelatedResponse,
   SearchParameters,
@@ -95,6 +97,31 @@ export async function fetchRelated(
     direction,
   })
   return readJson(await fetch(`${mlServiceUrl}/related?${queryString}`, { signal }))
+}
+
+// Original Words: the Hebrew or Greek words of a verse (STEPBible data).
+export async function fetchOriginalWords(
+  book: number,
+  chapter: number,
+  verse: number,
+  signal: AbortSignal,
+): Promise<OriginalWordsResponse> {
+  const queryString = new URLSearchParams({
+    book: String(book),
+    chapter: String(chapter),
+    verse: String(verse),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/original-words?${queryString}`, { signal }))
+}
+
+// A lexicon entry for a Strong's number, with verses that use the word shown in one Bible.
+export async function fetchLexiconEntry(
+  translation: string,
+  strongCode: string,
+  signal: AbortSignal,
+): Promise<LexiconEntry> {
+  const queryString = new URLSearchParams({ translation, strong_code: strongCode })
+  return readJson(await fetch(`${mlServiceUrl}/lexicon?${queryString}`, { signal }))
 }
 
 export async function fetchCopyrights(): Promise<Copyright[]> {

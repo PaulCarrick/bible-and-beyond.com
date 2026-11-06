@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchContext, fetchParallel, fetchRelated } from './api'
+import { fetchContext, fetchLexiconEntry, fetchOriginalWords, fetchParallel, fetchRelated } from './api'
 import ContextWindow from './ContextWindow'
 import type { WindowView } from './ContextWindow'
 import { reportView } from './fums'
@@ -182,9 +182,15 @@ function SearchResults({
           ? fetchRelated(translation, book, chapter, verse, view.direction, controller.signal).then(
               (related) => ({ related }),
             )
-          : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
-              (context) => ({ context }),
-            )
+          : view.kind === 'words'
+            ? fetchOriginalWords(book, chapter, verse, controller.signal).then((words) => ({ words }))
+            : view.kind === 'lexicon'
+              ? fetchLexiconEntry(translation, view.target.strong_code ?? '', controller.signal).then(
+                  (lexicon) => ({ lexicon }),
+                )
+              : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
+                  (context) => ({ context }),
+                )
     request
       .then((answer) => updateView(view.id, { ...answer, errorMessage: '' }))
       .catch((error) => {
@@ -199,7 +205,18 @@ function SearchResults({
   function newView(kind: ContextKind, target: VerseTarget, direction: RelatedDirection = 'from'): WindowView {
     const id = nextViewId.current
     nextViewId.current += 1
-    return { id, kind, target, direction, context: null, parallel: null, related: null, errorMessage: '' }
+    return {
+      id,
+      kind,
+      target,
+      direction,
+      context: null,
+      parallel: null,
+      related: null,
+      words: null,
+      lexicon: null,
+      errorMessage: '',
+    }
   }
 
   // A link under a result: open a window for that verse, in place of the list.
@@ -373,6 +390,14 @@ function SearchResults({
                       >
                         Related Verses
                         <span className="visually-hidden"> for {result.reference}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('words', result, event.currentTarget)}
+                      >
+                        Original Words
+                        <span className="visually-hidden"> of {result.reference}</span>
                       </button>
                     </div>
                   )}

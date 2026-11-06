@@ -79,6 +79,11 @@ if [ "$(psql -d bibleandbeyond -tAc 'SELECT COUNT(*) FROM cross_references' 2>/d
   echo "        Load it with: ml-service/.venv/bin/python ml-service/scripts/import_cross_references.py <file>"
 fi
 
+if [ "$(psql -d bibleandbeyond -tAc 'SELECT COUNT(*) FROM original_words' 2>/dev/null || echo 0)" = "0" ]; then
+  echo "  note: the original_words table is empty, so Original Words has nothing to show."
+  echo "        Load it with: ml-service/.venv/bin/python ml-service/scripts/import_original_words.py <folder>"
+fi
+
 echo "== ML service"
 if touched '^ml-service/requirements.txt$'; then
   ml-service/.venv/bin/pip install -q -r ml-service/requirements.txt

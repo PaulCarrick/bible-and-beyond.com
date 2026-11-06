@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from context import get_chapter, get_context, get_parallel, get_related
+from original_words import get_lexicon_entry, get_original_words
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 from site_settings import get_settings
 
@@ -188,4 +189,34 @@ def related(
   result = get_related(code, book, chapter, verse, get_settings()["related_verses_limit"], direction)
   if result is None:
     raise HTTPException(status_code=404, detail="That verse was not found.")
+  return result
+
+
+@app.get("/original-words")
+def original_words(
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+  verse: int = Query(ge=1),
+):
+  result = get_original_words(book, chapter, verse)
+  if result is None:
+    raise HTTPException(status_code=404, detail="No Hebrew or Greek words were found for that verse.")
+  return result
+
+
+MAXIMUM_LEXICON_VERSES = 30
+
+
+@app.get("/lexicon")
+def lexicon(
+  translation: str = Query(min_length=1),
+  strong_code: str = Query(pattern=r"^[GHgh]\d{4}[A-Za-z]?$"),
+):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"Word studies are not available for {code}.")
+  normalized = strong_code.upper()
+  result = get_lexicon_entry(code, normalized, MAXIMUM_LEXICON_VERSES)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That word was not found.")
   return result

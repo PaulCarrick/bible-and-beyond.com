@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchCopyrights } from './api'
 import CrossReferenceCredit from './CrossReferenceCredit'
+import StepBibleCredit from './StepBibleCredit'
 import type { Copyright } from './types'
 
 interface CopyrightPageProps {
@@ -53,6 +54,11 @@ function CopyrightPage({ onBack }: CopyrightPageProps) {
       <p>
         <CrossReferenceCredit /> Used under the Creative Commons Attribution 4.0 license. The data was
         reformatted for this site.
+      </p>
+
+      <h3>Hebrew and Greek words</h3>
+      <p>
+        <StepBibleCredit /> Used under the Creative Commons Attribution 4.0 license.
       </p>
     </div>
   )

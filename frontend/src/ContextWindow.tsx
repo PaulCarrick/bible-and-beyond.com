@@ -1,8 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { highlight } from './highlight'
+import LexiconPanel from './LexiconPanel'
 import RelatedPanel from './RelatedPanel'
+import WordsPanel from './WordsPanel'
 import type {
   ContextKind,
+  LexiconEntry,
+  OriginalWordsResponse,
   ParallelVerse,
   RelatedDirection,
   RelatedResponse,
@@ -14,7 +18,7 @@ import type {
 const heightBelowWindow = 185
 const minimumBodyHeight = 200
 
-// What one window shows: one of the four kinds of answer, for one verse.
+// What one window shows: one of the six kinds of answer, for one verse (or one Strong's number).
 export interface WindowView {
   id: number
   kind: ContextKind
@@ -24,6 +28,8 @@ export interface WindowView {
   context: VerseContext | null
   parallel: ParallelVerse | null
   related: RelatedResponse | null
+  words: OriginalWordsResponse | null
+  lexicon: LexiconEntry | null
   errorMessage: string
 }
 
@@ -63,6 +69,10 @@ function describe(kind: ContextKind, reference: string) {
       return `Other translations of ${reference}`
     case 'related':
       return `Verses related to ${reference}`
+    case 'words':
+      return `Original words of ${reference}`
+    case 'lexicon':
+      return `Lexicon entry ${reference}`
     default:
       return `${reference} in context`
   }
@@ -78,7 +88,7 @@ function ContextWindow({
   onOpenVerse,
   onChangeDirection,
 }: ContextWindowProps) {
-  const { kind, context, parallel, related, errorMessage } = view
+  const { kind, context, parallel, related, words, lexicon, errorMessage } = view
   const { translation, reference } = view.target
   const closeButton = useRef<HTMLButtonElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -123,7 +133,8 @@ function ContextWindow({
         ...parallel.translations.filter((entry) => entry.code !== translation),
       ]
     : []
-  const hasAnswer = kind === 'parallel' ? parallel !== null : kind === 'related' ? related !== null : context !== null
+  const answers = { parallel, related, words, lexicon, context, chapter: context }
+  const hasAnswer = answers[kind] !== null
 
   return (
     <section className="context-window" aria-label={describe(kind, reference)}>
@@ -134,7 +145,15 @@ function ContextWindow({
           </button>
         )}
         <h2>
-          {kind === 'related' ? (
+          {kind === 'words' ? (
+            <>
+              Original words of {words ? `${words.book_name} ${words.chapter}:${words.verse}` : reference}
+            </>
+          ) : kind === 'lexicon' ? (
+            <>
+              {lexicon ? `${lexicon.strong_code} ${lexicon.gloss}` : reference}
+            </>
+          ) : kind === 'related' ? (
             <>
               Related to {related ? `${related.book_name} ${related.chapter}:${related.verse}` : reference}
               <span className="translation-code"> {translation}</span>
@@ -193,6 +212,10 @@ function ContextWindow({
             onOpenVerse={onOpenVerse}
           />
         )}
+
+        {words && <WordsPanel words={words} translation={translation} onOpenVerse={onOpenVerse} />}
+
+        {lexicon && <LexiconPanel entry={lexicon} translation={translation} onOpenVerse={onOpenVerse} />}
 
         {parallel && (
           <>
