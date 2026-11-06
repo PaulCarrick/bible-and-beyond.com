@@ -275,3 +275,27 @@ export async function fetchDevotionalUnit(
 export async function fetchSiteSettings(): Promise<SiteSettings> {
   return readJson(await fetch(`${mlServiceUrl}/site-settings`))
 }
+
+// The contact form needs the public reCAPTCHA key (empty when the site has none set up).
+export async function fetchContactSettings(): Promise<{ recaptcha_site_key: string }> {
+  return readJson(await fetch(`${mlServiceUrl}/contact-settings`))
+}
+
+export interface ContactMessage {
+  name: string
+  email: string
+  phone: string
+  // The message as Quill writes it: a little HTML, which the server cleans.
+  message: string
+  recaptcha_token: string
+}
+
+export async function sendContactMessage(message: ContactMessage): Promise<void> {
+  await readJson(
+    await fetch(`${mlServiceUrl}/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    }),
+  )
+}

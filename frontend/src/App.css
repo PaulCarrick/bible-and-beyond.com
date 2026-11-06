@@ -1310,3 +1310,54 @@ select:disabled {
   padding-left: 0.6rem;
   border-left: 3px solid var(--accent);
 }
+
+/* Contact form */
+.contact-page {
+  max-width: 46rem;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.contact-field input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.contact-editor .ql-toolbar.ql-snow {
+  border-radius: 4px 4px 0 0;
+}
+
+.contact-editor .ql-container.ql-snow {
+  border-radius: 0 0 4px 4px;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.contact-text {
+  min-height: 9rem;
+}
+
+.contact-required {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.contact-sent {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  background: #e6f4ea;
+}

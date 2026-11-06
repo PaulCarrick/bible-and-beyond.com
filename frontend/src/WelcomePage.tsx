@@ -111,6 +111,15 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
         </li>
       </ul>
 
+      <h2>Contact</h2>
+      <p>
+        Questions, corrections or comments? Use the{' '}
+        <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
+          contact form
+        </button>
+        .
+      </p>
+
       <h2>About the texts</h2>
       <p>
         The Bibles you can read here, the commentaries and the devotionals are in the public domain.

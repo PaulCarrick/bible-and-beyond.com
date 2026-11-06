@@ -1,7 +1,8 @@
+import logging
 import os
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -17,6 +18,14 @@ from commentaries import (
   get_contents,
   list_commentaries,
   search_commentaries,
+)
+from contact import (
+  ContactProblem,
+  MailUnavailable,
+  check_message,
+  get_recaptcha_site_key,
+  send_contact_message,
+  verify_recaptcha,
 )
 from context import get_chapter, get_context, get_parallel, get_related
 from original_words import get_lexicon_entry, get_original_words
@@ -362,3 +371,38 @@ def devotional_unit(
 def site_settings():
   """The site title and copyright line that the pages show. Nothing private is ever in this answer."""
   return get_public_settings()
+
+
+@app.get("/contact-settings")
+def contact_settings():
+  """What the contact form needs to show itself: the public reCAPTCHA site key (empty when not set up)."""
+  return {"recaptcha_site_key": get_recaptcha_site_key()}
+
+
+class ContactRequest(BaseModel):
+  name: str
+  email: str
+  phone: str = ""
+  # The message as the editor (Quill) writes it: a little HTML, cleaned before use.
+  message: str
+  recaptcha_token: str = ""
+
+
+@app.post("/contact")
+def contact(request: ContactRequest, http_request: Request):
+  """Checks the visitor and the message, then emails it with the server settings kept in Drupal."""
+  forwarded = http_request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+  remote_address = forwarded or (http_request.client.host if http_request.client else None)
+  try:
+    values = check_message(request.name, request.email, request.phone, request.message)
+    verify_recaptcha(request.recaptcha_token, remote_address)
+    send_contact_message(values)
+  except ContactProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  except MailUnavailable as problem:
+    logging.getLogger("contact").error("Contact message not sent: %s", problem)
+    raise HTTPException(
+      status_code=502,
+      detail="Your message could not be sent right now. Please try again later.",
+    )
+  return {"sent": True}

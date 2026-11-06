@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchBooks, fetchCommentarySources, fetchDevotionals, fetchSiteSettings, fetchTranslations } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
+import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
@@ -93,6 +94,7 @@ function App() {
     ...(devotionals.length > 0
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
       : []),
+    { heading: 'About', entries: [{ view: 'contact' as View, label: 'Contact' }] },
   ]
 
   return (
@@ -119,6 +121,9 @@ function App() {
             {activeView === 'copyright' && (
               <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
             )}
+
+            {/* The form stays mounted too, so a half-written message is not lost. */}
+            <ContactPage isHidden={activeView !== 'contact'} />
 
             {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
             <BibleTab translations={translations} isHidden={activeView !== 'read'} />
