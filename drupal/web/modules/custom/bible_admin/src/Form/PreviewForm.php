@@ -35,7 +35,8 @@ class PreviewForm extends FormBase {
     $canImport = !empty($preview['can_import']);
 
     $form['#title'] = $this->t('Check @code before importing', ['@code' => $parameters['code']]);
-    $form['token'] = ['#type' => 'value', '#value' => $token];
+    // Kept in the form state, not in a form value: the Cancel button skips form values.
+    $form_state->set('token', $token);
 
     if (!empty($preview['blocking_errors'])) {
       $form['errors'] = [
@@ -151,7 +152,7 @@ class PreviewForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $token = (string) $form_state->getValue('token');
+    $token = (string) $form_state->get('token');
     $upload = $this->loadOwnUpload($token);
 
     try {
@@ -175,7 +176,7 @@ class PreviewForm extends FormBase {
   }
 
   public function cancel(array &$form, FormStateInterface $form_state): void {
-    $this->manager->removeUpload((string) $form_state->getValue('token'));
+    $this->manager->removeUpload((string) $form_state->get('token'));
     $this->messenger()->addStatus($this->t('The upload was deleted.'));
     $form_state->setRedirect('bible_admin.list');
   }
