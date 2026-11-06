@@ -37,7 +37,7 @@
   display: block;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 50%;
 }
 
 .site-name {
@@ -123,7 +123,15 @@
   font-weight: 600;
 }
 
+/* The page content and the footer, one above the other, in the column to the right of the sidebar. */
+.site-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .site-main {
+  flex: 1;
   min-width: 0;
   padding: 1rem 1.25rem;
 }
@@ -185,6 +193,11 @@
 
   .site-main {
     padding: 1rem;
+  }
+
+  .site-footer {
+    padding-right: 1rem;
+    padding-left: 1rem;
   }
 }
 

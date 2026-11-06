@@ -83,51 +83,54 @@ function App() {
       <div className="site-body">
         <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
 
-        <main className="site-main" id="content">
-          {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
+        {/* The page content and the footer share the column to the right of the sidebar. */}
+        <div className="site-column">
+          <main className="site-main" id="content">
+            {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
 
-          {activeView === 'welcome' && (
-            <WelcomePage
-              translations={translations}
-              commentaries={commentaries}
-              devotionals={devotionals}
-              onNavigate={navigate}
-            />
-          )}
-          {activeView === 'copyright' && (
-            <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
-          )}
-
-          {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
-          <BibleTab translations={translations} isHidden={activeView !== 'read'} />
-          <SearchTab
-            mode="bible"
-            translations={translations}
-            books={books}
-            commentaries={commentaries}
-            isHidden={activeView !== 'bible'}
-            onShowCopyrights={() => navigate('copyright')}
-          />
-          {commentaries.length > 0 && (
-            <>
-              <SearchTab
-                mode="commentary"
+            {activeView === 'welcome' && (
+              <WelcomePage
                 translations={translations}
-                books={books}
                 commentaries={commentaries}
-                isHidden={activeView !== 'commentary'}
-                onShowCopyrights={() => navigate('copyright')}
+                devotionals={devotionals}
+                onNavigate={navigate}
               />
-              <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
-            </>
-          )}
-          {devotionals.length > 0 && (
-            <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
-          )}
-        </main>
-      </div>
+            )}
+            {activeView === 'copyright' && (
+              <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
+            )}
 
-      <SiteFooter onShowCopyrightNotices={() => navigate('copyright')} />
+            {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
+            <BibleTab translations={translations} isHidden={activeView !== 'read'} />
+            <SearchTab
+              mode="bible"
+              translations={translations}
+              books={books}
+              commentaries={commentaries}
+              isHidden={activeView !== 'bible'}
+              onShowCopyrights={() => navigate('copyright')}
+            />
+            {commentaries.length > 0 && (
+              <>
+                <SearchTab
+                  mode="commentary"
+                  translations={translations}
+                  books={books}
+                  commentaries={commentaries}
+                  isHidden={activeView !== 'commentary'}
+                  onShowCopyrights={() => navigate('copyright')}
+                />
+                <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
+              </>
+            )}
+            {devotionals.length > 0 && (
+              <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
+            )}
+          </main>
+
+          <SiteFooter onShowCopyrightNotices={() => navigate('copyright')} />
+        </div>
+      </div>
     </div>
   )
 }
