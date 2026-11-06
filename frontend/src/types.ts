@@ -279,3 +279,26 @@ export interface CommentaryChapter {
   previous: ChapterNeighbour | null
   next: ChapterNeighbour | null
 }
+
+// Reading a Bible a chapter at a time: what a Bible has, and one chapter of it.
+export interface BibleContents {
+  translation: { code: string; name: string; language: string }
+  books: { number: number; name: string; chapters: number[] }[]
+}
+
+export interface BibleVerse {
+  verse: number
+  text: string
+  // Only for a Bible that has them (the BSB): [start, end, "H7225"] over text.
+  links?: [number, number, string][]
+}
+
+export interface BibleChapter {
+  translation: { code: string; name: string; language: string }
+  book_number: number
+  book_name: string
+  chapter: number
+  verses: BibleVerse[]
+  previous: ChapterNeighbour | null
+  next: ChapterNeighbour | null
+}

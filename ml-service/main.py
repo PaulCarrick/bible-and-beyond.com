@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
+from bible_reader import get_chapter as get_bible_chapter
+from bible_reader import get_contents as get_bible_contents
 from commentaries import (
   get_chapter_notes,
   get_commentaries,
@@ -299,4 +301,30 @@ def commentary_chapter(
   result = get_chapter_notes(commentary, book, chapter)
   if result is None:
     raise HTTPException(status_code=404, detail="That commentary has no notes on that chapter.")
+  return result
+
+
+@app.get("/bible-contents")
+def bible_contents(translation: str = Query(min_length=1, max_length=20)):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"{code} cannot be read a chapter at a time.")
+  result = get_bible_contents(code)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That Bible was not found.")
+  return result
+
+
+@app.get("/bible-chapter")
+def bible_chapter(
+  translation: str = Query(min_length=1, max_length=20),
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+):
+  code = translation.upper()
+  if code in API_BIBLES:
+    raise HTTPException(status_code=422, detail=f"{code} cannot be read a chapter at a time.")
+  result = get_bible_chapter(code, book, chapter)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That chapter was not found.")
   return result

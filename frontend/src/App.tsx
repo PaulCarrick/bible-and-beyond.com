@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchBooks, fetchCommentarySources, fetchTranslations } from './api'
+import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import CopyrightPage from './CopyrightPage'
 import SearchTab from './SearchTab'
@@ -7,9 +8,10 @@ import type { SearchMode } from './SearchTab'
 import type { Book, CommentarySource, Translation } from './types'
 import './App.css'
 
-type TabMode = SearchMode | 'browse'
+type TabMode = SearchMode | 'read' | 'browse'
 
 const tabs: { mode: TabMode; label: string }[] = [
+  { mode: 'read', label: 'Read the Bible' },
   { mode: 'bible', label: 'Search for specific words or phrases' },
   { mode: 'commentary', label: 'Search the commentaries' },
   { mode: 'browse', label: 'Browse the commentaries' },
@@ -20,7 +22,7 @@ function App() {
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeMode, setActiveMode] = useState<TabMode>('bible')
+  const [activeMode, setActiveMode] = useState<TabMode>('read')
   const [isShowingCopyrights, setIsShowingCopyrights] = useState(false)
 
   useEffect(() => {
@@ -36,8 +38,12 @@ function App() {
   }, [])
 
   // The commentary tab only appears once there are commentaries to search.
-  const visibleTabs = tabs.filter((tab) => tab.mode === 'bible' || commentaries.length > 0)
-  const searchTabs = visibleTabs.filter((tab): tab is { mode: SearchMode; label: string } => tab.mode !== 'browse')
+  const visibleTabs = tabs.filter(
+    (tab) => tab.mode === 'read' || tab.mode === 'bible' || commentaries.length > 0,
+  )
+  const searchTabs = visibleTabs.filter(
+    (tab): tab is { mode: SearchMode; label: string } => tab.mode === 'bible' || tab.mode === 'commentary',
+  )
 
   return (
     <main className="app">
@@ -62,6 +68,8 @@ function App() {
 
       {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
       {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} />}
+      <BibleTab translations={translations} isHidden={isShowingCopyrights || activeMode !== 'read'} />
+
       {searchTabs.map((tab) => (
         <SearchTab
           key={tab.mode}

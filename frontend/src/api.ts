@@ -1,4 +1,6 @@
 import type {
+  BibleChapter,
+  BibleContents,
   CommentaryChapter,
   CommentaryContents,
   CommentaryResponse,
@@ -230,4 +232,19 @@ export async function fetchCommentaryChapter(
 ): Promise<CommentaryChapter> {
   const queryString = new URLSearchParams({ commentary, book: String(book), chapter: String(chapter) })
   return readJson(await fetch(`${mlServiceUrl}/commentary-chapter?${queryString}`, { signal }))
+}
+
+export async function fetchBibleContents(translation: string, signal: AbortSignal): Promise<BibleContents> {
+  const queryString = new URLSearchParams({ translation })
+  return readJson(await fetch(`${mlServiceUrl}/bible-contents?${queryString}`, { signal }))
+}
+
+export async function fetchBibleChapter(
+  translation: string,
+  book: number,
+  chapter: number,
+  signal: AbortSignal,
+): Promise<BibleChapter> {
+  const queryString = new URLSearchParams({ translation, book: String(book), chapter: String(chapter) })
+  return readJson(await fetch(`${mlServiceUrl}/bible-chapter?${queryString}`, { signal }))
 }

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchCommentaryChapter, fetchCommentaryContents } from './api'
 import ContextWindow from './ContextWindow'
+import BackToTabsButton from './BackToTabs'
 import { chooseContextTranslation } from './contextTranslation'
 import NoteText from './NoteText'
 import type { CommentaryChapter, CommentaryContents, CommentaryNote, CommentarySource, Translation } from './types'
+import { useBackToTabs } from './useBackToTabs'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
-import { useVerseWindows } from './useVerseWindows'
+import { useReaderWindows } from './useReaderWindows'
 
 interface BrowseTabProps {
   commentaries: CommentarySource[]
@@ -48,8 +50,6 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
   const commentaryRef = useRef('')
   const pendingTarget = useRef<Target | null>(null)
   const hasStarted = useRef(false)
-  const savedScroll = useRef(0)
-  const wasShowingWindow = useRef(false)
 
   const {
     chapters,
@@ -64,9 +64,9 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
   } = useChapterStrip<CommentaryChapter>((book, chapter, signal) =>
     fetchCommentaryChapter(commentaryRef.current, book, chapter, signal),
   )
-  const windows = useVerseWindows(session, true)
+  const windows = useReaderWindows(session)
   const contextTranslation = chooseContextTranslation(translations)
-  const windowIsOpen = windows.isShowing
+  const windowIsOpen = windows.isOpen
 
   // Go to a place in a commentary. The same place is used when the commentary changes, so the same
   // passage can be compared in another commentary; a commentary without it starts at its nearest.
@@ -124,49 +124,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
     element?.scrollIntoView({ block: 'start' })
   }, [chapters])
 
-  // A window hides the reading, so put the reader back where they were when it closes.
-  useEffect(() => {
-    if (wasShowingWindow.current && !windowIsOpen) {
-      window.scrollTo(0, savedScroll.current)
-    }
-    wasShowingWindow.current = windowIsOpen
-  }, [windowIsOpen])
-
-  // Home (and Ctrl+Home, Cmd+Up Arrow) goes to the top of the page. The browser's own jump to the top
-  // would be undone by chapters being added above, so it is done here. Home still works as usual in
-  // the verse box and the choosers.
-  useEffect(() => {
-    if (isHidden || windowIsOpen) {
-      return
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      const isHome = event.key === 'Home' && !event.shiftKey && !event.altKey && !event.metaKey
-      const isCommandUp = event.key === 'ArrowUp' && event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey
-      const target = event.target as HTMLElement | null
-      const isTyping =
-        target !== null && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if ((isHome || isCommandUp) && !isTyping) {
-        event.preventDefault()
-        scrollToTop()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isHidden, windowIsOpen, scrollToTop])
-
-  // The "Top" button appears once the reader has scrolled a screenful or so down.
-  const [isScrolledDown, setIsScrolledDown] = useState(false)
-  useEffect(() => {
-    if (isHidden) {
-      return
-    }
-    function handleScroll() {
-      setIsScrolledDown(window.scrollY > 500)
-    }
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [isHidden])
+  const isScrolledDown = useBackToTabs(isHidden, windowIsOpen, scrollToTop)
 
   const books = contents?.books ?? []
   const shownBook = visibleChapter?.book ?? goal?.book ?? books[0]?.number ?? 0
@@ -189,15 +147,12 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
     reference: string,
     trigger: HTMLElement,
   ) {
-    savedScroll.current = window.scrollY
     windows.open(
-      session,
       kind,
       { translation: contextTranslation, book_number: book, chapter: chapterNumber, verse, reference },
       trigger,
       { commentaryId: kind === 'commentary' ? chapter.commentary.id : null },
     )
-    window.scrollTo(0, 0)
   }
 
   function submitVerse(event: React.FormEvent) {
@@ -394,14 +349,7 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="primary-button back-to-top"
-        hidden={!isScrolledDown || windowIsOpen || chapters.length === 0}
-        onClick={scrollToTop}
-      >
-        ↑ Back to tabs
-      </button>
+      <BackToTabsButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
 
       {windowIsOpen && currentView && (
         <ContextWindow

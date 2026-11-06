@@ -955,3 +955,32 @@ select:disabled {
   padding: 0.75rem 0 0;
   text-align: center;
 }
+
+/* Reading a Bible: a verse, then the links under it. */
+.bible-verse {
+  scroll-margin-top: 90px;
+  margin-top: 0.75rem;
+  padding: 0.25rem 0 0.35rem;
+}
+
+.bible-verse.is-marked {
+  margin-left: -0.75rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.bible-verse-text {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.bible-verse .verse-links {
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 700px) {
+  .bible-verse {
+    scroll-margin-top: 12px;
+  }
+}
