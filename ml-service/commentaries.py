@@ -18,6 +18,7 @@ from pathlib import Path
 
 import httpx
 
+from scripture_references import find_references
 from search import connect, parse_terms
 
 BASE_URL = "https://bible.helloao.org/api"
@@ -251,6 +252,10 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
     "text": text,
     "chapter_introduction": introductions.get(chapter),
     "book_introduction": introductions.get(0),
+    # Scripture references inside each text, as [start, end, "book:chapter:verse"] over that text.
+    "references": find_references(text),
+    "chapter_introduction_references": find_references(introductions.get(chapter) or ""),
+    "book_introduction_references": find_references(introductions.get(0) or ""),
   }
 
 

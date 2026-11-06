@@ -798,3 +798,20 @@ select:disabled {
   color: var(--text);
   font-size: 12px;
 }
+
+.reference-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1a6ebd;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.reference-link:hover,
+.reference-link:focus-visible {
+  text-decoration: underline;
+}

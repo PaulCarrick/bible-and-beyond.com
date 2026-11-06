@@ -34,17 +34,33 @@ function findHighlightRanges(text: string, terms: string[], wholeWords: boolean)
   return ranges
 }
 
+export interface LinkOptions {
+  className: string
+  // Whether the buttons are in the tab order. Hundreds of Strong's links per chapter are not; the
+  // handful of references in a note are.
+  isTabbable: boolean
+  titleFor: (code: string, shownText: string) => string
+}
+
+export const strongLinkOptions: LinkOptions = {
+  className: 'word-link',
+  isTabbable: false,
+  titleFor: (code) => `Strong's ${code}`,
+}
+
 // Like highlight, and also makes the words that have a Strong's number clickable. The two can
 // overlap (a search phrase over several linked words), so the text is cut wherever either starts
 // or stops, and the pieces of one linked word are put back inside one button.
-// The buttons stay out of the tab order: there would be hundreds in a chapter. The Original Words
-// window lists the same numbers for keyboard use.
+// For Strong's numbers the buttons stay out of the tab order: there would be hundreds in a chapter,
+// and the Original Words window lists the same numbers for keyboard use.
 export function highlightLinked(
   text: string,
   terms: string[],
   wholeWords: boolean,
   links: [number, number, string][],
-  onChoose: (strongCode: string) => void,
+  onChoose: (code: string) => void,
+  // How the linked words look and behave. The default suits Strong's numbers on a Bible verse.
+  options: LinkOptions = strongLinkOptions,
 ) {
   const ranges = findHighlightRanges(text, terms, wholeWords)
   const cuts = new Set<number>([0, text.length])
@@ -85,9 +101,9 @@ export function highlightLinked(
         <button
           type="button"
           key={nodes.length}
-          className="word-link"
-          tabIndex={-1}
-          title={`Strong's ${link[2]}`}
+          className={options.className}
+          tabIndex={options.isTabbable ? 0 : -1}
+          title={options.titleFor(link[2], group.map((piece) => piece.text).join(''))}
           onClick={() => onChoose(link[2])}
         >
           {content}

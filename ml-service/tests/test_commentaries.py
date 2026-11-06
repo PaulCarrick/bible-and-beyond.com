@@ -331,3 +331,34 @@ def test_the_api_lists_and_searches_commentaries(searchable):
   assert refused.status_code == 422 and "nobody" in refused.json()["detail"]
   assert client.get("/search-commentaries", params={"query": "god", "book_start": 50, "book_end": 40}).status_code == 422
   assert client.get("/search-commentaries", params={"query": "god", "sort_by": "text"}).status_code == 422
+
+
+def test_the_note_comes_with_the_references_inside_it(tmp_path, monkeypatch):
+  with connect() as connection:
+    connection.execute("DROP SCHEMA IF EXISTS commentaries_refs_test CASCADE")
+    connection.execute("CREATE SCHEMA commentaries_refs_test")
+    for table in ("commentaries", "commentary_entries", "commentary_introductions"):
+      connection.execute(f"CREATE TABLE commentaries_refs_test.{table} (LIKE public.{table} INCLUDING ALL)")
+
+  def connect_to_test_schema():
+    return psycopg.connect(os.environ["DATABASE_URL"], options="-c search_path=commentaries_refs_test,public")
+
+  monkeypatch.setattr(commentaries, "connect", connect_to_test_schema)
+  folder = write_commentary(
+    tmp_path, "john-gill",
+    {("JHN", 3): [(16, ["God so loved, Rom 5:8 says. And Joh 3:99 is no verse."])]},
+    book_introduction="This book, like Gen 1:1, begins.",
+  )
+  entries, introductions = read_commentary(folder, "john-gill", BOOKS)
+  try:
+    replace_commentary("john-gill", entries, introductions)
+    result = get_commentaries(JOHN, 3, 16)
+  finally:
+    with connect() as connection:
+      connection.execute("DROP SCHEMA IF EXISTS commentaries_refs_test CASCADE")
+
+  text = result["text"]
+  assert [(text[start:end], code) for start, end, code in result["references"]] == [("Rom 5:8", "45:5:8")]
+  intro = result["book_introduction"]
+  assert [(intro[start:end], code) for start, end, code in result["book_introduction_references"]] == [("Gen 1:1", "1:1:1")]
+  assert result["chapter_introduction"] == "In chapter 3." and result["chapter_introduction_references"] == []

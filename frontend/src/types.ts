@@ -232,6 +232,10 @@ export interface CommentaryResponse {
   text: string
   chapter_introduction: string | null
   book_introduction: string | null
+  // Scripture references inside each text: [start, end, "book:chapter:verse"] over that text.
+  references: [number, number, string][]
+  chapter_introduction_references: [number, number, string][]
+  book_introduction_references: [number, number, string][]
 }
 
 // One commentary, as listed for choosing which to search.

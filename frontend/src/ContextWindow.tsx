@@ -248,6 +248,8 @@ function ContextWindow({
           <CommentaryPanel
             commentary={commentary}
             terms={terms}
+            translation={translation}
+            onOpenVerse={onOpenVerse}
             requestedId={view.commentaryId ?? commentary.selected}
             onChangeCommentary={onChangeCommentary}
           />
