@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { highlight } from './highlight'
-import type { ContextKind, VerseContext } from './types'
+import type { ContextKind, ParallelVerse, VerseContext } from './types'
 
 // Space kept free below the window for the options bar, the footer, and padding.
 const heightBelowWindow = 185
@@ -10,7 +10,9 @@ interface ContextWindowProps {
   kind: ContextKind
   translation: string
   reference: string
+  // The answer for Show in Context or Full Chapter, or for Other Translations. One is null.
   context: VerseContext | null
+  parallel: ParallelVerse | null
   errorMessage: string
   // Search words are shown in bold in the chosen verse only, so the passage stays easy to read.
   terms: string[]
@@ -33,11 +35,23 @@ function formatTitle(kind: ContextKind, context: VerseContext) {
   return `${context.book_name} ${first.chapter}:${first.verse}–${last.verse}`
 }
 
+function describe(kind: ContextKind, reference: string) {
+  switch (kind) {
+    case 'chapter':
+      return `Full chapter for ${reference}`
+    case 'parallel':
+      return `Other translations of ${reference}`
+    default:
+      return `${reference} in context`
+  }
+}
+
 function ContextWindow({
   kind,
   translation,
   reference,
   context,
+  parallel,
   errorMessage,
   terms,
   wholeWords,
@@ -79,16 +93,30 @@ function ContextWindow({
   }, [context])
 
   const showChapters = context !== null && new Set(context.verses.map((entry) => entry.chapter)).size > 1
+  // The Bible that was searched comes first, then the rest in order of code.
+  const parallelTranslations = parallel
+    ? [
+        ...parallel.translations.filter((entry) => entry.code === translation),
+        ...parallel.translations.filter((entry) => entry.code !== translation),
+      ]
+    : []
+  const hasAnswer = kind === 'parallel' ? parallel !== null : context !== null
 
   return (
-    <section
-      className="context-window"
-      aria-label={kind === 'chapter' ? `Full chapter for ${reference}` : `${reference} in context`}
-    >
+    <section className="context-window" aria-label={describe(kind, reference)}>
       <header className="context-header">
         <h2>
-          {context ? formatTitle(kind, context) : reference}
-          <span className="translation-code"> {translation}</span>
+          {kind === 'parallel' ? (
+            <>
+              {parallel ? `${parallel.book_name} ${parallel.chapter}:${parallel.verse}` : reference}
+              <span className="translation-code"> in {parallel ? parallel.translations.length : '…'} Bibles</span>
+            </>
+          ) : (
+            <>
+              {context ? formatTitle(kind, context) : reference}
+              <span className="translation-code"> {translation}</span>
+            </>
+          )}
         </h2>
         <button
           type="button"
@@ -103,7 +131,8 @@ function ContextWindow({
 
       <div className="context-body" ref={body}>
         {errorMessage && <p className="error">{errorMessage}</p>}
-        {!context && !errorMessage && <p>Loading…</p>}
+        {!hasAnswer && !errorMessage && <p>Loading…</p>}
+
         {context && (
           <p className="context-text">
             {context.verses.map((entry, index) => (
@@ -121,6 +150,30 @@ function ContextWindow({
               </Fragment>
             ))}
           </p>
+        )}
+
+        {parallel && (
+          <>
+            <dl className="parallel-list">
+              {parallelTranslations.map((entry) => (
+                <div
+                  key={entry.code}
+                  className={entry.code === translation ? 'parallel-row current' : 'parallel-row'}
+                  lang={entry.language}
+                >
+                  <dt>
+                    <span className="parallel-code">{entry.code}</span>
+                    <span className="parallel-name">{entry.name}</span>
+                    {entry.code === translation && <span className="parallel-current">This result</span>}
+                  </dt>
+                  <dd>{highlight(entry.text, entry.code === translation ? terms : [], wholeWords)}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="parallel-note">
+              Only the Bibles stored on this site are shown. The NIV, NASB and The Message are not included.
+            </p>
+          </>
         )}
       </div>
     </section>

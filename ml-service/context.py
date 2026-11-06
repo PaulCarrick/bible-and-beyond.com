@@ -1,4 +1,5 @@
-"""The verses around a verse ("Show in Context") and the whole chapter of a verse ("Full Chapter")."""
+"""What the result links show: the verses around a verse ("Show in Context"), the whole chapter
+of a verse ("Full Chapter"), and the same verse in the other Bibles ("Other Translations")."""
 
 from search import connect
 
@@ -12,6 +13,41 @@ def find_translation_and_book(connection, translation_code, book_number):
   if translation is None or book is None:
     return None
   return translation[0], translation[1], book[0]
+
+
+def get_parallel(book_number, chapter, verse):
+  """Return the verse as it reads in every published translation that has it.
+
+  Translations that do not have the verse (a Bible with only the New Testament, or one that
+  numbers its verses differently) are left out. Returns None when no translation has it.
+  """
+  with connect() as connection:
+    book = connection.execute("SELECT name FROM books WHERE number = %s", (book_number,)).fetchone()
+    if book is None:
+      return None
+    rows = connection.execute(
+      """
+      SELECT t.code, t.name, t.language, v.text
+      FROM verses v
+      JOIN translations t ON t.id = v.translation_id
+      WHERE t.is_published AND v.book_number = %s AND v.chapter = %s AND v.verse = %s
+      ORDER BY t.code
+      """,
+      (book_number, chapter, verse),
+    ).fetchall()
+
+  if not rows:
+    return None
+  return {
+    "book_number": book_number,
+    "book_name": book[0],
+    "chapter": chapter,
+    "verse": verse,
+    "translations": [
+      {"code": code, "name": name, "language": language, "text": text}
+      for code, name, language, text in rows
+    ],
+  }
 
 
 def get_chapter(translation_code, book_number, chapter, verse):

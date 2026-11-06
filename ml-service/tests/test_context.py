@@ -284,3 +284,63 @@ def test_a_hidden_bible_has_no_full_chapter(tmp_path):
   finally:
     with connect() as connection:
       connection.execute("DELETE FROM translations WHERE code = 'ZZCHAP'")
+
+
+# --- other translations ----------------------------------------------------------------------
+
+
+def parallel(book, chapter_number, verse):
+  return client.get("/parallel", params={"book": book, "chapter": chapter_number, "verse": verse})
+
+
+def test_the_verse_is_given_in_every_published_translation_in_order_of_code():
+  response = parallel(JOHN, 3, 16)
+
+  body = response.json()
+  codes = [entry["code"] for entry in body["translations"]]
+  assert response.status_code == 200
+  assert body["book_name"] == "John" and (body["chapter"], body["verse"]) == (3, 16)
+  assert {"ASV", "BSB", "KJV", "WEB"} <= set(codes) and codes == sorted(codes)
+  texts = {entry["code"]: entry["text"] for entry in body["translations"]}
+  assert "For God so loved the world" in texts["KJV"] and texts["KJV"] != texts["BSB"]
+  assert all({"code", "name", "language", "text"} == set(entry) for entry in body["translations"])
+
+
+def test_the_licensed_bibles_are_never_included():
+  codes = [entry["code"] for entry in parallel(JOHN, 3, 16).json()["translations"]]
+
+  assert not {"NIV", "NASB", "MSG"} & set(codes)
+
+
+def test_a_hidden_bible_is_left_out_until_it_is_published(tmp_path):
+  from bible_import.importer import TranslationDetails, import_file
+  from bible_import import catalog
+
+  path = tmp_path / "partial.txt"
+  path.write_text("John 3:16\tFor God so loved the world.\n", encoding="utf-8")
+  import_file(path, TranslationDetails(code="ZZPAR", name="Partial Test", license="Public domain"))
+
+  try:
+    assert "ZZPAR" not in [e["code"] for e in parallel(JOHN, 3, 16).json()["translations"]]
+    catalog.set_published("ZZPAR", True)
+    assert "ZZPAR" in [e["code"] for e in parallel(JOHN, 3, 16).json()["translations"]]
+    # It has only John 3:16, so it is left out of every other verse.
+    assert "ZZPAR" not in [e["code"] for e in parallel(GENESIS, 1, 1).json()["translations"]]
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM translations WHERE code = 'ZZPAR'")
+
+
+@pytest.mark.parametrize(
+  "parameters, status",
+  [
+    ({"book": JOHN, "chapter": 99, "verse": 1}, 404),
+    ({"book": JOHN, "chapter": 3, "verse": 999}, 404),
+    ({"book": 0, "chapter": 3, "verse": 16}, 422),
+    ({"book": 67, "chapter": 3, "verse": 16}, 422),
+    ({"book": JOHN, "chapter": 0, "verse": 16}, 422),
+    ({"book": JOHN, "chapter": 3}, 422),
+  ],
+)
+def test_other_translations_requests_that_cannot_be_answered_are_refused(parameters, status):
+  assert client.get("/parallel", params=parameters).status_code == status

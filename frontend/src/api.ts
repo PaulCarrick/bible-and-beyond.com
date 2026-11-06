@@ -2,6 +2,7 @@ import type {
   Book,
   ContextKind,
   Copyright,
+  ParallelVerse,
   SearchParameters,
   SearchResponse,
   Translation,
@@ -43,7 +44,7 @@ export async function fetchTranslations(): Promise<Translation[]> {
 // Show in Context: the verses around one verse. How many come before and after is set by an
 // administrator. Full Chapter: every verse of the chapter that contains the verse.
 export async function fetchContext(
-  kind: ContextKind,
+  kind: Exclude<ContextKind, 'parallel'>,
   translation: string,
   book: number,
   chapter: number,
@@ -58,6 +59,21 @@ export async function fetchContext(
   })
   const path = kind === 'chapter' ? 'chapter' : 'context'
   return readJson(await fetch(`${mlServiceUrl}/${path}?${queryString}`, { signal }))
+}
+
+// Other Translations: the same verse in every Bible stored on this site.
+export async function fetchParallel(
+  book: number,
+  chapter: number,
+  verse: number,
+  signal: AbortSignal,
+): Promise<ParallelVerse> {
+  const queryString = new URLSearchParams({
+    book: String(book),
+    chapter: String(chapter),
+    verse: String(verse),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/parallel?${queryString}`, { signal }))
 }
 
 export async function fetchCopyrights(): Promise<Copyright[]> {

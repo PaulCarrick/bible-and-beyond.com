@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchContext } from './api'
+import { fetchContext, fetchParallel } from './api'
 import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
 import { highlight } from './highlight'
@@ -10,6 +10,7 @@ import type {
   SearchParameters,
   SearchResponse,
   ContextKind,
+  ParallelVerse,
   SearchResult,
   SortField,
   VerseContext,
@@ -68,6 +69,7 @@ interface ContextState {
   openedFor: SearchResponse
   result: SearchResult
   context: VerseContext | null
+  parallel: ParallelVerse | null
   errorMessage: string
 }
 
@@ -166,12 +168,20 @@ function SearchResults({
     const controller = new AbortController()
     contextRequest.current = controller
     contextTrigger.current = trigger
-    setContextState({ kind, openedFor: response, result, context: null, errorMessage: '' })
+    setContextState({ kind, openedFor: response, result, context: null, parallel: null, errorMessage: '' })
 
-    fetchContext(kind, result.translation, result.book_number, result.chapter, result.verse, controller.signal)
-      .then((context) =>
+    const request =
+      kind === 'parallel'
+        ? fetchParallel(result.book_number, result.chapter, result.verse, controller.signal).then(
+            (parallel) => ({ parallel }),
+          )
+        : fetchContext(kind, result.translation, result.book_number, result.chapter, result.verse, controller.signal).then(
+            (context) => ({ context }),
+          )
+    request
+      .then((answer) =>
         setContextState((current) =>
-          current?.result === result && current.kind === kind ? { ...current, context } : current,
+          current?.result === result && current.kind === kind ? { ...current, ...answer } : current,
         ),
       )
       .catch((error) => {
@@ -299,6 +309,14 @@ function SearchResults({
                         Full Chapter
                         <span className="visually-hidden"> containing {result.reference}</span>
                       </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('parallel', result, event.currentTarget)}
+                      >
+                        Other Translations
+                        <span className="visually-hidden"> of {result.reference}</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -362,6 +380,7 @@ function SearchResults({
             translation={contextState.result.translation}
             reference={contextState.result.reference}
             context={contextState.context}
+            parallel={contextState.parallel}
             errorMessage={contextState.errorMessage}
             terms={response?.terms ?? []}
             wholeWords={searchParameters.wholeWords}

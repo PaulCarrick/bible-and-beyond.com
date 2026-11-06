@@ -71,7 +71,23 @@ export interface VerseContext {
   verses: ContextVerse[]
 }
 
-export type ContextKind = 'context' | 'chapter'
+export type ContextKind = 'context' | 'chapter' | 'parallel'
+
+export interface ParallelTranslation {
+  code: string
+  name: string
+  language: string
+  text: string
+}
+
+// One verse as it reads in each Bible stored on this site.
+export interface ParallelVerse {
+  book_number: number
+  book_name: string
+  chapter: number
+  verse: number
+  translations: ParallelTranslation[]
+}
 
 export interface SearchResponse {
   source: TranslationSource

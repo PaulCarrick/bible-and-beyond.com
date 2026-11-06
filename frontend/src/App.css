@@ -472,3 +472,57 @@ select:disabled {
 .copyright-page section {
   margin-top: 1rem;
 }
+
+.parallel-list {
+  margin: 0;
+}
+
+.parallel-row {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.parallel-row:last-child {
+  border-bottom: 0;
+}
+
+.parallel-row.current {
+  border-radius: 6px;
+  background: var(--accent-bg);
+}
+
+.parallel-row dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  margin-bottom: 0.2rem;
+}
+
+.parallel-code {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.parallel-name,
+.parallel-current {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.parallel-current {
+  padding: 0 0.4rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+}
+
+.parallel-row dd {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.parallel-note {
+  margin: 0.75rem 0 0;
+  color: var(--text);
+  font-size: 12px;
+}
