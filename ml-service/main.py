@@ -180,11 +180,12 @@ def related(
   book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
   chapter: int = Query(ge=1),
   verse: int = Query(ge=1),
+  direction: Literal["from", "to"] = "from",
 ):
   code = translation.upper()
   if code in API_BIBLES:
     raise HTTPException(status_code=422, detail=f"Related Verses is not available for {code}.")
-  result = get_related(code, book, chapter, verse, get_settings()["related_verses_limit"])
+  result = get_related(code, book, chapter, verse, get_settings()["related_verses_limit"], direction)
   if result is None:
     raise HTTPException(status_code=404, detail="That verse was not found.")
   return result

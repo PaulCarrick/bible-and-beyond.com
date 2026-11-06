@@ -3,6 +3,7 @@ import type {
   ContextKind,
   Copyright,
   ParallelVerse,
+  RelatedDirection,
   RelatedResponse,
   SearchParameters,
   SearchResponse,
@@ -83,6 +84,7 @@ export async function fetchRelated(
   book: number,
   chapter: number,
   verse: number,
+  direction: RelatedDirection,
   signal: AbortSignal,
 ): Promise<RelatedResponse> {
   const queryString = new URLSearchParams({
@@ -90,6 +92,7 @@ export async function fetchRelated(
     book: String(book),
     chapter: String(chapter),
     verse: String(verse),
+    direction,
   })
   return readJson(await fetch(`${mlServiceUrl}/related?${queryString}`, { signal }))
 }

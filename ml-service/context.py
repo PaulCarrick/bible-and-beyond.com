@@ -157,8 +157,28 @@ def label_for_range(book_names, start, end):
   return f"{book_names[book]} {chapter}:{verse}–{end_verse}"
 
 
-def get_related(translation_code, book_number, chapter, verse, limit):
+# The verses that point AT a verse: a reference that begins at that verse (however far its range
+# runs), or a range inside the same chapter that contains it. A range that begins in an earlier
+# chapter and runs through this one is not matched; there are very few of them.
+POINTING_AT = """
+  to_book = %(book)s AND to_chapter = %(chapter)s AND (
+    to_verse = %(verse)s
+    OR (
+      to_verse < %(verse)s
+      AND COALESCE(to_end_verse, to_verse) >= %(verse)s
+      AND (to_end_chapter IS NULL OR to_end_chapter = to_chapter)
+      AND (to_end_book IS NULL OR to_end_book = to_book)
+    )
+  )
+"""
+
+
+def get_related(translation_code, book_number, chapter, verse, limit, direction="from"):
   """Return the best-voted cross references of a verse, with their text in the given translation.
+
+  direction "from": where the verse points to. Each reference is a verse or a range of verses.
+  direction "to": which verses point at it. Each reference is the verse that points at it.
+  Either way the answer also says how many there are in the other direction.
 
   Returns None when the translation is unknown or hidden, or does not have the verse.
   A reference to verses that the translation lacks is still listed, with no verses.
@@ -176,25 +196,48 @@ def get_related(translation_code, book_number, chapter, verse, limit):
       return None
 
     book_names = dict(connection.execute("SELECT number, name FROM books").fetchall())
-    total = connection.execute(
-      "SELECT COUNT(*) FROM cross_references WHERE from_book = %s AND from_chapter = %s AND from_verse = %s",
-      (book_number, chapter, verse),
+    where = {"book": book_number, "chapter": chapter, "verse": verse}
+    outgoing_total = connection.execute(
+      "SELECT COUNT(*) FROM cross_references WHERE from_book = %(book)s AND from_chapter = %(chapter)s"
+      " AND from_verse = %(verse)s",
+      where,
     ).fetchone()[0]
-    rows = connection.execute(
-      """
-      SELECT to_book, to_chapter, to_verse, to_end_book, to_end_chapter, to_end_verse, votes
-      FROM cross_references
-      WHERE from_book = %s AND from_chapter = %s AND from_verse = %s
-      ORDER BY votes DESC, to_book, to_chapter, to_verse
-      LIMIT %s
-      """,
-      (book_number, chapter, verse, limit),
-    ).fetchall()
+    incoming_total = connection.execute(
+      f"SELECT COUNT(DISTINCT (from_book, from_chapter, from_verse)) FROM cross_references WHERE {POINTING_AT}",
+      where,
+    ).fetchone()[0]
 
     references = []
-    for to_book, to_chapter, to_verse, end_book, end_chapter, end_verse, votes in rows:
-      start = (to_book, to_chapter, to_verse)
-      end = (end_book, end_chapter, end_verse) if end_book is not None else None
+    if direction == "to":
+      rows = connection.execute(
+        f"""
+        SELECT from_book, from_chapter, from_verse, MAX(votes) AS best
+        FROM cross_references
+        WHERE {POINTING_AT}
+        GROUP BY from_book, from_chapter, from_verse
+        ORDER BY best DESC, from_book, from_chapter, from_verse
+        LIMIT %(limit)s
+        """,
+        {**where, "limit": limit},
+      ).fetchall()
+      spans = [((b, c, v), None, votes) for b, c, v, votes in rows]
+    else:
+      rows = connection.execute(
+        """
+        SELECT to_book, to_chapter, to_verse, to_end_book, to_end_chapter, to_end_verse, votes
+        FROM cross_references
+        WHERE from_book = %s AND from_chapter = %s AND from_verse = %s
+        ORDER BY votes DESC, to_book, to_chapter, to_verse
+        LIMIT %s
+        """,
+        (book_number, chapter, verse, limit),
+      ).fetchall()
+      spans = [
+        ((to_book, to_chapter, to_verse), (end_book, end_chapter, end_verse) if end_book is not None else None, votes)
+        for to_book, to_chapter, to_verse, end_book, end_chapter, end_verse, votes in rows
+      ]
+
+    for start, end, votes in spans:
       last = end or start
       verses = connection.execute(
         """
@@ -212,9 +255,9 @@ def get_related(translation_code, book_number, chapter, verse, limit):
         {
           "votes": votes,
           "reference": label_for_range(book_names, start, end),
-          "book_number": to_book,
-          "chapter": to_chapter,
-          "verse": to_verse,
+          "book_number": start[0],
+          "chapter": start[1],
+          "verse": start[2],
           "verses": [
             {"book_name": book_names[b], "chapter": c, "verse": v, "text": text}
             for b, c, v, text in verses[:MAXIMUM_VERSES_PER_REFERENCE]
@@ -229,7 +272,10 @@ def get_related(translation_code, book_number, chapter, verse, limit):
     "book_name": book_name,
     "chapter": chapter,
     "verse": verse,
-    "total": total,
+    "direction": direction,
+    "outgoing_total": outgoing_total,
+    "incoming_total": incoming_total,
+    "total": incoming_total if direction == "to" else outgoing_total,
     "shown": len(references),
     "references": references,
   }

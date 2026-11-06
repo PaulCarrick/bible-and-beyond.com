@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS cross_references (
 CREATE INDEX IF NOT EXISTS cross_references_by_votes
     ON cross_references (from_book, from_chapter, from_verse, votes DESC);
 
+CREATE INDEX IF NOT EXISTS cross_references_by_target
+    ON cross_references (to_book, to_chapter, to_verse);
+
 INSERT INTO books (number, code, name, testament, aliases) VALUES
     (1, 'GEN', 'Genesis', 'OT', '{"Gen"}'),
     (2, 'EXO', 'Exodus', 'OT', '{"Exod"}'),

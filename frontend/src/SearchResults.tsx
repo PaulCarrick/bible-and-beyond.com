@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchContext, fetchParallel, fetchRelated } from './api'
 import ContextWindow from './ContextWindow'
+import type { WindowView } from './ContextWindow'
 import { reportView } from './fums'
 import { highlight } from './highlight'
 import { parsePerPage, perPageOptions } from './perPage'
@@ -10,11 +11,10 @@ import type {
   SearchParameters,
   SearchResponse,
   ContextKind,
-  ParallelVerse,
-  RelatedResponse,
+  RelatedDirection,
   SearchResult,
   SortField,
-  VerseContext,
+  VerseTarget,
 } from './types'
 
 // Space needed below the list for the page buttons, the collapsed options bar, and padding.
@@ -64,15 +64,11 @@ interface SearchResultsProps {
   onShowCopyrights: () => void
 }
 
-interface ContextState {
-  kind: ContextKind
+interface WindowState {
   // The results that were on screen when the window was opened. A new search closes the window.
   openedFor: SearchResponse
-  result: SearchResult
-  context: VerseContext | null
-  parallel: ParallelVerse | null
-  related: RelatedResponse | null
-  errorMessage: string
+  // The windows opened one from another; the last one is showing and Back removes it.
+  views: WindowView[]
 }
 
 function SearchResults({
@@ -90,9 +86,10 @@ function SearchResults({
   onClearSort,
   onShowCopyrights,
 }: SearchResultsProps) {
-  const [contextState, setContextState] = useState<ContextState | null>(null)
+  const [windowState, setWindowState] = useState<WindowState | null>(null)
   const contextRequest = useRef<AbortController | null>(null)
   const contextTrigger = useRef<HTMLElement | null>(null)
+  const nextViewId = useRef(1)
   const listReference = useRef<HTMLOListElement>(null)
   // The copyright line under licensed results takes room that the rows cannot use.
   const citationHeight = () =>
@@ -160,45 +157,95 @@ function SearchResults({
   }, [response])
 
   const isLicensed = response?.source === 'api_bible'
-  const showContext = contextState !== null && contextState.openedFor === response && !isLoading
+  const showContext = windowState !== null && windowState.openedFor === response && !isLoading
+  const currentView = windowState ? windowState.views[windowState.views.length - 1] : null
 
-  function openContext(kind: ContextKind, result: SearchResult, trigger: HTMLElement) {
-    if (response === null) {
-      return
-    }
+  function updateView(id: number, changes: Partial<WindowView>) {
+    setWindowState((current) =>
+      current
+        ? { ...current, views: current.views.map((view) => (view.id === id ? { ...view, ...changes } : view)) }
+        : current,
+    )
+  }
+
+  // Ask the server for what a window shows, and put the answer in that window.
+  function loadView(view: WindowView) {
     contextRequest.current?.abort()
     const controller = new AbortController()
     contextRequest.current = controller
-    contextTrigger.current = trigger
-    setContextState({ kind, openedFor: response, result, context: null, parallel: null, related: null, errorMessage: '' })
 
-    const { translation, book_number: book, chapter, verse } = result
+    const { translation, book_number: book, chapter, verse } = view.target
     const request =
-      kind === 'parallel'
+      view.kind === 'parallel'
         ? fetchParallel(book, chapter, verse, controller.signal).then((parallel) => ({ parallel }))
-        : kind === 'related'
-          ? fetchRelated(translation, book, chapter, verse, controller.signal).then((related) => ({ related }))
-          : fetchContext(kind, translation, book, chapter, verse, controller.signal).then((context) => ({ context }))
+        : view.kind === 'related'
+          ? fetchRelated(translation, book, chapter, verse, view.direction, controller.signal).then(
+              (related) => ({ related }),
+            )
+          : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
+              (context) => ({ context }),
+            )
     request
-      .then((answer) =>
-        setContextState((current) =>
-          current?.result === result && current.kind === kind ? { ...current, ...answer } : current,
-        ),
-      )
+      .then((answer) => updateView(view.id, { ...answer, errorMessage: '' }))
       .catch((error) => {
         if (controller.signal.aborted) {
           return
         }
         const errorMessage = error instanceof Error ? error.message : 'Could not load the verses.'
-        setContextState((current) =>
-          current?.result === result && current.kind === kind ? { ...current, errorMessage } : current,
-        )
+        updateView(view.id, { errorMessage })
       })
+  }
+
+  function newView(kind: ContextKind, target: VerseTarget, direction: RelatedDirection = 'from'): WindowView {
+    const id = nextViewId.current
+    nextViewId.current += 1
+    return { id, kind, target, direction, context: null, parallel: null, related: null, errorMessage: '' }
+  }
+
+  // A link under a result: open a window for that verse, in place of the list.
+  function openContext(kind: ContextKind, result: SearchResult, trigger: HTMLElement) {
+    if (response === null) {
+      return
+    }
+    contextTrigger.current = trigger
+    const view = newView(kind, {
+      translation: result.translation,
+      book_number: result.book_number,
+      chapter: result.chapter,
+      verse: result.verse,
+      reference: result.reference,
+    })
+    setWindowState({ openedFor: response, views: [view] })
+    loadView(view)
+  }
+
+  // A link inside a window: open another window on top of it, so Back can return.
+  function openVerse(kind: ContextKind, target: VerseTarget) {
+    const view = newView(kind, target)
+    setWindowState((current) => (current ? { ...current, views: [...current.views, view] } : current))
+    loadView(view)
+  }
+
+  function goBack() {
+    contextRequest.current?.abort()
+    setWindowState((current) =>
+      current && current.views.length > 1 ? { ...current, views: current.views.slice(0, -1) } : current,
+    )
+  }
+
+  // Switch Related Verses between "points to" and "pointed to by". The old list stays up until the
+  // new one arrives.
+  function changeDirection(direction: RelatedDirection) {
+    if (currentView === null || currentView.direction === direction) {
+      return
+    }
+    updateView(currentView.id, { direction, errorMessage: '' })
+    loadView({ ...currentView, direction })
   }
 
   const closeContext = useCallback(() => {
     contextRequest.current?.abort()
-    setContextState(null)
+    setWindowState(null)
     // Put the keyboard focus back on the link that was used, once the list is visible again.
     const trigger = contextTrigger.current
     window.setTimeout(() => trigger?.focus(), 0)
@@ -216,6 +263,7 @@ function SearchResults({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showContext, closeContext])
+
   const countsByBook = new Map(
     (response?.book_counts ?? []).map((entry) => [entry.book_number, entry.count]),
   )
@@ -383,18 +431,17 @@ function SearchResults({
           )}
         </div>
 
-        {showContext && contextState && (
+        {showContext && windowState && currentView && (
           <ContextWindow
-            kind={contextState.kind}
-            translation={contextState.result.translation}
-            reference={contextState.result.reference}
-            context={contextState.context}
-            parallel={contextState.parallel}
-            related={contextState.related}
-            errorMessage={contextState.errorMessage}
-            terms={response?.terms ?? []}
+            key={currentView.id}
+            view={currentView}
+            canGoBack={windowState.views.length > 1}
+            terms={windowState.views.length === 1 ? (response?.terms ?? []) : []}
             wholeWords={searchParameters.wholeWords}
+            onBack={goBack}
             onClose={closeContext}
+            onOpenVerse={openVerse}
+            onChangeDirection={changeDirection}
           />
         )}
       </div>

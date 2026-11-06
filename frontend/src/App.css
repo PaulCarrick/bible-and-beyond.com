@@ -328,6 +328,8 @@ select:disabled {
 }
 
 .context-body {
+  /* Positioned, so the hidden screen-reader text inside it is clipped by the scroll area too. */
+  position: relative;
   padding: 1rem 1.25rem;
   overflow-y: auto;
 }
@@ -574,4 +576,67 @@ select:disabled {
   margin: 0.75rem 0 0;
   color: var(--text);
   font-size: 12px;
+}
+
+.context-back {
+  flex: none;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.context-back:hover,
+.context-back:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.context-header h2 {
+  flex: 1;
+}
+
+.related-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.related-tab {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.related-tab[aria-pressed='true'] {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.related-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.related-actions .link-button {
+  font-size: 13px;
+}
+
+.related-actions .link-button + .link-button {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
 }

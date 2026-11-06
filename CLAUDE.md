@@ -72,7 +72,8 @@ A web app that answers Bible questions using AI/ML.
 - It lives in the `cross_references` table (migration 003; about 341,000 rows, 42 MB), numbered like the KJV and not tied to one translation. A reference points at a verse or a range. Votes are OpenBible.info users' ranking of how useful a link is; rows with zero or negative votes are not loaded.
 - Load or refresh it by hand (the deploy script only warns when the table is empty): download `cross-references.zip` from the page above, unzip it, then run `ml-service/.venv/bin/python ml-service/scripts/import_cross_references.py cross_references.txt` (`--dry-run` first). It replaces every row in one transaction. Its first line carries the release date; the one loaded on 2026-11-06 was dated 2026-11-02.
 - `GET /related?translation=&book=&chapter=&verse=` lists the best-voted references first, with their text in the Bible searched, a range expanded to at most 15 verses, and a reference to a verse that Bible lacks shown without text. Only Bibles stored on this site get the link; the licensed Bibles do not.
-- Not done yet: a link from each related verse to its own context, and showing which verses point *at* the chosen verse (the data is one-way: only 25% of pairs also appear in reverse).
+- The window has two tabs: "Points to" (where the verse points) and "Pointed to by" (`direction=to`: the verses that have a reference beginning at it, or a range inside its chapter that contains it; a range that starts in an earlier chapter and runs through it is not matched). The data is one-way, only 25% of pairs also appear in reverse, so "Pointed to by" is a real second list (John 3:16 points to 23 verses and is pointed to by 104). Migration 004 adds the index for it.
+- Each related verse has its own "Show in Context" and "Related Verses" links. They open another window on top, so you can follow a chain of references; Back goes up one level and the X or Escape closes them all and returns to the results (`WindowView` stack in `SearchResults.tsx`, `RelatedPanel.tsx`).
 
 ## Deploying
 - Push to `main`, then run `deploy/deploy.sh` from your Mac (`--all` rebuilds and restarts everything). It pulls on the server, then only redoes what changed: Python dependencies and an ML service restart, the frontend build (`VITE_ML_SERVICE_URL=/api`), Composer, Drupal database updates and a cache rebuild. It then checks health, including from outside. The server deploys what is on GitHub, not your working copy.
@@ -89,12 +90,12 @@ A web app that answers Bible questions using AI/ML.
 - DNS for `bible-and-beyond.com` is at Network Solutions (nameservers `ns83.worldnic.com` and `ns84.worldnic.com`). A records `@`, `www`, `cms` and `www.cms` point to `54.200.249.10` with a 15 minute TTL. The domain has no mail records.
 
 ## Backups
-- Manual only. Both databases live only on the server, so keep a copy off it. The first backup is in `~/Documents/bible-and-beyond-backups/2026-11-06/` on the maintainer's Mac, with restore commands in its `RESTORE.txt`.
+- Manual only. Both databases live only on the server, so keep a copy off it. Backups are in `~/Documents/bible-and-beyond-backups/` on the maintainer's Mac, one folder per backup, each with restore commands in its `RESTORE.txt`. The latest, `2026-11-06-1949`, includes YLT and the cross references; the first (`2026-11-06`) predates them.
 - To take one, on the server as `paul`: `pg_dump --no-owner --no-privileges bibleandbeyond | gzip -9 > postgres.sql.gz` and `mariadb-dump --single-transaction --routines --triggers --no-tablespaces bibleandbeyond_drupal | gzip -9 > drupal.sql.gz`. Copy the files to your Mac with `scp`, check them against a `sha256sum` list, and delete the server copies.
-- Test a backup by restoring it into a scratch database and comparing row counts (verses: 124,372 at the last backup) before trusting it, then drop the scratch database.
+- Test a backup by restoring it into a scratch database and comparing row counts (at the last backup: 155,474 verses, 5 translations, 341,355 cross references; 59 Drupal tables) before trusting it, then drop the scratch database.
 - Not in the database backups, on purpose: `ml-service/.env`, `settings.local.php` and the TLS private keys (secrets), and the code (it is in GitHub). Without the `.env` and `settings.local.php`, a rebuilt server needs new keys and a new Drupal hash salt.
 - A Lightsail snapshot of the whole instance is the one thing that also captures those files; take one from the Lightsail console before big changes if you want that safety net.
 
 ## Open items
-- Backups are manual only, by choice (no scheduled jobs, to keep the server light). Take one before risky changes; see "Backups". The last one was 2026-11-06.
+- Backups are manual only, by choice (no scheduled jobs, to keep the server light). Take one before risky changes; see "Backups". The last one was 2026-11-06 (19:49 UTC).
 - The old Network Solutions hosting service on this domain is no longer used and expires 2026-12-06; cancel it if it is not needed.

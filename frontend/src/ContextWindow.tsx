@@ -1,26 +1,43 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
-import CrossReferenceCredit from './CrossReferenceCredit'
 import { highlight } from './highlight'
-import type { ContextKind, ParallelVerse, RelatedResponse, VerseContext } from './types'
+import RelatedPanel from './RelatedPanel'
+import type {
+  ContextKind,
+  ParallelVerse,
+  RelatedDirection,
+  RelatedResponse,
+  VerseContext,
+  VerseTarget,
+} from './types'
 
 // Space kept free below the window for the options bar, the footer, and padding.
 const heightBelowWindow = 185
 const minimumBodyHeight = 200
 
-interface ContextWindowProps {
+// What one window shows: one of the four kinds of answer, for one verse.
+export interface WindowView {
+  id: number
   kind: ContextKind
-  translation: string
-  reference: string
-  // The answer for Show in Context or Full Chapter, for Other Translations, or for Related Verses.
-  // Only the one that matches the kind is filled in.
+  target: VerseTarget
+  direction: RelatedDirection
+  // Only the answer that matches the kind is filled in.
   context: VerseContext | null
   parallel: ParallelVerse | null
   related: RelatedResponse | null
   errorMessage: string
+}
+
+interface ContextWindowProps {
+  view: WindowView
+  // True when this window was opened from another one, so there is somewhere to go back to.
+  canGoBack: boolean
   // Search words are shown in bold in the chosen verse only, so the passage stays easy to read.
   terms: string[]
   wholeWords: boolean
+  onBack: () => void
   onClose: () => void
+  onOpenVerse: (kind: ContextKind, target: VerseTarget) => void
+  onChangeDirection: (direction: RelatedDirection) => void
 }
 
 function formatTitle(kind: ContextKind, context: VerseContext) {
@@ -52,17 +69,17 @@ function describe(kind: ContextKind, reference: string) {
 }
 
 function ContextWindow({
-  kind,
-  translation,
-  reference,
-  context,
-  parallel,
-  related,
-  errorMessage,
+  view,
+  canGoBack,
   terms,
   wholeWords,
+  onBack,
   onClose,
+  onOpenVerse,
+  onChangeDirection,
 }: ContextWindowProps) {
+  const { kind, context, parallel, related, errorMessage } = view
+  const { translation, reference } = view.target
   const closeButton = useRef<HTMLButtonElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const targetVerse = useRef<HTMLSpanElement>(null)
@@ -111,6 +128,11 @@ function ContextWindow({
   return (
     <section className="context-window" aria-label={describe(kind, reference)}>
       <header className="context-header">
+        {canGoBack && (
+          <button type="button" className="context-back" onClick={onBack}>
+            ← Back
+          </button>
+        )}
         <h2>
           {kind === 'related' ? (
             <>
@@ -164,46 +186,12 @@ function ContextWindow({
         )}
 
         {related && (
-          <>
-            {related.references.length === 0 && <p>No related verses were found for this verse.</p>}
-            <ol className="related-list">
-              {related.references.map((entry) => (
-                <li key={`${entry.book_number}-${entry.chapter}-${entry.verse}`} className="related-item">
-                  <div className="related-head">
-                    <strong className="related-reference">{entry.reference}</strong>
-                    <span className="related-votes">
-                      {entry.votes.toLocaleString()} {entry.votes === 1 ? 'vote' : 'votes'}
-                    </span>
-                  </div>
-                  {entry.verses.length === 0 ? (
-                    <p className="related-missing">This verse is not in {related.translation}.</p>
-                  ) : (
-                    <p className="related-text">
-                      {entry.verses.map((verse, index) => (
-                        <Fragment key={`${verse.chapter}-${verse.verse}`}>
-                          {entry.verses.length > 1 && (
-                            <sup className="verse-number">
-                              {index > 0 && verse.chapter !== entry.verses[index - 1].chapter
-                                ? `${verse.chapter}:${verse.verse}`
-                                : verse.verse}
-                            </sup>
-                          )}
-                          {verse.text}{' '}
-                        </Fragment>
-                      ))}
-                      {entry.has_more_verses && <span className="related-more">…</span>}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
-            <p className="related-note">
-              {related.total > related.shown
-                ? `Showing the ${related.shown} best-voted of ${related.total} related verses. `
-                : ''}
-              Votes rank how useful the link is. <CrossReferenceCredit />
-            </p>
-          </>
+          <RelatedPanel
+            related={related}
+            direction={view.direction}
+            onChangeDirection={onChangeDirection}
+            onOpenVerse={onOpenVerse}
+          />
         )}
 
         {parallel && (

@@ -73,6 +73,18 @@ export interface VerseContext {
 
 export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related'
 
+// A verse that a window is about, named well enough to ask for more about it.
+export interface VerseTarget {
+  translation: string
+  book_number: number
+  chapter: number
+  verse: number
+  reference: string
+}
+
+// Related Verses can look two ways: where the verse points to, and which verses point at it.
+export type RelatedDirection = 'from' | 'to'
+
 export interface RelatedVerse {
   book_name: string
   chapter: number
@@ -98,6 +110,9 @@ export interface RelatedResponse {
   book_name: string
   chapter: number
   verse: number
+  direction: RelatedDirection
+  outgoing_total: number
+  incoming_total: number
   total: number
   shown: number
   references: RelatedReference[]

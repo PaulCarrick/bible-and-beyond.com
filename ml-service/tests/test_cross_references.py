@@ -279,3 +279,130 @@ def test_a_verse_with_no_references_gives_an_empty_list():
 )
 def test_related_requests_that_cannot_be_answered_are_refused(parameters, status):
   assert client.get("/related", params=parameters).status_code == status
+
+
+# --- which verses point at a verse -------------------------------------------------------------------
+
+
+@pytest.fixture
+def pointed_at():
+  """John 3:16 with four test verses that point at it, one way or another. Removed afterwards.
+
+  The four pointing verses are KJV verses that have no real cross references of their own, so
+  the test rows cannot collide with real ones. Returns (target, [first, second, third, fourth]).
+  """
+  target = (JOHN, 3, 16)
+  with connect() as connection:
+    sources = connection.execute(
+      "SELECT v.book_number, v.chapter, v.verse FROM verses v JOIN translations t ON t.id = v.translation_id"
+      " WHERE t.code = 'KJV' AND NOT EXISTS (SELECT 1 FROM cross_references c WHERE c.from_book = v.book_number"
+      " AND c.from_chapter = v.chapter AND c.from_verse = v.verse) ORDER BY v.book_number, v.chapter, v.verse LIMIT 4"
+    ).fetchall()
+    if len(sources) < 4:
+      pytest.skip("not enough KJV verses without cross references in this database")
+    first, second, third, fourth = sources
+    rows = [
+      (*first, *target, None, None, None, TEST_VOTES + 4),  # points straight at John 3:16
+      (*second, JOHN, 3, 14, JOHN, 3, 18, TEST_VOTES + 3),  # a range, John 3:14-18, that contains it
+      (*first, JOHN, 3, 15, JOHN, 3, 17, TEST_VOTES + 2),  # the first verse again, through another range
+      (*third, JOHN, 3, 17, JOHN, 3, 20, TEST_VOTES + 1),  # John 3:17-20 is next to it, not around it
+      (*fourth, *target, None, None, None, TEST_VOTES),  # points straight at it, with the fewest votes
+    ]
+    for row in rows:
+      connection.execute(
+        "INSERT INTO cross_references (from_book, from_chapter, from_verse, to_book, to_chapter, to_verse,"
+        " to_end_book, to_end_chapter, to_end_verse, votes) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", row
+      )
+  yield target, [first, second, third, fourth]
+  with connect() as connection:
+    connection.execute("DELETE FROM cross_references WHERE votes >= %s", (REAL_VOTES_CEILING,))
+
+
+def pointing_at(target, translation="KJV", direction="to"):
+  book, chapter, number = target
+  return client.get(
+    "/related",
+    params={"translation": translation, "book": book, "chapter": chapter, "verse": number, "direction": direction},
+  )
+
+
+def test_the_verses_that_point_at_a_verse_are_listed_best_voted_first(pointed_at):
+  target, (first, second, third, fourth) = pointed_at
+
+  body = pointing_at(target).json()
+
+  sources = [(entry["book_number"], entry["chapter"], entry["verse"]) for entry in body["references"][:3]]
+  assert sources == [first, second, fourth]  # the third verse points next to it, not at it
+  assert [entry["votes"] for entry in body["references"][:3]] == [TEST_VOTES + 4, TEST_VOTES + 3, TEST_VOTES]
+  assert body["direction"] == "to"
+
+
+def test_each_pointing_verse_appears_once_with_its_best_votes_and_its_own_text(pointed_at):
+  target, (first, *_rest) = pointed_at
+
+  body = pointing_at(target).json()
+
+  appearances = [entry for entry in body["references"] if (entry["book_number"], entry["chapter"], entry["verse"]) == first]
+  assert len(appearances) == 1 and appearances[0]["votes"] == TEST_VOTES + 4
+  assert len(appearances[0]["verses"]) == 1 and appearances[0]["verses"][0]["text"]
+  assert appearances[0]["reference"] == f"{appearances[0]['verses'][0]['book_name']} {first[1]}:{first[2]}"
+
+
+def test_the_counts_for_both_directions_are_reported_whichever_way_you_look(pointed_at):
+  target, _sources = pointed_at
+
+  looking_back = pointing_at(target, direction="to").json()
+  looking_forward = pointing_at(target, direction="from").json()
+
+  assert looking_back["incoming_total"] == looking_forward["incoming_total"] >= 3
+  assert looking_back["outgoing_total"] == looking_forward["outgoing_total"]
+  assert looking_back["total"] == looking_back["incoming_total"]
+  assert looking_forward["total"] == looking_forward["outgoing_total"] and looking_forward["direction"] == "from"
+
+
+def test_the_direction_defaults_to_where_the_verse_points(pointed_at):
+  target, _sources = pointed_at
+  book, chapter, number = target
+
+  body = client.get("/related", params={"translation": "KJV", "book": book, "chapter": chapter, "verse": number}).json()
+
+  assert body["direction"] == "from" and body["total"] == body["outgoing_total"]
+
+
+def test_the_limit_applies_to_pointing_verses_too(pointed_at, monkeypatch):
+  target, _sources = pointed_at
+  monkeypatch.setattr(main, "get_settings", lambda: {"related_verses_limit": 2})
+
+  body = pointing_at(target).json()
+
+  assert body["shown"] == 2 and body["total"] > 2
+
+
+def test_an_unknown_direction_is_refused(pointed_at):
+  target, _sources = pointed_at
+
+  assert pointing_at(target, direction="sideways").status_code == 422
+
+
+def test_a_verse_that_begins_a_range_that_runs_into_the_next_chapter_still_counts(source):
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO cross_references VALUES (%s, %s, %s, 1, 1, 1, 1, 2, 3, %s)", (*source, TEST_VOTES + 1)
+    )
+
+  body = pointing_at((GENESIS, 1, 1)).json()
+
+  assert (source[0], source[1], source[2]) in [(e["book_number"], e["chapter"], e["verse"]) for e in body["references"][:1]]
+
+
+def test_the_count_for_genesis_1_1_is_at_least_every_verse_that_names_it_directly():
+  with connect() as connection:
+    naming_it = connection.execute(
+      "SELECT COUNT(DISTINCT (from_book, from_chapter, from_verse)) FROM cross_references"
+      " WHERE to_book = 1 AND to_chapter = 1 AND to_verse = 1"
+    ).fetchone()[0]
+
+  body = pointing_at((GENESIS, 1, 1)).json()
+
+  assert body["incoming_total"] >= naming_it >= 1
+  assert body["shown"] == min(10, body["incoming_total"])
