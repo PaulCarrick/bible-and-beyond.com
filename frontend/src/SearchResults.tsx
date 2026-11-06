@@ -236,6 +236,24 @@ function SearchResults({
     loadView(view)
   }
 
+  // The link in the note above a Strong's number search: open that word's lexicon entry.
+  function openLexicon(strongCode: string, trigger: HTMLElement) {
+    if (response === null) {
+      return
+    }
+    contextTrigger.current = trigger
+    const view = newView('lexicon', {
+      translation: response.results[0]?.translation ?? searchParameters.translations[0],
+      book_number: 0,
+      chapter: 0,
+      verse: 0,
+      reference: strongCode,
+      strong_code: strongCode,
+    })
+    setWindowState({ openedFor: response, views: [view] })
+    loadView(view)
+  }
+
   // A link inside a window: open another window on top of it, so Back can return.
   function openVerse(kind: ContextKind, target: VerseTarget) {
     const view = newView(kind, target)
@@ -312,8 +330,15 @@ function SearchResults({
               >
                 {response.strong.original}
               </span>{' '}
-              ({response.strong.transliteration}), {response.strong.code}: {response.strong.gloss}. Choose Original
-              Words under a result to see the full lexicon entry.
+              ({response.strong.transliteration}), {response.strong.code}: {response.strong.gloss}.{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={(event) => openLexicon(response.strong?.code ?? '', event.currentTarget)}
+              >
+                Open the lexicon entry
+                <span className="visually-hidden"> for {response.strong.code}</span>
+              </button>
             </p>
           )}
         </div>
