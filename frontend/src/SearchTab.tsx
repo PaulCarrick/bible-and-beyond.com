@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { searchBible, searchCommentaries } from './api'
+import { chooseContextTranslation } from './contextTranslation'
 import SearchForm from './SearchForm'
 import SearchResults from './SearchResults'
 import type {
@@ -125,9 +126,8 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
     }
   }
 
-  // "Show in Context" under a commentary result needs a Bible to show: the BSB, else the first here.
-  const localTranslations = translations.filter((translation) => translation.source === 'local')
-  const contextTranslation = (localTranslations.find((translation) => translation.code === 'BSB') ?? localTranslations[0])?.code ?? 'BSB'
+  // "Show in Context" under a commentary result needs a Bible to show.
+  const contextTranslation = chooseContextTranslation(translations)
   const sourceLabel =
     searchParameters?.commentary == null
       ? 'all commentaries'

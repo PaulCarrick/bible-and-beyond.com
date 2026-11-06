@@ -1,0 +1,63 @@
+import { highlightLinked } from './highlight'
+import type { LinkOptions } from './highlight'
+
+// Every line of the old texts is a paragraph or a point of an outline (none are wrapped by hand).
+// start is where the paragraph begins in the whole text, to find the references inside it.
+function paragraphsOf(text: string) {
+  const paragraphs: { text: string; start: number }[] = []
+  let position = 0
+  for (const piece of text.split(/(\n+)/)) {
+    if (piece.trim() !== '') {
+      paragraphs.push({ text: piece, start: position })
+    }
+    position += piece.length
+  }
+  return paragraphs
+}
+
+const referenceLinkOptions: LinkOptions = {
+  className: 'reference-link',
+  isTabbable: true,
+  titleFor: (_code, shownText) => `Show ${shownText.trim()} in context`,
+}
+
+interface NoteTextProps {
+  text: string
+  // Scripture references in the text: [start, end, "book:chapter:verse"] over the whole text.
+  references: [number, number, string][]
+  // Words searched for, shown in bold.
+  terms: string[]
+  // A reference was chosen: its verse, the words as written, and the link that was used.
+  onOpenReference: (book: number, chapter: number, verse: number, shownText: string, element: HTMLElement) => void
+}
+
+// The text of a commentary note as paragraphs, with its scripture references as links.
+function NoteText({ text, references, terms, onOpenReference }: NoteTextProps) {
+  return (
+    <>
+      {paragraphsOf(text).map((paragraph) => {
+        const links = references
+          .filter(([start, end]) => start >= paragraph.start && end <= paragraph.start + paragraph.text.length)
+          .map(([start, end, code]): [number, number, string] => [start - paragraph.start, end - paragraph.start, code])
+        return (
+          <p key={paragraph.start}>
+            {highlightLinked(
+              paragraph.text,
+              terms,
+              false,
+              links,
+              (code, element) => {
+                const [book, chapter, verse] = code.split(':').map(Number)
+                const link = links.find(([, , linkCode]) => linkCode === code)
+                onOpenReference(book, chapter, verse, link ? paragraph.text.slice(link[0], link[1]) : '', element)
+              },
+              referenceLinkOptions,
+            )}
+          </p>
+        )
+      })}
+    </>
+  )
+}
+
+export default NoteText

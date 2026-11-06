@@ -1,27 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  fetchCommentaries,
-  fetchContext,
-  fetchLexiconEntry,
-  fetchOriginalWords,
-  fetchParallel,
-  fetchRelated,
-} from './api'
+import { useEffect, useRef } from 'react'
 import ContextWindow from './ContextWindow'
-import type { WindowView } from './ContextWindow'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
 import { parsePerPage, perPageOptions } from './perPage'
+import { useVerseWindows } from './useVerseWindows'
 import type {
   Book,
   PerPage,
   SearchParameters,
   SearchResponse,
   ContextKind,
-  RelatedDirection,
   SearchResult,
   SortField,
-  VerseTarget,
 } from './types'
 
 // Space needed below the list for the page buttons, the collapsed options bar, and padding.
@@ -77,13 +67,6 @@ interface SearchResultsProps {
   onShowCopyrights: () => void
 }
 
-interface WindowState {
-  // The results that were on screen when the window was opened. A new search closes the window.
-  openedFor: SearchResponse
-  // The windows opened one from another; the last one is showing and Back removes it.
-  views: WindowView[]
-}
-
 function SearchResults({
   mode,
   contextTranslation,
@@ -102,10 +85,6 @@ function SearchResults({
   onClearSort,
   onShowCopyrights,
 }: SearchResultsProps) {
-  const [windowState, setWindowState] = useState<WindowState | null>(null)
-  const contextRequest = useRef<AbortController | null>(null)
-  const contextTrigger = useRef<HTMLElement | null>(null)
-  const nextViewId = useRef(1)
   const listReference = useRef<HTMLOListElement>(null)
   // The copyright line under licensed results takes room that the rows cannot use.
   const citationHeight = () =>
@@ -173,87 +152,18 @@ function SearchResults({
   }, [response])
 
   const isLicensed = response?.source === 'api_bible'
-  const showContext = windowState !== null && windowState.openedFor === response && !isLoading
-  const currentView = windowState ? windowState.views[windowState.views.length - 1] : null
-
-  function updateView(id: number, changes: Partial<WindowView>) {
-    setWindowState((current) =>
-      current
-        ? { ...current, views: current.views.map((view) => (view.id === id ? { ...view, ...changes } : view)) }
-        : current,
-    )
-  }
-
-  // Ask the server for what a window shows, and put the answer in that window.
-  function loadView(view: WindowView) {
-    contextRequest.current?.abort()
-    const controller = new AbortController()
-    contextRequest.current = controller
-
-    const { translation, book_number: book, chapter, verse } = view.target
-    const request =
-      view.kind === 'parallel'
-        ? fetchParallel(book, chapter, verse, controller.signal).then((parallel) => ({ parallel }))
-        : view.kind === 'related'
-          ? fetchRelated(translation, book, chapter, verse, view.direction, controller.signal).then(
-              (related) => ({ related }),
-            )
-          : view.kind === 'words'
-            ? fetchOriginalWords(book, chapter, verse, controller.signal).then((words) => ({ words }))
-            : view.kind === 'lexicon'
-              ? fetchLexiconEntry(translation, view.target.strong_code ?? '', controller.signal).then(
-                  (lexicon) => ({ lexicon }),
-                )
-              : view.kind === 'commentary'
-                ? fetchCommentaries(book, chapter, verse, view.commentaryId, controller.signal).then(
-                    (commentary) => ({ commentary }),
-                  )
-                : fetchContext(view.kind, translation, book, chapter, verse, controller.signal).then(
-                    (context) => ({ context }),
-                  )
-    request
-      .then((answer) => updateView(view.id, { ...answer, errorMessage: '' }))
-      .catch((error) => {
-        if (controller.signal.aborted) {
-          return
-        }
-        const errorMessage = error instanceof Error ? error.message : 'Could not load the verses.'
-        updateView(view.id, { errorMessage })
-      })
-  }
-
-  function newView(
-    kind: ContextKind,
-    target: VerseTarget,
-    direction: RelatedDirection = 'from',
-    commentaryId: string | null = null,
-  ): WindowView {
-    const id = nextViewId.current
-    nextViewId.current += 1
-    return {
-      id,
-      kind,
-      target,
-      direction,
-      context: null,
-      parallel: null,
-      related: null,
-      words: null,
-      lexicon: null,
-      commentary: null,
-      commentaryId,
-      errorMessage: '',
-    }
-  }
+  const windows = useVerseWindows(response, !isLoading)
+  const showContext = windows.isShowing
+  const currentView = windows.currentView
 
   // A link under a result: open a window for that verse, in place of the list.
   function openContext(kind: ContextKind, result: SearchResult, trigger: HTMLElement) {
     if (response === null) {
       return
     }
-    contextTrigger.current = trigger
     // A commentary result is not tied to a Bible, so the verse is shown in the one chosen for that.
-    const view = newView(
+    windows.open(
+      response,
       kind,
       {
         translation: response.source === 'commentary' ? contextTranslation : result.translation,
@@ -262,11 +172,9 @@ function SearchResults({
         verse: result.verse,
         reference: result.reference,
       },
-      'from',
-      kind === 'commentary' ? (result.commentary_id ?? null) : null,
+      trigger,
+      { commentaryId: kind === 'commentary' ? (result.commentary_id ?? null) : null },
     )
-    setWindowState({ openedFor: response, views: [view] })
-    loadView(view)
   }
 
   // The link in the note above a Strong's number search: open that word's lexicon entry.
@@ -274,72 +182,20 @@ function SearchResults({
     if (response === null) {
       return
     }
-    contextTrigger.current = trigger
-    const view = newView('lexicon', {
-      translation: response.results[0]?.translation ?? searchParameters.translations[0],
-      book_number: 0,
-      chapter: 0,
-      verse: 0,
-      reference: strongCode,
-      strong_code: strongCode,
-    })
-    setWindowState({ openedFor: response, views: [view] })
-    loadView(view)
-  }
-
-  // A link inside a window: open another window on top of it, so Back can return.
-  function openVerse(kind: ContextKind, target: VerseTarget) {
-    const view = newView(kind, target)
-    setWindowState((current) => (current ? { ...current, views: [...current.views, view] } : current))
-    loadView(view)
-  }
-
-  function goBack() {
-    contextRequest.current?.abort()
-    setWindowState((current) =>
-      current && current.views.length > 1 ? { ...current, views: current.views.slice(0, -1) } : current,
+    windows.open(
+      response,
+      'lexicon',
+      {
+        translation: response.results[0]?.translation ?? searchParameters.translations[0],
+        book_number: 0,
+        chapter: 0,
+        verse: 0,
+        reference: strongCode,
+        strong_code: strongCode,
+      },
+      trigger,
     )
   }
-
-  // Switch Related Verses between "points to" and "pointed to by". The old list stays up until the
-  // new one arrives.
-  function changeDirection(direction: RelatedDirection) {
-    if (currentView === null || currentView.direction === direction) {
-      return
-    }
-    updateView(currentView.id, { direction, errorMessage: '' })
-    loadView({ ...currentView, direction })
-  }
-
-  // Switch to another commentary. The text on screen stays until the new one arrives.
-  function changeCommentary(commentaryId: string) {
-    if (currentView === null || (currentView.commentaryId ?? currentView.commentary?.selected) === commentaryId) {
-      return
-    }
-    updateView(currentView.id, { commentaryId, errorMessage: '' })
-    loadView({ ...currentView, commentaryId })
-  }
-
-  const closeContext = useCallback(() => {
-    contextRequest.current?.abort()
-    setWindowState(null)
-    // Put the keyboard focus back on the link that was used, once the list is visible again.
-    const trigger = contextTrigger.current
-    window.setTimeout(() => trigger?.focus(), 0)
-  }, [])
-
-  useEffect(() => {
-    if (!showContext) {
-      return
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        closeContext()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showContext, closeContext])
 
   const countsByBook = new Map(
     (response?.book_counts ?? []).map((entry) => [entry.book_number, entry.count]),
@@ -579,24 +435,24 @@ function SearchResults({
           )}
         </div>
 
-        {showContext && windowState && currentView && (
+        {showContext && currentView && (
           <ContextWindow
             key={currentView.id}
             view={currentView}
-            canGoBack={windowState.views.length > 1}
+            canGoBack={windows.views.length > 1}
             terms={
               // Search words are bolded only where they were searched for: in a note after a commentary
               // search, in Bible text after a Bible search.
-              windowState.views.length === 1 && (response?.source === 'commentary') === (currentView.kind === 'commentary')
+              windows.views.length === 1 && (response?.source === 'commentary') === (currentView.kind === 'commentary')
                 ? (response?.terms ?? [])
                 : []
             }
             wholeWords={searchParameters.wholeWords}
-            onBack={goBack}
-            onClose={closeContext}
-            onOpenVerse={openVerse}
-            onChangeDirection={changeDirection}
-            onChangeCommentary={changeCommentary}
+            onBack={windows.goBack}
+            onClose={windows.close}
+            onOpenVerse={windows.openVerse}
+            onChangeDirection={windows.changeDirection}
+            onChangeCommentary={windows.changeCommentary}
           />
         )}
       </div>

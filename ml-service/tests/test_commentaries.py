@@ -12,7 +12,9 @@ from commentaries import (
   COMMENTARIES,
   CommentaryProblem,
   check_ids,
+  get_chapter_notes,
   get_commentaries,
+  get_contents,
   label_range,
   list_commentaries,
   paragraphs_to_text,
@@ -362,3 +364,97 @@ def test_the_note_comes_with_the_references_inside_it(tmp_path, monkeypatch):
   intro = result["book_introduction"]
   assert [(intro[start:end], code) for start, end, code in result["book_introduction_references"]] == [("Gen 1:1", "1:1:1")]
   assert result["chapter_introduction"] == "In chapter 3." and result["chapter_introduction_references"] == []
+
+
+# --- browsing a commentary -------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def browsable(tmp_path, monkeypatch):
+  """A Gill-style commentary on Genesis 1 and John 3 and 4, and a Henry-style one on John 3."""
+  with connect() as connection:
+    connection.execute("DROP SCHEMA IF EXISTS commentaries_browse_test CASCADE")
+    connection.execute("CREATE SCHEMA commentaries_browse_test")
+    for table in ("commentaries", "commentary_entries", "commentary_introductions"):
+      connection.execute(f"CREATE TABLE commentaries_browse_test.{table} (LIKE public.{table} INCLUDING ALL)")
+
+  def connect_to_test_schema():
+    return psycopg.connect(os.environ["DATABASE_URL"], options="-c search_path=commentaries_browse_test,public")
+
+  monkeypatch.setattr(commentaries, "connect", connect_to_test_schema)
+  gill = write_commentary(tmp_path / "a", "john-gill", {
+    ("GEN", 1): [(1, ["In the beginning, see Joh 1:1."])],
+    ("JHN", 3): [(17, ["Not to condemn."]), (16, ["God so loved."])],
+    ("JHN", 4): [(1, ["The Pharisees heard."])],
+  })
+  henry = write_commentary(tmp_path / "b", "matthew-henry", {("JHN", 3): [(1, ["Nicodemus."]), (22, ["Baptizing."])]})
+  for folder, commentary_id in ((gill, "john-gill"), (henry, "matthew-henry")):
+    entries, introductions = read_commentary(folder, commentary_id, BOOKS)
+    replace_commentary(commentary_id, entries, introductions)
+  try:
+    yield
+  finally:
+    with connect() as connection:
+      connection.execute("DROP SCHEMA IF EXISTS commentaries_browse_test CASCADE")
+
+
+def test_the_contents_list_the_books_and_chapters_a_commentary_has_notes_on(browsable):
+  result = get_contents("john-gill")
+
+  assert result["commentary"] == {"id": "john-gill", "name": COMMENTARIES["john-gill"][0], "short_name": "John Gill"}
+  assert result["books"] == [
+    {"number": 1, "name": "Genesis", "chapters": [1]},
+    {"number": 43, "name": "John", "chapters": [3, 4]},
+  ]
+  assert get_contents("matthew-henry")["books"] == [{"number": 43, "name": "John", "chapters": [3]}]
+  assert get_contents("nobody") is None
+
+
+def test_a_chapter_comes_in_verse_order_with_what_each_note_covers(browsable):
+  result = get_chapter_notes("john-gill", JOHN, 3)
+
+  assert (result["book_name"], result["chapter"]) == ("John", 3)
+  assert [(entry["verse"], entry["covers"], entry["text"]) for entry in result["entries"]] == [
+    (16, "John 3:16", "God so loved."), (17, "John 3:17", "Not to condemn."),
+  ]
+  assert result["chapter_introduction"] == "In chapter 3." and result["book_introduction"] == "About John."
+
+
+def test_a_section_commentary_shows_the_verses_each_section_covers(browsable):
+  entries = get_chapter_notes("matthew-henry", JOHN, 3)["entries"]
+
+  assert [entry["covers"] for entry in entries] == ["John 3:1–21", "John 3:22 to the end of the chapter"]
+
+
+def test_the_references_in_each_note_are_found(browsable):
+  genesis = get_chapter_notes("john-gill", 1, 1)["entries"][0]
+
+  assert [(genesis["text"][start:end], code) for start, end, code in genesis["references"]] == [("Joh 1:1", "43:1:1")]
+
+
+def test_previous_and_next_chapters_run_across_books_and_stop_at_the_ends(browsable):
+  first = get_chapter_notes("john-gill", 1, 1)
+  middle = get_chapter_notes("john-gill", JOHN, 3)
+  last = get_chapter_notes("john-gill", JOHN, 4)
+
+  assert first["previous"] is None and first["next"] == {"book_number": 43, "book_name": "John", "chapter": 3}
+  assert middle["previous"] == {"book_number": 1, "book_name": "Genesis", "chapter": 1}
+  assert middle["next"] == {"book_number": 43, "book_name": "John", "chapter": 4}
+  assert last["next"] is None
+
+
+def test_a_chapter_without_notes_is_not_found(browsable):
+  assert get_chapter_notes("john-gill", JOHN, 9) is None
+  assert get_chapter_notes("matthew-henry", 1, 1) is None
+  assert get_chapter_notes("nobody", JOHN, 3) is None
+  assert get_chapter_notes("john-gill", 999, 1) is None
+
+
+def test_the_api_serves_contents_and_chapters(browsable):
+  assert client.get("/commentary-contents", params={"commentary": "john-gill"}).json()["books"][0]["name"] == "Genesis"
+  assert client.get("/commentary-contents", params={"commentary": "nobody"}).status_code == 404
+
+  body = client.get("/commentary-chapter", params={"commentary": "john-gill", "book": JOHN, "chapter": 4}).json()
+  assert body["entries"][0]["covers"] == "John 4:1" and body["previous"]["chapter"] == 3
+  assert client.get("/commentary-chapter", params={"commentary": "john-gill", "book": JOHN, "chapter": 9}).status_code == 404
+  assert client.get("/commentary-chapter", params={"commentary": "john-gill", "book": 67, "chapter": 1}).status_code == 422

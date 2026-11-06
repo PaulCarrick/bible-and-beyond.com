@@ -58,7 +58,7 @@ export function highlightLinked(
   terms: string[],
   wholeWords: boolean,
   links: [number, number, string][],
-  onChoose: (code: string) => void,
+  onChoose: (code: string, element: HTMLElement) => void,
   // How the linked words look and behave. The default suits Strong's numbers on a Bible verse.
   options: LinkOptions = strongLinkOptions,
 ) {
@@ -104,7 +104,7 @@ export function highlightLinked(
           className={options.className}
           tabIndex={options.isTabbable ? 0 : -1}
           title={options.titleFor(link[2], group.map((piece) => piece.text).join(''))}
-          onClick={() => onChoose(link[2])}
+          onClick={(event) => onChoose(link[2], event.currentTarget)}
         >
           {content}
         </button>

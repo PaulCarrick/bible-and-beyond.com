@@ -1,4 +1,6 @@
 import type {
+  CommentaryChapter,
+  CommentaryContents,
   CommentaryResponse,
   CommentarySource,
   Book,
@@ -213,4 +215,19 @@ export async function searchCommentaries(
     queryString.set('sort_direction', searchParameters.sortDirection)
   }
   return readJson(await fetch(`${mlServiceUrl}/search-commentaries?${queryString}`, { signal }))
+}
+
+export async function fetchCommentaryContents(commentary: string, signal: AbortSignal): Promise<CommentaryContents> {
+  const queryString = new URLSearchParams({ commentary })
+  return readJson(await fetch(`${mlServiceUrl}/commentary-contents?${queryString}`, { signal }))
+}
+
+export async function fetchCommentaryChapter(
+  commentary: string,
+  book: number,
+  chapter: number,
+  signal: AbortSignal,
+): Promise<CommentaryChapter> {
+  const queryString = new URLSearchParams({ commentary, book: String(book), chapter: String(chapter) })
+  return readJson(await fetch(`${mlServiceUrl}/commentary-chapter?${queryString}`, { signal }))
 }

@@ -266,6 +266,103 @@ def check_ids(commentary_ids):
   return commentary_ids
 
 
+# --- browsing a commentary -----------------------------------------------------------------------------
+
+
+def get_contents(commentary_id):
+  """The books and chapters a commentary has notes on, for choosing what to read.
+
+  Returns None for an unknown commentary.
+  """
+  with connect() as connection:
+    commentary = connection.execute(
+      "SELECT id, name, short_name FROM commentaries WHERE id = %s", (commentary_id,)
+    ).fetchone()
+    if commentary is None:
+      return None
+    rows = connection.execute(
+      "SELECT e.book_number, b.name, e.chapter FROM commentary_entries e JOIN books b ON b.number = e.book_number "
+      "WHERE e.commentary_id = %s GROUP BY e.book_number, b.name, e.chapter ORDER BY e.book_number, e.chapter",
+      (commentary_id,),
+    ).fetchall()
+  books = []
+  for book_number, book_name, chapter in rows:
+    if not books or books[-1]["number"] != book_number:
+      books.append({"number": book_number, "name": book_name, "chapters": []})
+    books[-1]["chapters"].append(chapter)
+  return {
+    "commentary": {"id": commentary[0], "name": commentary[1], "short_name": commentary[2]},
+    "books": books,
+  }
+
+
+def get_chapter_notes(commentary_id, book_number, chapter):
+  """Every note of one chapter of a commentary, in order, with its introductions.
+
+  Also names the chapters before and after (across books) that the commentary has notes on, so a
+  reader can turn the page. Returns None when there are no notes on that chapter.
+  """
+  with connect() as connection:
+    commentary = connection.execute(
+      "SELECT id, name, short_name FROM commentaries WHERE id = %s", (commentary_id,)
+    ).fetchone()
+    book = connection.execute("SELECT name FROM books WHERE number = %s", (book_number,)).fetchone()
+    if commentary is None or book is None:
+      return None
+    entries = connection.execute(
+      "SELECT verse, end_verse, text FROM commentary_entries "
+      "WHERE commentary_id = %s AND book_number = %s AND chapter = %s ORDER BY verse",
+      (commentary_id, book_number, chapter),
+    ).fetchall()
+    if not entries:
+      return None
+    introductions = dict(
+      connection.execute(
+        "SELECT chapter, text FROM commentary_introductions WHERE commentary_id = %s AND book_number = %s "
+        "AND chapter IN (0, %s)",
+        (commentary_id, book_number, chapter),
+      ).fetchall()
+    )
+    chapters = connection.execute(
+      "SELECT DISTINCT e.book_number, b.name, e.chapter FROM commentary_entries e JOIN books b ON b.number = e.book_number "
+      "WHERE e.commentary_id = %s ORDER BY e.book_number, e.chapter",
+      (commentary_id,),
+    ).fetchall()
+
+  position = next(index for index, row in enumerate(chapters) if (row[0], row[2]) == (book_number, chapter))
+
+  def neighbour(index):
+    if 0 <= index < len(chapters):
+      number, name, chapter_number = chapters[index]
+      return {"book_number": number, "book_name": name, "chapter": chapter_number}
+    return None
+
+  chapter_introduction = introductions.get(chapter)
+  book_introduction = introductions.get(0)
+  return {
+    "commentary": {"id": commentary[0], "name": commentary[1], "short_name": commentary[2]},
+    "book_number": book_number,
+    "book_name": book[0],
+    "chapter": chapter,
+    "chapter_introduction": chapter_introduction,
+    "chapter_introduction_references": find_references(chapter_introduction or ""),
+    "book_introduction": book_introduction,
+    "book_introduction_references": find_references(book_introduction or ""),
+    "entries": [
+      {
+        "verse": verse,
+        "end_verse": end_verse,
+        "covers": label_range(book[0], chapter, verse, end_verse),
+        "text": text,
+        "references": find_references(text),
+      }
+      for verse, end_verse, text in entries
+    ],
+    "previous": neighbour(position - 1),
+    "next": neighbour(position + 1),
+  }
+
+
 # --- searching inside the commentaries ---------------------------------------------------------------
 
 # ts_headline marks the matched words in an excerpt with these two control characters, which never

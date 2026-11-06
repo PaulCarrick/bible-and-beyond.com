@@ -815,3 +815,108 @@ select:disabled {
 .reference-link:focus-visible {
   text-decoration: underline;
 }
+
+/* The choosers stay at the top of the screen while a commentary is read. */
+.browse-controls {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.browse-controls select {
+  margin-left: 0.4rem;
+  max-width: 100%;
+}
+
+.browse-verse {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.browse-verse input {
+  width: 5rem;
+  margin-left: 0.4rem;
+}
+
+.browse-chapter {
+  scroll-margin-top: 90px;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--border);
+}
+
+.browse-chapter:first-of-type {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.browse-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.browse-heading h2 {
+  margin: 0;
+}
+
+.browse-commentary-name {
+  color: var(--text);
+}
+
+/* Where the reading stops until the next chapter arrives, or the end of the commentary. */
+.browse-edge {
+  min-height: 1.5rem;
+  padding: 0.5rem 0;
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+
+.browse-note {
+  scroll-margin-top: 90px;
+  margin-top: 1.25rem;
+  padding: 0.75rem 0 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.browse-note.is-marked {
+  margin-left: -0.75rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.browse-note h3 {
+  margin: 0 0 0.25rem;
+  font-size: 16px;
+}
+
+.browse-note-links {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 13px;
+}
+
+/* On a phone the choosers would take a quarter of the screen, so they scroll away with the page. */
+@media (max-width: 700px) {
+  .browse-controls {
+    position: static;
+  }
+
+  .browse-chapter,
+  .browse-note {
+    scroll-margin-top: 12px;
+  }
+}

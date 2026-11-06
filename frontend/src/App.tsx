@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { fetchBooks, fetchCommentarySources, fetchTranslations } from './api'
+import BrowseTab from './BrowseTab'
 import CopyrightPage from './CopyrightPage'
 import SearchTab from './SearchTab'
 import type { SearchMode } from './SearchTab'
 import type { Book, CommentarySource, Translation } from './types'
 import './App.css'
 
-const tabs: { mode: SearchMode; label: string }[] = [
+type TabMode = SearchMode | 'browse'
+
+const tabs: { mode: TabMode; label: string }[] = [
   { mode: 'bible', label: 'Search for specific words or phrases' },
   { mode: 'commentary', label: 'Search the commentaries' },
+  { mode: 'browse', label: 'Browse the commentaries' },
 ]
 
 function App() {
@@ -16,7 +20,7 @@ function App() {
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeMode, setActiveMode] = useState<SearchMode>('bible')
+  const [activeMode, setActiveMode] = useState<TabMode>('bible')
   const [isShowingCopyrights, setIsShowingCopyrights] = useState(false)
 
   useEffect(() => {
@@ -33,6 +37,7 @@ function App() {
 
   // The commentary tab only appears once there are commentaries to search.
   const visibleTabs = tabs.filter((tab) => tab.mode === 'bible' || commentaries.length > 0)
+  const searchTabs = visibleTabs.filter((tab): tab is { mode: SearchMode; label: string } => tab.mode !== 'browse')
 
   return (
     <main className="app">
@@ -56,7 +61,7 @@ function App() {
 
       {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
       {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} />}
-      {visibleTabs.map((tab) => (
+      {searchTabs.map((tab) => (
         <SearchTab
           key={tab.mode}
           mode={tab.mode}
@@ -67,6 +72,13 @@ function App() {
           onShowCopyrights={() => setIsShowingCopyrights(true)}
         />
       ))}
+      {commentaries.length > 0 && (
+        <BrowseTab
+          commentaries={commentaries}
+          translations={translations}
+          isHidden={isShowingCopyrights || activeMode !== 'browse'}
+        />
+      )}
 
       <footer className="site-footer">
         Scripture for the NIV, NASB and The Message is provided through{' '}

@@ -6,7 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
-from commentaries import get_commentaries, list_commentaries, search_commentaries
+from commentaries import (
+  get_chapter_notes,
+  get_commentaries,
+  get_contents,
+  list_commentaries,
+  search_commentaries,
+)
 from context import get_chapter, get_context, get_parallel, get_related
 from original_words import get_lexicon_entry, get_original_words
 from search import (
@@ -274,3 +280,23 @@ def search_commentary_text(
     )
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/commentary-contents")
+def commentary_contents(commentary: str = Query(min_length=1, max_length=60)):
+  result = get_contents(commentary)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That commentary was not found.")
+  return result
+
+
+@app.get("/commentary-chapter")
+def commentary_chapter(
+  commentary: str = Query(min_length=1, max_length=60),
+  book: int = Query(ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  chapter: int = Query(ge=1),
+):
+  result = get_chapter_notes(commentary, book, chapter)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That commentary has no notes on that chapter.")
+  return result

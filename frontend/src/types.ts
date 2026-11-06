@@ -244,3 +244,38 @@ export interface CommentarySource {
   name: string
   short_name: string
 }
+
+// Browsing a commentary: what it has notes on, and one chapter of it.
+export interface CommentaryContents {
+  commentary: CommentarySource
+  books: { number: number; name: string; chapters: number[] }[]
+}
+
+export interface ChapterNeighbour {
+  book_number: number
+  book_name: string
+  chapter: number
+}
+
+export interface CommentaryNote {
+  verse: number
+  end_verse: number | null
+  // The verses the note covers, such as "John 3:1–21".
+  covers: string
+  text: string
+  references: [number, number, string][]
+}
+
+export interface CommentaryChapter {
+  commentary: CommentarySource
+  book_number: number
+  book_name: string
+  chapter: number
+  chapter_introduction: string | null
+  chapter_introduction_references: [number, number, string][]
+  book_introduction: string | null
+  book_introduction_references: [number, number, string][]
+  entries: CommentaryNote[]
+  previous: ChapterNeighbour | null
+  next: ChapterNeighbour | null
+}
