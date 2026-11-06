@@ -3,11 +3,14 @@
 import pytest
 
 import scripture_references
-from scripture_references import BOOK_BY_NORMALIZED_NAME, NAMES, find_references, verse_limits
+from collections import defaultdict
+
+from scripture_references import BOOK_BY_NORMALIZED_NAME, NAMES, find_references, normalize, verse_limits
 
 LIMITS = {
   (43, 3): 36, (43, 1): 51, (11, 4): 34, (19, 23): 6, (62, 4): 21, (9, 1): 28, (22, 2): 17, (40, 5): 48,
   (1, 1): 31, (65, 1): 25, (57, 1): 25, (2, 3): 22,
+  (23, 53): 12, (23, 9): 21, (23, 1): 31, (23, 40): 31, (23, 42): 25, (9, 3): 21, (9, 2): 36, (10, 7): 29, (46, 13): 13, (50, 3): 21, (5, 31): 30,
 }
 
 
@@ -90,3 +93,36 @@ def test_the_limits_are_kept_between_calls(monkeypatch):
 
   monkeypatch.setattr(scripture_references, "connect", fail)
   assert verse_limits()[(43, 3)] == 36
+
+
+def test_isaiah_is_not_taken_for_first_samuel():
+  # "Isa" is Isaiah; "I Sa" and "1Sa" are 1 Samuel. They once clashed, which linked Isaiah to 1 Samuel.
+  assert found("Isa 53:5, Isa. 9:6, ISA. 42:10, Isa 1:1, Isaiah 40:1") == [
+    ("Isa 53:5", "23:53:5"), ("Isa. 9:6", "23:9:6"), ("ISA. 42:10", "23:42:10"), ("Isa 1:1", "23:1:1"),
+    ("Isaiah 40:1", "23:40:1"),
+  ]
+  assert found("I Sa 3:4, 1Sa 2:2, 1 Sa 3:4, II Sa 7:1") == [
+    ("I Sa 3:4", "9:3:4"), ("1Sa 2:2", "9:2:2"), ("1 Sa 3:4", "9:3:4"), ("II Sa 7:1", "10:7:1"),
+  ]
+
+
+def test_no_two_books_share_a_name():
+  owners = defaultdict(set)
+  for name, book in NAMES.items():
+    owners[normalize(name)].add(book)
+  clashes = {key: books for key, books in owners.items() if len(books) > 1}
+
+  # A clash is allowed only where the plain name wins, and then it must be the plain name's book.
+  for key, books in clashes.items():
+    assert BOOK_BY_NORMALIZED_NAME[key] in books
+  assert BOOK_BY_NORMALIZED_NAME["isa"] == 23 and BOOK_BY_NORMALIZED_NAME["i sa"] == 9
+
+
+def test_capital_letters_are_accepted_as_daily_light_writes_them():
+  assert found("Father, I will.—PHI. 3:13,14. and the Lord.—DEUT. 31:8.") == [
+    ("PHI. 3:13", "50:3:13"), ("DEUT. 31:8", "5:31:8"),
+  ]
+
+
+def test_a_lower_case_name_is_not_a_book():
+  assert found("a job 3:4 and a phi 3:4 and deut 31:8") == []

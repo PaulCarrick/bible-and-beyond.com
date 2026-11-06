@@ -45,3 +45,4 @@ ml-service/data/api_bible_usage.json
 ml-service/data/stepbible/
 ml-service/data/bsb_tables.tsv
 ml-service/data/commentaries/
+ml-service/data/devotionals/

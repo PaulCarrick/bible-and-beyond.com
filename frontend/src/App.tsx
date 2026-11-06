@@ -1,26 +1,29 @@
 import { useEffect, useState } from 'react'
-import { fetchBooks, fetchCommentarySources, fetchTranslations } from './api'
+import { fetchBooks, fetchCommentarySources, fetchDevotionals, fetchTranslations } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import CopyrightPage from './CopyrightPage'
+import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
 import type { SearchMode } from './SearchTab'
-import type { Book, CommentarySource, Translation } from './types'
+import type { Book, CommentarySource, DevotionalInfo, Translation } from './types'
 import './App.css'
 
-type TabMode = SearchMode | 'read' | 'browse'
+type TabMode = SearchMode | 'read' | 'browse' | 'devotionals'
 
 const tabs: { mode: TabMode; label: string }[] = [
   { mode: 'read', label: 'Read the Bible' },
   { mode: 'bible', label: 'Search for specific words or phrases' },
   { mode: 'commentary', label: 'Search the commentaries' },
   { mode: 'browse', label: 'Browse the commentaries' },
+  { mode: 'devotionals', label: 'Devotionals' },
 ]
 
 function App() {
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
+  const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [activeMode, setActiveMode] = useState<TabMode>('read')
   const [isShowingCopyrights, setIsShowingCopyrights] = useState(false)
@@ -37,10 +40,21 @@ function App() {
       )
   }, [])
 
-  // The commentary tab only appears once there are commentaries to search.
-  const visibleTabs = tabs.filter(
-    (tab) => tab.mode === 'read' || tab.mode === 'bible' || commentaries.length > 0,
-  )
+  // The devotionals are optional: the tab only appears when there are some, and a failure to load them
+  // must not stop the rest of the site.
+  useEffect(() => {
+    fetchDevotionals()
+      .then(setDevotionals)
+      .catch(() => setDevotionals([]))
+  }, [])
+
+  // The commentary tabs only appear once there are commentaries to search.
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.mode === 'devotionals') {
+      return devotionals.length > 0
+    }
+    return tab.mode === 'read' || tab.mode === 'bible' || commentaries.length > 0
+  })
   const searchTabs = visibleTabs.filter(
     (tab): tab is { mode: SearchMode; label: string } => tab.mode === 'bible' || tab.mode === 'commentary',
   )
@@ -67,7 +81,7 @@ function App() {
       </nav>
 
       {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
-      {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} />}
+      {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} devotionals={devotionals} />}
       <BibleTab translations={translations} isHidden={isShowingCopyrights || activeMode !== 'read'} />
 
       {searchTabs.map((tab) => (
@@ -86,6 +100,14 @@ function App() {
           commentaries={commentaries}
           translations={translations}
           isHidden={isShowingCopyrights || activeMode !== 'browse'}
+        />
+      )}
+
+      {devotionals.length > 0 && (
+        <DevotionalsTab
+          devotionals={devotionals}
+          translations={translations}
+          isHidden={isShowingCopyrights || activeMode !== 'devotionals'}
         />
       )}
 

@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { fetchCopyrights } from './api'
 import CommentaryCredit from './CommentaryCredit'
 import CrossReferenceCredit from './CrossReferenceCredit'
+import DevotionalCredit from './DevotionalCredit'
 import StepBibleCredit from './StepBibleCredit'
-import type { Copyright } from './types'
+import type { Copyright, DevotionalInfo } from './types'
 
 interface CopyrightPageProps {
   onBack: () => void
+  devotionals?: DevotionalInfo[]
 }
 
-function CopyrightPage({ onBack }: CopyrightPageProps) {
+function CopyrightPage({ onBack, devotionals = [] }: CopyrightPageProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -67,6 +69,17 @@ function CopyrightPage({ onBack }: CopyrightPageProps) {
         Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin, and Keil and Delitzsch.{' '}
         <CommentaryCredit />
       </p>
+
+      {devotionals.length > 0 && (
+        <>
+          <h3>Devotionals</h3>
+          {devotionals.map((devotional) => (
+            <p key={devotional.id}>
+              <DevotionalCredit devotional={devotional} />
+            </p>
+          ))}
+        </>
+      )}
     </div>
   )
 }

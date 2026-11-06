@@ -302,3 +302,47 @@ export interface BibleChapter {
   previous: ChapterNeighbour | null
   next: ChapterNeighbour | null
 }
+
+// Devotionals: books of daily readings or chapters, in the public domain.
+export interface DevotionalInfo {
+  id: string
+  name: string
+  author: string
+  // "daily": the sections are months and the units are days (a morning and an evening reading).
+  // "chapters": the sections are books or parts and the units are chapters.
+  kind: 'daily' | 'chapters'
+  source_name: string
+  source_url: string
+  translator: string | null
+}
+
+export interface DevotionalContents {
+  devotional: DevotionalInfo
+  sections: { number: number; title: string; units: { number: number; title: string }[] }[]
+}
+
+export interface DevotionalNeighbour {
+  section: number
+  unit: number
+  title: string
+  section_title: string
+}
+
+export interface DevotionalEntry {
+  // "Morning" or "Evening" for a daily reading; empty for a chapter.
+  heading: string
+  text: string
+  references: [number, number, string][]
+}
+
+// One day or chapter, as the server sends it.
+export interface DevotionalUnit {
+  devotional: DevotionalInfo
+  section: number
+  section_title: string
+  unit: number
+  title: string
+  entries: DevotionalEntry[]
+  previous: DevotionalNeighbour | null
+  next: DevotionalNeighbour | null
+}

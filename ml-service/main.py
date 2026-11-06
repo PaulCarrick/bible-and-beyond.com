@@ -8,6 +8,9 @@ from pydantic import BaseModel
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from bible_reader import get_chapter as get_bible_chapter
 from bible_reader import get_contents as get_bible_contents
+from devotionals import get_contents as get_devotional_contents
+from devotionals import get_unit as get_devotional_unit
+from devotionals import list_devotionals
 from commentaries import (
   get_chapter_notes,
   get_commentaries,
@@ -327,4 +330,29 @@ def bible_chapter(
   result = get_bible_chapter(code, book, chapter)
   if result is None:
     raise HTTPException(status_code=404, detail="That chapter was not found.")
+  return result
+
+
+@app.get("/devotionals")
+def devotionals():
+  return list_devotionals()
+
+
+@app.get("/devotional-contents")
+def devotional_contents(devotional: str = Query(min_length=1, max_length=60)):
+  result = get_devotional_contents(devotional)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That devotional was not found.")
+  return result
+
+
+@app.get("/devotional-unit")
+def devotional_unit(
+  devotional: str = Query(min_length=1, max_length=60),
+  section: int = Query(ge=1, le=99),
+  unit: int = Query(ge=1, le=999),
+):
+  result = get_devotional_unit(devotional, section, unit)
+  if result is None:
+    raise HTTPException(status_code=404, detail="That day or chapter was not found.")
   return result

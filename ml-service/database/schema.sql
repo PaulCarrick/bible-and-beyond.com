@@ -7,6 +7,9 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS devotional_entries CASCADE;
+DROP TABLE IF EXISTS devotional_sections CASCADE;
+DROP TABLE IF EXISTS devotionals CASCADE;
 DROP TABLE IF EXISTS commentary_introductions CASCADE;
 DROP TABLE IF EXISTS commentary_entries CASCADE;
 DROP TABLE IF EXISTS commentaries CASCADE;
@@ -239,3 +242,35 @@ CREATE TABLE IF NOT EXISTS commentary_introductions (
 
 CREATE INDEX IF NOT EXISTS commentary_entries_by_search_vector
     ON commentary_entries USING GIN (search_vector);
+
+-- Public-domain devotionals. Reload them after a schema reset: scripts/import_devotionals.py.
+CREATE TABLE IF NOT EXISTS devotionals (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    author TEXT NOT NULL,
+    -- "daily": sections are months and units are days (section = month, unit = day of the month).
+    -- "chapters": sections are books or parts and units are chapters.
+    kind TEXT NOT NULL CHECK (kind IN ('daily', 'chapters')),
+    position INTEGER NOT NULL,
+    source_name TEXT NOT NULL,
+    source_url TEXT NOT NULL,
+    translator TEXT
+);
+
+CREATE TABLE IF NOT EXISTS devotional_sections (
+    devotional_id TEXT NOT NULL REFERENCES devotionals (id) ON DELETE CASCADE,
+    number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    PRIMARY KEY (devotional_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS devotional_entries (
+    devotional_id TEXT NOT NULL REFERENCES devotionals (id) ON DELETE CASCADE,
+    section INTEGER NOT NULL,
+    unit INTEGER NOT NULL,
+    part INTEGER NOT NULL,
+    unit_title TEXT NOT NULL,
+    heading TEXT NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (devotional_id, section, unit, part)
+);

@@ -2,7 +2,7 @@
 
 The commentaries write books two ways: short codes (Psa, Kg1, Co1, Jo1, Joh) in Matthew Henry,
 Adam Clarke, Jamieson-Fausset-Brown and Keil and Delitzsch, and full names (Psalm, 1 Kings) in John
-Gill and John Calvin. Only a book, a chapter and a verse count (Book 3:16, optionally a range
+Gill and John Calvin. A book is written as in the list or in capitals. Only a book, a chapter and a verse count (Book 3:16, optionally a range
 Book 3:16-18 inside the chapter); lists that leave the book out ("Joh 3:16, 17") and chapter-only
 references are not linked. A reference to a verse that does not exist is left alone.
 """
@@ -81,7 +81,11 @@ ROMAN = {1: "I", 2: "II", 3: "III"}
 
 
 def normalize(name):
-  return re.sub(r"[\s.]", "", name).lower()
+  """The key a written name is looked up by: lower case, without full stops, and without spaces except
+  the one after a Roman numeral ("I Sa" is 1 Samuel, but "Isa" is Isaiah)."""
+  key = re.sub(r"\s+", " ", name.replace(".", "")).strip().lower()
+  roman_numbered = re.match(r"^(i{1,3}) \S", key)
+  return key if roman_numbered else key.replace(" ", "")
 
 
 def build_names():
@@ -100,7 +104,16 @@ def build_names():
 
 
 NAMES = build_names()
-BOOK_BY_NORMALIZED_NAME = {normalize(name): book for name, book in NAMES.items()}
+def build_book_by_normalized_name():
+  # A plain name wins a clash with a numbered book written without a space ("ISa" would be 1 Samuel,
+  # but "Isa" is Isaiah), so register the plain names first.
+  book_by_name = {}
+  for name, book in sorted(NAMES.items(), key=lambda item: item[1] in {number for number, *_ in NUMBERED_BOOKS}):
+    book_by_name.setdefault(normalize(name), book)
+  return book_by_name
+
+
+BOOK_BY_NORMALIZED_NAME = build_book_by_normalized_name()
 
 
 def build_pattern():
@@ -109,9 +122,12 @@ def build_pattern():
   for name in sorted(NAMES, key=len, reverse=True):
     # Allow a space (or none) after the number of a numbered book, and a full stop after the name.
     alternatives.append(re.escape(name).replace("\\ ", r"\s?"))
+  # Matched in any case; find_references then keeps a name written as in NAMES or in capitals (Daily
+  # Light writes "PHI. 3:13" and "DEUT. 31:8"), so a lower-case "job 3:4" is not taken for a reference.
   return re.compile(
     r"(?<![A-Za-z0-9])(" + "|".join(alternatives) + r")\.?\s+(\d{1,3})\s?:\s?(\d{1,3})"
-    r"(?:\s?[-–]\s?(\d{1,3})(?!\s?:))?(?![\d])"
+    r"(?:\s?[-–]\s?(\d{1,3})(?!\s?:))?(?![\d])",
+    re.IGNORECASE,
   )
 
 
@@ -147,7 +163,10 @@ def find_references(text, limits=None):
     limits = verse_limits()
   references = []
   for match in PATTERN.finditer(text):
-    book = BOOK_BY_NORMALIZED_NAME.get(normalize(match[1]))
+    name = match[1]
+    if name not in NAMES and not name.isupper():
+      continue
+    book = BOOK_BY_NORMALIZED_NAME.get(normalize(name))
     chapter, verse = int(match[2]), int(match[3])
     if book is None or verse < 1 or verse > limits.get((book, chapter), 0):
       continue

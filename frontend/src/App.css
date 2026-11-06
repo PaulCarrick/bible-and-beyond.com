@@ -1047,3 +1047,18 @@ select:disabled {
     scroll-margin-top: 12px;
   }
 }
+
+/* Devotionals: a day or chapter with its morning and evening (or its one text). */
+.devotional-entry h3 {
+  margin: 1.1rem 0 0.35rem;
+  color: var(--text-h);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.browse-chapter.is-marked-reading > .browse-heading {
+  margin-left: -0.75rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent);
+}

@@ -2,6 +2,9 @@ import type {
   BibleChapter,
   BibleContents,
   CommentaryChapter,
+  DevotionalContents,
+  DevotionalInfo,
+  DevotionalUnit,
   CommentaryContents,
   CommentaryResponse,
   CommentarySource,
@@ -247,4 +250,23 @@ export async function fetchBibleChapter(
 ): Promise<BibleChapter> {
   const queryString = new URLSearchParams({ translation, book: String(book), chapter: String(chapter) })
   return readJson(await fetch(`${mlServiceUrl}/bible-chapter?${queryString}`, { signal }))
+}
+
+export async function fetchDevotionals(): Promise<DevotionalInfo[]> {
+  return readJson(await fetch(`${mlServiceUrl}/devotionals`))
+}
+
+export async function fetchDevotionalContents(devotional: string, signal: AbortSignal): Promise<DevotionalContents> {
+  const queryString = new URLSearchParams({ devotional })
+  return readJson(await fetch(`${mlServiceUrl}/devotional-contents?${queryString}`, { signal }))
+}
+
+export async function fetchDevotionalUnit(
+  devotional: string,
+  section: number,
+  unit: number,
+  signal: AbortSignal,
+): Promise<DevotionalUnit> {
+  const queryString = new URLSearchParams({ devotional, section: String(section), unit: String(unit) })
+  return readJson(await fetch(`${mlServiceUrl}/devotional-unit?${queryString}`, { signal }))
 }
