@@ -741,3 +741,28 @@ select:disabled {
   color: var(--text);
   font-size: 13px;
 }
+
+.word-link-hint {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.word-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.word-link:hover,
+.word-link:focus-visible {
+  background: var(--accent-bg);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}

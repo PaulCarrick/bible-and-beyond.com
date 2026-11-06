@@ -7,6 +7,7 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS verse_word_links CASCADE;
 DROP TABLE IF EXISTS original_words CASCADE;
 DROP TABLE IF EXISTS lexicon_entries CASCADE;
 DROP TABLE IF EXISTS cross_references CASCADE;
@@ -177,3 +178,10 @@ CREATE INDEX IF NOT EXISTS original_words_by_verse
 
 CREATE INDEX IF NOT EXISTS original_words_by_strong
     ON original_words (strong_code, book_number, chapter, verse);
+
+-- Clickable English words (Strong's numbers). Reload them after a schema reset: scripts/import_word_links.py.
+CREATE TABLE IF NOT EXISTS verse_word_links (
+    verse_id INTEGER PRIMARY KEY REFERENCES verses (id) ON DELETE CASCADE,
+    text_hash TEXT NOT NULL,
+    links JSONB NOT NULL
+);

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
-import { highlight } from './highlight'
+import { highlight, highlightLinked } from './highlight'
 import LexiconPanel from './LexiconPanel'
 import RelatedPanel from './RelatedPanel'
 import WordsPanel from './WordsPanel'
@@ -185,6 +185,10 @@ function ContextWindow({
         {errorMessage && <p className="error">{errorMessage}</p>}
         {!hasAnswer && !errorMessage && <p>Loading…</p>}
 
+        {context && context.verses.some((entry) => entry.links) && (
+          <p className="word-link-hint">Choose a word to see the Hebrew or Greek word behind it.</p>
+        )}
+
         {context && (
           <p className="context-text">
             {context.verses.map((entry, index) => (
@@ -197,7 +201,23 @@ function ContextWindow({
                   className={entry.is_target ? 'context-verse target' : 'context-verse'}
                 >
                   <sup className="verse-number">{entry.verse}</sup>
-                  {highlight(entry.text, entry.is_target ? terms : [], wholeWords)}
+                  {entry.links
+                    ? highlightLinked(
+                        entry.text,
+                        entry.is_target ? terms : [],
+                        wholeWords,
+                        entry.links,
+                        (strongCode) =>
+                          onOpenVerse('lexicon', {
+                            translation,
+                            book_number: context.book_number,
+                            chapter: entry.chapter,
+                            verse: entry.verse,
+                            reference: strongCode,
+                            strong_code: strongCode,
+                          }),
+                      )
+                    : highlight(entry.text, entry.is_target ? terms : [], wholeWords)}
                 </span>{' '}
               </Fragment>
             ))}

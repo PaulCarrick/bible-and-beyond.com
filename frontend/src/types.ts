@@ -57,6 +57,9 @@ export interface ContextVerse {
   verse: number
   text: string
   is_target: boolean
+  // Only for a Bible that has them (the BSB): [start, end, "H7225"] over text, one for each English
+  // word that stands for a Hebrew or Greek word.
+  links?: [number, number, string][]
 }
 
 export interface VerseContext {

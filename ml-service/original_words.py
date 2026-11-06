@@ -16,7 +16,7 @@ import html
 import re
 from dataclasses import dataclass, replace
 
-from search import connect
+from search import connect, parse_strong_query
 
 # How STEPBible abbreviates each book, and our book number for it.
 BOOK_NUMBERS = {
@@ -272,14 +272,21 @@ def get_original_words(book_number, chapter, verse):
 def get_lexicon_entry(translation_code, strong_code, limit):
   """A lexicon entry with how often the word is used and the first verses that use it.
 
-  The verses are listed in Bible order with their text in the Bible searched. Returns None when
-  the number is not in the lexicon or the translation is unknown or hidden.
+  A number with a sense letter (H7225G) is that sense only. A number without one (H7225, as in a
+  Strong's concordance or a click on an English word) gives the main entry and counts the verses
+  of every sense. The verses are listed in Bible order with their text in the Bible searched.
+  Returns None when the number is not in the lexicon or the translation is unknown or hidden.
   """
+  strong = parse_strong_query(strong_code)
+  if strong is None:
+    return None
+  codes = strong["codes"]
   with connect() as connection:
     entry = connection.execute(
       "SELECT strong_code, language, original, transliteration, morphology, gloss, definition"
-      " FROM lexicon_entries WHERE strong_code = %s",
-      (strong_code,),
+      " FROM lexicon_entries WHERE strong_code = ANY(%s)"
+      " ORDER BY (strong_code = %s) DESC, (strong_code = %s) DESC, strong_code LIMIT 1",
+      (codes, codes[0], codes[0] + "G"),
     ).fetchone()
     translation = connection.execute(
       "SELECT id FROM translations WHERE code = %s AND is_published", (translation_code,)
@@ -287,14 +294,14 @@ def get_lexicon_entry(translation_code, strong_code, limit):
     if entry is None or translation is None:
       return None
     total = connection.execute(
-      "SELECT COUNT(DISTINCT (book_number, chapter, verse)) FROM original_words WHERE strong_code = %s",
-      (strong_code,),
+      "SELECT COUNT(DISTINCT (book_number, chapter, verse)) FROM original_words WHERE strong_code = ANY(%s)",
+      (codes,),
     ).fetchone()[0]
     rows = connection.execute(
       """
       SELECT u.book_number, b.name, u.chapter, u.verse, v.text
       FROM (
-        SELECT DISTINCT book_number, chapter, verse FROM original_words WHERE strong_code = %s
+        SELECT DISTINCT book_number, chapter, verse FROM original_words WHERE strong_code = ANY(%s)
         ORDER BY book_number, chapter, verse LIMIT %s
       ) u
       JOIN books b ON b.number = u.book_number
@@ -302,7 +309,7 @@ def get_lexicon_entry(translation_code, strong_code, limit):
         AND v.chapter = u.chapter AND v.verse = u.verse
       ORDER BY u.book_number, u.chapter, u.verse
       """,
-      (strong_code, limit, translation[0]),
+      (codes, limit, translation[0]),
     ).fetchall()
   code, language, original, transliteration, morphology, gloss, definition = entry
   return {

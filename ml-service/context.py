@@ -3,6 +3,7 @@ of a verse ("Full Chapter"), the same verse in the other Bibles ("Other Translat
 verses it is cross-referenced with ("Related Verses")."""
 
 from search import connect
+from word_links import attach_links
 
 
 def find_translation_and_book(connection, translation_code, book_number):
@@ -70,18 +71,21 @@ def get_chapter(translation_code, book_number, chapter, verse):
       (translation_id, book_number, chapter),
     ).fetchall()
 
-  if not any(row_verse == verse for row_verse, _text in rows):
-    return None
+    if not any(row_verse == verse for row_verse, _text in rows):
+      return None
+    verses = [
+      {"chapter": chapter, "verse": row_verse, "text": text, "is_target": row_verse == verse}
+      for row_verse, text in rows
+    ]
+    attach_links(connection, translation_id, book_number, verses)
+
   return {
     "translation": code,
     "book_number": book_number,
     "book_name": book_name,
     "chapter": chapter,
     "verse": verse,
-    "verses": [
-      {"chapter": chapter, "verse": row_verse, "text": text, "is_target": row_verse == verse}
-      for row_verse, text in rows
-    ],
+    "verses": verses,
   }
 
 
@@ -123,8 +127,14 @@ def get_context(translation_code, book_number, chapter, verse, before, after):
       },
     ).fetchall()
 
-  if not rows:
-    return None
+    if not rows:
+      return None
+    verses = [
+      {"chapter": row_chapter, "verse": row_verse, "text": text, "is_target": is_target}
+      for row_chapter, row_verse, text, is_target in rows
+    ]
+    attach_links(connection, translation_id, book_number, verses)
+
   return {
     "translation": code,
     "book_number": book_number,
@@ -133,10 +143,7 @@ def get_context(translation_code, book_number, chapter, verse, before, after):
     "verse": verse,
     "verses_before": before,
     "verses_after": after,
-    "verses": [
-      {"chapter": row_chapter, "verse": row_verse, "text": text, "is_target": is_target}
-      for row_chapter, row_verse, text, is_target in rows
-    ],
+    "verses": verses,
   }
 
 

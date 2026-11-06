@@ -43,3 +43,4 @@ ml-service/data/api_bible_usage.json
 
 # STEPBible data files (CC BY 4.0, downloaded by hand; see CLAUDE.md "Word studies")
 ml-service/data/stepbible/
+ml-service/data/bsb_tables.tsv

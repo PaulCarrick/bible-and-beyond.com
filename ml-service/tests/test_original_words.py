@@ -334,3 +334,10 @@ def test_the_entry_chosen_for_a_bare_number_prefers_the_main_sense(loaded):
     entry = find_strong_entry(connection, parse_strong_query("H7225"))
 
   assert entry["code"] == "H7225G"
+
+
+def test_a_number_without_a_sense_letter_gives_the_main_entry_and_counts_every_sense(loaded):
+  result = client.get("/lexicon", params={"translation": "BSB", "strong_code": "H7225"}).json()
+
+  assert result["strong_code"] == "H7225G" and result["verse_total"] == 1
+  assert client.get("/lexicon", params={"translation": "BSB", "strong_code": "H7225H"}).status_code == 404
