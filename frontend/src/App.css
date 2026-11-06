@@ -9,6 +9,14 @@
   color: var(--text-h);
 }
 
+.site-logo {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
 .tabs {
   display: flex;
   gap: 1.5rem;

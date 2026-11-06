@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" role="img">
+  <title>Bible &amp; Beyond</title>
+  <rect width="320" height="80" rx="10" fill="#faf6ec"/>
+  <circle cx="44" cy="40" r="32" fill="#1f2a44"/>
+  <circle cx="44" cy="40" r="27.5" fill="none" stroke="#c9962b" stroke-width="1"/>
+  <text x="44" y="58" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="38" font-style="italic" fill="#c9962b">&amp;</text>
+  <g transform="translate(44 20) scale(0.55) translate(-120 -38)">
+    <path d="M120 30 l3 7 7 .6-5.4 4.6 1.8 7-6.4-4-6.4 4 1.8-7-5.4-4.6 7-.6z" fill="#faf6ec"/>
+  </g>
+  <text x="94" y="49" font-family="Georgia, 'Times New Roman', serif" font-size="30" fill="#1f2a44">Bible &amp; Beyond</text>
+</svg>

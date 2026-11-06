@@ -8,7 +8,7 @@ import './App.css'
 // Row height and page chrome are rough guesses used for the first search; the results page
 // measures the real rows and corrects the page size once they are on screen.
 const estimatedRowHeight = 70
-const estimatedHeightAboveList = 410
+const estimatedHeightAboveList = 490
 
 function estimateFitCount() {
   return Math.max(1, Math.floor((window.innerHeight - estimatedHeightAboveList) / estimatedRowHeight))
@@ -124,6 +124,7 @@ function App() {
 
   return (
     <main className="app">
+      <img className="site-logo" src="/logo.svg" alt="Bible and Beyond" />
       <nav className="tabs" aria-label="Sections">
         <span className="tab active">Search for specific words or phrases</span>
       </nav>
