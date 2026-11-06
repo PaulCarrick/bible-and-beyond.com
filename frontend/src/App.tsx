@@ -1,60 +1,160 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { fetchBooks, fetchTranslations, searchBible } from './api'
+import SearchForm from './SearchForm'
+import SearchResults from './SearchResults'
+import type { Book, PerPage, SearchParameters, SearchResponse, SortField, Translation } from './types'
 import './App.css'
 
-const mlServiceUrl = 'http://localhost:8000'
+// Row height and page chrome are rough guesses used for the first search; the results page
+// measures the real rows and corrects the page size once they are on screen.
+const estimatedRowHeight = 70
+const estimatedHeightAboveList = 410
+
+function estimateFitCount() {
+  return Math.max(1, Math.floor((window.innerHeight - estimatedHeightAboveList) / estimatedRowHeight))
+}
 
 function App() {
-  const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
+  const [translations, setTranslations] = useState<Translation[]>([])
+  const [books, setBooks] = useState<Book[]>([])
+  const [loadErrorMessage, setLoadErrorMessage] = useState('')
+
+  const [searchParameters, setSearchParameters] = useState<SearchParameters | null>(null)
+  const [selectedBook, setSelectedBook] = useState<number | null>(null)
+  const [perPage, setPerPage] = useState<PerPage>('automatic')
+  const [response, setResponse] = useState<SearchResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [searchErrorMessage, setSearchErrorMessage] = useState('')
+  const [fittedPerPage, setFittedPerPage] = useState(estimateFitCount)
+  const activeRequest = useRef<AbortController | null>(null)
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    setIsLoading(true)
-    setErrorMessage('')
-    setAnswer('')
-
-    try {
-      const response = await fetch(`${mlServiceUrl}/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+  useEffect(() => {
+    Promise.all([fetchTranslations(), fetchBooks()])
+      .then(([loadedTranslations, loadedBooks]) => {
+        setTranslations(loadedTranslations)
+        setBooks(loadedBooks)
       })
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`)
+      .catch((error) =>
+        setLoadErrorMessage(error instanceof Error ? error.message : 'Could not load Bible data'),
+      )
+  }, [])
+
+  function runSearch(
+    newSearchParameters: SearchParameters,
+    newPage: number,
+    newBook: number | null,
+    fitCount = fittedPerPage,
+  ) {
+    activeRequest.current?.abort()
+    const controller = new AbortController()
+    activeRequest.current = controller
+
+    setSearchParameters(newSearchParameters)
+    setSelectedBook(newBook)
+    setIsLoading(true)
+    setSearchErrorMessage('')
+
+    const perPage = newSearchParameters.perPage === 'automatic' ? fitCount : newSearchParameters.perPage
+    searchBible(newSearchParameters, newPage, newBook, perPage, controller.signal)
+      .then((searchResponse) => {
+        setResponse(searchResponse)
+        setIsLoading(false)
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return
+        }
+        setSearchErrorMessage(error instanceof Error ? error.message : 'Search failed')
+        setIsLoading(false)
+      })
+  }
+
+  function handleSearch(newSearchParameters: SearchParameters) {
+    setResponse(null)
+    runSearch(newSearchParameters, 1, null)
+  }
+
+  function handleSelectBook(book: number | null) {
+    if (searchParameters) {
+      runSearch(searchParameters, 1, book)
+    }
+  }
+
+  function handleChangePage(newPage: number) {
+    if (searchParameters) {
+      runSearch(searchParameters, newPage, selectedBook)
+    }
+  }
+
+  function handleSort(sortBy: SortField) {
+    if (searchParameters) {
+      const sortDirection =
+        searchParameters.sortBy === sortBy && searchParameters.sortDirection === 'asc'
+          ? 'desc'
+          : 'asc'
+      runSearch({ ...searchParameters, sortBy, sortDirection }, 1, selectedBook)
+    }
+  }
+
+  function handleClearSort() {
+    if (searchParameters) {
+      runSearch({ ...searchParameters, sortBy: null, sortDirection: 'asc' }, 1, selectedBook)
+    }
+  }
+
+  // Called by the results page once it knows how many rows fit in the window.
+  const handleFit = useCallback(
+    (fitCount: number) => {
+      setFittedPerPage(fitCount)
+      if (searchParameters) {
+        runSearch(searchParameters, 1, selectedBook, fitCount)
       }
-      const data = await response.json()
-      setAnswer(data.answer)
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong')
-    } finally {
-      setIsLoading(false)
+    },
+    // runSearch only reads state that is already listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchParameters, selectedBook],
+  )
+
+  function handleChangePerPage(newPerPage: PerPage) {
+    setPerPage(newPerPage)
+    if (searchParameters) {
+      runSearch({ ...searchParameters, perPage: newPerPage }, 1, selectedBook)
     }
   }
 
   return (
-    <main className="ask-page">
-      <h1>Bible Answers</h1>
-      <form onSubmit={handleSubmit}>
-        <textarea
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask a question about the Bible..."
-          rows={4}
-        />
-        <button type="submit" disabled={isLoading || question.trim() === ''}>
-          {isLoading ? 'Asking...' : 'Ask'}
-        </button>
-      </form>
-      {answer && (
-        <section className="answer">
-          <h2>Answer</h2>
-          <p>{answer}</p>
-        </section>
+    <main className="app">
+      <nav className="tabs" aria-label="Sections">
+        <span className="tab active">Search for specific words or phrases</span>
+      </nav>
+
+      {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
+      {translations.length > 0 && (
+        <SearchForm
+          translations={translations}
+          books={books}
+          perPage={perPage}
+          onChangePerPage={handleChangePerPage}
+          onSearch={handleSearch}
+        >
+          {searchParameters !== null && (
+            <SearchResults
+              searchParameters={searchParameters}
+              response={response}
+              books={books}
+              selectedBook={selectedBook}
+              isLoading={isLoading}
+              errorMessage={searchErrorMessage}
+              onSelectBook={handleSelectBook}
+              onChangePage={handleChangePage}
+              onChangePerPage={handleChangePerPage}
+              onFit={handleFit}
+              onSort={handleSort}
+              onClearSort={handleClearSort}
+            />
+          )}
+        </SearchForm>
       )}
-      {errorMessage && <p className="error">{errorMessage}</p>}
     </main>
   )
 }
