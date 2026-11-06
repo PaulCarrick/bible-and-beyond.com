@@ -959,8 +959,8 @@ select:disabled {
 /* Reading a Bible: a verse, then the links under it. */
 .bible-verse {
   scroll-margin-top: 90px;
-  margin-top: 0.75rem;
-  padding: 0.25rem 0 0.35rem;
+  margin: 0;
+  padding: 0;
 }
 
 .bible-verse.is-marked {
