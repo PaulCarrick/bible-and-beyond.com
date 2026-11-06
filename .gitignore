@@ -28,6 +28,9 @@ drupal/web/sites/*/settings.ddev.php
 .env.*
 !.env.example
 
+# DDEV local HTTPS certificates and private keys (generated per machine)
+drupal/.ddev/traefik/
+
 # Logs
 *.log
 log/
