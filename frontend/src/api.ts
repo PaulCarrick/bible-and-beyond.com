@@ -1,4 +1,4 @@
-import type { Book, SearchParameters, SearchResponse, Translation } from './types'
+import type { Book, Copyright, SearchParameters, SearchResponse, Translation } from './types'
 
 const mlServiceUrl = import.meta.env.VITE_ML_SERVICE_URL ?? 'http://localhost:8000'
 
@@ -20,6 +20,10 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function fetchTranslations(): Promise<Translation[]> {
   return readJson(await fetch(`${mlServiceUrl}/translations`))
+}
+
+export async function fetchCopyrights(): Promise<Copyright[]> {
+  return readJson(await fetch(`${mlServiceUrl}/copyrights`))
 }
 
 export async function fetchBooks(): Promise<Book[]> {

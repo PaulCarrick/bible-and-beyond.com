@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { reportView } from './fums'
 import { parsePerPage, perPageOptions } from './perPage'
 import type { Book, PerPage, SearchParameters, SearchResponse, SortField } from './types'
 
@@ -10,7 +11,8 @@ const resizeDelayMilliseconds = 250
 const maximumPerPage = 100
 
 function calculateFitCount(list: HTMLOListElement | null, rowHeight: number) {
-  if (list === null || rowHeight === 0) {
+  // A hidden list (for example while the copyright page is open) has no size to measure.
+  if (list === null || list.offsetParent === null || rowHeight === 0) {
     return null
   }
   const listTop = list.getBoundingClientRect().top + window.scrollY
@@ -36,6 +38,7 @@ interface SearchResultsProps {
   onFit: (fitCount: number) => void
   onSort: (sortBy: SortField) => void
   onClearSort: () => void
+  onShowCopyrights: () => void
 }
 
 function escapeRegularExpression(text: string) {
@@ -69,6 +72,7 @@ function SearchResults({
   onFit,
   onSort,
   onClearSort,
+  onShowCopyrights,
 }: SearchResultsProps) {
   const listReference = useRef<HTMLOListElement>(null)
   const averageRowHeight = useRef(0)
@@ -84,6 +88,10 @@ function SearchResults({
       return
     }
     currentPerPage.current = response.per_page
+    // Licensed Bibles cost one request per page, so they keep the first page size estimate.
+    if (response.source !== 'local') {
+      return
+    }
     const list = listReference.current
     if (measurementCount.current >= maximumMeasurements || list === null || list.children.length === 0) {
       return
@@ -119,6 +127,14 @@ function SearchResults({
     }
   }, [isAutomatic, onFit])
 
+  // API.Bible asks every site to report each time its licensed text is shown.
+  useEffect(() => {
+    if (response?.fums_token) {
+      reportView(response.fums_token)
+    }
+  }, [response])
+
+  const isLicensed = response?.source === 'api_bible'
   const countsByBook = new Map(
     (response?.book_counts ?? []).map((entry) => [entry.book_number, entry.count]),
   )
@@ -150,6 +166,13 @@ function SearchResults({
         {response && response.total > 0 && (
           <div className="result-header">
             {sortColumns.map((column) => {
+              if (isLicensed && column.field === 'text') {
+                return (
+                  <span key={column.field} className={column.className}>
+                    {column.label}
+                  </span>
+                )
+              }
               const isSorted = searchParameters.sortBy === column.field
               const isDescending = isSorted && searchParameters.sortDirection === 'desc'
               return (
@@ -180,7 +203,7 @@ function SearchResults({
               key={`${result.translation}-${result.book_number}-${result.chapter}-${result.verse}`}
             >
               <span className="reference">
-                {result.book_name} {result.chapter}:{result.verse}
+                {result.reference}
                 {showTranslationCode && <span className="translation-code"> {result.translation}</span>}
               </span>
               <span className="verse-text">
@@ -189,6 +212,19 @@ function SearchResults({
             </li>
           ))}
         </ol>
+
+        {isLicensed && response?.copyright && (
+          <p className="citation">
+            {response.copyright} Scripture text provided through{' '}
+            <a href="https://api.bible" target="_blank" rel="noreferrer">
+              API.Bible
+            </a>
+            .{' '}
+            <button type="button" className="link-button" onClick={onShowCopyrights}>
+              Bible copyright notices
+            </button>
+          </p>
+        )}
 
         {response && pageCount > 1 && (
           <nav className="pagination" aria-label="Result pages">
@@ -242,45 +278,47 @@ function SearchResults({
           results per page
         </label>
 
-        <div className="panel filters">
-          <h2>Filters</h2>
-          <button
-            type="button"
-            className={selectedBook === null ? 'filter active' : 'filter'}
-            onClick={() => onSelectBook(null)}
-          >
-            All ({totalAcrossBooks.toLocaleString()})
-          </button>
-          {testaments.map((testament) => {
-            const testamentBooks = books.filter(
-              (book) => book.testament === testament.code && countsByBook.has(book.number),
-            )
-            if (testamentBooks.length === 0) {
-              return null
-            }
-            const testamentTotal = testamentBooks.reduce(
-              (sum, book) => sum + (countsByBook.get(book.number) ?? 0),
-              0,
-            )
-            return (
-              <div key={testament.code}>
-                <h3>
-                  {testament.label} ({testamentTotal.toLocaleString()})
-                </h3>
-                {testamentBooks.map((book) => (
-                  <button
-                    type="button"
-                    key={book.number}
-                    className={selectedBook === book.number ? 'filter active' : 'filter'}
-                    onClick={() => onSelectBook(book.number)}
-                  >
-                    {book.name} ({countsByBook.get(book.number)})
-                  </button>
-                ))}
-              </div>
-            )
-          })}
-        </div>
+        {!isLicensed && (
+          <div className="panel filters">
+            <h2>Filters</h2>
+            <button
+              type="button"
+              className={selectedBook === null ? 'filter active' : 'filter'}
+              onClick={() => onSelectBook(null)}
+            >
+              All ({totalAcrossBooks.toLocaleString()})
+            </button>
+            {testaments.map((testament) => {
+              const testamentBooks = books.filter(
+                (book) => book.testament === testament.code && countsByBook.has(book.number),
+              )
+              if (testamentBooks.length === 0) {
+                return null
+              }
+              const testamentTotal = testamentBooks.reduce(
+                (sum, book) => sum + (countsByBook.get(book.number) ?? 0),
+                0,
+              )
+              return (
+                <div key={testament.code}>
+                  <h3>
+                    {testament.label} ({testamentTotal.toLocaleString()})
+                  </h3>
+                  {testamentBooks.map((book) => (
+                    <button
+                      type="button"
+                      key={book.number}
+                      className={selectedBook === book.number ? 'filter active' : 'filter'}
+                      onClick={() => onSelectBook(book.number)}
+                    >
+                      {book.name} ({countsByBook.get(book.number)})
+                    </button>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </aside>
     </div>
   )

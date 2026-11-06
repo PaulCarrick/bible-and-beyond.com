@@ -122,12 +122,14 @@ def search_verses(
           "book_name": book_name,
           "chapter": chapter,
           "verse": verse,
+          "reference": f"{book_name} {chapter}:{verse}",
           "text": text,
         }
         for translation_code, book_number, book_name, chapter, verse, text in cursor.fetchall()
       ]
 
   return {
+    "source": "local",
     "query": query,
     "terms": terms,
     "total": total,
@@ -142,7 +144,7 @@ def list_translations() -> list[dict]:
   with connect() as connection:
     with connection.cursor() as cursor:
       cursor.execute("SELECT code, name FROM translations ORDER BY code")
-      return [{"code": code, "name": name} for code, name in cursor.fetchall()]
+      return [{"code": code, "name": name, "source": "local"} for code, name in cursor.fetchall()]
 
 
 def list_books() -> list[dict]:

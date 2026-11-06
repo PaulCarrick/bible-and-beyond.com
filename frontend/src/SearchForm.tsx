@@ -66,8 +66,8 @@ function SearchForm({
     }
     onSearch({
       query: query.trim(),
-      matchMode,
-      wholeWords,
+      matchMode: selectedIsLicensed ? 'all' : matchMode,
+      wholeWords: selectedIsLicensed ? false : wholeWords,
       translations: selectedCodes,
       bookStart,
       bookEnd,
@@ -77,6 +77,11 @@ function SearchForm({
     })
   }
 
+  const selectedIsLicensed = translations.some(
+    (translation) => translation.source === 'api_bible' && selectedCodes.includes(translation.code),
+  )
+  const localTranslations = translations.filter((translation) => translation.source === 'local')
+  const licensedTranslations = translations.filter((translation) => translation.source === 'api_bible')
   const canSearch = query.trim() !== '' && selectedCodes.length > 0
 
   return (
@@ -105,7 +110,8 @@ function SearchForm({
           <div className="form-row">
             <select
               aria-label="Match mode"
-              value={matchMode}
+              value={selectedIsLicensed ? 'all' : matchMode}
+              disabled={selectedIsLicensed}
               onChange={(event) => setMatchMode(event.target.value as MatchMode)}
             >
               <option value="all">Match ALL words</option>
@@ -115,7 +121,8 @@ function SearchForm({
             <label className="inline-label">
               <input
                 type="checkbox"
-                checked={wholeWords}
+                checked={wholeWords && !selectedIsLicensed}
+                disabled={selectedIsLicensed}
                 onChange={(event) => setWholeWords(event.target.checked)}
               />
               Match whole words only
@@ -125,7 +132,7 @@ function SearchForm({
           <span className="field-label">Select Bibles to search</span>
           {searchMultiple ? (
             <div className="form-row">
-              {translations.map((translation) => (
+              {localTranslations.map((translation) => (
                 <label className="inline-label" key={translation.code}>
                   <input
                     type="checkbox"
@@ -142,25 +149,41 @@ function SearchForm({
               value={selectedCodes[0] ?? ''}
               onChange={(event) => setSelectedCodes([event.target.value])}
             >
-              {translations.map((translation) => (
-                <option key={translation.code} value={translation.code}>
-                  {translation.name} ({translation.code})
-                </option>
-              ))}
+              <optgroup label="Bibles on this site">
+                {localTranslations.map((translation) => (
+                  <option key={translation.code} value={translation.code}>
+                    {translation.name} ({translation.code})
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Licensed Bibles (via API.Bible)">
+                {licensedTranslations.map((translation) => (
+                  <option key={translation.code} value={translation.code}>
+                    {translation.name} ({translation.code})
+                  </option>
+                ))}
+              </optgroup>
             </select>
           )}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              if (searchMultiple) {
-                setSelectedCodes((current) => current.slice(0, 1))
-              }
-              setSearchMultiple(!searchMultiple)
-            }}
-          >
-            {searchMultiple ? 'Search in a single version' : 'Search in multiple versions'}
-          </button>
+          {selectedIsLicensed ? (
+            <p className="option-note">
+              Licensed Bibles are searched one at a time. They match all of the words, in Bible order,
+              and do not offer match any, exact phrase, whole words or sorting by contents.
+            </p>
+          ) : (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                if (searchMultiple) {
+                  setSelectedCodes((current) => current.slice(0, 1))
+                }
+                setSearchMultiple(!searchMultiple)
+              }}
+            >
+              {searchMultiple ? 'Search in a single version' : 'Search in multiple versions'}
+            </button>
+          )}
 
           <label className="inline-label">
             <input

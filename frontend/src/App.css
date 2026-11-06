@@ -336,3 +336,31 @@ select:disabled {
     contain: none;
   }
 }
+
+.option-note {
+  max-width: 40rem;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.citation {
+  margin-top: 1rem;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.site-footer {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.site-footer .link-button {
+  font-size: 12px;
+}
+
+.copyright-page section {
+  margin-top: 1rem;
+}

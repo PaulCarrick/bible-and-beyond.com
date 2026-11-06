@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchBooks, fetchTranslations, searchBible } from './api'
+import CopyrightPage from './CopyrightPage'
 import SearchForm from './SearchForm'
 import SearchResults from './SearchResults'
 import type { Book, PerPage, SearchParameters, SearchResponse, SortField, Translation } from './types'
@@ -22,6 +23,7 @@ function App() {
   const [searchParameters, setSearchParameters] = useState<SearchParameters | null>(null)
   const [selectedBook, setSelectedBook] = useState<number | null>(null)
   const [perPage, setPerPage] = useState<PerPage>('automatic')
+  const [isShowingCopyrights, setIsShowingCopyrights] = useState(false)
   const [response, setResponse] = useState<SearchResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchErrorMessage, setSearchErrorMessage] = useState('')
@@ -130,32 +132,48 @@ function App() {
       </nav>
 
       {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
-      {translations.length > 0 && (
-        <SearchForm
-          translations={translations}
-          books={books}
-          perPage={perPage}
-          onChangePerPage={handleChangePerPage}
-          onSearch={handleSearch}
-        >
-          {searchParameters !== null && (
-            <SearchResults
-              searchParameters={searchParameters}
-              response={response}
-              books={books}
-              selectedBook={selectedBook}
-              isLoading={isLoading}
-              errorMessage={searchErrorMessage}
-              onSelectBook={handleSelectBook}
-              onChangePage={handleChangePage}
-              onChangePerPage={handleChangePerPage}
-              onFit={handleFit}
-              onSort={handleSort}
-              onClearSort={handleClearSort}
-            />
-          )}
-        </SearchForm>
-      )}
+      {isShowingCopyrights && <CopyrightPage onBack={() => setIsShowingCopyrights(false)} />}
+      {/* The search stays mounted while the copyright page is open, so nothing typed is lost. */}
+      <div hidden={isShowingCopyrights}>
+        {translations.length > 0 && (
+          <SearchForm
+            translations={translations}
+            books={books}
+            perPage={perPage}
+            onChangePerPage={handleChangePerPage}
+            onSearch={handleSearch}
+          >
+            {searchParameters !== null && (
+              <SearchResults
+                searchParameters={searchParameters}
+                response={response}
+                books={books}
+                selectedBook={selectedBook}
+                isLoading={isLoading}
+                errorMessage={searchErrorMessage}
+                onSelectBook={handleSelectBook}
+                onChangePage={handleChangePage}
+                onChangePerPage={handleChangePerPage}
+                onFit={handleFit}
+                onSort={handleSort}
+                onClearSort={handleClearSort}
+                onShowCopyrights={() => setIsShowingCopyrights(true)}
+              />
+            )}
+          </SearchForm>
+        )}
+      </div>
+
+      <footer className="site-footer">
+        Scripture for the NIV, NASB and The Message is provided through{' '}
+        <a href="https://api.bible" target="_blank" rel="noreferrer">
+          API.Bible
+        </a>
+        .{' '}
+        <button type="button" className="link-button" onClick={() => setIsShowingCopyrights(true)}>
+          Bible copyright notices
+        </button>
+      </footer>
     </main>
   )
 }

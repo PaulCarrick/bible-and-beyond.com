@@ -3,9 +3,20 @@ export type SortField = 'verse' | 'text'
 export type SortDirection = 'asc' | 'desc'
 export type PerPage = number | 'automatic'
 
+export type TranslationSource = 'local' | 'api_bible'
+
 export interface Translation {
   code: string
   name: string
+  source: TranslationSource
+}
+
+export interface Copyright {
+  code: string
+  name: string
+  abbreviation: string
+  copyright: string
+  rights_holder_url: string | null
 }
 
 export interface Book {
@@ -32,6 +43,7 @@ export interface SearchResult {
   book_name: string
   chapter: number
   verse: number
+  reference: string
   text: string
 }
 
@@ -41,6 +53,9 @@ export interface BookCount {
 }
 
 export interface SearchResponse {
+  source: TranslationSource
+  fums_token?: string | null
+  copyright?: string
   query: string
   terms: string[]
   total: number

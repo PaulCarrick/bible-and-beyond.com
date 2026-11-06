@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from search import FIRST_BOOK_NUMBER, LAST_BOOK_NUMBER, list_books, list_translations, search_verses
 
 app = FastAPI(title="Bible and Beyond ML Service")
@@ -40,7 +41,19 @@ def ask(request: QuestionRequest):
 
 @app.get("/translations")
 def translations():
-  return list_translations()
+  api_bibles = [
+    {"code": code, "name": bible["name"], "source": "api_bible"}
+    for code, bible in API_BIBLES.items()
+  ]
+  return [*list_translations(), *api_bibles]
+
+
+@app.get("/copyrights")
+def copyrights():
+  try:
+    return list_copyrights()
+  except ApiBibleError as error:
+    raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.get("/books")
@@ -64,6 +77,32 @@ def search(
 ):
   if book_start > book_end:
     raise HTTPException(status_code=422, detail="book_start must not come after book_end.")
+  api_codes = [code for code in translations if code in API_BIBLES]
+  if api_codes:
+    if len(translations) > 1:
+      raise HTTPException(
+        status_code=422,
+        detail=f"{', '.join(api_codes)} can only be searched on its own, not with other Bibles.",
+      )
+    try:
+      return search_api_bible(
+        code=api_codes[0],
+        query=query,
+        match_mode=match_mode,
+        whole_words=whole_words,
+        book_start=book_start,
+        book_end=book_end,
+        book=book,
+        page=page,
+        per_page=per_page,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
+      )
+    except ValueError as error:
+      raise HTTPException(status_code=422, detail=str(error)) from error
+    except ApiBibleError as error:
+      raise HTTPException(status_code=503, detail=str(error)) from error
+
   try:
     return search_verses(
       query=query,
