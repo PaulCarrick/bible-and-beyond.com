@@ -3,6 +3,7 @@ import { fetchBibleChapter, fetchBibleContents } from './api'
 import BackToTabsButton from './BackToTabs'
 import ContextWindow from './ContextWindow'
 import { highlightLinked } from './highlight'
+import VerseMenu from './VerseMenu'
 import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Translation } from './types'
 import { useBackToTabs } from './useBackToTabs'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
@@ -19,14 +20,14 @@ interface Target {
   verse: number | null
 }
 
-// The links under each verse: the same ones as under a search result.
-const verseLinks: { kind: ContextKind; label: string; hiddenText: string }[] = [
-  { kind: 'context', label: 'Show in Context', hiddenText: 'for' },
-  { kind: 'chapter', label: 'Full Chapter', hiddenText: 'containing' },
-  { kind: 'parallel', label: 'Other Translations', hiddenText: 'of' },
-  { kind: 'related', label: 'Related Verses', hiddenText: 'for' },
-  { kind: 'words', label: 'Original Words', hiddenText: 'of' },
-  { kind: 'commentary', label: 'Commentaries', hiddenText: 'on' },
+// What the verse menu offers: the same things as the links under a search result.
+const verseMenuItems: { kind: ContextKind; label: string }[] = [
+  { kind: 'context', label: 'Show in Context' },
+  { kind: 'chapter', label: 'Full Chapter' },
+  { kind: 'parallel', label: 'Other Translations' },
+  { kind: 'related', label: 'Related Verses' },
+  { kind: 'words', label: 'Original Words' },
+  { kind: 'commentary', label: 'Commentaries' },
 ]
 
 function verseId(chapter: BibleChapter, verse: BibleVerse) {
@@ -34,8 +35,8 @@ function verseId(chapter: BibleChapter, verse: BibleVerse) {
 }
 
 // Read a Bible stored on this site. Choose a Bible and a book, chapter and verse and the page goes
-// there; scroll up or down to read on past it, chapter after chapter and book after book. Each verse
-// has the same links as a search result.
+// there; scroll up or down to read on past it, chapter after chapter and book after book. A verse has
+// a menu (right-click it, or click its number) with the same things as the links of a search result.
 function BibleTab({ translations, isHidden }: BibleTabProps) {
   const [contents, setContents] = useState<BibleContents | null>(null)
   const [translationCode, setTranslationCode] = useState('')
@@ -47,6 +48,8 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
   const [session, setSession] = useState<object>({})
   // Where the reader asked to go, so the choosers show it before the chapter has arrived.
   const [goal, setGoal] = useState<{ book: number; chapter: number } | null>(null)
+  // The verse menu: which verse it is for and where it opened.
+  const [menu, setMenu] = useState<{ chapter: BibleChapter; verse: BibleVerse; x: number; y: number } | null>(null)
   const translationRef = useRef('')
   const pendingTarget = useRef<Target | null>(null)
   const hasStarted = useRef(false)
@@ -154,6 +157,47 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
     )
   }
 
+  // The verse number is the verse's one focusable part: it opens the menu for a tap or a keyboard,
+  // and is where the focus goes back to when the menu or a window closes.
+  function numberButton(chapter: BibleChapter, verse: BibleVerse) {
+    return document.getElementById(`${verseId(chapter, verse)}-number`)
+  }
+
+  // Right-click on a verse. A selection of text or a Shift-click keeps the browser's own menu, so
+  // copying still works.
+  function handleContextMenu(event: React.MouseEvent<HTMLElement>, chapter: BibleChapter, verse: BibleVerse) {
+    if (event.shiftKey || (window.getSelection()?.toString() ?? '') !== '') {
+      return
+    }
+    event.preventDefault()
+    let { clientX: x, clientY: y } = event
+    if (x === 0 && y === 0) {
+      // From the keyboard (the menu key) there is no pointer: open at the verse number.
+      const box = numberButton(chapter, verse)?.getBoundingClientRect()
+      x = box?.left ?? 0
+      y = box?.bottom ?? 0
+    }
+    setMenu({ chapter, verse, x, y })
+  }
+
+  function closeMenu() {
+    if (menu) {
+      numberButton(menu.chapter, menu.verse)?.focus({ preventScroll: true })
+    }
+    setMenu(null)
+  }
+
+  function chooseFromMenu(kind: ContextKind) {
+    if (menu === null) {
+      return
+    }
+    const trigger = numberButton(menu.chapter, menu.verse)
+    setMenu(null)
+    if (trigger) {
+      openWindow(menu.chapter, menu.verse, kind, trigger)
+    }
+  }
+
   // A word of the BSB was chosen: open the lexicon entry of the Hebrew or Greek word behind it.
   function openStrongNumber(chapter: BibleChapter, verse: BibleVerse, strongCode: string, trigger: HTMLElement) {
     windows.open(
@@ -249,6 +293,11 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
       </div>
 
       {(errorMessage || stripErrorMessage) && <p className="error">{errorMessage || stripErrorMessage}</p>}
+      {chapters.length > 0 && !windowIsOpen && (
+        <p className="reader-hint">
+          Right-click a verse, or click its number, for Show in Context, Other Translations, Related Verses and more.
+        </p>
+      )}
       {chapters.length === 0 && !errorMessage && !stripErrorMessage && <p>Loading…</p>}
 
       {chapters.length > 0 && (
@@ -279,32 +328,39 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
                 <div
                   key={verse.verse}
                   id={verseId(chapter, verse)}
-                  className={verseId(chapter, verse) === markedVerse ? 'bible-verse is-marked' : 'bible-verse'}
+                  className={
+                    verseId(chapter, verse) === markedVerse
+                      ? 'bible-verse is-marked'
+                      : menu?.chapter === chapter && menu.verse === verse
+                        ? 'bible-verse is-menu-target'
+                        : 'bible-verse'
+                  }
+                  onContextMenu={(event) => handleContextMenu(event, chapter, verse)}
                 >
                   <p className="bible-verse-text" lang={chapter.translation.language}>
-                    <sup className="verse-number">{verse.verse}</sup>
+                    <button
+                      type="button"
+                      id={`${verseId(chapter, verse)}-number`}
+                      className="verse-number-button"
+                      aria-haspopup="menu"
+                      title="Options for this verse (or right-click the verse)"
+                      onClick={(event) => {
+                        const box = event.currentTarget.getBoundingClientRect()
+                        setMenu({ chapter, verse, x: box.left, y: box.bottom })
+                      }}
+                    >
+                      <sup className="verse-number">{verse.verse}</sup>
+                      <span className="visually-hidden">
+                        {' '}
+                        Options for {chapter.book_name} {chapter.chapter}:{verse.verse}
+                      </span>
+                    </button>
                     {verse.links
                       ? highlightLinked(verse.text, [], false, verse.links, (code, element) =>
                           openStrongNumber(chapter, verse, code, element),
                         )
                       : verse.text}
                   </p>
-                  <div className="verse-links">
-                    {verseLinks.map((link) => (
-                      <button
-                        type="button"
-                        key={link.kind}
-                        className="link-button context-link"
-                        onClick={(event) => openWindow(chapter, verse, link.kind, event.currentTarget)}
-                      >
-                        {link.label}
-                        <span className="visually-hidden">
-                          {' '}
-                          {link.hiddenText} {chapter.book_name} {chapter.chapter}:{verse.verse}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
               ))}
             </section>
@@ -324,6 +380,17 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
                 : ''}
           </div>
         </div>
+      )}
+
+      {menu && !windowIsOpen && (
+        <VerseMenu
+          x={menu.x}
+          y={menu.y}
+          heading={`${menu.chapter.book_name} ${menu.chapter.chapter}:${menu.verse.verse}`}
+          items={verseMenuItems}
+          onChoose={chooseFromMenu}
+          onClose={closeMenu}
+        />
       )}
 
       <BackToTabsButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />

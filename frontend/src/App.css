@@ -975,8 +975,71 @@ select:disabled {
   line-height: 1.7;
 }
 
-.bible-verse .verse-links {
-  margin-top: 0.15rem;
+.bible-verse.is-menu-target {
+  margin-left: -0.75rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent-border);
+  background: var(--accent-bg);
+}
+
+/* The verse number is a button (a tap or the keyboard opens the verse menu) that looks like a number. */
+.verse-number-button {
+  margin: 0;
+  padding: 0 0.15rem 0 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.verse-number-button:hover,
+.verse-number-button:focus-visible {
+  color: #1a6ebd;
+  text-decoration: underline;
+}
+
+.reader-hint {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.verse-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 13rem;
+  padding: 0.3rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.verse-menu-heading {
+  padding: 0.25rem 0.9rem 0.35rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.verse-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.verse-menu-item:hover,
+.verse-menu-item:focus-visible {
+  outline: none;
+  background: var(--accent-bg);
 }
 
 @media (max-width: 700px) {
