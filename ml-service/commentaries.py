@@ -18,7 +18,7 @@ from pathlib import Path
 
 import httpx
 
-from search import connect
+from search import connect, parse_terms
 
 BASE_URL = "https://bible.helloao.org/api"
 
@@ -259,3 +259,133 @@ def check_ids(commentary_ids):
   if unknown:
     raise CommentaryProblem(f"Unknown commentary: {', '.join(unknown)}. Known: {', '.join(COMMENTARIES)}.")
   return commentary_ids
+
+
+# --- searching inside the commentaries ---------------------------------------------------------------
+
+# ts_headline marks the matched words in an excerpt with these two control characters, which never
+# occur in the texts. The page turns them into bold type.
+START_MARK = "\u0001"
+STOP_MARK = "\u0002"
+HEADLINE_OPTIONS = (
+  f"StartSel={START_MARK}, StopSel={STOP_MARK}, MaxWords=32, MinWords=16, MaxFragments=2, "
+  "FragmentDelimiter= \u2026 "
+)
+
+
+def list_commentaries():
+  with connect() as connection:
+    return [
+      {"id": commentary_id, "name": name, "short_name": short_name}
+      for commentary_id, name, short_name in connection.execute(
+        "SELECT id, name, short_name FROM commentaries ORDER BY position"
+      ).fetchall()
+    ]
+
+
+def search_commentaries(
+  query, match_mode, commentary_id, book_start, book_end, book, page, per_page, sort_by, sort_direction
+):
+  """Search the text of the commentaries.
+
+  Words match in any form (love finds loved) and no word is ignored for being common (see
+  migration 008). Match all words, any word, or an exact phrase; a quoted phrase inside the query is
+  kept together. Results are the best matches first, or in Bible
+  order when sort_by is "verse". Each result is a whole note, with an excerpt around the words found.
+  """
+  terms = parse_terms(query, match_mode)
+  if not terms:
+    raise ValueError("Enter at least one word or phrase to search for.")
+  joiner = " || " if match_mode == "any" else " && "
+  tsquery = joiner.join(["phraseto_tsquery('commentary_english', %s)"] * len(terms))
+
+  with connect() as connection:
+    if commentary_id is not None and connection.execute(
+      "SELECT 1 FROM commentaries WHERE id = %s", (commentary_id,)
+    ).fetchone() is None:
+      raise ValueError(f"Unknown commentary: {commentary_id}")
+    if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
+      raise ValueError("Enter at least one word or phrase to search for.")
+
+    conditions = (
+      f"e.search_vector @@ ({tsquery}) AND e.book_number BETWEEN %s AND %s "
+      "AND (%s::text IS NULL OR e.commentary_id = %s)"
+    )
+    base_parameters = [*terms, book_start, book_end, commentary_id, commentary_id]
+
+    book_counts = [
+      {"book_number": book_number, "count": count}
+      for book_number, count in connection.execute(
+        f"SELECT e.book_number, count(*) FROM commentary_entries e WHERE {conditions} "
+        "GROUP BY e.book_number ORDER BY e.book_number",
+        base_parameters,
+      ).fetchall()
+    ]
+    if book is None:
+      total = sum(entry["count"] for entry in book_counts)
+      book_condition, result_parameters = "", base_parameters
+    else:
+      total = sum(entry["count"] for entry in book_counts if entry["book_number"] == book)
+      book_condition, result_parameters = " AND e.book_number = %s", [*base_parameters, book]
+
+    direction = "DESC" if sort_direction == "desc" else "ASC"
+    if sort_by == "verse":
+      order = f"e.book_number {direction}, e.chapter {direction}, e.verse {direction}, c.position"
+    else:
+      order = "rank DESC, e.book_number, e.chapter, e.verse, c.position"
+
+    # Choose the page first, then build excerpts for just those notes: an excerpt reads the whole
+    # note, which is slow for the long ones.
+    page_rows = connection.execute(
+      f"""
+      SELECT e.id, ts_rank_cd(e.search_vector, ({tsquery}), 1) AS rank
+      FROM commentary_entries e
+      JOIN commentaries c ON c.id = e.commentary_id
+      WHERE {conditions}{book_condition}
+      ORDER BY {order}
+      LIMIT %s OFFSET %s
+      """,
+      [*terms, *result_parameters, per_page, (page - 1) * per_page],
+    ).fetchall()
+    results = []
+    if page_rows:
+      ranked_ids = [row[0] for row in page_rows]
+      by_id = {
+        row[0]: row[1:]
+        for row in connection.execute(
+          f"""
+          SELECT e.id, e.commentary_id, c.short_name, e.book_number, b.name, e.chapter, e.verse, e.end_verse,
+                 ts_headline('commentary_english', e.text, ({tsquery}), %s)
+          FROM commentary_entries e
+          JOIN commentaries c ON c.id = e.commentary_id
+          JOIN books b ON b.number = e.book_number
+          WHERE e.id = ANY(%s)
+          """,
+          [*terms, HEADLINE_OPTIONS, ranked_ids],
+        ).fetchall()
+      }
+      for entry_id in ranked_ids:
+        commentary, short_name, book_number, book_name, chapter, verse, end_verse, excerpt = by_id[entry_id]
+        results.append({
+          "translation": commentary,
+          "commentary_id": commentary,
+          "commentary_name": short_name,
+          "book_number": book_number,
+          "book_name": book_name,
+          "chapter": chapter,
+          "verse": verse,
+          "end_verse": end_verse,
+          "reference": label_range(book_name, chapter, verse, end_verse),
+          "text": excerpt,
+        })
+
+  return {
+    "source": "commentary",
+    "query": query,
+    "terms": terms,
+    "total": total,
+    "page": page,
+    "per_page": per_page,
+    "book_counts": book_counts,
+    "results": results,
+  }

@@ -247,6 +247,7 @@ function ContextWindow({
         {commentary && (
           <CommentaryPanel
             commentary={commentary}
+            terms={terms}
             requestedId={view.commentaryId ?? commentary.selected}
             onChangeCommentary={onChangeCommentary}
           />

@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react'
+
 function escapeRegularExpression(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -95,5 +97,23 @@ export function highlightLinked(
       ),
     )
   }
+  return nodes
+}
+
+// An excerpt of a commentary note: the server wraps each word it found in \u0001 and \u0002.
+// Line breaks become spaces so the excerpt reads as one passage.
+export function renderExcerpt(excerpt: string) {
+  const nodes: (string | ReactElement)[] = []
+  excerpt
+    .replace(/\s*\n+\s*/g, ' ')
+    .split('\u0001')
+    .forEach((segment, index) => {
+      if (index === 0) {
+        nodes.push(segment)
+        return
+      }
+      const [found, ...rest] = segment.split('\u0002')
+      nodes.push(<strong key={index}>{found}</strong>, rest.join('\u0002'))
+    })
   return nodes
 }

@@ -792,3 +792,9 @@ select:disabled {
   margin: 0.5rem 0 0;
   line-height: 1.6;
 }
+
+.sort-note {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 12px;
+}

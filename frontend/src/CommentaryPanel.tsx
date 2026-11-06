@@ -1,4 +1,5 @@
 import CommentaryCredit from './CommentaryCredit'
+import { highlight } from './highlight'
 import type { CommentaryResponse } from './types'
 
 interface CommentaryPanelProps {
@@ -6,6 +7,8 @@ interface CommentaryPanelProps {
   // The commentary asked for. It differs from commentary.selected while another one is loading.
   requestedId: string
   onChangeCommentary: (commentaryId: string) => void
+  // Words searched for in the commentaries, shown in bold in the note (none otherwise).
+  terms: string[]
 }
 
 // Every line of the old texts is a paragraph or a point of an outline (none are wrapped by hand).
@@ -13,7 +16,7 @@ function paragraphsOf(text: string) {
   return text.split(/\n+/).filter((paragraph) => paragraph.trim() !== '')
 }
 
-function CommentaryPanel({ commentary, requestedId, onChangeCommentary }: CommentaryPanelProps) {
+function CommentaryPanel({ commentary, requestedId, onChangeCommentary, terms }: CommentaryPanelProps) {
   const isLoading = commentary.selected !== requestedId
   const chosen = commentary.commentaries.find((entry) => entry.id === commentary.selected)
 
@@ -43,7 +46,7 @@ function CommentaryPanel({ commentary, requestedId, onChangeCommentary }: Commen
           </p>
           <div className="commentary-text">
             {paragraphsOf(commentary.text).map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
+              <p key={index}>{highlight(paragraph, terms, false)}</p>
             ))}
           </div>
           {commentary.chapter_introduction && (

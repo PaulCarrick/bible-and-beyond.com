@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { parsePerPage, perPageOptions } from './perPage'
-import type { Book, MatchMode, PerPage, SearchParameters, Translation } from './types'
+import type { Book, CommentarySource, MatchMode, PerPage, SearchParameters, Translation } from './types'
 
 const bookGroups = [
   { name: 'Old Testament', bookStart: 1, bookEnd: 39 },
@@ -17,6 +17,9 @@ const bookGroups = [
 type Scope = 'entire' | 'group' | 'range'
 
 interface SearchFormProps {
+  // Search the Bibles, or the text of the commentaries.
+  mode: 'bible' | 'commentary'
+  commentaries: CommentarySource[]
   translations: Translation[]
   books: Book[]
   perPage: PerPage
@@ -27,6 +30,8 @@ interface SearchFormProps {
 }
 
 function SearchForm({
+  mode,
+  commentaries,
   translations,
   books,
   perPage,
@@ -38,6 +43,8 @@ function SearchForm({
   const [matchMode, setMatchMode] = useState<MatchMode>('all')
   const [wholeWords, setWholeWords] = useState(false)
   const [selectedCodes, setSelectedCodes] = useState<string[]>(['BSB'])
+  // Which commentary to search; empty means all of them.
+  const [commentary, setCommentary] = useState('')
   const [searchMultiple, setSearchMultiple] = useState(false)
   const [scope, setScope] = useState<Scope>('entire')
   const [groupIndex, setGroupIndex] = useState(0)
@@ -64,11 +71,13 @@ function SearchForm({
       bookStart = Math.min(rangeStart, rangeEnd)
       bookEnd = Math.max(rangeStart, rangeEnd)
     }
+    const isCommentarySearch = mode === 'commentary'
     onSearch({
       query: query.trim(),
-      matchMode: selectedIsLicensed ? 'all' : matchMode,
-      wholeWords: selectedIsLicensed ? false : wholeWords,
-      translations: selectedCodes,
+      matchMode: selectedIsLicensed && !isCommentarySearch ? 'all' : matchMode,
+      wholeWords: selectedIsLicensed || isCommentarySearch ? false : wholeWords,
+      translations: isCommentarySearch ? [] : selectedCodes,
+      commentary: isCommentarySearch && commentary !== '' ? commentary : null,
       bookStart,
       bookEnd,
       perPage,
@@ -82,23 +91,25 @@ function SearchForm({
   )
   const localTranslations = translations.filter((translation) => translation.source === 'local')
   const licensedTranslations = translations.filter((translation) => translation.source === 'api_bible')
-  const canSearch = query.trim() !== '' && selectedCodes.length > 0
+  const isCommentarySearch = mode === 'commentary'
+  const queryId = isCommentarySearch ? 'search-query-commentary' : 'search-query'
+  const canSearch = query.trim() !== '' && (isCommentarySearch || selectedCodes.length > 0)
 
   return (
     <form className="search-form" onSubmit={handleSubmit}>
-      <label className="field-label" htmlFor="search-query">
+      <label className="field-label" htmlFor={queryId}>
         Enter the words or phrases to search for
       </label>
       <div className="search-row">
         <input
-          id="search-query"
+          id={queryId}
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder='Example "Jesus love" or G0025'
+          placeholder={isCommentarySearch ? 'Example "born again" or charity' : 'Example "Jesus love" or G0025'}
         />
         <button type="submit" className="primary-button" disabled={!canSearch}>
-          Search for keyword or phrase
+          {isCommentarySearch ? 'Search the commentaries' : 'Search for keyword or phrase'}
         </button>
       </div>
 
@@ -110,25 +121,53 @@ function SearchForm({
           <div className="form-row">
             <select
               aria-label="Match mode"
-              value={selectedIsLicensed ? 'all' : matchMode}
-              disabled={selectedIsLicensed}
+              value={selectedIsLicensed && !isCommentarySearch ? 'all' : matchMode}
+              disabled={selectedIsLicensed && !isCommentarySearch}
               onChange={(event) => setMatchMode(event.target.value as MatchMode)}
             >
               <option value="all">Match ALL words</option>
               <option value="any">Match ANY word</option>
               <option value="phrase">Match exact phrase</option>
             </select>
-            <label className="inline-label">
-              <input
-                type="checkbox"
-                checked={wholeWords && !selectedIsLicensed}
-                disabled={selectedIsLicensed}
-                onChange={(event) => setWholeWords(event.target.checked)}
-              />
-              Match whole words only
-            </label>
+            {!isCommentarySearch && (
+              <label className="inline-label">
+                <input
+                  type="checkbox"
+                  checked={wholeWords && !selectedIsLicensed}
+                  disabled={selectedIsLicensed}
+                  onChange={(event) => setWholeWords(event.target.checked)}
+                />
+                Match whole words only
+              </label>
+            )}
           </div>
+          {isCommentarySearch && (
+            <p className="option-note">
+              Words match in any form, so love also finds loved and loving. Every word counts, even small
+              ones such as the and of, so an exact phrase finds just that wording. Notes are listed best
+              match first.
+            </p>
+          )}
 
+          {isCommentarySearch ? (
+            <>
+          <span className="field-label">Select a commentary to search</span>
+          <select
+            aria-label="Commentary"
+            value={commentary}
+            onChange={(event) => setCommentary(event.target.value)}
+          >
+            <option value="">All commentaries</option>
+            {commentaries.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.name}
+              </option>
+            ))}
+          </select>
+
+            </>
+          ) : (
+            <>
           <span className="field-label">Select Bibles to search</span>
           {searchMultiple ? (
             <div className="form-row">
@@ -185,6 +224,8 @@ function SearchForm({
             </button>
           )}
 
+            </>
+          )}
           <label className="inline-label">
             <input
               type="radio"
@@ -192,7 +233,7 @@ function SearchForm({
               checked={scope === 'entire'}
               onChange={() => setScope('entire')}
             />
-            Search the entire Bible(s)
+            {isCommentarySearch ? 'Search the entire Bible' : 'Search the entire Bible(s)'}
           </label>
           <div className="form-row">
             <label className="inline-label">

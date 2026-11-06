@@ -1,5 +1,6 @@
 import type {
   CommentaryResponse,
+  CommentarySource,
   Book,
   ContextKind,
   Copyright,
@@ -179,4 +180,37 @@ export async function searchBible(
     queryString.set('sort_direction', searchParameters.sortDirection)
   }
   return readJson(await fetch(`${mlServiceUrl}/search?${queryString}`, { signal }))
+}
+
+export async function fetchCommentarySources(): Promise<CommentarySource[]> {
+  return readJson(await fetch(`${mlServiceUrl}/commentary-list`))
+}
+
+// Search inside the commentaries. Notes come back best match first, or in Bible order.
+export async function searchCommentaries(
+  searchParameters: SearchParameters,
+  page: number,
+  book: number | null,
+  perPage: number,
+  signal: AbortSignal,
+): Promise<SearchResponse> {
+  const queryString = new URLSearchParams({
+    query: searchParameters.query,
+    match_mode: searchParameters.matchMode,
+    book_start: String(searchParameters.bookStart),
+    book_end: String(searchParameters.bookEnd),
+    page: String(page),
+    per_page: String(perPage),
+  })
+  if (searchParameters.commentary !== null) {
+    queryString.set('commentary', searchParameters.commentary)
+  }
+  if (book !== null) {
+    queryString.set('book', String(book))
+  }
+  if (searchParameters.sortBy === 'verse') {
+    queryString.set('sort_by', 'verse')
+    queryString.set('sort_direction', searchParameters.sortDirection)
+  }
+  return readJson(await fetch(`${mlServiceUrl}/search-commentaries?${queryString}`, { signal }))
 }

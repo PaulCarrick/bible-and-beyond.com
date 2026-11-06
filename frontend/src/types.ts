@@ -4,6 +4,8 @@ export type SortDirection = 'asc' | 'desc'
 export type PerPage = number | 'automatic'
 
 export type TranslationSource = 'local' | 'api_bible'
+// What a search looked through: Bibles stored here, a licensed Bible, or the commentaries.
+export type SearchSource = TranslationSource | 'commentary'
 
 export interface Translation {
   code: string
@@ -30,6 +32,8 @@ export interface SearchParameters {
   matchMode: MatchMode
   wholeWords: boolean
   translations: string[]
+  // Only for a commentary search: which commentary (null for all of them).
+  commentary: string | null
   bookStart: number
   bookEnd: number
   perPage: PerPage
@@ -45,6 +49,10 @@ export interface SearchResult {
   verse: number
   reference: string
   text: string
+  // Only for a commentary search: the note's commentary. text is then an excerpt with the words
+  // found wrapped in the control characters \u0001 and \u0002.
+  commentary_id?: string
+  commentary_name?: string
 }
 
 export interface BookCount {
@@ -140,7 +148,7 @@ export interface ParallelVerse {
 }
 
 export interface SearchResponse {
-  source: TranslationSource
+  source: SearchSource
   fums_token?: string | null
   copyright?: string
   query: string
@@ -224,4 +232,11 @@ export interface CommentaryResponse {
   text: string
   chapter_introduction: string | null
   book_introduction: string | null
+}
+
+// One commentary, as listed for choosing which to search.
+export interface CommentarySource {
+  id: string
+  name: string
+  short_name: string
 }

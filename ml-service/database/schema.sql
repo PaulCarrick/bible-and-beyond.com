@@ -10,6 +10,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 DROP TABLE IF EXISTS commentary_introductions CASCADE;
 DROP TABLE IF EXISTS commentary_entries CASCADE;
 DROP TABLE IF EXISTS commentaries CASCADE;
+DROP TEXT SEARCH CONFIGURATION IF EXISTS commentary_english;
+DROP TEXT SEARCH DICTIONARY IF EXISTS english_stem_with_common_words;
 DROP TABLE IF EXISTS verse_word_links CASCADE;
 DROP TABLE IF EXISTS original_words CASCADE;
 DROP TABLE IF EXISTS lexicon_entries CASCADE;
@@ -189,6 +191,21 @@ CREATE TABLE IF NOT EXISTS verse_word_links (
     links JSONB NOT NULL
 );
 
+-- Search configuration for the commentaries: English word forms, without the list of ignored common words.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_ts_dict WHERE dictname = 'english_stem_with_common_words') THEN
+        CREATE TEXT SEARCH DICTIONARY english_stem_with_common_words (TEMPLATE = snowball, Language = english);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_ts_config WHERE cfgname = 'commentary_english') THEN
+        CREATE TEXT SEARCH CONFIGURATION commentary_english (COPY = pg_catalog.english);
+        ALTER TEXT SEARCH CONFIGURATION commentary_english
+            ALTER MAPPING FOR asciiword, word, hword_asciipart, hword_part, asciihword, hword
+            WITH english_stem_with_common_words;
+    END IF;
+END
+$$;
+
 -- Public-domain commentaries. Reload them after a schema reset: scripts/import_commentaries.py.
 CREATE TABLE IF NOT EXISTS commentaries (
     id TEXT PRIMARY KEY,
@@ -205,7 +222,8 @@ CREATE TABLE IF NOT EXISTS commentary_entries (
     chapter INTEGER NOT NULL,
     verse INTEGER NOT NULL,
     end_verse INTEGER,
-    text TEXT NOT NULL
+    text TEXT NOT NULL,
+    search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', text)) STORED
 );
 
 CREATE INDEX IF NOT EXISTS commentary_entries_by_verse
@@ -218,3 +236,6 @@ CREATE TABLE IF NOT EXISTS commentary_introductions (
     text TEXT NOT NULL,
     PRIMARY KEY (commentary_id, book_number, chapter)
 );
+
+CREATE INDEX IF NOT EXISTS commentary_entries_by_search_vector
+    ON commentary_entries USING GIN (search_vector);

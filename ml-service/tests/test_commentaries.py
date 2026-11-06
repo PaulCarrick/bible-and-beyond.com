@@ -14,9 +14,13 @@ from commentaries import (
   check_ids,
   get_commentaries,
   label_range,
+  list_commentaries,
   paragraphs_to_text,
   read_commentary,
   replace_commentary,
+  search_commentaries,
+  START_MARK,
+  STOP_MARK,
 )
 from main import app
 from search import connect
@@ -207,3 +211,123 @@ def test_the_api_serves_commentaries_and_refuses_what_it_does_not_have(loaded):
   assert body["text"] == "Not to condemn." and body["covers"] == "John 3:17"
   assert client.get("/commentaries", params={"book": JOHN, "chapter": 9, "verse": 9}).status_code == 404
   assert client.get("/commentaries", params={"book": 67, "chapter": 1, "verse": 1}).status_code == 422
+
+
+# --- searching the text of the commentaries --------------------------------------------------------------
+
+
+@pytest.fixture
+def searchable(tmp_path, monkeypatch):
+  """A few short notes in a throwaway schema, to search."""
+  with connect() as connection:
+    connection.execute("DROP SCHEMA IF EXISTS commentaries_search_test CASCADE")
+    connection.execute("CREATE SCHEMA commentaries_search_test")
+    for table in ("commentaries", "commentary_entries", "commentary_introductions"):
+      connection.execute(f"CREATE TABLE commentaries_search_test.{table} (LIKE public.{table} INCLUDING ALL)")
+
+  def connect_to_test_schema():
+    return psycopg.connect(os.environ["DATABASE_URL"], options="-c search_path=commentaries_search_test,public")
+
+  monkeypatch.setattr(commentaries, "connect", connect_to_test_schema)
+  henry = write_commentary(tmp_path / "a", "matthew-henry", {
+    ("JHN", 3): [(1, ["You must be born again, said Jesus to Nicodemus."]), (22, ["John was baptizing in Enon."])],
+  })
+  gill = write_commentary(tmp_path / "b", "john-gill", {
+    ("JHN", 3): [(16, ["God so loved the world, and gave his Son. Love is the cause."]), (17, ["Not to condemn."])],
+    ("GEN", 1): [(1, ["In the beginning God created. A son was born; he left, and came again."])],
+  })
+  for folder, commentary_id in ((henry, "matthew-henry"), (gill, "john-gill")):
+    entries, introductions = read_commentary(folder, commentary_id, BOOKS)
+    replace_commentary(commentary_id, entries, introductions)
+  try:
+    yield
+  finally:
+    with connect() as connection:
+      connection.execute("DROP SCHEMA IF EXISTS commentaries_search_test CASCADE")
+
+
+def find(query, match_mode="all", commentary=None, book_start=1, book_end=66, book=None, page=1, per_page=25,
+         sort_by=None, sort_direction="asc"):
+  return search_commentaries(query, match_mode, commentary, book_start, book_end, book, page, per_page, sort_by, sort_direction)
+
+
+def references(result):
+  return [(entry["commentary_id"], entry["reference"]) for entry in result["results"]]
+
+
+def test_the_commentaries_are_listed_in_tab_order(searchable):
+  assert [entry["short_name"] for entry in list_commentaries()] == ["Matthew Henry", "John Gill"]
+
+
+def test_word_forms_match_and_the_excerpt_marks_the_words_found(searchable):
+  result = find("love")
+
+  assert result["source"] == "commentary" and result["total"] == 1
+  entry = result["results"][0]
+  assert (entry["commentary_id"], entry["commentary_name"], entry["reference"]) == ("john-gill", "John Gill", "John 3:16")
+  assert f"{START_MARK}loved{STOP_MARK}" in entry["text"] and f"{START_MARK}Love{STOP_MARK}" in entry["text"]
+  assert entry["translation"] == "john-gill" and entry["end_verse"] == 16
+
+
+def test_common_words_are_not_ignored_so_phrases_are_exact(searchable):
+  # "again" is a common word, but it still counts: only John 3:1 has "born again" side by side.
+  assert references(find("born again", "phrase")) == [("matthew-henry", "John 3:1–21")]
+  # Matching all the words in any places also finds Genesis, which has "born" and "again" apart.
+  assert sorted(references(find("born again", "all"))) == [("john-gill", "Genesis 1:1"), ("matthew-henry", "John 3:1–21")]
+  assert references(find("so loved the world", "phrase")) == [("john-gill", "John 3:16")]
+
+
+def test_all_words_any_word_and_quoted_phrases(searchable):
+  assert find("god world")["total"] == 1
+  assert find("baptizing son")["total"] == 0
+  assert find("baptizing son", "any")["total"] == 3
+  assert references(find('"so loved" cause')) == [("john-gill", "John 3:16")]
+  assert find('"loved so" cause')["total"] == 0
+
+
+def test_a_section_note_is_found_and_labelled_with_the_verses_it_covers(searchable):
+  result = find("enon")
+
+  assert references(result) == [("matthew-henry", "John 3:22 to the end of the chapter")]
+
+
+def test_the_search_can_be_limited_to_one_commentary_and_to_books(searchable):
+  assert find("god", commentary="matthew-henry")["total"] == 0
+  assert find("god", commentary="john-gill")["total"] == 2
+  assert find("god", book_start=43, book_end=66)["total"] == 1
+  assert find("god", book=1)["total"] == 1
+  assert find("god")["book_counts"] == [{"book_number": 1, "count": 1}, {"book_number": 43, "count": 1}]
+
+
+def test_results_are_in_bible_order_when_asked_and_paged(searchable):
+  every = find("the", sort_by="verse")
+  assert [entry["reference"] for entry in every["results"]] == ["Genesis 1:1", "John 3:16"]
+  assert [entry["reference"] for entry in find("the", sort_by="verse", sort_direction="desc")["results"]] == ["John 3:16", "Genesis 1:1"]
+
+  second_page = find("the", sort_by="verse", page=2, per_page=1)
+  assert second_page["total"] == 2 and [entry["reference"] for entry in second_page["results"]] == ["John 3:16"]
+
+
+def test_the_best_match_comes_first_by_default(searchable):
+  result = find("love world god", "any")
+
+  assert result["results"][0]["reference"] == "John 3:16"
+
+
+def test_unusable_searches_are_refused(searchable):
+  with pytest.raises(ValueError, match="at least one word"):
+    find("   ")
+  with pytest.raises(ValueError, match="Unknown commentary: nobody"):
+    find("god", commentary="nobody")
+
+
+def test_the_api_lists_and_searches_commentaries(searchable):
+  assert [entry["id"] for entry in client.get("/commentary-list").json()] == ["matthew-henry", "john-gill"]
+
+  body = client.get("/search-commentaries", params={"query": "Nicodemus"}).json()
+  assert body["total"] == 1 and body["results"][0]["reference"] == "John 3:1–21"
+
+  refused = client.get("/search-commentaries", params={"query": "god", "commentary": "nobody"})
+  assert refused.status_code == 422 and "nobody" in refused.json()["detail"]
+  assert client.get("/search-commentaries", params={"query": "god", "book_start": 50, "book_end": 40}).status_code == 422
+  assert client.get("/search-commentaries", params={"query": "god", "sort_by": "text"}).status_code == 422

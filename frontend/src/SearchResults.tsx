@@ -10,7 +10,7 @@ import {
 import ContextWindow from './ContextWindow'
 import type { WindowView } from './ContextWindow'
 import { reportView } from './fums'
-import { highlight } from './highlight'
+import { highlight, renderExcerpt } from './highlight'
 import { parsePerPage, perPageOptions } from './perPage'
 import type {
   Book,
@@ -56,6 +56,12 @@ const sortColumns: { field: SortField; label: string; className: string }[] = [
 ]
 
 interface SearchResultsProps {
+  // Whether the results are verses of Bibles or notes of commentaries.
+  mode: 'bible' | 'commentary'
+  // The Bible that "Show in Context" uses for a commentary result.
+  contextTranslation: string
+  // What a commentary search looked through ("all commentaries" or one name), for the heading.
+  sourceLabel: string
   searchParameters: SearchParameters
   response: SearchResponse | null
   books: Book[]
@@ -79,6 +85,9 @@ interface WindowState {
 }
 
 function SearchResults({
+  mode,
+  contextTranslation,
+  sourceLabel,
   searchParameters,
   response,
   books,
@@ -117,7 +126,7 @@ function SearchResults({
     currentPerPage.current = response.per_page
     const list = listReference.current
     // Licensed Bibles cost a request per page, so they get a single correction.
-    const measurementLimit = response.source === 'local' ? maximumMeasurements : 1
+    const measurementLimit = response.source === 'api_bible' ? 1 : maximumMeasurements
     if (measurementCount.current >= measurementLimit || list === null || list.children.length === 0) {
       return
     }
@@ -213,7 +222,12 @@ function SearchResults({
       })
   }
 
-  function newView(kind: ContextKind, target: VerseTarget, direction: RelatedDirection = 'from'): WindowView {
+  function newView(
+    kind: ContextKind,
+    target: VerseTarget,
+    direction: RelatedDirection = 'from',
+    commentaryId: string | null = null,
+  ): WindowView {
     const id = nextViewId.current
     nextViewId.current += 1
     return {
@@ -227,7 +241,7 @@ function SearchResults({
       words: null,
       lexicon: null,
       commentary: null,
-      commentaryId: null,
+      commentaryId,
       errorMessage: '',
     }
   }
@@ -238,13 +252,19 @@ function SearchResults({
       return
     }
     contextTrigger.current = trigger
-    const view = newView(kind, {
-      translation: result.translation,
-      book_number: result.book_number,
-      chapter: result.chapter,
-      verse: result.verse,
-      reference: result.reference,
-    })
+    // A commentary result is not tied to a Bible, so the verse is shown in the one chosen for that.
+    const view = newView(
+      kind,
+      {
+        translation: response.source === 'commentary' ? contextTranslation : result.translation,
+        book_number: result.book_number,
+        chapter: result.chapter,
+        verse: result.verse,
+        reference: result.reference,
+      },
+      'from',
+      kind === 'commentary' ? (result.commentary_id ?? null) : null,
+    )
     setWindowState({ openedFor: response, views: [view] })
     loadView(view)
   }
@@ -338,10 +358,11 @@ function SearchResults({
         <div className="results-heading">
           <p>
             <strong>
-              {response ? response.total.toLocaleString() : '…'} Bible results for “
+              {response ? response.total.toLocaleString() : '…'}{' '}
+              {mode === 'commentary' ? 'commentary results' : 'Bible results'} for “
               {searchParameters.query}”
             </strong>{' '}
-            from {searchParameters.translations.join(', ')}
+            {mode === 'commentary' ? `in ${sourceLabel}` : `from ${searchParameters.translations.join(', ')}`}
           </p>
           {response?.strong && (
             <p className="strong-note">
@@ -367,13 +388,15 @@ function SearchResults({
 
         {errorMessage && <p className="error">{errorMessage}</p>}
         {isLoading && !response && <p>Searching…</p>}
-        {response && response.total === 0 && <p>No verses matched your search.</p>}
+        {response && response.total === 0 && (
+          <p>{mode === 'commentary' ? 'No commentary notes matched your search.' : 'No verses matched your search.'}</p>
+        )}
 
         <div hidden={showContext}>
           {response && response.total > 0 && (
             <div className="result-header">
               {sortColumns.map((column) => {
-                if (isLicensed && column.field === 'text') {
+                if ((isLicensed || mode === 'commentary') && column.field === 'text') {
                   return (
                     <span key={column.field} className={column.className}>
                       {column.label}
@@ -395,6 +418,9 @@ function SearchResults({
                   </button>
                 )
               })}
+              {mode === 'commentary' && searchParameters.sortBy === null && (
+                <span className="sort-note">Best matches first</span>
+              )}
               {searchParameters.sortBy !== null && (
                 <button type="button" className="link-button clear-sort" onClick={onClearSort}>
                   Clear Sort
@@ -411,12 +437,41 @@ function SearchResults({
               >
                 <span className="reference">
                   {result.reference}
-                  {showTranslationCode && <span className="translation-code"> {result.translation}</span>}
+                  {mode === 'commentary' ? (
+                    <span className="translation-code"> {result.commentary_name}</span>
+                  ) : (
+                    showTranslationCode && <span className="translation-code"> {result.translation}</span>
+                  )}
                 </span>
                 <div className="verse-column">
                   <span className="verse-text">
-                    {highlight(result.text, response.terms, searchParameters.wholeWords)}
+                    {mode === 'commentary'
+                      ? renderExcerpt(result.text)
+                      : highlight(result.text, response.terms, searchParameters.wholeWords)}
                   </span>
+                  {response.source === 'commentary' && (
+                    <div className="verse-links">
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('commentary', result, event.currentTarget)}
+                      >
+                        Read the note
+                        <span className="visually-hidden">
+                          {' '}
+                          by {result.commentary_name} on {result.reference}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('context', result, event.currentTarget)}
+                      >
+                        Show in Context
+                        <span className="visually-hidden"> for {result.reference}</span>
+                      </button>
+                    </div>
+                  )}
                   {response.source === 'local' && (
                     <div className="verse-links">
                       <button
@@ -529,7 +584,13 @@ function SearchResults({
             key={currentView.id}
             view={currentView}
             canGoBack={windowState.views.length > 1}
-            terms={windowState.views.length === 1 ? (response?.terms ?? []) : []}
+            terms={
+              // Search words are bolded only where they were searched for: in a note after a commentary
+              // search, in Bible text after a Bible search.
+              windowState.views.length === 1 && (response?.source === 'commentary') === (currentView.kind === 'commentary')
+                ? (response?.terms ?? [])
+                : []
+            }
             wholeWords={searchParameters.wholeWords}
             onBack={goBack}
             onClose={closeContext}

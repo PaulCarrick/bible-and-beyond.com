@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
-from commentaries import get_commentaries
+from commentaries import get_commentaries, list_commentaries, search_commentaries
 from context import get_chapter, get_context, get_parallel, get_related
 from original_words import get_lexicon_entry, get_original_words
 from search import (
@@ -246,3 +246,31 @@ def commentaries(
   if result is None:
     raise HTTPException(status_code=404, detail="No commentary has notes on that verse.")
   return result
+
+
+@app.get("/commentary-list")
+def commentary_list():
+  return list_commentaries()
+
+
+@app.get("/search-commentaries")
+def search_commentary_text(
+  query: str = Query(min_length=1),
+  match_mode: Literal["all", "any", "phrase"] = "all",
+  commentary: str | None = Query(default=None, max_length=60),
+  book_start: int = Query(default=FIRST_BOOK_NUMBER, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  book_end: int = Query(default=LAST_BOOK_NUMBER, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  book: int | None = Query(default=None, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
+  page: int = Query(default=1, ge=1),
+  per_page: int = Query(default=25, ge=1, le=100),
+  sort_by: Literal["verse"] | None = None,
+  sort_direction: Literal["asc", "desc"] = "asc",
+):
+  if book_start > book_end:
+    raise HTTPException(status_code=422, detail="book_start must not come after book_end.")
+  try:
+    return search_commentaries(
+      query, match_mode, commentary, book_start, book_end, book, page, per_page, sort_by, sort_direction
+    )
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
