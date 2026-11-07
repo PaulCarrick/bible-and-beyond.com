@@ -22,6 +22,9 @@ drush() {
   as_site /app/drupal/vendor/bin/drush --root=/app/drupal/web "$@"
 }
 
+# Bring the Bible database up to date with this image (every migration is safe to run again).
+(cd /app/ml-service && as_site .venv/bin/python scripts/apply_migrations.py)
+
 if ! drush status --field=bootstrap 2>/dev/null | grep -q Successful; then
   echo "First start: setting up Drupal and the site ..."
   admin_username="${ADMIN_USERNAME:-admin}"

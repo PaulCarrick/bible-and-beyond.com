@@ -34,6 +34,8 @@ COMMENTARIES = {
   "keil-delitzsch": ("Keil and Delitzsch's Old Testament Commentary", "Keil and Delitzsch", True),
 }
 LICENSE_URL = "https://creativecommons.org/publicdomain/mark/1.0/"
+SOURCE_NAME = "Free Use Bible API"
+SOURCE_URL = "https://bible.helloao.org"
 # Be polite to the host: a few connections at a time.
 DOWNLOAD_WORKERS = 4
 ATTEMPTS = 4
@@ -154,16 +156,35 @@ def read_commentary(folder, commentary_id, book_numbers_by_code):
 
 
 def replace_commentary(commentary_id, entries, introductions):
-  """Replace everything of one commentary in the database, in one transaction."""
+  """Replace everything of one of the known commentaries (COMMENTARIES) in the database, in one transaction.
+
+  It keeps its place in the order and, if it was there already, whether it is published.
+  """
   name, short_name, _sections = COMMENTARIES[commentary_id]
-  position = list(COMMENTARIES).index(commentary_id) + 1
+  return save_commentary(
+    commentary_id, name, short_name, SOURCE_NAME, SOURCE_URL, LICENSE_URL, entries, introductions,
+    publish_if_new=True, position=list(COMMENTARIES).index(commentary_id) + 1,
+  )
+
+
+def save_commentary(
+  commentary_id, name, short_name, source_name, source_url, license_url, entries, introductions,
+  publish_if_new, position=None,
+):
+  """Replace everything of one commentary, known or uploaded, in one transaction. Returns its note count.
+
+  A commentary that was there already keeps whether it is published; a new one is published only when
+  publish_if_new. With no position it keeps its place, or a new one goes last.
+  """
   with connect() as connection:
     with connection.cursor() as cursor:
       cursor.execute(
-        "INSERT INTO commentaries (id, name, short_name, position, license_url) VALUES (%s, %s, %s, %s, %s) "
+        "INSERT INTO commentaries (id, name, short_name, position, license_url, source_name, source_url, is_published) "
+        "VALUES (%s, %s, %s, COALESCE(%s, (SELECT COALESCE(MAX(position), 0) + 1 FROM commentaries)), %s, %s, %s, %s) "
         "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, short_name = EXCLUDED.short_name, "
-        "position = EXCLUDED.position, license_url = EXCLUDED.license_url",
-        (commentary_id, name, short_name, position, LICENSE_URL),
+        "position = COALESCE(%s, commentaries.position), license_url = EXCLUDED.license_url, "
+        "source_name = EXCLUDED.source_name, source_url = EXCLUDED.source_url",
+        (commentary_id, name, short_name, position, license_url, source_name, source_url, publish_if_new, position),
       )
       cursor.execute("DELETE FROM commentary_entries WHERE commentary_id = %s", (commentary_id,))
       cursor.execute("DELETE FROM commentary_introductions WHERE commentary_id = %s", (commentary_id,))
@@ -207,9 +228,9 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
       return None
     rows = connection.execute(
       """
-      SELECT c.id, c.name, c.short_name, e.verse, e.end_verse, length(e.text)
+      SELECT c.id, c.name, c.short_name, e.verse, e.end_verse, length(e.text), c.source_name, c.source_url, c.license_url
       FROM commentary_entries e
-      JOIN commentaries c ON c.id = e.commentary_id
+      JOIN commentaries c ON c.id = e.commentary_id AND c.is_published
       WHERE e.book_number = %s AND e.chapter = %s AND e.verse <= %s
         AND COALESCE(e.end_verse, 2147483647) >= %s
       ORDER BY c.position, e.verse DESC
@@ -217,10 +238,12 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
       (book_number, chapter, verse, verse),
     ).fetchall()
     available = []
-    for code, name, short_name, start, end, length in rows:
+    for code, name, short_name, start, end, length, source_name, source_url, license_url in rows:
       if all(entry["id"] != code for entry in available):  # the closest entry of each commentary
         available.append({
           "id": code, "name": name, "short_name": short_name, "characters": length,
+          # Where its text came from and its licence, for the credit under the note.
+          "source_name": source_name, "source_url": source_url, "license_url": license_url,
           "covers": label_range(book[0], chapter, start, end),
           # The verse the note begins at: the place a visitor's own notes on this note are kept under.
           "start_verse": start,
@@ -279,7 +302,7 @@ def get_contents(commentary_id):
   """
   with connect() as connection:
     commentary = connection.execute(
-      "SELECT id, name, short_name FROM commentaries WHERE id = %s", (commentary_id,)
+      "SELECT id, name, short_name FROM commentaries WHERE id = %s AND is_published", (commentary_id,)
     ).fetchone()
     if commentary is None:
       return None
@@ -307,7 +330,7 @@ def get_chapter_notes(commentary_id, book_number, chapter):
   """
   with connect() as connection:
     commentary = connection.execute(
-      "SELECT id, name, short_name FROM commentaries WHERE id = %s", (commentary_id,)
+      "SELECT id, name, short_name FROM commentaries WHERE id = %s AND is_published", (commentary_id,)
     ).fetchone()
     book = connection.execute("SELECT name FROM books WHERE number = %s", (book_number,)).fetchone()
     if commentary is None or book is None:
@@ -379,11 +402,12 @@ HEADLINE_OPTIONS = (
 
 
 def list_commentaries():
+  """The published commentaries, in their order, with where each one's text came from."""
   with connect() as connection:
     return [
-      {"id": commentary_id, "name": name, "short_name": short_name}
-      for commentary_id, name, short_name in connection.execute(
-        "SELECT id, name, short_name FROM commentaries ORDER BY position"
+      {"id": commentary_id, "name": name, "short_name": short_name, "source_name": source_name, "source_url": source_url, "license_url": license_url}
+      for commentary_id, name, short_name, source_name, source_url, license_url in connection.execute(
+        "SELECT id, name, short_name, source_name, source_url, license_url FROM commentaries WHERE is_published ORDER BY position"
       ).fetchall()
     ]
 
@@ -406,7 +430,7 @@ def search_commentaries(
 
   with connect() as connection:
     if commentary_id is not None and connection.execute(
-      "SELECT 1 FROM commentaries WHERE id = %s", (commentary_id,)
+      "SELECT 1 FROM commentaries WHERE id = %s AND is_published", (commentary_id,)
     ).fetchone() is None:
       raise ValueError(f"Unknown commentary: {commentary_id}")
     if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
@@ -414,7 +438,8 @@ def search_commentaries(
 
     conditions = (
       f"e.search_vector @@ ({tsquery}) AND e.book_number BETWEEN %s AND %s "
-      "AND (%s::text IS NULL OR e.commentary_id = %s)"
+      "AND (%s::text IS NULL OR e.commentary_id = %s) "
+      "AND e.commentary_id IN (SELECT id FROM commentaries WHERE is_published)"
     )
     base_parameters = [*terms, book_start, book_end, commentary_id, commentary_id]
 

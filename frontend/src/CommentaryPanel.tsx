@@ -109,7 +109,7 @@ function CommentaryPanel({
             </details>
           )}
           <p className="related-note">
-            <CommentaryCredit />
+            <CommentaryCredit origin={commentary.commentaries.find((entry) => entry.id === commentary.selected)} />
           </p>
         </>
       )}

@@ -43,6 +43,8 @@ ml-service/data/api_bible_usage.json
 # The service keys saved on the Drupal Site settings screen (secrets; see CLAUDE.md "Service keys")
 ml-service/data/service_settings.json
 ml-service/data/service_settings.json.new
+# Progress and logs of the commentary and devotional refreshes started from the admin
+ml-service/data/refresh/
 
 # STEPBible data files (CC BY 4.0, downloaded by hand; see CLAUDE.md "Word studies")
 ml-service/data/stepbible/

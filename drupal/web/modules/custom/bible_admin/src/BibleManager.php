@@ -126,6 +126,68 @@ class BibleManager {
   }
 
   /**
+   * The commentaries or devotionals: those in the database, then the known ones not loaded.
+   *
+   * @param string $kind
+   *   "commentary" or "devotional".
+   *
+   * @return array
+   *   Each with id, name, detail (short name or author), source_name, is_published, count, loaded,
+   *   refreshable and refresh (the state of a refresh started from here, or NULL).
+   */
+  public function listLibrary(string $kind): array {
+    return $this->run(['list', '--kind=' . $kind], 'manage_library.py')['items'];
+  }
+
+  /**
+   * Publishes, hides, deletes or refreshes (in the background) a commentary or devotional.
+   */
+  public function changeLibrary(string $kind, string $action, string $itemId): array {
+    $result = $this->run([$action, '--kind=' . $kind, '--id=' . $itemId], 'manage_library.py');
+    $this->logger->notice('@user chose @action for the @kind @id.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@action' => $action,
+      '@kind' => $kind,
+      '@id' => $itemId,
+    ]);
+    return $result;
+  }
+
+  /**
+   * What importing an uploaded commentary or devotional file would do. Saves nothing.
+   */
+  public function previewLibrary(string $path, array $parameters): array {
+    return $this->run(['preview', ...$this->libraryArguments($path, $parameters)], 'manage_library.py');
+  }
+
+  /**
+   * Imports an uploaded commentary or devotional file. A new one stays hidden until published.
+   */
+  public function importLibrary(string $path, array $parameters): array {
+    $result = $this->run(['import', ...$this->libraryArguments($path, $parameters)], 'manage_library.py');
+    $this->logger->notice('@user imported the @kind @id (@count entries).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@kind' => $parameters['kind'],
+      '@id' => $result['id'],
+      '@count' => $result['count'],
+    ]);
+    return $result;
+  }
+
+  /**
+   * Arguments for a commentary or devotional preview or import, each joined to its option with "=".
+   */
+  private function libraryArguments(string $path, array $parameters): array {
+    $arguments = [$path, '--kind=' . $parameters['kind']];
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'source_name', 'source_url', 'license_url', 'translator'] as $key) {
+      if (($parameters[$key] ?? '') !== '') {
+        $arguments[] = '--' . str_replace('_', '-', $key) . '=' . $parameters[$key];
+      }
+    }
+    return $arguments;
+  }
+
+  /**
    * The keys and options of the outside services (Gemini, API.Bible, reCAPTCHA).
    *
    * @return array

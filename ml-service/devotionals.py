@@ -379,19 +379,34 @@ def download(folder, devotional_ids, report=print):
 
 
 def replace_devotional(devotional_id, parsed):
-  """Replace one devotional's sections and entries in the database, in one transaction."""
-  source = DEVOTIONALS[devotional_id]
-  position = list(DEVOTIONALS).index(devotional_id) + 1
+  """Replace one of the known devotionals (DEVOTIONALS) in the database, in one transaction.
+
+  It keeps its place in the order and, if it was there already, whether it is published.
+  """
+  return save_devotional(
+    devotional_id, DEVOTIONALS[devotional_id], parsed,
+    publish_if_new=True, position=list(DEVOTIONALS).index(devotional_id) + 1,
+  )
+
+
+def save_devotional(devotional_id, details, parsed, publish_if_new, position=None):
+  """Replace one devotional, known or uploaded, in one transaction. Returns its entry count.
+
+  details has name, author, kind, source_name, source_url and translator. A devotional that was there
+  already keeps whether it is published; a new one is published only when publish_if_new. With no position
+  it keeps its place, or a new one goes last.
+  """
   with connect() as connection:
     with connection.cursor() as cursor:
       cursor.execute(
-        "INSERT INTO devotionals (id, name, author, kind, position, source_name, source_url, translator) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, "
-        "author = EXCLUDED.author, kind = EXCLUDED.kind, position = EXCLUDED.position, "
+        "INSERT INTO devotionals (id, name, author, kind, position, source_name, source_url, translator, is_published) "
+        "VALUES (%s, %s, %s, %s, COALESCE(%s, (SELECT COALESCE(MAX(position), 0) + 1 FROM devotionals)), %s, %s, %s, %s) "
+        "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, "
+        "author = EXCLUDED.author, kind = EXCLUDED.kind, position = COALESCE(%s, devotionals.position), "
         "source_name = EXCLUDED.source_name, source_url = EXCLUDED.source_url, translator = EXCLUDED.translator",
         (
-          devotional_id, source["name"], source["author"], source["kind"], position,
-          source["source_name"], source["source_url"], source["translator"],
+          devotional_id, details["name"], details["author"], details["kind"], position,
+          details["source_name"], details["source_url"], details.get("translator"), publish_if_new, position,
         ),
       )
       cursor.execute("DELETE FROM devotional_entries WHERE devotional_id = %s", (devotional_id,))
@@ -420,14 +435,14 @@ def describe(row):
 
 def list_devotionals():
   with connect() as connection:
-    rows = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals ORDER BY position").fetchall()
+    rows = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE is_published ORDER BY position").fetchall()
   return [describe(row) for row in rows]
 
 
 def get_contents(devotional_id):
   """The sections of a devotional with the units in each, for choosing what to read. None if unknown."""
   with connect() as connection:
-    row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s", (devotional_id,)).fetchone()
+    row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s AND is_published", (devotional_id,)).fetchone()
     if row is None:
       return None
     sections = connection.execute(
@@ -446,7 +461,7 @@ def get_contents(devotional_id):
 def get_unit(devotional_id, section, unit):
   """One day or chapter: its entries in order, with the units before and after it. None if there is none."""
   with connect() as connection:
-    row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s", (devotional_id,)).fetchone()
+    row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s AND is_published", (devotional_id,)).fetchone()
     entries = connection.execute(
       "SELECT unit_title, heading, text FROM devotional_entries "
       "WHERE devotional_id = %s AND section = %s AND unit = %s ORDER BY part",

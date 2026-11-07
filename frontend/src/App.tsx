@@ -306,7 +306,7 @@ function App() {
               )}
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} />}
               {activeView === 'copyright' && (
-                <CopyrightPage onBack={() => navigate('help')} devotionals={devotionals} />
+                <CopyrightPage onBack={() => navigate('help')} devotionals={devotionals} commentaries={commentaries} />
               )}
 
               {/* The form stays mounted too, so a half-written message is not lost. */}

@@ -18,3 +18,21 @@ bible_admin.site_users:
   route_name: bible_admin.site_users
   parent: system.admin
   weight: -3
+
+bible_admin.commentaries:
+  title: 'Commentaries'
+  description: 'Publish, hide, delete, refresh and upload the commentaries.'
+  route_name: bible_admin.library
+  route_parameters:
+    collection: commentaries
+  parent: system.admin
+  weight: -5
+
+bible_admin.devotionals:
+  title: 'Devotionals'
+  description: 'Publish, hide, delete, refresh and upload the devotionals.'
+  route_name: bible_admin.library
+  route_parameters:
+    collection: devotionals
+  parent: system.admin
+  weight: -5

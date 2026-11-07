@@ -4,14 +4,25 @@ import CommentaryCredit from './CommentaryCredit'
 import CrossReferenceCredit from './CrossReferenceCredit'
 import DevotionalCredit from './DevotionalCredit'
 import StepBibleCredit from './StepBibleCredit'
-import type { Copyright, DevotionalInfo } from './types'
+import type { CommentarySource, Copyright, DevotionalInfo } from './types'
 
 interface CopyrightPageProps {
   onBack: () => void
   devotionals?: DevotionalInfo[]
+  commentaries?: CommentarySource[]
 }
 
-function CopyrightPage({ onBack, devotionals = [] }: CopyrightPageProps) {
+const freeUseBibleApi = 'https://bible.helloao.org'
+
+// "A, B and C"
+function joinList(items: string[]) {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+function CopyrightPage({ onBack, devotionals = [], commentaries = [] }: CopyrightPageProps) {
+  // The commentaries loaded from the Free Use Bible API share one credit; any other has its own.
+  const fromFreeUseBibleApi = commentaries.filter((entry) => entry.source_url === freeUseBibleApi)
+  const fromElsewhere = commentaries.filter((entry) => entry.source_url !== freeUseBibleApi)
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -64,11 +75,19 @@ function CopyrightPage({ onBack, devotionals = [] }: CopyrightPageProps) {
         <StepBibleCredit /> Used under the Creative Commons Attribution 4.0 license.
       </p>
 
-      <h3>Commentaries</h3>
-      <p>
-        Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin, and Keil and Delitzsch.{' '}
-        <CommentaryCredit />
-      </p>
+      {fromFreeUseBibleApi.length > 0 && (
+        <>
+          <h3>Commentaries</h3>
+          <p>
+            {joinList(fromFreeUseBibleApi.map((entry) => entry.short_name))}. <CommentaryCredit />
+          </p>
+        </>
+      )}
+      {fromElsewhere.map((entry) => (
+        <p key={entry.id}>
+          <strong>{entry.name}</strong>. <CommentaryCredit origin={entry} />
+        </p>
+      ))}
 
       {devotionals.length > 0 && (
         <>

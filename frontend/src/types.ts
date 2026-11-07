@@ -214,7 +214,7 @@ export interface LexiconEntry {
 }
 
 // Commentaries: the public-domain commentaries that have notes on a verse, and the text of one.
-export interface CommentaryChoice {
+export interface CommentaryChoice extends CommentaryOrigin {
   id: string
   name: string
   short_name: string
@@ -245,7 +245,14 @@ export interface CommentaryResponse {
 }
 
 // One commentary, as listed for choosing which to search.
-export interface CommentarySource {
+// Where a commentary's text came from and its licence, for the credit (an uploaded one may differ).
+export interface CommentaryOrigin {
+  source_name: string
+  source_url: string
+  license_url: string
+}
+
+export interface CommentarySource extends CommentaryOrigin {
   id: string
   name: string
   short_name: string

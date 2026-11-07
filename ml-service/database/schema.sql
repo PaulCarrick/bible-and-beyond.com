@@ -215,7 +215,12 @@ CREATE TABLE IF NOT EXISTS commentaries (
     name TEXT NOT NULL,
     short_name TEXT NOT NULL,
     position INTEGER NOT NULL,
-    license_url TEXT NOT NULL
+    license_url TEXT NOT NULL,
+    -- Hidden ones are not shown on the site (migration 016).
+    is_published BOOLEAN NOT NULL DEFAULT true,
+    -- Where the text came from, for the credit (migration 016).
+    source_name TEXT NOT NULL DEFAULT 'Free Use Bible API',
+    source_url TEXT NOT NULL DEFAULT 'https://bible.helloao.org'
 );
 
 CREATE TABLE IF NOT EXISTS commentary_entries (
@@ -254,7 +259,9 @@ CREATE TABLE IF NOT EXISTS devotionals (
     position INTEGER NOT NULL,
     source_name TEXT NOT NULL,
     source_url TEXT NOT NULL,
-    translator TEXT
+    translator TEXT,
+    -- Hidden ones are not shown on the site and send no emails (migration 016).
+    is_published BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS devotional_sections (

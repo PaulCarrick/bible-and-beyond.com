@@ -1,6 +1,6 @@
 administer bibles:
-  title: 'Administer Bibles'
-  description: 'Upload, publish, hide and delete the Bible translations in the search database.'
+  title: 'Administer Bibles, commentaries and devotionals'
+  description: 'Upload, publish, hide and delete the Bible translations, commentaries and devotionals, and refresh the commentaries and devotionals from their sources.'
   restrict access: true
 
 administer site users:
