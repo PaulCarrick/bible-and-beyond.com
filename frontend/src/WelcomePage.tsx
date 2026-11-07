@@ -1,9 +1,47 @@
+import type { ReactNode } from 'react'
 import type { CommentarySource, DevotionalInfo, Translation } from './types'
 import type { View } from './views'
 
 // "A, B and C"
 function joinList(items: string[]) {
   return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+const numberWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+
+// "two books", "one book", "12 books"
+function countOf(count: number, singular: string, plural: string) {
+  return `${numberWords[count] ?? count} ${count === 1 ? singular : plural}`
+}
+
+// Book titles in italics, joined like joinList ("A, B and C"), so titles that contain "and" stay apart.
+function titleList(titles: string[]): ReactNode[] {
+  return titles.flatMap((title, index) => [
+    index === 0 ? '' : index === titles.length - 1 ? ' and ' : ', ',
+    <em key={title}>{title}</em>,
+  ])
+}
+
+// What the devotionals card says, built from the devotionals that are loaded (their names and whether each
+// is read by the day or by the chapter), so it stays true when one is added or removed.
+function describeDevotionals(devotionals: DevotionalInfo[]): ReactNode {
+  const daily = devotionals.filter((entry) => entry.kind === 'daily').map((entry) => entry.name)
+  const chapters = devotionals.filter((entry) => entry.kind === 'chapters').map((entry) => entry.name)
+  return (
+    <>
+      {daily.length > 0 && <>Daily readings for every day of the year, opening at today&rsquo;s date, from {titleList(daily)}</>}
+      {daily.length > 0 && chapters.length > 0 && '; and '}
+      {chapters.length > 0 && (
+        <>
+          {daily.length > 0
+            ? countOf(chapters.length, 'book', 'books')
+            : countOf(chapters.length, 'book', 'books').replace(/^./, (first) => first.toUpperCase())}{' '}
+          to read a chapter at a time: {titleList(chapters)}
+        </>
+      )}
+      .
+    </>
+  )
 }
 
 interface WelcomePageProps {
@@ -73,9 +111,8 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
           <section className="welcome-card">
             <h3>Devotionals</h3>
             <p>
-              Daily readings for every day of the year, opening at today&rsquo;s date, and two short classics of the
-              devotional life: {joinList(devotionals.map((entry) => entry.name))}. With an account, any of them can be
-              emailed to you each day at a time you choose.
+              {describeDevotionals(devotionals)} With an account, any of them can be emailed to you each day at a time
+              you choose.
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
