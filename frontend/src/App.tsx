@@ -266,7 +266,13 @@ function App() {
               {/* The form stays mounted too, so a half-written message is not lost. */}
               <ContactPage isHidden={activeView !== 'contact'} />
               {/* The FAQ stays mounted too, so the answers it has shown are kept. */}
-              <FaqPage isHidden={activeView !== 'faq'} />
+              <FaqPage
+                isHidden={activeView !== 'faq'}
+                onOpenVerse={(book, chapter, verse) => {
+                  setDestination({ id: Date.now(), kind: 'bible', translation: 'BSB', book, chapter, verse })
+                  navigate('read')
+                }}
+              />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
               <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />

@@ -1727,6 +1727,17 @@ select:disabled {
   font-size: 0.9rem;
 }
 
+.faq-answer .faq-ai-note p {
+  margin: 0.3rem 0;
+}
+
+.faq-ai-verse {
+  margin: 0.5rem 0 0.5rem 1rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--border);
+  font-style: italic;
+}
+
 .welcome-faq {
   margin-top: 1.5rem;
 }

@@ -5,11 +5,13 @@ import MarkdownText from './MarkdownText'
 
 interface FaqPageProps {
   isHidden: boolean
+  // Opens the Bible reader (in the BSB) at a verse.
+  onOpenVerse: (book: number, chapter: number, verse: number) => void
 }
 
 // Common questions about the faith, answered by Google's Gemini. Only the listed questions can be asked; the
 // server keeps each answer for a day, and the page keeps the ones it has shown so going back is instant.
-function FaqPage({ isHidden }: FaqPageProps) {
+function FaqPage({ isHidden, onOpenVerse }: FaqPageProps) {
   const [listing, setListing] = useState<FaqListing | null>(null)
   const [listingErrorMessage, setListingErrorMessage] = useState('')
   const [questionId, setQuestionId] = useState(1)
@@ -105,10 +107,24 @@ function FaqPage({ isHidden }: FaqPageProps) {
           <article className="faq-answer">
             <h2>{shownAnswer.question}</h2>
             <MarkdownText markdown={shownAnswer.answer} />
-            <p className="faq-ai-note">
-              This answer was written by an AI and may contain mistakes. Check what it says against the Bible itself,
-              and talk over important questions with a pastor or a trusted Christian friend.
-            </p>
+            <div className="faq-ai-note">
+              <p>
+                This answer was written by an AI and may contain mistakes. This is true of people as well: for example,
+                the Gnostic heresy of the 1st and 2nd centuries. John warns us in{' '}
+                <button type="button" className="link-button" onClick={() => onOpenVerse(62, 4, 1)}>
+                  1 John 4:1
+                </button>
+                :
+              </p>
+              <blockquote className="faq-ai-verse">
+                &ldquo;Beloved, do not believe every spirit, but test the spirits to see whether they are from God. For
+                many false prophets have gone out into the world.&rdquo; (BSB)
+              </blockquote>
+              <p>
+                Check what it says against the Bible itself (you can do this on this site), and talk over important
+                questions with a pastor or a trusted Christian friend.
+              </p>
+            </div>
           </article>
         )}
       </div>
