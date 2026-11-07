@@ -43,6 +43,7 @@ function NotesPage({ books, translation }: NotesPageProps) {
   const [addError, setAddError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editorReference = useRef<RichTextEditorHandle>(null)
+  const addFormReference = useRef<HTMLFormElement>(null)
   const userId = user?.id ?? null
 
   useEffect(() => {
@@ -67,6 +68,12 @@ function NotesPage({ books, translation }: NotesPageProps) {
       })
     return () => controller.abort()
   }, [userId, query, filter, page, reload])
+
+  // The form is at the bottom of the page: open it and bring it into view.
+  function openAddForm() {
+    setIsAdding(true)
+    window.setTimeout(() => addFormReference.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
 
   function handleSearch(event: FormEvent) {
     event.preventDefault()
@@ -168,7 +175,7 @@ function NotesPage({ books, translation }: NotesPageProps) {
           </select>
         </label>
         {!isAdding && (
-          <button type="button" className="primary-button" onClick={() => setIsAdding(true)}>
+          <button type="button" className="primary-button" onClick={openAddForm}>
             Add a note
           </button>
         )}
@@ -191,49 +198,6 @@ function NotesPage({ books, translation }: NotesPageProps) {
             Clear search
           </button>
         )}
-      </form>
-
-      {/* The editor stays in the page while the form is closed, so it is never made twice. */}
-      <form className="contact-form notes-add" onSubmit={handleAdd} hidden={!isAdding}>
-        <h2>Add a note on a Bible verse</h2>
-        <div className="notes-verse-fields">
-          <label className="contact-field">
-            Book
-            <select value={bookNumber} onChange={(event) => setBookNumber(event.target.value)}>
-              <option value="">Choose a book</option>
-              {books.map((book) => (
-                <option key={book.number} value={book.number}>
-                  {book.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="contact-field">
-            Chapter
-            <input type="number" min={1} max={200} value={chapterText} onChange={(event) => setChapterText(event.target.value)} />
-          </label>
-          <label className="contact-field">
-            Verse
-            <input type="number" min={1} max={200} value={verseText} onChange={(event) => setVerseText(event.target.value)} />
-          </label>
-        </div>
-        <span id="notes-add-label" className="visually-hidden">
-          Your note
-        </span>
-        <RichTextEditor ref={editorReference} placeholder="Write your note" labelledBy="notes-add-label" />
-        {addError && (
-          <p className="error" role="alert">
-            {addError}
-          </p>
-        )}
-        <div className="note-actions">
-          <button type="submit" className="primary-button" disabled={isSaving}>
-            {isSaving ? 'Saving…' : 'Save note'}
-          </button>
-          <button type="button" className="link-button" disabled={isSaving} onClick={() => setIsAdding(false)}>
-            Cancel
-          </button>
-        </div>
       </form>
 
       {errorMessage && <p className="error">{errorMessage}</p>}
@@ -286,6 +250,49 @@ function NotesPage({ books, translation }: NotesPageProps) {
           </button>
         </nav>
       )}
+
+      {/* The editor stays in the page while the form is closed, so it is never made twice. */}
+      <form ref={addFormReference} className="contact-form notes-add" onSubmit={handleAdd} hidden={!isAdding}>
+        <h2>Add a note on a Bible verse</h2>
+        <div className="notes-verse-fields">
+          <label className="contact-field">
+            Book
+            <select value={bookNumber} onChange={(event) => setBookNumber(event.target.value)}>
+              <option value="">Choose a book</option>
+              {books.map((book) => (
+                <option key={book.number} value={book.number}>
+                  {book.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="contact-field">
+            Chapter
+            <input type="number" min={1} max={200} value={chapterText} onChange={(event) => setChapterText(event.target.value)} />
+          </label>
+          <label className="contact-field">
+            Verse
+            <input type="number" min={1} max={200} value={verseText} onChange={(event) => setVerseText(event.target.value)} />
+          </label>
+        </div>
+        <span id="notes-add-label" className="visually-hidden">
+          Your note
+        </span>
+        <RichTextEditor ref={editorReference} placeholder="Write your note" labelledBy="notes-add-label" />
+        {addError && (
+          <p className="error" role="alert">
+            {addError}
+          </p>
+        )}
+        <div className="note-actions">
+          <button type="submit" className="primary-button" disabled={isSaving}>
+            {isSaving ? 'Saving…' : 'Save note'}
+          </button>
+          <button type="button" className="link-button" disabled={isSaving} onClick={() => setIsAdding(false)}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
