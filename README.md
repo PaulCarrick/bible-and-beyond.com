@@ -1,6 +1,8 @@
 # Bible and Beyond
 
-Bible and Beyond is an open source, self-hosted Bible study website. Read and search public-domain Bibles, see the Hebrew and Greek behind the English, follow cross references, and read classic commentaries and devotionals, all from one verse. An AI-answered FAQ, notes and daily devotional emails are built in, and you choose where to host your site.
+Bible and Beyond is an open-source, self-hosted Bible study website. Read and search public-domain Bibles, see the Hebrew and Greek behind the English, follow cross references, and read classic commentaries and devotionals, all from one verse. An AI-answered FAQ, notes, and daily devotional emails are built in.
+
+A link to the existing site is below. Churches and individuals are encouraged to use the open-source project (either the live or Docker installs). Also, anyone is free to link to the live site from their church websites.
 
 [See the live site](https://bible-and-beyond.com) · [Follow the installation guide](INSTALLATION.md) · [Report an issue](https://github.com/PaulCarrick/bible-and-beyond.com/issues)
 
