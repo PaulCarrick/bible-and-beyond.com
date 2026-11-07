@@ -84,12 +84,13 @@
   padding: 1rem 0.75rem;
 }
 
+/* Kept compact so the whole list fits a laptop screen; the phone menu (below) spaces the entries for touch. */
 .side-nav-group + .side-nav-group {
-  margin-top: 1.1rem;
+  margin-top: 0.65rem;
 }
 
 .side-nav-heading {
-  padding: 0 0.6rem 0.3rem;
+  padding: 0 0.6rem 0.15rem;
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
@@ -100,7 +101,7 @@
 .side-nav-item {
   display: block;
   width: 100%;
-  padding: 0.5rem 0.6rem;
+  padding: 0.25rem 0.6rem;
   border: 0;
   border-left: 3px solid transparent;
   border-radius: 4px;
@@ -169,6 +170,15 @@
   .side-nav-inner {
     position: static;
     max-height: none;
+  }
+
+  /* On a phone the menu entries keep room for a finger. */
+  .side-nav-item {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .side-nav-group + .side-nav-group {
+    margin-top: 1.1rem;
   }
 
   /* The header stays at the top of the screen, so the menu button is always there, and the open menu
