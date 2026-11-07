@@ -219,10 +219,11 @@ function App() {
     ...(devotionals.length > 0
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
       : []),
+    // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
+    { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
     {
       heading: 'About',
       entries: [
-        { view: 'faq' as View, label: 'FAQ' },
         { view: 'help' as View, label: 'Help' },
         { view: 'contact' as View, label: 'Contact' },
       ],
