@@ -210,8 +210,8 @@ function App() {
           {
             heading: 'Commentaries',
             entries: [
+              { view: 'browse' as View, label: 'Read the commentaries' },
               { view: 'commentary' as View, label: 'Search the commentaries' },
-              { view: 'browse' as View, label: 'Browse commentaries' },
             ],
           },
         ]
