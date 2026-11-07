@@ -13,7 +13,7 @@ Use Bible and Beyond to give a church, a study group, or your own readers a free
 - Read a chapter at a time in the ASV, BSB, KJV, WEB and YLT, scrolling on from book to book.
 - Search the Bible for words, phrases or a Strong's number, and search the NIV, NASB and The Message through API.Bible.
 - Open any verse in context, in other translations, with its cross references and its original Hebrew or Greek words.
-- Read and search seven classic commentaries, read four devotional books and ten other classic books, and have a devotional emailed each day.
+- Read and search seven classic commentaries, read four devotional books and eleven other classic books, and have a devotional emailed each day.
 - Keep private notes on verses, commentaries and readings with a free account.
 - Ask the FAQ: answers to 30 common questions, written by an AI from a Bible-centred point of view.
 

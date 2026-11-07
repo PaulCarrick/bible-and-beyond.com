@@ -440,3 +440,24 @@ def test_the_summa_reads_its_questions_by_treatise_even_one_without_its_heading(
     (2, 2, "Question 2: On Fate"),
     (2, 3, "Question 3: Of the Simplicity of God"),
   ]
+  assert parsed.entries[1].text == "To place our purpose."
+
+
+def test_a_summa_part_without_a_prologue_drops_treatise_headings_and_article_counts(tmp_path):
+  from devotionals import SUMMA_TREATISES_PART_2_2, parse_summa
+
+  path = tmp_path / "summa.txt"
+  path.write_text(gutenberg(
+    "CONTENTS\n\nTREATISE ON PRUDENCE AND JUSTICE\n\n47. Of Prudence\n_______________________\n\n"
+    "TREATISE ON THE THEOLOGICAL VIRTUES (QQ. 1-46)\n_______________________\n\nQUESTION 1\n\n"
+    "OF FAITH (In Ten Articles)\n\nHaving to treat now of faith.\n_______________________\n\n"
+    "TREATISE ON PRUDENCE AND JUSTICE (QQ. 47-122)\n_______________________\n\nQUESTION 47\n\n"
+    "OF PRUDENCE (SIXTEEN ARTICLES)\n\nWe now consider prudence.\n"
+  ))
+  parsed = parse_summa(path, SUMMA_TREATISES_PART_2_2)
+
+  assert parsed.sections[0] == (1, "Treatise on the Theological Virtues")
+  assert [(entry.section, entry.unit, entry.unit_title, entry.text) for entry in parsed.entries] == [
+    (1, 1, "Question 1: Of Faith", "Having to treat now of faith."),
+    (2, 47, "Question 47: Of Prudence", "We now consider prudence."),
+  ]

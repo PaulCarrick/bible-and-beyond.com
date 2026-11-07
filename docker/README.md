@@ -2,7 +2,7 @@
 
 Run your own copy of Bible and Beyond, a free, non-commercial Bible study site: public-domain Bibles,
 the Hebrew and Greek behind the English (Strong's numbers and a lexicon), cross references, six classic
-commentaries, four devotional books with daily emails, ten other classic books, notes for visitors with accounts, and an
+commentaries, four devotional books with daily emails, eleven other classic books, notes for visitors with accounts, and an
 AI-answered FAQ.
 
 - **web**: nginx serving the public site (port 80 in the container) and the Drupal admin (port 8081),
@@ -17,7 +17,7 @@ public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the public-domain commentaries, 
 **Fetched from their owners on the first start**, because they ask that their files not be redistributed:
 the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository) and the
 four devotionals (two from the Christian Classics Ethereal Library, two from Project Gutenberg) and the
-ten other books (Project Gutenberg). No source
+eleven other books (Project Gutenberg). No source
 data file is in the images, and no visitor data from the original site is included.
 
 ## Install on a server

@@ -216,6 +216,18 @@ BOOKS = {
     "file_name": "table-talk-of-martin-luther.txt",
     "units": 13,
   },
+  "summa-theologica-part-2-2": {
+    "name": "Summa Theologica, Part II-II (Secunda Secundae)",
+    "author": "Thomas Aquinas",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/18755",
+    "translator": "translated by the Fathers of the English Dominican Province",
+    "download_url": "https://www.gutenberg.org/cache/epub/18755/pg18755.txt",
+    "file_name": "summa-theologica-part-2-2.txt",
+    "units": 189,
+  },
   "summa-theologica-part-3": {
     "name": "Summa Theologica, Part III (Tertia Pars)",
     "author": "Thomas Aquinas",
@@ -701,6 +713,11 @@ def parse_grace_abounding(path):
 
 SUMMA_QUESTION = re.compile(r"^QUESTION (\d{1,3})$")
 # The treatises of each Part, by the Question each begins at (the texts have no headings for them).
+SUMMA_TREATISES_PART_2_2 = [
+  (1, "Treatise on the Theological Virtues"), (47, "Treatise on Prudence and Justice"),
+  (123, "Treatise on Fortitude and Temperance"), (171, "Treatise on Gratuitous Graces"),
+  (183, "Treatise on the States of Life"),
+]
 SUMMA_TREATISES_PART_3 = [
   (1, "Treatise on the Incarnation"), (60, "Treatise on the Sacraments"), (66, "Treatise on Baptism"),
   (72, "Treatise on Confirmation"), (73, "Treatise on the Holy Eucharist"), (84, "Treatise on Penance"),
@@ -716,8 +733,25 @@ def parse_summa_part_1(path):
   return parse_summa(path, SUMMA_TREATISES)
 
 
+def parse_summa_part_2_2(path):
+  return parse_summa(path, SUMMA_TREATISES_PART_2_2)
+
+
 def parse_summa_part_3(path):
   return parse_summa(path, SUMMA_TREATISES_PART_3)
+
+
+# "TREATISE ON MAN (QQ. 75-102)": a heading between two Questions, shown as the section instead.
+SUMMA_TREATISE_LINE = re.compile(r"^TREATISE ON .*\(QQ?\. \d")
+# "(In Ten Articles)", "(TWELVE ARTICLES)" or "(Four Articles)" at the end of a Question's title line.
+SUMMA_ARTICLE_COUNT = re.compile(r"\s*\((?:in\s+)?[a-z]+\s+articles?\)$", re.IGNORECASE)
+
+
+SUMMA_ARTICLE_COUNT_LINE = re.compile(r"^\((?:in\s+)?[a-z]+\s+articles?\)$", re.IGNORECASE)
+
+
+def summa_title(line):
+  return title_case(SUMMA_ARTICLE_COUNT.sub("", line))
 
 
 def parse_summa(path, treatises):
@@ -728,7 +762,9 @@ def parse_summa(path, treatises):
   SUMMA_TREATISES = treatises
   first_question = next(index for index, line in enumerate(lines) if line.strip() == "QUESTION 1")
   prologue_line = max((index for index, line in enumerate(lines[:first_question]) if line.strip() == "PROLOGUE"), default=None)
-  sections = [(0, "Prologue")] + [(index + 1, title) for index, (_, title) in enumerate(SUMMA_TREATISES)]
+  sections = ([(0, "Prologue")] if prologue_line is not None else []) + [
+    (index + 1, title) for index, (_, title) in enumerate(SUMMA_TREATISES)
+  ]
   entries = []
   current = None
   body = []
@@ -755,15 +791,17 @@ def parse_summa(path, treatises):
         and following.lower().startswith("(in ") and following.lower().rstrip(")").endswith("articles")):
       finish()
       number = current[1] + 1
-      current, body = (treatise(number), number, f"Question {number}: {title_case(stripped)}"), []
+      current, body = (treatise(number), number, f"Question {number}: {summa_title(stripped)}"), []
       after_separator = False
       continue
     if stripped:
       after_separator = set(stripped) == {"_"}
+    if after_separator or SUMMA_TREATISE_LINE.match(stripped) or SUMMA_ARTICLE_COUNT_LINE.match(stripped):
+      continue  # a separator line (only underscores), a treatise heading, or "(In Ten Articles)" under a title
     if awaiting_title:
       if stripped:
         number = current[1]
-        current = (current[0], number, f"Question {number}: {title_case(stripped)}")
+        current = (current[0], number, f"Question {number}: {summa_title(stripped)}")
         awaiting_title = False
       continue
     if index == prologue_line:
@@ -943,6 +981,7 @@ PARSERS = {
   "table-talk-of-martin-luther": parse_table_talk,
   "grace-abounding": parse_grace_abounding,
   "summa-theologica-part-1": parse_summa_part_1,
+  "summa-theologica-part-2-2": parse_summa_part_2_2,
   "summa-theologica-part-3": parse_summa_part_3,
   "maclaren-expositions-corinthians-to-timothy": parse_maclaren_expositions,
   "pursuit-of-god": parse_pursuit_of_god,
