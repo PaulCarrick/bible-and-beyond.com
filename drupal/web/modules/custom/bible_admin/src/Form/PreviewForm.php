@@ -18,7 +18,7 @@ class PreviewForm extends FormBase {
 
   private ?array $upload = NULL;
 
-  public function __construct(private readonly BibleManager $manager) {}
+  public function __construct(protected BibleManager $manager) {}
 
   public static function create(ContainerInterface $container): static {
     return new static($container->get('bible_admin.manager'));

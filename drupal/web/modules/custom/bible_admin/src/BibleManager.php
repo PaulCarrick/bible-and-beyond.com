@@ -126,6 +126,38 @@ class BibleManager {
   }
 
   /**
+   * The keys and options of the outside services (Gemini, API.Bible, reCAPTCHA).
+   *
+   * @return array
+   *   Keys: settings (for each name: source "saved", "env" or "default", is_secret, kind, is_set, and for
+   *   the ones that are not secret, value and default) and is_saved. The keys themselves are never given.
+   */
+  public function getServiceSettings(): array {
+    return $this->run(['get'], 'manage_service_settings.py');
+  }
+
+  /**
+   * Saves the service settings. The values go to the tool's input, never on its command line.
+   *
+   * @param array $values
+   *   Name to new value. An empty key keeps the one in use.
+   * @param string[] $remove
+   *   Keys to clear.
+   */
+  public function saveServiceSettings(array $values, array $remove): array {
+    $input = json_encode(['values' => $values, 'remove' => array_values($remove)], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    $result = $this->run(['set'], 'manage_service_settings.py', $input);
+    // Only which keys changed is logged, never a key.
+    $changedKeys = array_keys(array_filter($values, static fn ($value, $name) => in_array($name, ['gemini_api_key', 'api_bible_key', 'recaptcha_secret_key'], TRUE) && $value !== '', ARRAY_FILTER_USE_BOTH));
+    $this->logger->notice('@user saved the service settings@keys@removed.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@keys' => $changedKeys ? ' (new: ' . implode(', ', $changedKeys) . ')' : '',
+      '@removed' => $remove ? ' (removed: ' . implode(', ', $remove) . ')' : '',
+    ]);
+    return $result;
+  }
+
+  /**
    * The main site's accounts (its visitors, not Drupal users), newest first, 50 at a time.
    *
    * @param string $query

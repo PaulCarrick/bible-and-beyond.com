@@ -40,6 +40,9 @@ ml-service/data/*.zip
 
 # Running count of API.Bible requests (kept on each machine)
 ml-service/data/api_bible_usage.json
+# The service keys saved on the Drupal Site settings screen (secrets; see CLAUDE.md "Service keys")
+ml-service/data/service_settings.json
+ml-service/data/service_settings.json.new
 
 # STEPBible data files (CC BY 4.0, downloaded by hand; see CLAUDE.md "Word studies")
 ml-service/data/stepbible/

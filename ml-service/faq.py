@@ -7,13 +7,13 @@ The licensed Bibles (NIV, NASB, The Message) must never be put in an AI prompt.
 """
 
 import logging
-import os
 import threading
 import time
 from datetime import date
 
 from contact import ContactProblem, check_rich_text
 from scripture_references import find_references, verse_limits
+from service_settings import get_setting
 
 ANSWER_CACHE_SECONDS = 24 * 60 * 60
 # Tried in order. gemini-flash-latest is Google's name for its newest Flash model, kept as the second choice.
@@ -142,7 +142,7 @@ class UnknownQuestion(Exception):
 
 
 def is_configured() -> bool:
-  return bool(os.environ.get("GEMINI_API_KEY", "").strip())
+  return bool(get_setting("gemini_api_key").strip())
 
 
 def list_questions() -> dict:
@@ -160,9 +160,10 @@ def list_questions() -> dict:
 
 def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
   """Sends one question to Gemini with the site's instructions and returns its answer (Markdown text)."""
-  api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+  # Set on the Drupal Site settings screen (service_settings.py), else in ml-service/.env.
+  api_key = get_setting("gemini_api_key").strip()
   if not api_key:
-    raise FaqUnavailable("Gemini is not set up (GEMINI_API_KEY is empty).")
+    raise FaqUnavailable("Gemini is not set up (no Gemini key on the Site settings screen or in .env).")
 
   # Imported here so the rest of the service starts even if the package is missing.
   from google import genai
@@ -170,7 +171,7 @@ def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
 
   # Gemini's models are sometimes too busy to answer ("high demand", or the time runs out), so the next
   # model in the list is tried when one fails.
-  models = [name.strip() for name in os.environ.get("GEMINI_MODEL", "").split(",") if name.strip()] or DEFAULT_MODELS
+  models = [name.strip() for name in get_setting("gemini_models").split(",") if name.strip()] or DEFAULT_MODELS
   client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MILLISECONDS))
   problems = []
   for model in models:

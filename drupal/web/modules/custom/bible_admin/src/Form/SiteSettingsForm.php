@@ -34,10 +34,20 @@ class SiteSettingsForm extends FormBase {
 
   private const HOST_PATTERN = '/^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/';
 
+  /**
+   * The keys of the outside services: hidden fields that are never filled in from what is saved.
+   */
+  private const SERVICE_KEYS = ['gemini_api_key', 'api_bible_key', 'recaptcha_secret_key'];
+
+  /**
+   * The other service options, shown and saved as they are.
+   */
+  private const SERVICE_OPTIONS = ['gemini_models', 'api_bible_endpoint', 'api_bible_monthly_limit', 'recaptcha_site_key', 'recaptcha_minimum_score'];
+
   public function __construct(
-    private readonly BibleManager $manager,
-    private readonly ConfigFactoryInterface $mailConfigFactory,
-    private readonly EmailValidatorInterface $emailValidator,
+    protected BibleManager $manager,
+    protected ConfigFactoryInterface $mailConfigFactory,
+    protected EmailValidatorInterface $emailValidator,
   ) {}
 
   public static function create(ContainerInterface $container): static {
@@ -143,7 +153,7 @@ class SiteSettingsForm extends FormBase {
       $form['mail'] = [
         '#type' => 'details',
         '#title' => $this->t('Email server'),
-        '#description' => $this->t('For the contact form. Nothing sends email with these yet; they are saved here for when there is a contact form. They are kept in this Drupal site only and are never shown on the public site.'),
+        '#description' => $this->t('For the contact form and the emails the site sends (account links and the daily devotionals). They are kept in this Drupal site only and are never shown on the public site.'),
         '#open' => TRUE,
       ];
       $form['mail']['smtp_host'] = [
@@ -222,6 +232,10 @@ class SiteSettingsForm extends FormBase {
       ];
     }
 
+    if ($this->canEditSite()) {
+      $this->buildServiceSettings($form, $form_state);
+    }
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
@@ -287,9 +301,113 @@ class SiteSettingsForm extends FormBase {
     if ($subject === '' || $this->hasControlCharacters($subject)) {
       $form_state->setErrorByName('subject', $this->t('The subject must be one line of text.'));
     }
+    foreach ([...self::SERVICE_KEYS, ...self::SERVICE_OPTIONS] as $key) {
+      if ($form_state->get('service_loaded') && $this->hasControlCharacters((string) $form_state->getValue($key))) {
+        $form_state->setErrorByName($key, $this->t('Each key and option must be one line of text.'));
+      }
+    }
     foreach (['smtp_username' => $this->t('The user name'), 'smtp_password' => $this->t('The password')] as $key => $label) {
       if ($this->hasControlCharacters((string) $form_state->getValue($key))) {
         $form_state->setErrorByName($key, $this->t('@label must be one line of text.', ['@label' => $label]));
+      }
+    }
+  }
+
+  /**
+   * The keys and options of Gemini, API.Bible and reCAPTCHA. They are kept in a private file on the server
+   * (not in a database); until the first save the values in ml-service/.env are used.
+   */
+  private function buildServiceSettings(array &$form, FormStateInterface $form_state): void {
+    try {
+      $service = $this->manager->getServiceSettings();
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($this->t('The service keys could not be read: @message', ['@message' => $exception->getMessage()]));
+      return;
+    }
+    $settings = $service['settings'];
+    $form_state->set('service_loaded', TRUE);
+
+    $form['services_intro'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $service['is_saved']
+        ? $this->t('The keys and options below are the ones the site uses. They are kept in a private file on the server, not in a database, so they are not in the database backups.')
+        : $this->t('The keys and options below come from ml-service/.env for now. When you save this screen they are copied to a private file on the server (not a database), and from then on these fields are the ones the site uses.'),
+    ];
+
+    $sections = [
+      'gemini' => [
+        'title' => $this->t('Google Gemini (the AI answers on the FAQ page)'),
+        'fields' => ['gemini_api_key', 'gemini_models'],
+      ],
+      'api_bible' => [
+        'title' => $this->t('API.Bible (the NIV, NASB and The Message)'),
+        'fields' => ['api_bible_key', 'api_bible_endpoint', 'api_bible_monthly_limit'],
+      ],
+      'recaptcha' => [
+        'title' => $this->t('Google reCAPTCHA (the contact form)'),
+        'fields' => ['recaptcha_site_key', 'recaptcha_secret_key', 'recaptcha_minimum_score'],
+      ],
+    ];
+    $labels = [
+      'gemini_api_key' => $this->t('Gemini API key'),
+      'gemini_models' => $this->t('Gemini models'),
+      'api_bible_key' => $this->t('API.Bible key'),
+      'api_bible_endpoint' => $this->t('API.Bible address'),
+      'api_bible_monthly_limit' => $this->t('API.Bible requests a month'),
+      'recaptcha_site_key' => $this->t('reCAPTCHA site key'),
+      'recaptcha_secret_key' => $this->t('reCAPTCHA secret key'),
+      'recaptcha_minimum_score' => $this->t('reCAPTCHA minimum score'),
+    ];
+    $descriptions = [
+      'gemini_models' => $this->t('Tried in order, separated by commas; the next is tried when one is busy. Leave empty for the default (gemini-3.6-flash, gemini-flash-latest).'),
+      'api_bible_endpoint' => $this->t('Usually https://rest.api.bible.'),
+      'api_bible_monthly_limit' => $this->t('The site stops asking API.Bible after this many requests in a month (the free plan allows 5,000).'),
+      'recaptcha_site_key' => $this->t('The public key of a reCAPTCHA v3 key pair; the contact form shows it to visitors.'),
+      'recaptcha_minimum_score' => $this->t('From 0 to 1. Messages scoring lower are refused as robots; 0.5 is usual.'),
+    ];
+
+    foreach ($sections as $section => $definition) {
+      $form[$section] = ['#type' => 'details', '#title' => $definition['title'], '#open' => TRUE];
+      foreach ($definition['fields'] as $name) {
+        $entry = $settings[$name];
+        $fromEnvironment = $entry['source'] === 'env';
+        if (in_array($name, self::SERVICE_KEYS, TRUE)) {
+          $form[$section][$name] = [
+            '#type' => 'password',
+            '#title' => $labels[$name],
+            '#description' => match (TRUE) {
+              !$entry['is_set'] => $this->t('No key is set.'),
+              $fromEnvironment => $this->t('The key in ml-service/.env (@variable) is in use. Leave this empty to keep it (saving copies it here), or type a new one.', ['@variable' => $entry['environment_variable']]),
+              default => $this->t('A key is saved. Leave this empty to keep it, or type a new one to replace it.'),
+            },
+            '#maxlength' => 500,
+            '#size' => 60,
+            '#attributes' => ['autocomplete' => 'new-password'],
+          ];
+          if ($entry['is_set']) {
+            $form[$section][$name . '_remove'] = [
+              '#type' => 'checkbox',
+              '#title' => $this->t('Remove this key (the service stops working on the site)'),
+            ];
+          }
+          continue;
+        }
+        $description = $descriptions[$name] ?? '';
+        if ($fromEnvironment) {
+          $description = $this->t('@description (Now from ml-service/.env, @variable.)', ['@description' => $description, '@variable' => $entry['environment_variable']]);
+        }
+        $form[$section][$name] = match ($entry['kind']) {
+          'count' => ['#type' => 'number', '#min' => 0, '#max' => (int) $service['count_limit'], '#step' => 1, '#required' => TRUE],
+          'score' => ['#type' => 'number', '#min' => 0, '#max' => 1, '#step' => 0.05, '#required' => TRUE],
+          'url' => ['#type' => 'url', '#maxlength' => 300, '#required' => TRUE],
+          default => ['#type' => 'textfield', '#maxlength' => 500, '#size' => 60],
+        } + [
+          '#title' => $labels[$name],
+          '#description' => $description,
+          '#default_value' => $entry['value'],
+        ];
       }
     }
   }
@@ -334,6 +452,23 @@ class SiteSettingsForm extends FormBase {
       );
       // The password is never written to the log.
       $this->getLogger('bible_admin')->notice('@user changed the email server settings.', ['@user' => $this->currentUser()->getAccountName()]);
+
+      // The service keys (only when they could be read, so a failure to read them cannot wipe them).
+      if ($form_state->get('service_loaded')) {
+        $values = [];
+        foreach ([...self::SERVICE_OPTIONS, ...self::SERVICE_KEYS] as $key) {
+          $values[$key] = trim((string) $form_state->getValue($key));
+        }
+        $remove = array_values(array_filter(self::SERVICE_KEYS, fn ($key) => (bool) $form_state->getValue($key . '_remove')));
+        try {
+          $this->manager->saveServiceSettings($values, $remove);
+        }
+        catch (BibleManagerException $exception) {
+          $this->messenger()->addError($this->t('The other settings were saved, but not the service keys: @message', ['@message' => $exception->getMessage()]));
+          $form_state->setRebuild();
+          return;
+        }
+      }
     }
 
     $this->messenger()->addStatus($this->t('Saved. The public site uses the new settings now.'));

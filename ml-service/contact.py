@@ -20,6 +20,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 import httpx
+from service_settings import get_setting
 
 logger = logging.getLogger("contact")
 
@@ -50,7 +51,8 @@ class MailUnavailable(Exception):
 
 
 def get_recaptcha_site_key() -> str:
-  return os.environ.get("RECAPTCHA_SITE_KEY", "").strip()
+  # Set on the Drupal Site settings screen (service_settings.py), else in ml-service/.env.
+  return get_setting("recaptcha_site_key").strip()
 
 
 RECAPTCHA_ACTION = "contact"
@@ -59,7 +61,7 @@ DEFAULT_MINIMUM_SCORE = 0.5
 
 def verify_recaptcha(token: str, remote_address: str | None) -> None:
   """Raises ContactProblem unless Google says the token is good (reCAPTCHA v3: a score from 0 to 1)."""
-  secret = os.environ.get("RECAPTCHA_SECRET_KEY", "").strip()
+  secret = get_setting("recaptcha_secret_key").strip()
   if not secret or not get_recaptcha_site_key():
     raise ContactProblem("The contact form is not available right now.", 503)
   if not token:
@@ -75,7 +77,7 @@ def verify_recaptcha(token: str, remote_address: str | None) -> None:
     logger.error("reCAPTCHA could not be checked: %s", type(error).__name__)
     raise ContactProblem("The check that you are not a robot could not be done. Please try again in a moment.", 503)
   try:
-    minimum_score = float(os.environ.get("RECAPTCHA_MINIMUM_SCORE", DEFAULT_MINIMUM_SCORE))
+    minimum_score = float(get_setting("recaptcha_minimum_score") or DEFAULT_MINIMUM_SCORE)
   except ValueError:
     minimum_score = DEFAULT_MINIMUM_SCORE
   score = result.get("score")

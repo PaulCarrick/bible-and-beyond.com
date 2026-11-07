@@ -28,8 +28,8 @@ class SiteUserForm extends FormBase {
   private const PASSWORD_MAXIMUM = 128;
 
   public function __construct(
-    private readonly BibleManager $manager,
-    private readonly DateFormatterInterface $dateFormatter,
+    protected BibleManager $manager,
+    protected DateFormatterInterface $dateFormatter,
   ) {}
 
   public static function create(ContainerInterface $container): static {

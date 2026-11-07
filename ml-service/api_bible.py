@@ -16,6 +16,7 @@ from pathlib import Path
 import httpx
 
 import search
+from service_settings import get_setting
 from search import connect, parse_terms
 
 API_BIBLES = {
@@ -65,7 +66,10 @@ def requests_used_this_month() -> int:
 
 def _count_request() -> None:
   """Count one real request to API.Bible, refusing it once the monthly limit is reached."""
-  limit = int(os.environ.get("API_BIBLE_MONTHLY_LIMIT", DEFAULT_MONTHLY_LIMIT))
+  try:
+    limit = int(get_setting("api_bible_monthly_limit") or DEFAULT_MONTHLY_LIMIT)
+  except ValueError:
+    limit = DEFAULT_MONTHLY_LIMIT
   with _usage_lock:
     usage = _read_usage()
     if usage["requests"] >= limit:
@@ -83,10 +87,11 @@ def _count_request() -> None:
 
 
 def request_json(path: str, parameters: dict, cache_seconds: int) -> dict:
-  api_key = os.environ.get("API_BIBLE_KEY")
+  # Set on the Drupal Site settings screen (service_settings.py), else in ml-service/.env.
+  api_key = get_setting("api_bible_key")
   if not api_key:
-    raise ApiBibleError("API.Bible is not configured. Add API_BIBLE_KEY to ml-service/.env.")
-  endpoint = os.environ.get("API_BIBLE_ENDPOINT", "https://rest.api.bible").rstrip("/")
+    raise ApiBibleError("API.Bible is not configured. Add its key on the Site settings screen (or API_BIBLE_KEY in .env).")
+  endpoint = (get_setting("api_bible_endpoint") or "https://rest.api.bible").rstrip("/")
 
   cache_key = (path, tuple(sorted(parameters.items())))
   cached = _cache.get(cache_key)
