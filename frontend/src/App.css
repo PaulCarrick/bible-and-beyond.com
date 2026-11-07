@@ -1361,3 +1361,9 @@ select:disabled {
   border-radius: 4px;
   background: #e6f4ea;
 }
+
+.contact-recaptcha-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5a6472;
+}

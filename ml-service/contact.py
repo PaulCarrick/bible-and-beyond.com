@@ -1,4 +1,4 @@
-"""The contact form: checks the visitor is not a robot (Google reCAPTCHA), cleans up the message and
+"""The contact form: checks the visitor is not a robot (Google reCAPTCHA v3), cleans up the message and
 sends it by email with the server settings an administrator keeps in Drupal.
 
 Those settings include the email password, so they are never in the Bible database and never on the
@@ -53,13 +53,17 @@ def get_recaptcha_site_key() -> str:
   return os.environ.get("RECAPTCHA_SITE_KEY", "").strip()
 
 
+RECAPTCHA_ACTION = "contact"
+DEFAULT_MINIMUM_SCORE = 0.5
+
+
 def verify_recaptcha(token: str, remote_address: str | None) -> None:
-  """Raises ContactProblem unless Google says the token is good."""
+  """Raises ContactProblem unless Google says the token is good (reCAPTCHA v3: a score from 0 to 1)."""
   secret = os.environ.get("RECAPTCHA_SECRET_KEY", "").strip()
   if not secret or not get_recaptcha_site_key():
     raise ContactProblem("The contact form is not available right now.", 503)
   if not token:
-    raise ContactProblem("Please tick \"I'm not a robot\" and send the message again.", 400)
+    raise ContactProblem("The check that you are not a robot did not run. Please reload the page and try again.", 400)
   payload = {"secret": secret, "response": token}
   if remote_address:
     payload["remoteip"] = remote_address
@@ -70,8 +74,19 @@ def verify_recaptcha(token: str, remote_address: str | None) -> None:
   except (httpx.HTTPError, ValueError) as error:
     logger.error("reCAPTCHA could not be checked: %s", type(error).__name__)
     raise ContactProblem("The check that you are not a robot could not be done. Please try again in a moment.", 503)
-  if not result.get("success"):
-    raise ContactProblem("The check that you are not a robot did not pass. Please try again.", 400)
+  try:
+    minimum_score = float(os.environ.get("RECAPTCHA_MINIMUM_SCORE", DEFAULT_MINIMUM_SCORE))
+  except ValueError:
+    minimum_score = DEFAULT_MINIMUM_SCORE
+  score = result.get("score")
+  if (
+    not result.get("success")
+    or result.get("action") != RECAPTCHA_ACTION
+    or not isinstance(score, (int, float))
+    or score < minimum_score
+  ):
+    logger.warning("reCAPTCHA refused a message: success=%s action=%s score=%s", result.get("success"), result.get("action"), score)
+    raise ContactProblem("The check that you are not a robot did not pass. Please try again later.", 400)
 
 
 # The formatting the editor (Quill) can make. Everything else is dropped, keeping its text.

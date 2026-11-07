@@ -5,13 +5,13 @@ import 'quill/dist/quill.snow.css'
 import { fetchContactSettings, sendContactMessage } from './api'
 
 interface Recaptcha {
-  render: (container: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void }) => number
-  reset: (widgetId?: number) => void
+  ready: (callback: () => void) => void
+  execute: (siteKey: string, options: { action: string }) => Promise<string>
 }
 
 declare global {
   interface Window {
-    grecaptcha?: Recaptcha & { ready: (callback: () => void) => void }
+    grecaptcha?: Recaptcha
   }
 }
 
@@ -19,18 +19,18 @@ interface ContactPageProps {
   isHidden: boolean
 }
 
-// Loads Google's reCAPTCHA script once and says when it is ready to draw a box.
+// Loads Google's reCAPTCHA v3 script once (it works unseen: no box to tick) and says when it is ready.
 let recaptchaScript: Promise<void> | null = null
-function loadRecaptcha(): Promise<void> {
+function loadRecaptcha(siteKey: string): Promise<void> {
   if (!recaptchaScript) {
     recaptchaScript = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'
+      script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`
       script.async = true
       script.onload = () => window.grecaptcha?.ready(resolve)
       script.onerror = () => {
         recaptchaScript = null
-        reject(new Error('The robot check could not be loaded.'))
+        reject(new Error('The check that you are not a robot could not be loaded.'))
       }
       document.head.appendChild(script)
     })
@@ -46,7 +46,6 @@ function ContactPage({ isHidden }: ContactPageProps) {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [siteKey, setSiteKey] = useState<string | null>(null)
   const [setupMessage, setSetupMessage] = useState('')
-  const [token, setToken] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSent, setIsSent] = useState(false)
@@ -54,8 +53,6 @@ function ContactPage({ isHidden }: ContactPageProps) {
   const toolbarReference = useRef<HTMLDivElement>(null)
   const editorReference = useRef<HTMLDivElement>(null)
   const quillReference = useRef<Quill | null>(null)
-  const captchaReference = useRef<HTMLDivElement>(null)
-  const widgetIdentifier = useRef<number | null>(null)
 
   useEffect(() => {
     fetchContactSettings()
@@ -81,32 +78,17 @@ function ContactPage({ isHidden }: ContactPageProps) {
     })
   }, [siteKey])
 
-  // The "I'm not a robot" box.
+  // Google's script is loaded as soon as the form is, so a token is quick to get when Send is pressed.
   useEffect(() => {
-    if (siteKey === null) {
-      return
-    }
-    let isCurrent = true
-    loadRecaptcha()
-      .then(() => {
-        if (isCurrent && captchaReference.current && widgetIdentifier.current === null && window.grecaptcha) {
-          widgetIdentifier.current = window.grecaptcha.render(captchaReference.current, {
-            sitekey: siteKey,
-            callback: setToken,
-            'expired-callback': () => setToken(''),
-          })
-        }
-      })
-      .catch((error: Error) => setErrorMessage(error.message))
-    return () => {
-      isCurrent = false
+    if (siteKey !== null) {
+      loadRecaptcha(siteKey).catch((error: Error) => setErrorMessage(error.message))
     }
   }, [siteKey])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const quill = quillReference.current
-    if (!quill || isSending) {
+    if (!quill || siteKey === null || isSending) {
       return
     }
     setErrorMessage('')
@@ -116,6 +98,9 @@ function ContactPage({ isHidden }: ContactPageProps) {
     }
     setIsSending(true)
     try {
+      // A new token for each message: Google rates this visit, with nothing for the visitor to do.
+      await loadRecaptcha(siteKey)
+      const token = await window.grecaptcha!.execute(siteKey, { action: 'contact' })
       await sendContactMessage({
         name: fullName,
         email: emailAddress,
@@ -131,11 +116,6 @@ function ContactPage({ isHidden }: ContactPageProps) {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Your message could not be sent.')
     } finally {
-      // A robot check can be used only once.
-      setToken('')
-      if (widgetIdentifier.current !== null) {
-        window.grecaptcha?.reset(widgetIdentifier.current)
-      }
       setIsSending(false)
     }
   }
@@ -226,7 +206,17 @@ function ContactPage({ isHidden }: ContactPageProps) {
 
           <p className="contact-required">* - Required Fields</p>
 
-          <div ref={captchaReference} className="contact-captcha" />
+          <p className="contact-recaptcha-note">
+            This form is protected by reCAPTCHA, and the Google{' '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">
+              Privacy Policy
+            </a>{' '}
+            and{' '}
+            <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer">
+              Terms of Service
+            </a>{' '}
+            apply.
+          </p>
 
           {errorMessage && (
             <p className="error" role="alert">
@@ -234,7 +224,7 @@ function ContactPage({ isHidden }: ContactPageProps) {
             </p>
           )}
 
-          <button type="submit" className="primary-button" disabled={isSending || token === ''}>
+          <button type="submit" className="primary-button" disabled={isSending}>
             {isSending ? 'Sending…' : 'Send Message'}
           </button>
         </form>

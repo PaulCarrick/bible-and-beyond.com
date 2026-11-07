@@ -78,17 +78,17 @@ def fakes(monkeypatch):
   monkeypatch.setattr(contact, "send_email", lambda settings, email: sent.append(email))
 
   class Response:
-    def __init__(self, success):
-      self.success = success
+    def __init__(self, state):
+      self.state = state
 
     def raise_for_status(self):
       pass
 
     def json(self):
-      return {"success": self.success}
+      return self.state
 
-  state = {"success": True}
-  monkeypatch.setattr(contact.httpx, "post", lambda url, data, timeout: Response(state["success"]))
+  state = {"success": True, "action": "contact", "score": 0.9}
+  monkeypatch.setattr(contact.httpx, "post", lambda url, data, timeout: Response(state))
   return sent, state
 
 
@@ -103,11 +103,23 @@ def test_a_good_message_is_sent(fakes):
 
 def test_nothing_is_sent_when_the_robot_check_fails_or_is_missing(fakes):
   sent, state = fakes
-  state["success"] = False
+
+  assert client.post("/contact", json={**BODY, "recaptcha_token": ""}).status_code == 400
+  for change in ({"success": False}, {"score": 0.1}, {"action": "login"}, {"score": None}):
+    state.update({"success": True, "action": "contact", "score": 0.9})
+    state.update(change)
+    assert client.post("/contact", json=BODY).status_code == 400
+  assert sent == []
+
+
+def test_the_lowest_score_that_passes_can_be_set(fakes, monkeypatch):
+  sent, state = fakes
+  state["score"] = 0.3
 
   assert client.post("/contact", json=BODY).status_code == 400
-  assert client.post("/contact", json={**BODY, "recaptcha_token": ""}).status_code == 400
-  assert sent == []
+  monkeypatch.setenv("RECAPTCHA_MINIMUM_SCORE", "0.2")
+  assert client.post("/contact", json=BODY).status_code == 200
+  assert len(sent) == 1
 
 
 def test_a_bad_message_is_refused_before_google_is_asked(fakes, monkeypatch):
