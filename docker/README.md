@@ -7,13 +7,17 @@ AI-answered FAQ.
 
 - **web**: nginx serving the public site (port 80 in the container) and the Drupal admin (port 8081),
   with the Python service behind the site's `/api/` and the daily devotional emails.
-- **database**: PostgreSQL 17 with pgvector (the Bible data, built in, and the visitors' accounts and
-  notes) and MariaDB (Drupal's database).
+- **database**: PostgreSQL 17 with pgvector (the Bible data and the visitors' accounts and notes) and
+  MariaDB (Drupal's database). It is on an internal network that only the web container shares: it
+  opens no port, nothing else can reach it, and it has no route to the internet.
 
-The Bible data is built into the database image as it is loaded in the database: the Bibles (ASV, BSB,
-KJV, WEB, YLT), the commentaries, the devotionals, the cross references, and the original-language
-words and lexicon. No source data file is distributed, and no visitor data from the original site is
-included.
+**Where the data comes from.** Built into the database image, as loaded in the database: the
+public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the six public-domain commentaries, the cross references
+(OpenBible.info, CC BY 4.0, credited on the site) and the Berean Bible's word links (public domain).
+**Fetched from their owners on the first start**, because they ask that their files not be redistributed:
+the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository) and the
+four devotionals (two from the Christian Classics Ethereal Library, two from Project Gutenberg). No source
+data file is in the images, and no visitor data from the original site is included.
 
 ## Install on a server
 
@@ -33,7 +37,11 @@ docker compose -f docker/compose.yml up -d
 docker compose -f docker/compose.yml logs -f web     # watch the first start; Ctrl+C to stop watching
 ```
 
-The first start loads the Bible data (about a minute) and sets up the admin. Then:
+The first start loads the built-in data (about a minute), sets up the admin, and then, while the site
+is already running, downloads and loads the STEPBible data and the devotionals (a few minutes, about
+115 MB; the server needs to reach github.com, ccel.org and gutenberg.org). Until they are loaded the
+devotionals do not appear and the Original Words windows say there is nothing to show. If a download
+fails, the next start tries again (`docker compose -f docker/compose.yml restart web`). Then:
 
 - the public site is on `http://your-server/` (`SITE_PORT`, 80);
 - the admin is on `http://your-server:8081/` (`ADMIN_PORT`). Log in with `ADMIN_USERNAME` and

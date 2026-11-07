@@ -22,6 +22,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - mariadb_data:/var/lib/mysql
+    # Only on the internal network: no port is opened, nothing but the web container can reach it, and it
+    # has no route to the internet.
+    networks:
+      - database
     restart: unless-stopped
 
   web:
@@ -47,7 +51,17 @@ services:
       - drupal_private:/app/drupal-private
       - drupal_config:/app/drupal-config
       - service_data:/app/ml-service/data
+    # The internal network to reach the database; the public one for its ports and for the outside
+    # services (Gemini, API.Bible, the email server, the first start's downloads).
+    networks:
+      - database
+      - public
     restart: unless-stopped
+
+networks:
+  database:
+    internal: true
+  public:
 
 volumes:
   postgres_data:
