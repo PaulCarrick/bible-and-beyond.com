@@ -3,16 +3,15 @@ import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
 import MarkdownText from './MarkdownText'
 import type { TextLink } from './MarkdownText'
+import { verseAddress } from './verseAddress'
 
 interface FaqPageProps {
   isHidden: boolean
-  // Opens the Bible reader (in the BSB) at a verse.
-  onOpenVerse: (book: number, chapter: number, verse: number) => void
 }
 
 // Common questions about the faith, answered by Google's Gemini. Only the listed questions can be asked; the
 // server keeps each answer for a day, and the page keeps the ones it has shown so going back is instant.
-function FaqPage({ isHidden, onOpenVerse }: FaqPageProps) {
+function FaqPage({ isHidden }: FaqPageProps) {
   const [listing, setListing] = useState<FaqListing | null>(null)
   const [listingErrorMessage, setListingErrorMessage] = useState('')
   const [questionId, setQuestionId] = useState(1)
@@ -112,8 +111,8 @@ function FaqPage({ isHidden, onOpenVerse }: FaqPageProps) {
               links={shownAnswer.references.map(
                 (reference): TextLink => ({
                   text: reference.text,
-                  label: `Open ${reference.text} in the Bible`,
-                  onClick: () => onOpenVerse(reference.book, reference.chapter, reference.verse),
+                  label: `${reference.text} (opens the Bible in a new tab)`,
+                  href: verseAddress('BSB', reference.book, reference.chapter, reference.verse),
                 }),
               )}
             />
@@ -121,9 +120,9 @@ function FaqPage({ isHidden, onOpenVerse }: FaqPageProps) {
               <p>
                 This answer was written by an AI and may contain mistakes. This is true of people as well: for example,
                 the Gnostic heresy of the 1st and 2nd centuries. John warns us in{' '}
-                <button type="button" className="link-button" onClick={() => onOpenVerse(62, 4, 1)}>
+                <a href={verseAddress('BSB', 62, 4, 1)} target="_blank" rel="noopener" aria-label="1 John 4:1 (opens the Bible in a new tab)">
                   1 John 4:1
-                </button>
+                </a>
                 :
               </p>
               <blockquote className="faq-ai-verse">

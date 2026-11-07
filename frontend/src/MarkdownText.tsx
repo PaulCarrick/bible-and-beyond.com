@@ -4,16 +4,17 @@ import type { ReactNode } from 'react'
 // Draws simple Markdown (paragraphs, ## headings, - and 1. lists, **bold** and *italic*) as React elements.
 // Everything else is shown as plain text: nothing is ever inserted as HTML, so text from outside (an AI
 // answer) cannot add tags, scripts or links to the page. The only links are the ones the caller passes in
-// (for example the Scripture references the server found), drawn as buttons that call back.
+// (for example the Scripture references the server found), each opening its address in a new tab.
 
 export interface TextLink {
   // The exact words to turn into a link, such as "Romans 8:38–39".
   text: string
   label: string
-  onClick: () => void
+  // Opened in a new tab.
+  href: string
 }
 
-// Turns every occurrence of a link's words in a piece of text into a button.
+// Turns every occurrence of a link's words in a piece of text into a link.
 function renderLinks(text: string, links: TextLink[], keyPrefix: string): ReactNode[] {
   if (links.length === 0) {
     return [text]
@@ -28,9 +29,9 @@ function renderLinks(text: string, links: TextLink[], keyPrefix: string): ReactN
       return piece
     }
     return (
-      <button key={`${keyPrefix}-${index}`} type="button" className="link-button" aria-label={link.label} onClick={link.onClick}>
+      <a key={`${keyPrefix}-${index}`} href={link.href} target="_blank" rel="noopener" aria-label={link.label}>
         {piece}
-      </button>
+      </a>
     )
   })
 }

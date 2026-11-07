@@ -28,6 +28,7 @@ import type { NavGroup } from './SideNav'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
+import { readVerseAddress } from './verseAddress'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
 import type { AccountUser, Destination, Note } from './types'
 import type { View } from './views'
@@ -53,6 +54,8 @@ function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe'; token: str
 
 function App() {
   const [emailLink] = useState(readEmailLink)
+  // An address such as /?read=BSB&book=62&chapter=4&verse=1 (the FAQ's verse links, opened in a new tab).
+  const [verseLink] = useState(() => readVerseAddress(window.location.search))
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
@@ -61,9 +64,9 @@ function App() {
   const [user, setUser] = useState<AccountUser | null>(null)
   const [resendMessage, setResendMessage] = useState('')
   // Where a note's link asked a reader to open, with a new id each time.
-  const [destination, setDestination] = useState<Destination | null>(null)
+  const [destination, setDestination] = useState<Destination | null>(verseLink)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeView, setActiveView] = useState<View>(emailLink?.kind ?? 'welcome')
+  const [activeView, setActiveView] = useState<View>(emailLink?.kind ?? (verseLink ? 'read' : 'welcome'))
   // On a phone the sidebar is a menu under the header.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -96,11 +99,12 @@ function App() {
   }, [])
 
   // The token is kept in the page; it is taken out of the address so it is not bookmarked or shared by mistake.
+  // A verse address is taken out too: the reader moves on from it, so the address would soon be wrong.
   useEffect(() => {
-    if (emailLink) {
+    if (emailLink || verseLink) {
       window.history.replaceState(null, '', window.location.pathname)
     }
-  }, [emailLink])
+  }, [emailLink, verseLink])
 
   // Whether a visitor is logged in (the browser sends its session cookie). Nobody has to be.
   useEffect(() => {
@@ -266,13 +270,7 @@ function App() {
               {/* The form stays mounted too, so a half-written message is not lost. */}
               <ContactPage isHidden={activeView !== 'contact'} />
               {/* The FAQ stays mounted too, so the answers it has shown are kept. */}
-              <FaqPage
-                isHidden={activeView !== 'faq'}
-                onOpenVerse={(book, chapter, verse) => {
-                  setDestination({ id: Date.now(), kind: 'bible', translation: 'BSB', book, chapter, verse })
-                  navigate('read')
-                }}
-              />
+              <FaqPage isHidden={activeView !== 'faq'} />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
               <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />
