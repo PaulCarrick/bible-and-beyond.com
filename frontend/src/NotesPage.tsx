@@ -5,12 +5,14 @@ import { fetchNotePage, saveNote } from './api'
 import NoteCard from './NoteCard'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
-import type { Book, NotePage } from './types'
+import type { Book, Note, NotePage } from './types'
 
 interface NotesPageProps {
   books: Book[]
   // The Bible a new note on a verse is filed under (the verse itself is the same in every Bible).
   translation: string
+  // Opens the verse, commentary note or reading a note is about.
+  onOpenItem: (note: Note) => void
 }
 
 const notesPerPage = 25
@@ -25,7 +27,7 @@ const typeChoices = [
 // Everything the logged-in visitor has written, newest first, with a way to add a note on a Bible verse
 // and to edit or delete any note. (A note on a commentary note or a devotional reading is added from the
 // Notes link beside it.)
-function NotesPage({ books, translation }: NotesPageProps) {
+function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const [result, setResult] = useState<NotePage | null>(null)
   const [filter, setFilter] = useState('all')
@@ -220,6 +222,7 @@ function NotesPage({ books, translation }: NotesPageProps) {
               key={note.id}
               note={note}
               showTitle
+              onOpenItem={onOpenItem}
               onChanged={(changed) =>
                 setResult((current) =>
                   current ? { ...current, notes: current.notes.map((entry) => (entry.id === changed.id ? changed : entry)) } : current,

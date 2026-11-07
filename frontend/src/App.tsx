@@ -26,7 +26,7 @@ import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
-import type { AccountUser } from './types'
+import type { AccountUser, Destination, Note } from './types'
 import type { View } from './views'
 import './App.css'
 
@@ -56,6 +56,8 @@ function App() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
   const [user, setUser] = useState<AccountUser | null>(null)
   const [resendMessage, setResendMessage] = useState('')
+  // Where a note's link asked a reader to open, with a new id each time.
+  const [destination, setDestination] = useState<Destination | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [activeView, setActiveView] = useState<View>(emailLink?.kind ?? 'welcome')
   // On a phone the sidebar is a menu under the header.
@@ -108,6 +110,35 @@ function App() {
   }, [siteSettings.title])
 
   const handleVerified = useCallback((verifiedUser: AccountUser | null) => setUser(verifiedUser), [])
+
+  // The link on a note: open the reader that shows what the note is about, at that place.
+  function openNoteItem(note: Note) {
+    const id = Date.now()
+    if (note.item_type === 'bible_verse') {
+      setDestination({
+        id,
+        kind: 'bible',
+        translation: note.source_code,
+        book: note.book_number ?? 1,
+        chapter: note.chapter ?? 1,
+        verse: note.verse ?? 1,
+      })
+      navigate('read')
+    } else if (note.item_type === 'commentary') {
+      setDestination({
+        id,
+        kind: 'commentary',
+        commentary: note.source_code,
+        book: note.book_number ?? 1,
+        chapter: note.chapter ?? 1,
+        verse: note.verse ?? 1,
+      })
+      navigate('browse')
+    } else {
+      setDestination({ id, kind: 'devotional', devotional: note.source_code, section: note.section ?? 0, unit: note.unit ?? 1 })
+      navigate('devotionals')
+    }
+  }
 
   function navigate(view: View) {
     setActiveView(view)
@@ -199,7 +230,7 @@ function App() {
                   {resendMessage}
                 </p>
               )}
-              {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} />}
+              {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
             {activeView === 'verify' && emailLink && (
                 <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
               )}
@@ -223,7 +254,7 @@ function App() {
               <ContactPage isHidden={activeView !== 'contact'} />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
-              <BibleTab translations={translations} isHidden={activeView !== 'read'} />
+              <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />
               <SearchTab
                 mode="bible"
                 translations={translations}
@@ -242,11 +273,11 @@ function App() {
                     isHidden={activeView !== 'commentary'}
                     onShowCopyrights={() => navigate('copyright')}
                   />
-                  <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
+                  <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} destination={destination} />
                 </>
               )}
               {devotionals.length > 0 && (
-                <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
+                <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} destination={destination} />
               )}
             </main>
 

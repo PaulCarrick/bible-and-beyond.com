@@ -4,7 +4,14 @@ import ContextWindow from './ContextWindow'
 import BackToTopButton from './BackToTop'
 import { chooseContextTranslation } from './contextTranslation'
 import NoteText from './NoteText'
-import type { CommentaryChapter, CommentaryContents, CommentaryNote, CommentarySource, Translation } from './types'
+import type {
+  CommentaryChapter,
+  CommentaryContents,
+  CommentaryNote,
+  CommentarySource,
+  Destination,
+  Translation,
+} from './types'
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
@@ -13,6 +20,8 @@ interface BrowseTabProps {
   commentaries: CommentarySource[]
   translations: Translation[]
   isHidden: boolean
+  // Where a followed link (a note's) asks the reader to open.
+  destination: Destination | null
 }
 
 interface Target {
@@ -36,7 +45,7 @@ function noteId(chapter: CommentaryChapter, note: CommentaryNote) {
 
 // Read a commentary without searching. Choose a commentary and a book, chapter and verse and the page
 // goes to that place; scroll up or down to read on past it, chapter after chapter and book after book.
-function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
+function BrowseTab({ commentaries, translations, isHidden, destination }: BrowseTabProps) {
   const [contents, setContents] = useState<CommentaryContents | null>(null)
   const [commentaryId, setCommentaryId] = useState('')
   const [verseText, setVerseText] = useState('')
@@ -94,6 +103,21 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not load the commentary.')
     }
   }
+
+  // A link to a commentary note (from a note): open the reader at it. This comes before the start below,
+  // so the tab does not start twice.
+  useEffect(() => {
+    if (destination?.kind !== 'commentary' || commentaries.length === 0) {
+      return
+    }
+    hasStarted.current = true
+    const id = commentaries.find((entry) => entry.id === destination.commentary)?.id ?? commentaries[0].id
+    // Following a link is the reason to open the reader, so this is the place to do it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    go(id, { book: destination.book, chapter: destination.chapter, verse: destination.verse })
+    // Only a new destination (or the commentaries arriving) matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, commentaries])
 
   // Start with the first commentary the first time the tab is shown, so nothing is fetched for
   // visitors who never open it.

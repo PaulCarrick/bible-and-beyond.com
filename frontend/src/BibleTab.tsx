@@ -4,7 +4,7 @@ import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
 import { highlightLinked } from './highlight'
 import VerseMenu from './VerseMenu'
-import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Translation } from './types'
+import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Destination, Translation } from './types'
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
@@ -12,6 +12,8 @@ import { useReaderWindows } from './useReaderWindows'
 interface BibleTabProps {
   translations: Translation[]
   isHidden: boolean
+  // Where a followed link (a note's) asks the reader to open.
+  destination: Destination | null
 }
 
 interface Target {
@@ -38,7 +40,7 @@ function verseId(chapter: BibleChapter, verse: BibleVerse) {
 // Read a Bible stored on this site. Choose a Bible and a book, chapter and verse and the page goes
 // there; scroll up or down to read on past it, chapter after chapter and book after book. A verse has
 // a menu (right-click it, or click its number) with the same things as the links of a search result.
-function BibleTab({ translations, isHidden }: BibleTabProps) {
+function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
   const [contents, setContents] = useState<BibleContents | null>(null)
   const [translationCode, setTranslationCode] = useState('')
   const [verseText, setVerseText] = useState('')
@@ -99,6 +101,24 @@ function BibleTab({ translations, isHidden }: BibleTabProps) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not load the Bible.')
     }
   }
+
+  // A link to a verse (from a note): open the reader there, in the Bible the note was written in when it
+  // can be read here, else the BSB. This comes before the start below, so the tab does not start twice.
+  useEffect(() => {
+    if (destination?.kind !== 'bible' || readable.length === 0) {
+      return
+    }
+    hasStarted.current = true
+    const code =
+      (readable.find((translation) => translation.code === destination.translation) ??
+        readable.find((translation) => translation.code === 'BSB') ??
+        readable[0]).code
+    // Following a link is the reason to open the reader, so this is the place to do it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    go(code, { book: destination.book, chapter: destination.chapter, verse: destination.verse })
+    // Only a new destination (or the Bibles arriving) matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, translations])
 
   // Start with the BSB (else the first Bible) the first time the tab is shown.
   useEffect(() => {

@@ -5,7 +5,7 @@ import ContextWindow from './ContextWindow'
 import { chooseContextTranslation } from './contextTranslation'
 import DevotionalCredit from './DevotionalCredit'
 import NoteText from './NoteText'
-import type { DevotionalContents, DevotionalEntry, DevotionalInfo, Translation } from './types'
+import type { DevotionalContents, DevotionalEntry, DevotionalInfo, Destination, Translation } from './types'
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import type { StripChapter } from './useChapterStrip'
@@ -15,6 +15,8 @@ interface DevotionalsTabProps {
   devotionals: DevotionalInfo[]
   translations: Translation[]
   isHidden: boolean
+  // Where a followed link (a note's) asks the reader to open.
+  destination: Destination | null
 }
 
 // A day or chapter as the reader scrolls through them. The reader's engine knows chapters of books, so
@@ -54,7 +56,7 @@ async function loadReading(devotional: string, section: number, unit: number, si
 // Read the public-domain devotionals. Choose a devotional and the month and day (or the part and
 // chapter) and the page goes there, a daily devotional starting at today. Scroll on in either
 // direction to read the days or chapters before and after.
-function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabProps) {
+function DevotionalsTab({ devotionals, translations, isHidden, destination }: DevotionalsTabProps) {
   const [contents, setContents] = useState<DevotionalContents | null>(null)
   const [devotionalId, setDevotionalId] = useState('')
   const [markedUnit, setMarkedUnit] = useState('')
@@ -106,6 +108,21 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
       setErrorMessage(error instanceof Error ? error.message : 'Could not load the devotional.')
     }
   }
+
+  // A link to a reading (from a note): open the reader there. This comes before the start below, so the
+  // tab does not start twice.
+  useEffect(() => {
+    if (destination?.kind !== 'devotional' || devotionals.length === 0) {
+      return
+    }
+    hasStarted.current = true
+    const id = devotionals.find((entry) => entry.id === destination.devotional)?.id ?? devotionals[0].id
+    // Following a link is the reason to open the reader, so this is the place to do it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    go(id, { section: destination.section, unit: destination.unit })
+    // Only a new destination (or the devotionals arriving) matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, devotionals])
 
   // Start with the first devotional the first time the tab is shown: at today's date if it is daily.
   useEffect(() => {

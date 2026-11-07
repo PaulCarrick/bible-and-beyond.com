@@ -10,6 +10,8 @@ interface NoteCardProps {
   showTitle: boolean
   onChanged: (note: Note) => void
   onDeleted: (id: number) => void
+  // On the My notes page: open the verse, commentary note or reading the note is about.
+  onOpenItem?: (note: Note) => void
 }
 
 function formatTime(isoTime: string) {
@@ -17,12 +19,13 @@ function formatTime(isoTime: string) {
 }
 
 // One note, with Edit and Delete. Editing happens in place; deleting asks first.
-function NoteCard({ note, showTitle, onChanged, onDeleted }: NoteCardProps) {
+function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem }: NoteCardProps) {
   const [mode, setMode] = useState<'reading' | 'editing' | 'confirming'>('reading')
   const [isBusy, setIsBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const editorReference = useRef<RichTextEditorHandle>(null)
   const wasEdited = note.updated_at !== note.created_at
+  const openLabel = { bible_verse: 'Open in the Bible', commentary: 'Open the commentary note', devotional: 'Open the reading' }[note.item_type]
 
   // The editor is made when editing starts; fill it with the note as it is.
   useEffect(() => {
@@ -106,6 +109,12 @@ function NoteCard({ note, showTitle, onChanged, onDeleted }: NoteCardProps) {
             </div>
           ) : (
             <div className="note-actions">
+              {onOpenItem && (
+                <button type="button" className="link-button" onClick={() => onOpenItem(note)}>
+                  {openLabel}
+                  <span className="visually-hidden">: {note.title}</span>
+                </button>
+              )}
               <button type="button" className="link-button" onClick={() => setMode('editing')}>
                 Edit
                 <span className="visually-hidden"> the note on {note.title}</span>

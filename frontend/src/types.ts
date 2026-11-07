@@ -405,3 +405,10 @@ export interface NotePage {
   page: number
   per_page: number
 }
+
+// A place a reader is asked to open at: set when a note's link is followed, with a new id each time so
+// following the same link twice goes there twice.
+export type Destination =
+  | { id: number; kind: 'bible'; translation: string; book: number; chapter: number; verse: number }
+  | { id: number; kind: 'commentary'; commentary: string; book: number; chapter: number; verse: number }
+  | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number }
