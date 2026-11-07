@@ -55,15 +55,16 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
           <section className="welcome-card">
             <h3>Commentaries</h3>
             <p>
-              Search the text of {joinList(commentaries.map((entry) => entry.short_name))}, or choose a commentary and a
-              verse and read on from there, chapter after chapter.
+              Choose a commentary and a verse and read on from there, chapter after chapter, or search the text of{' '}
+              {joinList(commentaries.map((entry) => entry.short_name))}.
             </p>
+            {/* Read first, then Search, as on the Bible card. */}
             <div className="welcome-buttons">
+              <button type="button" className="primary-button" onClick={() => onNavigate('browse')}>
+                Read the commentaries
+              </button>
               <button type="button" className="primary-button" onClick={() => onNavigate('commentary')}>
                 Search the commentaries
-              </button>
-              <button type="button" className="primary-button" onClick={() => onNavigate('browse')}>
-                Browse the commentaries
               </button>
             </div>
           </section>
