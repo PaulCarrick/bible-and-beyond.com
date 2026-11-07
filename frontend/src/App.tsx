@@ -19,6 +19,7 @@ import UnsubscribePage from './UnsubscribePage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
+import HelpPage from './HelpPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
 import SideNav from './SideNav'
@@ -172,7 +173,13 @@ function App() {
     ...(devotionals.length > 0
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
       : []),
-    { heading: 'About', entries: [{ view: 'contact' as View, label: 'Contact' }] },
+    {
+      heading: 'About',
+      entries: [
+        { view: 'help' as View, label: 'Help' },
+        { view: 'contact' as View, label: 'Contact' },
+      ],
+    },
   ]
 
   return (
@@ -249,8 +256,9 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
+              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} />}
               {activeView === 'copyright' && (
-                <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
+                <CopyrightPage onBack={() => navigate('help')} devotionals={devotionals} />
               )}
 
               {/* The form stays mounted too, so a half-written message is not lost. */}
@@ -284,7 +292,7 @@ function App() {
               )}
             </main>
 
-            <SiteFooter copyrightText={siteSettings.copyright} onShowCopyrightNotices={() => navigate('copyright')} />
+            <SiteFooter copyrightText={siteSettings.copyright} />
           </div>
         </div>
       </div>

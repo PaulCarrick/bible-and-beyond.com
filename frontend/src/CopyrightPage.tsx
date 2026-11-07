@@ -26,7 +26,7 @@ function CopyrightPage({ onBack, devotionals = [] }: CopyrightPageProps) {
   return (
     <div className="panel copyright-page">
       <button type="button" className="link-button" onClick={onBack}>
-        Back to search
+        Back to Help
       </button>
       <h2>Bible copyright notices</h2>
       <p>

@@ -14,7 +14,8 @@ interface WelcomePageProps {
   onNavigate: (view: View) => void
 }
 
-// The page the site opens on: what it is, what is in it and how to use it.
+// The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
+// the Help page.
 function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
@@ -34,26 +35,21 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
       <h2>What you can do</h2>
       <div className="welcome-cards">
         <section className="welcome-card">
-          <h3>Read the Bible</h3>
+          <h3>The Bible</h3>
           <p>
             Read a chapter at a time in {bibles.length > 0 ? joinList(bibles) : 'the Bibles on this site'}, scrolling on
-            from chapter to chapter and book to book. Choose a Bible, book, chapter and verse to go straight there.
-          </p>
-          <button type="button" className="primary-button" onClick={() => onNavigate('read')}>
-            Read the Bible
-          </button>
-        </section>
-        <section className="welcome-card">
-          <h3>Search the Bible</h3>
-          <p>
-            Search for words or phrases (all the words, any word, or an exact phrase), limit the search to some books, or
-            type a Strong&rsquo;s number such as <code>G0025</code> to find every verse that uses one Hebrew or Greek
-            word.
+            from chapter to chapter and book to book, or search for words, phrases or a Strong&rsquo;s number such as{' '}
+            <code>G0025</code> to find every verse that uses one Hebrew or Greek word.
             {licensed.length > 0 ? ` The ${joinList(licensed)} can be searched too.` : ''}
           </p>
-          <button type="button" className="primary-button" onClick={() => onNavigate('bible')}>
-            Search the Bible
-          </button>
+          <div className="welcome-buttons">
+            <button type="button" className="primary-button" onClick={() => onNavigate('read')}>
+              Read the Bible
+            </button>
+            <button type="button" className="primary-button" onClick={() => onNavigate('bible')}>
+              Search the Bible
+            </button>
+          </div>
         </section>
         {commentaries.length > 0 && (
           <section className="welcome-card">
@@ -86,53 +82,6 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
           </section>
         )}
       </div>
-
-      <h2>How to use it</h2>
-      <ul className="welcome-tips">
-        <li>
-          <strong>Right-click a verse</strong> while reading (or click its number) for a menu: Show in Context, Full
-          Chapter, Other Translations, Related Verses (cross references), Original Words (the Hebrew or Greek) and
-          Commentaries. Search results have the same links under each verse.
-        </li>
-        <li>
-          <strong>Click a word of the BSB</strong> to see the Hebrew or Greek word behind it, with its meaning and every
-          verse that uses it.
-        </li>
-        <li>
-          <strong>Follow the references.</strong> A Scripture reference inside a commentary or a devotional is a link to
-          the verse. Back returns to where you were, and Escape closes the window.
-        </li>
-        <li>
-          <strong>Keep scrolling.</strong> The readers load the next and the previous chapter as you go. The Home key,
-          or the Back to top button, takes you to the top of the page.
-        </li>
-        <li>
-          <strong>Search tips.</strong> Put a phrase in quotation marks to keep its words together. In the commentaries,
-          words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo;.
-        </li>
-      </ul>
-
-      <h2>Contact</h2>
-      <p>
-        Questions, corrections or comments? Use the{' '}
-        <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
-          contact form
-        </button>
-        .
-      </p>
-
-      <h2>About the texts</h2>
-      <p>
-        The Bibles you can read here, the commentaries and the devotionals are in the public domain.
-        {licensed.length > 0
-          ? ` The ${joinList(licensed)} are licensed to us through API.Bible; they can be searched but not read a chapter at a time.`
-          : ''}{' '}
-        The Hebrew and Greek data comes from STEP Bible and the cross references from OpenBible.info, both under a
-        Creative Commons licence.{' '}
-        <button type="button" className="link-button" onClick={() => onNavigate('copyright')}>
-          Bible copyright notices
-        </button>
-      </p>
     </div>
   )
 }
