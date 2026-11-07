@@ -224,3 +224,14 @@ def test_no_sign_in_is_tried_when_the_server_needs_none(monkeypatch):
   contact.send_email({**SETTINGS, "smtp_authentication": "none"}, build_email(SETTINGS, values))
 
   assert calls == ["send"]
+
+
+def test_outgoing_email_can_be_turned_off(monkeypatch):
+  def drush_must_not_run(*arguments, **options):
+    raise AssertionError("drush was run")
+
+  monkeypatch.setattr(contact.subprocess, "run", drush_must_not_run)
+  monkeypatch.setenv("OUTGOING_EMAIL", "off")
+
+  with pytest.raises(contact.MailUnavailable, match="turned off"):
+    contact.load_mail_settings()

@@ -238,7 +238,13 @@ def check_rich_text(html: str, html_limit: int, text_limit: int, what: str) -> d
 
 
 def load_mail_settings() -> dict:
-  """The email settings from Drupal. DRUSH_COMMAND names drush when it is not the one in drupal/vendor/bin."""
+  """The email settings from Drupal. DRUSH_COMMAND names drush when it is not the one in drupal/vendor/bin.
+
+  OUTGOING_EMAIL=off stops every email here (contact form, account links, daily devotionals) before the
+  settings are read: the containers (docker/) set it, because they hold a copy of real addresses.
+  """
+  if os.environ.get("OUTGOING_EMAIL", "on").strip().lower() == "off":
+    raise MailUnavailable("Outgoing email is turned off here (OUTGOING_EMAIL=off).")
   drush = shlex.split(os.environ.get("DRUSH_COMMAND", "")) or [str(DRUPAL_DIRECTORY / "vendor" / "bin" / "drush")]
   command = [*drush, "php:eval", MAIL_SETTINGS_PHP]
   try:

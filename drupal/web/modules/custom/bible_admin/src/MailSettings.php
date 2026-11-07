@@ -30,16 +30,18 @@ final class MailSettings {
     'none' => 'none (no sign-in)',
   ];
 
+  // What a new site starts with, before the Site settings screen is saved (the containers fill these from
+  // their settings file). Nothing site-specific: the live site has its own values saved.
   public const DEFAULTS = [
-    'smtp_host' => 'netsol-smtp-oxcs.hostingplatform.com',
+    'smtp_host' => '',
     'smtp_port' => 587,
-    'smtp_username' => 'paul@paul-carrick.com',
+    'smtp_username' => '',
     'smtp_password' => '',
     'smtp_authentication' => 'login',
-    'default_domain' => 'paul-carrick.com',
-    'from_address' => 'paul@paul-carrick.com',
-    'to_address' => 'paul@paul-carrick.com',
-    'subject' => 'Contact request from Paul-Carrick.com.',
+    'default_domain' => '',
+    'from_address' => '',
+    'to_address' => '',
+    'subject' => 'Contact request from the website',
   ];
 
   /**

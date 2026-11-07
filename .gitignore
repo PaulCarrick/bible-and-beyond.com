@@ -49,3 +49,9 @@ ml-service/data/stepbible/
 ml-service/data/bsb_tables.tsv
 ml-service/data/commentaries/
 ml-service/data/devotionals/
+
+# The production snapshot for the containers (personal data: accounts, notes, the email password; never commit)
+docker/snapshot/
+
+# The public data built into the database image (made by docker/make-public-data.sh; too large for git)
+docker/public-data/

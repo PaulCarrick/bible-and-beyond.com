@@ -1,0 +1,31 @@
+# What the web image's build never sees (the build context is the repository root).
+# Secrets and personal data:
+**/.env
+**/.env.*
+!**/.env.example
+docker/snapshot/
+ml-service/data/service_settings.json*
+ml-service/data/api_bible_usage.json
+drupal/web/sites/*/settings.local.php
+drupal/web/sites/*/files/
+# Built or downloaded on this machine, rebuilt inside the image:
+.git/
+**/node_modules/
+**/.venv/
+**/__pycache__/
+frontend/dist/
+drupal/vendor/
+drupal/web/core/
+drupal/web/modules/contrib/
+drupal/web/themes/contrib/
+drupal/web/profiles/contrib/
+drupal/.ddev/
+drupal/.site-*-check/
+# Large data files the service does not need at run time (loaded into the database instead):
+ml-service/data/stepbible/
+ml-service/data/bsb_tables.tsv
+ml-service/data/commentaries/
+ml-service/data/devotionals/
+ml-service/data/*.zip
+ml-service/data/*.txt
+**/.DS_Store
