@@ -328,3 +328,31 @@ export function logIn(email: string, password: string) {
 export async function logOut(): Promise<void> {
   await accountRequest('logout', 'POST', {})
 }
+
+// Confirming an address, and choosing a new password after forgetting one. Both use a link we emailed.
+async function accountAction(path: string, body?: object): Promise<void> {
+  await readJson(
+    await fetch(`${mlServiceUrl}/account/${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    }),
+  )
+}
+
+export function verifyEmail(token: string) {
+  return accountAction('verify', { token })
+}
+
+export function resendVerification() {
+  return accountAction('resend-verification')
+}
+
+export function forgotPassword(email: string) {
+  return accountAction('forgot-password', { email })
+}
+
+export function resetPassword(token: string, password: string, passwordConfirmation: string) {
+  return accountAction('reset-password', { token, password, password_confirmation: passwordConfirmation })
+}

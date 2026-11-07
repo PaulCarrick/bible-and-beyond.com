@@ -287,3 +287,14 @@ def send_email(settings: dict, email: EmailMessage) -> None:
 def send_contact_message(values: dict) -> None:
   settings = load_mail_settings()
   send_email(settings, build_email(settings, values))
+
+
+def send_plain_message(to_address: str, subject: str, text: str) -> None:
+  """Sends a short plain-text email from the site's address, with the settings kept in Drupal."""
+  settings = load_mail_settings()
+  email = EmailMessage()
+  email["Subject"] = subject
+  email["From"] = settings["from_address"]
+  email["To"] = to_address
+  email.set_content(text)
+  send_email(settings, email)

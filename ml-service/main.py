@@ -2,11 +2,24 @@ import logging
 import os
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from accounts import AccountProblem, SESSION_DAYS, create_account, log_in, log_out, user_for_token
+from accounts import (
+  AccountProblem,
+  SESSION_DAYS,
+  create_account,
+  log_in,
+  log_out,
+  reset_password,
+  send_reset_email,
+  send_verification_email,
+  start_password_reset,
+  start_verification,
+  user_for_token,
+  verify_email,
+)
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from bible_reader import get_chapter as get_bible_chapter
 from bible_reader import get_contents as get_bible_contents
@@ -439,13 +452,16 @@ def start_session(response: Response, request: Request, token: str):
 
 
 @app.post("/account/register")
-def account_register(body: RegisterRequest, request: Request, response: Response):
-  """Makes an account and logs the visitor in."""
+def account_register(body: RegisterRequest, request: Request, response: Response, background: BackgroundTasks):
+  """Makes an account, emails a link to confirm the address, and logs the visitor in."""
   try:
-    create_account(body.email, body.password, body.password_confirmation)
+    created = create_account(body.email, body.password, body.password_confirmation)
     user, token = log_in(body.email, body.password)
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  verification = start_verification(created["id"])
+  if verification:
+    background.add_task(send_verification_email, *verification)
   start_session(response, request, token)
   return {"user": user}
 
@@ -471,3 +487,58 @@ def account_logout(request: Request, response: Response):
 def account_me(request: Request):
   """Who is logged in, or null. Logging in is never required; this only tells the page what to show."""
   return {"user": user_for_token(request.cookies.get(SESSION_COOKIE))}
+
+
+class TokenRequest(BaseModel):
+  token: str
+
+
+class ForgotRequest(BaseModel):
+  email: str
+
+
+class ResetRequest(BaseModel):
+  token: str
+  password: str
+  password_confirmation: str
+
+
+@app.post("/account/verify")
+def account_verify(body: TokenRequest):
+  """The link in the verification email."""
+  try:
+    verify_email(body.token)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"verified": True}
+
+
+@app.post("/account/resend-verification")
+def account_resend_verification(request: Request, background: BackgroundTasks):
+  """Sends the logged-in visitor another link (not more than one a minute)."""
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  if user is None:
+    raise HTTPException(status_code=401, detail="Please log in first.")
+  verification = start_verification(user["id"])
+  if verification:
+    background.add_task(send_verification_email, *verification)
+  return {"sent": True}
+
+
+@app.post("/account/forgot-password")
+def account_forgot_password(body: ForgotRequest, background: BackgroundTasks):
+  """Emails a reset link if the address has an account. The answer is the same either way, and the email is
+  sent after answering, so neither the words nor the time say whether the address has an account."""
+  reset = start_password_reset(body.email)
+  if reset:
+    background.add_task(send_reset_email, *reset)
+  return {"sent": True}
+
+
+@app.post("/account/reset-password")
+def account_reset_password(body: ResetRequest):
+  try:
+    reset_password(body.token, body.password, body.password_confirmation)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"reset": True}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   fetchBooks,
   fetchCommentarySources,
@@ -7,10 +7,12 @@ import {
   fetchSiteSettings,
   fetchTranslations,
   logOut,
+  resendVerification,
 } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import AccountPage from './AccountPage'
+import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
 import DevotionalsTab from './DevotionalsTab'
@@ -31,15 +33,28 @@ const defaultSiteSettings: SiteSettings = {
   copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
 }
 
+// The links in our emails open the site with ?verify=... or ?reset=... on the end.
+function readEmailLink(): { kind: 'verify' | 'reset'; token: string } | null {
+  const parameters = new URLSearchParams(window.location.search)
+  const verifyToken = parameters.get('verify')
+  const resetToken = parameters.get('reset')
+  if (verifyToken) {
+    return { kind: 'verify', token: verifyToken }
+  }
+  return resetToken ? { kind: 'reset', token: resetToken } : null
+}
+
 function App() {
+  const [emailLink] = useState(readEmailLink)
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
   const [user, setUser] = useState<AccountUser | null>(null)
+  const [resendMessage, setResendMessage] = useState('')
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeView, setActiveView] = useState<View>('welcome')
+  const [activeView, setActiveView] = useState<View>(emailLink?.kind ?? 'welcome')
   // On a phone the sidebar is a menu under the header.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -71,6 +86,13 @@ function App() {
       .catch(() => setSiteSettings(defaultSiteSettings))
   }, [])
 
+  // The token is kept in the page; it is taken out of the address so it is not bookmarked or shared by mistake.
+  useEffect(() => {
+    if (emailLink) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [emailLink])
+
   // Whether a visitor is logged in (the browser sends its session cookie). Nobody has to be.
   useEffect(() => {
     fetchCurrentUser()
@@ -81,6 +103,8 @@ function App() {
   useEffect(() => {
     document.title = siteSettings.title
   }, [siteSettings.title])
+
+  const handleVerified = useCallback((verifiedUser: AccountUser | null) => setUser(verifiedUser), [])
 
   function navigate(view: View) {
     setActiveView(view)
@@ -152,14 +176,37 @@ function App() {
                 onNavigate={navigate}
               />
             )}
-            {(activeView === 'register' || activeView === 'login') && (
+            {user && !user.email_verified && activeView !== 'verify' && (
+              <p className="contact-sent" role="status">
+                Please confirm your email address: we sent a link to {user.email}.{' '}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setResendMessage('')
+                    resendVerification()
+                      .then(() => setResendMessage('Sent. If it does not arrive in a few minutes, check your spam folder.'))
+                      .catch((error: Error) => setResendMessage(error.message))
+                  }}
+                >
+                  Send it again
+                </button>{' '}
+                {resendMessage}
+              </p>
+            )}
+            {activeView === 'verify' && emailLink && (
+              <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
+            )}
+            {(activeView === 'register' || activeView === 'login' || activeView === 'forgot' || activeView === 'reset') && (
               <AccountPage
+                key={activeView}
                 mode={activeView}
+                token={emailLink?.token ?? ''}
                 onDone={(loggedInUser) => {
                   setUser(loggedInUser)
                   navigate('welcome')
                 }}
-                onSwitchMode={() => navigate(activeView === 'register' ? 'login' : 'register')}
+                onNavigate={navigate}
               />
             )}
             {activeView === 'copyright' && (

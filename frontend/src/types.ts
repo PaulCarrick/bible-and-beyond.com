@@ -357,4 +357,6 @@ export interface SiteSettings {
 export interface AccountUser {
   id: number
   email: string
+  // True once the owner followed the link emailed to the address.
+  email_verified: boolean
 }
