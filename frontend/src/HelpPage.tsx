@@ -35,6 +35,24 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
       <h2>How to use it</h2>
       <ul className="welcome-tips">
         <li>
+          <strong>Search everything at once.</strong> The search box under the cards on the{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('welcome')}>
+            Welcome
+          </button>{' '}
+          page (or{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('searchAll')}>
+            Search everything
+          </button>{' '}
+          in the menu) looks in the Bible, the commentaries, the devotionals and the other books together, and lists a few
+          of each with <em>Show more</em>. Each result opens where it was found.
+        </li>
+        <li>
+          <strong>Choose where to start.</strong> Read the commentaries, Read the devotionals and Read other books open on
+          a list: pick a book and chapter (or a month and day) on any of them and press <em>Read</em>. In the reader,
+          the link at the start of the choosers (<em>All commentaries</em>, <em>All devotionals</em>,{' '}
+          <em>All books</em>) takes you back to the list.
+        </li>
+        <li>
           <strong>Right-click a verse</strong> while reading (or click its number) for a menu: Show in Context, Full
           Chapter, Other Translations, Related Verses (cross references), Original Words (the Hebrew or Greek),
           Commentaries and Notes. Search results have the same links under each verse.
@@ -57,8 +75,11 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           or the Back to top button, takes you to the top of the page.
         </li>
         <li>
-          <strong>Search tips.</strong> Put a phrase in quotation marks to keep its words together. In the commentaries
-          and the other books, words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo;.
+          <strong>Search tips.</strong> Put a phrase in quotation marks to keep its words together. In the commentaries,
+          the devotionals and the other books, words match in any form, so &ldquo;love&rdquo; also finds
+          &ldquo;loved&rdquo;. Search the Bible matches parts of words unless you choose whole words (so
+          &ldquo;love&rdquo; also finds &ldquo;beloved&rdquo;); Search everything matches whole words in the Bible. A
+          Strong&rsquo;s number such as G25 or H7225 finds every verse that uses that Hebrew or Greek word.
         </li>
       </ul>
 
@@ -74,7 +95,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           &ldquo;Forgot your password?&rdquo; on the Log in page.
         </li>
         <li>
-          <strong>Notes.</strong> Choose <em>Notes</em> on a verse, a commentary note or a devotional reading, or click a
+          <strong>Notes.</strong> Choose <em>Notes</em> on a verse, a commentary note, a devotional reading or a chapter
+          of one of the other books, or click a
           verse number in Show in Context. Your notes are private. <em>My notes</em> (at the top of the page) lists
           them all, with search, and lets you add, edit and delete them and open what each is about.
         </li>
@@ -88,7 +110,7 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           <button type="button" className="link-button" onClick={() => onNavigate('faq')}>
             FAQ
           </button>{' '}
-          (under Questions in the menu) answers 30 common questions about God, Jesus, the Bible and the Christian life.
+          (under Questions in the menu) answers common questions about God, Jesus, the Bible and the Christian life.
           The answers are written by an AI (Google Gemini) and may contain mistakes, so check them against the Bible.
         </li>
         <li>
