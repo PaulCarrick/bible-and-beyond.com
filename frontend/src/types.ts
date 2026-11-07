@@ -93,6 +93,8 @@ export interface VerseTarget {
   reference: string
   // Only for a lexicon entry: the Strong's number whose entry the window shows.
   strong_code?: string
+  // Only for a notes window about a commentary note or a devotional reading (a verse is the default).
+  subject?: NoteSubject
 }
 
 // Related Verses can look two ways: where the verse points to, and which verses point at it.
@@ -219,6 +221,8 @@ export interface CommentaryChoice {
   characters: number
   // The verses the note covers, such as "John 3:1–21".
   covers: string
+  // The verse the note begins at.
+  start_verse: number
 }
 
 export interface CommentaryResponse {
@@ -229,6 +233,8 @@ export interface CommentaryResponse {
   commentaries: CommentaryChoice[]
   selected: string
   covers: string
+  // The verse the shown note begins at (the verse a visitor's notes on it are kept under).
+  note_verse: number
   text: string
   chapter_introduction: string | null
   book_introduction: string | null
@@ -375,4 +381,17 @@ export interface Note {
   body: string
   created_at: string
   updated_at: string
+}
+
+// What a note is about: a Bible verse, a commentary note (its commentary and the verse it begins at) or a
+// devotional reading (its devotional, section and unit). Only the fields that belong to the type are set.
+export interface NoteSubject {
+  item_type: 'bible_verse' | 'commentary' | 'devotional'
+  // The translation read, the commentary or the devotional, by id.
+  source_code: string
+  book_number?: number
+  chapter?: number
+  verse?: number
+  section?: number
+  unit?: number
 }

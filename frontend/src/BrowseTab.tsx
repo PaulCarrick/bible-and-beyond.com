@@ -317,6 +317,33 @@ function BrowseTab({ commentaries, translations, isHidden }: BrowseTabProps) {
                       Other Commentaries
                       <span className="visually-hidden"> on {note.covers}</span>
                     </button>
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={(event) =>
+                        windows.open(
+                          'note',
+                          {
+                            translation: contextTranslation,
+                            book_number: chapter.book_number,
+                            chapter: chapter.chapter,
+                            verse: note.verse,
+                            reference: `${note.covers} (${chapter.commentary.short_name})`,
+                            subject: {
+                              item_type: 'commentary',
+                              source_code: chapter.commentary.id,
+                              book_number: chapter.book_number,
+                              chapter: chapter.chapter,
+                              verse: note.verse,
+                            },
+                          },
+                          event.currentTarget,
+                        )
+                      }
+                    >
+                      Notes
+                      <span className="visually-hidden"> on {note.covers}</span>
+                    </button>
                   </div>
                   <div className="commentary-text">
                     <NoteText

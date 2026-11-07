@@ -1,10 +1,10 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
-import { fetchVerseNotes, saveVerseNote } from './api'
+import { fetchNotes, saveNote } from './api'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
-import type { Note, VerseTarget } from './types'
+import type { Note, NoteSubject, VerseTarget } from './types'
 
 interface NotesPanelProps {
   target: VerseTarget
@@ -16,7 +16,7 @@ function formatTime(isoTime: string) {
   return new Date(isoTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-// Write a note on a verse, and read the notes already written on it. Notes belong to a logged-in visitor.
+// Write a note on a verse, a commentary note or a devotional reading, and read the notes already written on it. Notes belong to a logged-in visitor.
 function NotesPanel({ target, onClose }: NotesPanelProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const [notes, setNotes] = useState<Note[] | null>(null)
@@ -24,7 +24,20 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
   const [savedMessage, setSavedMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editorReference = useRef<RichTextEditorHandle>(null)
-  const { translation, book_number: book, chapter, verse, reference } = target
+  const { reference } = target
+  // A verse unless the link said otherwise. A verse is the same in every Bible, so the Bible read is only
+  // kept with the note.
+  const subject: NoteSubject = useMemo(
+    () =>
+      target.subject ?? {
+        item_type: 'bible_verse',
+        source_code: target.translation,
+        book_number: target.book_number,
+        chapter: target.chapter,
+        verse: target.verse,
+      },
+    [target],
+  )
   const userId = user?.id ?? null
 
   useEffect(() => {
@@ -32,7 +45,7 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
       return
     }
     const controller = new AbortController()
-    fetchVerseNotes(book, chapter, verse, controller.signal)
+    fetchNotes(subject, controller.signal)
       .then(setNotes)
       .catch((error: Error) => {
         if (!controller.signal.aborted) {
@@ -40,7 +53,7 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
         }
       })
     return () => controller.abort()
-  }, [userId, book, chapter, verse])
+  }, [userId, subject])
 
   function goTo(view: 'login' | 'register') {
     onClose()
@@ -61,7 +74,7 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
     }
     setIsSaving(true)
     try {
-      const note = await saveVerseNote(translation, book, chapter, verse, editor.getHtml())
+      const note = await saveNote(subject, editor.getHtml())
       setNotes((current) => [note, ...(current ?? [])])
       editor.clear()
       setSavedMessage('Your note is saved.')

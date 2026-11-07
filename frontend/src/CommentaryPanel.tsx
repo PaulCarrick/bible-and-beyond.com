@@ -54,6 +54,31 @@ function CommentaryPanel({
           <p className="commentary-covers">
             {chosen?.name}: notes on {commentary.covers}
           </p>
+          <p>
+            <button
+              type="button"
+              className="link-button"
+              onClick={() =>
+                onOpenVerse('note', {
+                  translation,
+                  book_number: commentary.book_number,
+                  chapter: commentary.chapter,
+                  verse: commentary.note_verse,
+                  reference: `${commentary.covers} (${chosen?.short_name ?? ''})`,
+                  subject: {
+                    item_type: 'commentary',
+                    source_code: commentary.selected,
+                    book_number: commentary.book_number,
+                    chapter: commentary.chapter,
+                    verse: commentary.note_verse,
+                  },
+                })
+              }
+            >
+              Notes
+              <span className="visually-hidden"> on this commentary note</span>
+            </button>
+          </p>
           <div className="commentary-text">
             <NoteText text={commentary.text} references={commentary.references} terms={terms} onOpenReference={openReference} />
           </div>

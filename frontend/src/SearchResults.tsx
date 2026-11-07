@@ -167,6 +167,19 @@ function SearchResults({
         chapter: result.chapter,
         verse: result.verse,
         reference: result.reference,
+        // A note on a commentary result belongs to that commentary's note, not to the verse.
+        ...(kind === 'note' && response.source === 'commentary'
+          ? {
+              reference: `${result.reference} (${result.commentary_name})`,
+              subject: {
+                item_type: 'commentary' as const,
+                source_code: result.commentary_id ?? '',
+                book_number: result.book_number,
+                chapter: result.chapter,
+                verse: result.verse,
+              },
+            }
+          : {}),
       },
       trigger,
       { commentaryId: kind === 'commentary' ? (result.commentary_id ?? null) : null },
@@ -321,6 +334,14 @@ function SearchResults({
                       >
                         Show in Context
                         <span className="visually-hidden"> for {result.reference}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('note', result, event.currentTarget)}
+                      >
+                        Notes
+                        <span className="visually-hidden"> on this note by {result.commentary_name}</span>
                       </button>
                     </div>
                   )}

@@ -222,6 +222,8 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
         available.append({
           "id": code, "name": name, "short_name": short_name, "characters": length,
           "covers": label_range(book[0], chapter, start, end),
+          # The verse the note begins at: the place a visitor's own notes on this note are kept under.
+          "start_verse": start,
         })
     if not available:
       return None
@@ -249,6 +251,7 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
     "commentaries": available,
     "selected": chosen["id"],
     "covers": chosen["covers"],
+    "note_verse": chosen["start_verse"],
     "text": text,
     "chapter_introduction": introductions.get(chapter),
     "book_introduction": introductions.get(0),

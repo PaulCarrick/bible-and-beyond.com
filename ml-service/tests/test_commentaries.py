@@ -179,6 +179,8 @@ def test_a_verse_gets_the_section_that_contains_it_and_the_verse_note_that_match
   assert result["selected"] == "matthew-henry" and result["covers"] == "John 3:1–21"
   assert result["text"] == "Nicodemus."
   assert result["commentaries"][1]["covers"] == "John 3:16"
+  # A visitor's notes on a commentary note are kept under the verse the note begins at, however it was reached.
+  assert result["note_verse"] == 1 and [entry["start_verse"] for entry in result["commentaries"]] == [1, 16]
 
 
 def test_the_commentary_asked_for_is_the_one_shown(loaded):

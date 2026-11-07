@@ -243,6 +243,35 @@ function DevotionalsTab({ devotionals, translations, isHidden }: DevotionalsTabP
                   {reading.devotional.kind === 'chapters' ? ` · ${reading.section_title}` : ''}
                 </span>
               </div>
+              <div className="browse-note-links">
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={(event) =>
+                    windows.open(
+                      'note',
+                      {
+                        translation: contextTranslation,
+                        // A reading is not a verse; the window is about its subject.
+                        book_number: 0,
+                        chapter: 0,
+                        verse: 0,
+                        reference: `${reading.title} (${reading.devotional.name})`,
+                        subject: {
+                          item_type: 'devotional',
+                          source_code: reading.devotional.id,
+                          section: reading.section,
+                          unit: reading.unit,
+                        },
+                      },
+                      event.currentTarget,
+                    )
+                  }
+                >
+                  Notes
+                  <span className="visually-hidden"> on {reading.title}</span>
+                </button>
+              </div>
               {reading.entries.map((entry, index) => (
                 <article key={index} className="devotional-entry">
                   {entry.heading && <h3>{entry.heading}</h3>}
