@@ -377,6 +377,8 @@ export interface Note {
   verse: number | null
   section: number | null
   unit: number | null
+  // What the note is about, such as "John 3:16" or "Genesis 1:1–2 (Matthew Henry)".
+  title: string
   // A little HTML, cleaned by the server.
   body: string
   created_at: string

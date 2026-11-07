@@ -378,3 +378,23 @@ export async function saveNote(subject: NoteSubject, body: string): Promise<Note
   })
   return (await readJson<{ note: Note }>(response)).note
 }
+
+// All of the visitor's notes (newest first), for the My notes page.
+export async function fetchAllNotes(signal: AbortSignal): Promise<Note[]> {
+  const response = await fetch(`${mlServiceUrl}/notes`, { credentials: 'include', signal })
+  return (await readJson<{ notes: Note[] }>(response)).notes
+}
+
+export async function updateNote(id: number, body: string): Promise<Note> {
+  const response = await fetch(`${mlServiceUrl}/notes/${id}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+  return (await readJson<{ note: Note }>(response)).note
+}
+
+export async function deleteNote(id: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/notes/${id}`, { method: 'DELETE', credentials: 'include' }))
+}

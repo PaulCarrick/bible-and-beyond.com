@@ -9,6 +9,8 @@ export interface RichTextEditorHandle {
   getHtml: () => string
   isEmpty: () => boolean
   clear: () => void
+  // Puts saved HTML into the editor, to be changed.
+  setHtml: (html: string) => void
 }
 
 interface RichTextEditorProps {
@@ -40,6 +42,13 @@ function RichTextEditor({ ref, placeholder, labelledBy }: RichTextEditorProps) {
     getHtml: () => quillReference.current?.getSemanticHTML() ?? '',
     isEmpty: () => (quillReference.current?.getText().trim() ?? '') === '',
     clear: () => quillReference.current?.setText(''),
+    setHtml: (html: string) => {
+      const quill = quillReference.current
+      if (quill) {
+        quill.setContents(quill.clipboard.convert({ html }), 'silent')
+        quill.history.clear()
+      }
+    },
   }))
 
   return (

@@ -42,7 +42,7 @@ from contact import (
   verify_recaptcha,
 )
 from context import get_chapter, get_context, get_parallel, get_related
-from notes import NoteProblem, create_note, list_notes
+from notes import NoteProblem, create_note, delete_note, list_notes, update_note
 from original_words import get_lexicon_entry, get_original_words
 from search import (
   FIRST_BOOK_NUMBER,
@@ -593,3 +593,27 @@ def notes_list(
     }
   except NoteProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+class NoteTextRequest(BaseModel):
+  body: str
+
+
+@app.put("/notes/{note_id}")
+def notes_update(note_id: int, body: NoteTextRequest, request: Request):
+  """Changes the text of one of the logged-in visitor's own notes."""
+  user = require_user(request)
+  try:
+    return {"note": update_note(user["id"], note_id, body.body)}
+  except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/notes/{note_id}")
+def notes_delete(note_id: int, request: Request):
+  user = require_user(request)
+  try:
+    delete_note(user["id"], note_id)
+  except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}

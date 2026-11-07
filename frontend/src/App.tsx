@@ -12,6 +12,8 @@ import {
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
+import { chooseContextTranslation } from './contextTranslation'
+import NotesPage from './NotesPage'
 import AccountPage from './AccountPage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
@@ -150,6 +152,7 @@ function App() {
           onGoHome={() => navigate('welcome')}
           user={user}
           onSetUpAccount={() => navigate('register')}
+          onShowNotes={() => navigate('notes')}
           onLogIn={() => navigate('login')}
           onLogOut={() => {
             logOut()
@@ -196,7 +199,8 @@ function App() {
                   {resendMessage}
                 </p>
               )}
-              {activeView === 'verify' && emailLink && (
+              {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} />}
+            {activeView === 'verify' && emailLink && (
                 <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
               )}
               {(activeView === 'register' || activeView === 'login' || activeView === 'forgot' || activeView === 'reset') && (

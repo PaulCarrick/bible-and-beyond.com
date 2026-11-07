@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
 import { fetchNotes, saveNote } from './api'
+import NoteCard from './NoteCard'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
 import type { Note, NoteSubject, VerseTarget } from './types'
@@ -10,10 +11,6 @@ interface NotesPanelProps {
   target: VerseTarget
   // Closes the window (used before sending the visitor to log in).
   onClose: () => void
-}
-
-function formatTime(isoTime: string) {
-  return new Date(isoTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 // Write a note on a verse, a commentary note or a devotional reading, and read the notes already written on it. Notes belong to a logged-in visitor.
@@ -126,11 +123,13 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
           <h3>Your notes on {reference}</h3>
           <ul className="note-list">
             {notes.map((note) => (
-              <li key={note.id} className="note">
-                <time dateTime={note.created_at}>{formatTime(note.created_at)}</time>
-                {/* The server cleans the note (a short list of tags, safe links) before it keeps it. */}
-                <div className="note-body" dangerouslySetInnerHTML={{ __html: note.body }} />
-              </li>
+              <NoteCard
+                key={note.id}
+                note={note}
+                showTitle={false}
+                onChanged={(changed) => setNotes((current) => (current ?? []).map((entry) => (entry.id === changed.id ? changed : entry)))}
+                onDeleted={(id) => setNotes((current) => (current ?? []).filter((entry) => entry.id !== id))}
+              />
             ))}
           </ul>
         </>

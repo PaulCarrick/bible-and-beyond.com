@@ -133,3 +133,87 @@ def test_deleting_a_user_deletes_their_notes():
   with connect() as connection:
     connection.execute("DELETE FROM users WHERE id = %s", (user_id,))
     assert connection.execute("SELECT count(*) FROM notes WHERE user_id = %s", (user_id,)).fetchone()[0] == 0
+
+
+def test_a_note_has_a_title_that_says_what_it_is_about():
+  sign_up()
+
+  verse = client.post("/notes", json=VERSE).json()["note"]
+  commentary = client.post("/notes", json={**VERSE, "item_type": "commentary", "source_code": "matthew-henry"}).json()["note"]
+  devotional = client.post("/notes", json={"item_type": "devotional", "source_code": "morning-and-evening", "section": 1, "unit": 5, "body": "<p>a</p>"}).json()["note"]
+
+  assert verse["title"] == "John 3:16"
+  assert commentary["title"].startswith("John 3:16") and "(" in commentary["title"]
+  assert devotional["title"] and "(" in devotional["title"]
+  assert all(entry["title"] for entry in client.get("/notes").json()["notes"])
+
+
+def test_a_note_can_be_edited_and_the_change_time_moves_on():
+  sign_up()
+  note = client.post("/notes", json=VERSE).json()["note"]
+
+  response = client.put(f"/notes/{note['id']}", json={"body": "<p>Changed <em>text</em><script>x()</script></p>"})
+
+  assert response.status_code == 200
+  changed = response.json()["note"]
+  assert changed["id"] == note["id"] and changed["created_at"] == note["created_at"]
+  assert changed["updated_at"] > note["updated_at"]
+  assert "Changed" in changed["body"] and "script" not in changed["body"] and changed["title"] == "John 3:16"
+  assert client.get("/notes").json()["notes"][0]["body"] == changed["body"]
+
+
+def test_an_edit_must_still_be_a_good_note_and_leaves_the_old_one_alone():
+  sign_up()
+  note = client.post("/notes", json=VERSE).json()["note"]
+
+  assert client.put(f"/notes/{note['id']}", json={"body": "<p><br></p>"}).status_code == 422
+  assert client.put(f"/notes/{note['id']}", json={"body": "<p>" + "x" * 10001 + "</p>"}).status_code == 422
+  assert client.get("/notes").json()["notes"][0]["body"] == note["body"]
+
+
+def test_a_note_can_be_deleted():
+  sign_up()
+  note = client.post("/notes", json=VERSE).json()["note"]
+
+  assert client.delete(f"/notes/{note['id']}").status_code == 200
+  assert client.get("/notes").json()["notes"] == []
+  assert client.delete(f"/notes/{note['id']}").status_code == 404
+
+
+def test_nobody_can_change_or_delete_another_visitors_note():
+  sign_up("ann")
+  note = client.post("/notes", json=VERSE).json()["note"]
+  client.cookies.clear()
+  sign_up("bob")
+
+  assert client.put(f"/notes/{note['id']}", json={"body": "<p>Mine now</p>"}).status_code == 404
+  assert client.delete(f"/notes/{note['id']}").status_code == 404
+  client.cookies.clear()
+  client.post("/account/login", json={"email": "ann@notes-test.example", "password": PASSWORD})
+  assert client.get("/notes").json()["notes"][0]["body"] == note["body"]
+
+
+def test_editing_and_deleting_need_a_login():
+  assert client.put("/notes/1", json={"body": "<p>a</p>"}).status_code == 401
+  assert client.delete("/notes/1").status_code == 401
+
+
+def test_one_account_cannot_keep_unlimited_notes(monkeypatch):
+  import notes
+
+  monkeypatch.setattr(notes, "MAX_NOTES_PER_USER", 2)
+  sign_up()
+  assert client.post("/notes", json=VERSE).status_code == 200
+  assert client.post("/notes", json=VERSE).status_code == 200
+
+  response = client.post("/notes", json=VERSE)
+
+  assert response.status_code == 422 and "limit" in response.json()["detail"]
+
+
+def test_a_note_on_a_verse_that_does_not_exist_is_refused():
+  sign_up()
+
+  response = client.post("/notes", json={**VERSE, "chapter": 3, "verse": 199})
+
+  assert response.status_code == 422 and "no such verse" in response.json()["detail"]

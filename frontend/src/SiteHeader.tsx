@@ -10,12 +10,13 @@ interface SiteHeaderProps {
   // Who is logged in (nobody, unless they chose to).
   user: AccountUser | null
   onSetUpAccount: () => void
+  onShowNotes: () => void
   onLogIn: () => void
   onLogOut: () => void
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -39,6 +40,9 @@ function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAc
             <span className="site-account-email" title={user.email}>
               {user.email}
             </span>
+            <button type="button" className="link-button" onClick={onShowNotes}>
+              My notes
+            </button>
             <button type="button" className="link-button" onClick={onLogOut}>
               Log out
             </button>
