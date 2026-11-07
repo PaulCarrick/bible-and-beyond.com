@@ -1841,3 +1841,64 @@ select:disabled {
 .welcome-search-more {
   margin-top: 0.75rem;
 }
+
+/* The first page of the commentaries, devotionals and other books: each item with its own choosers. */
+.library-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.library-item {
+  min-width: 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.library-item h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.library-item-detail {
+  margin: 0.2rem 0 0.6rem;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.welcome .library-item-detail {
+  line-height: 1.4;
+}
+
+.library-item-choosers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+/* A chapter title can be long: the chooser shrinks to the space there is (and is never wider than 26rem). */
+.library-item-choosers select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: min(100%, 26rem);
+}
+
+.library-item-choosers .inline-label {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.library-item-choosers .primary-button {
+  margin: 0;
+}
+
+.browse-list-link {
+  white-space: nowrap;
+}

@@ -5,6 +5,8 @@ import ContextWindow from './ContextWindow'
 import DevotionalEmailPanel from './DevotionalEmailPanel'
 import { chooseContextTranslation } from './contextTranslation'
 import DevotionalCredit from './DevotionalCredit'
+import LibraryList from './LibraryList'
+import type { LibraryChoices } from './LibraryList'
 import NoteText from './NoteText'
 import type { DevotionalContents, DevotionalEntry, DevotionalInfo, Destination, Translation } from './types'
 import { useBackToTop } from './useBackToTop'
@@ -43,6 +45,31 @@ function today(): Place {
   return { section: now.getMonth() + 1, unit: now.getDate() }
 }
 
+// The choosers of a devotional or book on the first page: months and days (starting at today), or parts and
+// chapters (starting at the first).
+async function loadDevotionalChoices(id: string, signal: AbortSignal): Promise<LibraryChoices> {
+  const contents = await fetchDevotionalContents(id, signal)
+  const isDaily = contents.devotional.kind === 'daily'
+  const chapterCount = contents.sections.reduce((sum, entry) => sum + entry.units.length, 0)
+  const partCount = contents.sections.length
+  const first = { group: contents.sections[0]?.number ?? 1, unit: contents.sections[0]?.units[0]?.number ?? 1 }
+  const wanted = today()
+  const hasToday = contents.sections.some((entry) => entry.number === wanted.section && entry.units.some((day) => day.number === wanted.unit))
+  return {
+    summary: isDaily
+      ? 'A reading for each day of the year'
+      : `${partCount > 1 ? `${partCount} parts, ` : ''}${chapterCount} chapter${chapterCount === 1 ? '' : 's'}`,
+    groupLabel: isDaily ? 'Month' : 'Part',
+    unitLabel: isDaily ? 'Day' : 'Chapter',
+    groups: contents.sections.map((entry) => ({
+      number: entry.number,
+      name: entry.title,
+      units: entry.units.map((day) => ({ number: day.number, label: isDaily ? String(day.number) : day.title })),
+    })),
+    start: isDaily && hasToday ? { group: wanted.section, unit: wanted.unit } : first,
+  }
+}
+
 async function loadReading(devotional: string, section: number, unit: number, signal: AbortSignal): Promise<Reading> {
   const loaded = await fetchDevotionalUnit(devotional, section, unit, signal)
   const toNeighbour = (neighbour: { section: number; unit: number } | null) =>
@@ -71,7 +98,8 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
   const [goal, setGoal] = useState<Place | null>(null)
   const devotionalRef = useRef('')
   const pendingTarget = useRef<Place | null>(null)
-  const hasStarted = useRef(false)
+  // The list of devotionals or books comes first; the reader shows once one is chosen (or a link opens it).
+  const [showList, setShowList] = useState(true)
 
   const {
     chapters: readings,
@@ -113,13 +141,14 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
     }
   }
 
-  // A link to a reading (from a note): open the reader there. This comes before the start below, so the
-  // tab does not start twice.
+  // A link to a reading (from a note or a search): open the reader there, skipping the list.
   useEffect(() => {
     if (destination?.kind !== 'devotional' || devotionals.length === 0) {
       return
     }
-    hasStarted.current = true
+    // A link opens the reader at once, not the list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowList(false)
     const id = devotionals.find((entry) => entry.id === destination.devotional)?.id ?? devotionals[0].id
     // Following a link is the reason to open the reader, so this is the place to do it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -128,15 +157,15 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, devotionals])
 
-  // Start with the first devotional the first time the tab is shown: at today's date if it is daily.
-  useEffect(() => {
-    if (!isHidden && !hasStarted.current && devotionals.length > 0) {
-      hasStarted.current = true
-      go(devotionals[0].id, devotionals[0].kind === 'daily' ? today() : null)
-    }
-    // go only reads state that does not matter on the first call.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHidden, devotionals])
+  function readFromList(id: string, section: number, unit: number) {
+    setShowList(false)
+    go(id, { section, unit })
+  }
+
+  function backToList() {
+    setShowList(true)
+    window.scrollTo(0, 0)
+  }
 
   // Once the first reading of a visit is on screen, scroll to it.
   useEffect(() => {
@@ -150,7 +179,7 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
     document.getElementById(`reading-${first.section}-${first.unit}`)?.scrollIntoView({ block: 'start' })
   }, [readings])
 
-  const isScrolledDown = useBackToTop(isHidden, windowIsOpen, scrollToTop)
+  const isScrolledDown = useBackToTop(isHidden || showList, windowIsOpen, scrollToTop)
 
   const sections = contents?.sections ?? []
   const shownSection = visibleChapter?.book ?? goal?.section ?? sections[0]?.number ?? 0
@@ -180,172 +209,189 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
   const currentView = windows.currentView
 
   return (
-    <div className="browse-tab" hidden={isHidden}>
-      <div className="browse-controls" hidden={windowIsOpen}>
-        <label className="inline-label">
-          {isBooks ? 'Book' : 'Devotional'}
-          <select
-            aria-label={isBooks ? 'Book' : 'Devotional'}
-            value={devotionalId}
-            disabled={devotionalId === ''}
-            onChange={(event) => changeDevotional(event.target.value)}
-          >
-            {devotionals.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="inline-label">
-          {isDaily ? 'Month' : 'Part'}
-          <select
-            aria-label={isDaily ? 'Month' : 'Part'}
-            value={shownSection}
-            disabled={devotionalId === ''}
-            onChange={(event) => go(devotionalId, { section: Number(event.target.value), unit: isDaily ? shownUnit : 1 })}
-          >
-            {sections.map((entry) => (
-              <option key={entry.number} value={entry.number}>
-                {entry.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="inline-label">
-          {isDaily ? 'Day' : 'Chapter'}
-          <select
-            aria-label={isDaily ? 'Day' : 'Chapter'}
-            value={shownUnit}
-            disabled={devotionalId === ''}
-            onChange={(event) => go(devotionalId, { section: shownSection, unit: Number(event.target.value) })}
-          >
-            {unitChoices.map((entry) => (
-              <option key={entry.number} value={entry.number}>
-                {isDaily ? entry.number : entry.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        {isDaily && (
-          <button type="button" className="primary-button" onClick={() => go(devotionalId, today())}>
-            Today
+    <>
+      <LibraryList
+        heading={isBooks ? 'Read other books' : 'Read the devotionals'}
+        intro={
+          isBooks
+            ? 'Choose a book, a part and a chapter, and press Read. In the reader you can scroll on from chapter to chapter and come back to this list.'
+            : 'Choose a devotional and a day or chapter, and press Read (a daily devotional starts at today). In the reader you can scroll on, have a devotional emailed to you each day, and come back to this list.'
+        }
+        items={devotionals.map((entry) => ({ id: entry.id, name: entry.name, detail: entry.author }))}
+        isHidden={isHidden || !showList}
+        loadChoices={loadDevotionalChoices}
+        onRead={readFromList}
+      />
+      <div className="browse-tab" hidden={isHidden || showList}>
+        <div className="browse-controls" hidden={windowIsOpen}>
+          <button type="button" className="link-button browse-list-link" onClick={backToList}>
+            {isBooks ? '← All books' : '← All devotionals'}
           </button>
-        )}
-        <button type="button" className="browse-top-link" onClick={scrollToTop}>
-          ↑ Back to top
-        </button>
-      </div>
-
-      {current && contents && !isBooks && (
-        <div hidden={windowIsOpen}>
-          <DevotionalEmailPanel devotional={current} sections={contents.sections} currentSection={shownSection} currentUnit={shownUnit} />
-        </div>
-      )}
-
-      {(errorMessage || stripErrorMessage) && <p className="error">{errorMessage || stripErrorMessage}</p>}
-      {readings.length === 0 && !errorMessage && !stripErrorMessage && <p>Loading…</p>}
-
-      {readings.length > 0 && (
-        <div className="browse-reading" hidden={windowIsOpen}>
-          <div className="browse-edge" ref={topSentinel}>
-            {extending === 'previous'
-              ? 'Loading the one before…'
-              : readings[0].previous === null
-                ? `This is the start of ${readings[0].devotional.name}.`
-                : ''}
-          </div>
-
-          {readings.map((reading) => (
-            <section
-              key={chapterKey(reading.section, reading.unit)}
-              className={chapterKey(reading.section, reading.unit) === markedUnit ? 'browse-chapter is-marked-reading' : 'browse-chapter'}
-              id={`reading-${reading.section}-${reading.unit}`}
-              ref={registerChapter(reading.section, reading.unit)}
+          <label className="inline-label">
+            {isBooks ? 'Book' : 'Devotional'}
+            <select
+              aria-label={isBooks ? 'Book' : 'Devotional'}
+              value={devotionalId}
+              disabled={devotionalId === ''}
+              onChange={(event) => changeDevotional(event.target.value)}
             >
-              <div className="browse-heading">
-                <h2>{reading.title}</h2>
-                <span className="browse-commentary-name">
-                  {reading.devotional.name}
-                  {reading.devotional.kind === 'chapters' ? ` · ${reading.section_title}` : ''}
-                </span>
-              </div>
-              <div className="browse-note-links">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={(event) =>
-                    windows.open(
-                      'note',
-                      {
-                        translation: contextTranslation,
-                        // A reading is not a verse; the window is about its subject.
-                        book_number: 0,
-                        chapter: 0,
-                        verse: 0,
-                        reference: `${reading.title} (${reading.devotional.name})`,
-                        subject: {
-                          item_type: 'devotional',
-                          source_code: reading.devotional.id,
-                          section: reading.section,
-                          unit: reading.unit,
-                        },
-                      },
-                      event.currentTarget,
-                    )
-                  }
-                >
-                  Notes
-                  <span className="visually-hidden"> on {reading.title}</span>
-                </button>
-              </div>
-              {reading.entries.map((entry, index) => (
-                <article key={index} className="devotional-entry">
-                  {entry.heading && <h3>{entry.heading}</h3>}
-                  <div className="commentary-text">
-                    <NoteText text={entry.text} references={entry.references} terms={[]} translation={contextTranslation} onOpenReference={openReference} />
-                  </div>
-                </article>
+              {devotionals.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
               ))}
-            </section>
-          ))}
-
-          <div className="browse-to-top">
-            <button type="button" className="link-button" onClick={scrollToTop}>
-              ↑ Back to top
+            </select>
+          </label>
+          <label className="inline-label">
+            {isDaily ? 'Month' : 'Part'}
+            <select
+              aria-label={isDaily ? 'Month' : 'Part'}
+              value={shownSection}
+              disabled={devotionalId === ''}
+              onChange={(event) => go(devotionalId, { section: Number(event.target.value), unit: isDaily ? shownUnit : 1 })}
+            >
+              {sections.map((entry) => (
+                <option key={entry.number} value={entry.number}>
+                  {entry.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="inline-label">
+            {isDaily ? 'Day' : 'Chapter'}
+            <select
+              aria-label={isDaily ? 'Day' : 'Chapter'}
+              value={shownUnit}
+              disabled={devotionalId === ''}
+              onChange={(event) => go(devotionalId, { section: shownSection, unit: Number(event.target.value) })}
+            >
+              {unitChoices.map((entry) => (
+                <option key={entry.number} value={entry.number}>
+                  {isDaily ? entry.number : entry.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isDaily && (
+            <button type="button" className="primary-button" onClick={() => go(devotionalId, today())}>
+              Today
             </button>
-          </div>
-
-          <div className="browse-edge" ref={bottomSentinel}>
-            {extending === 'next'
-              ? 'Loading the next one…'
-              : readings[readings.length - 1].next === null
-                ? `This is the end of ${readings[0].devotional.name}.`
-                : ''}
-          </div>
-          <p className="related-note">
-            <DevotionalCredit devotional={readings[0].devotional} />
-          </p>
+          )}
+          <button type="button" className="browse-top-link" onClick={scrollToTop}>
+            ↑ Back to top
+          </button>
         </div>
-      )}
 
-      <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && readings.length > 0} onClick={scrollToTop} />
+        {current && contents && !isBooks && (
+          <div hidden={windowIsOpen}>
+            <DevotionalEmailPanel devotional={current} sections={contents.sections} currentSection={shownSection} currentUnit={shownUnit} />
+          </div>
+        )}
 
-      {windowIsOpen && currentView && (
-        <ContextWindow
-          key={currentView.id}
-          view={currentView}
-          canGoBack={windows.views.length > 1}
-          terms={[]}
-          wholeWords={false}
-          onBack={windows.goBack}
-          onClose={windows.close}
-          onOpenVerse={windows.openVerse}
-          onChangeDirection={windows.changeDirection}
-          onChangeCommentary={windows.changeCommentary}
-        />
-      )}
-    </div>
+        {(errorMessage || stripErrorMessage) && <p className="error">{errorMessage || stripErrorMessage}</p>}
+        {readings.length === 0 && !errorMessage && !stripErrorMessage && <p>Loading…</p>}
+
+        {readings.length > 0 && (
+          <div className="browse-reading" hidden={windowIsOpen}>
+            <div className="browse-edge" ref={topSentinel}>
+              {extending === 'previous'
+                ? 'Loading the one before…'
+                : readings[0].previous === null
+                  ? `This is the start of ${readings[0].devotional.name}.`
+                  : ''}
+            </div>
+
+            {readings.map((reading) => (
+              <section
+                key={chapterKey(reading.section, reading.unit)}
+                className={chapterKey(reading.section, reading.unit) === markedUnit ? 'browse-chapter is-marked-reading' : 'browse-chapter'}
+                id={`reading-${reading.section}-${reading.unit}`}
+                ref={registerChapter(reading.section, reading.unit)}
+              >
+                <div className="browse-heading">
+                  <h2>{reading.title}</h2>
+                  <span className="browse-commentary-name">
+                    {reading.devotional.name}
+                    {reading.devotional.kind === 'chapters' ? ` · ${reading.section_title}` : ''}
+                  </span>
+                </div>
+                <div className="browse-note-links">
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={(event) =>
+                      windows.open(
+                        'note',
+                        {
+                          translation: contextTranslation,
+                          // A reading is not a verse; the window is about its subject.
+                          book_number: 0,
+                          chapter: 0,
+                          verse: 0,
+                          reference: `${reading.title} (${reading.devotional.name})`,
+                          subject: {
+                            item_type: 'devotional',
+                            source_code: reading.devotional.id,
+                            section: reading.section,
+                            unit: reading.unit,
+                          },
+                        },
+                        event.currentTarget,
+                      )
+                    }
+                  >
+                    Notes
+                    <span className="visually-hidden"> on {reading.title}</span>
+                  </button>
+                </div>
+                {reading.entries.map((entry, index) => (
+                  <article key={index} className="devotional-entry">
+                    {entry.heading && <h3>{entry.heading}</h3>}
+                    <div className="commentary-text">
+                      <NoteText text={entry.text} references={entry.references} terms={[]} translation={contextTranslation} onOpenReference={openReference} />
+                    </div>
+                  </article>
+                ))}
+              </section>
+            ))}
+
+            <div className="browse-to-top">
+              <button type="button" className="link-button" onClick={scrollToTop}>
+                ↑ Back to top
+              </button>
+            </div>
+
+            <div className="browse-edge" ref={bottomSentinel}>
+              {extending === 'next'
+                ? 'Loading the next one…'
+                : readings[readings.length - 1].next === null
+                  ? `This is the end of ${readings[0].devotional.name}.`
+                  : ''}
+            </div>
+            <p className="related-note">
+              <DevotionalCredit devotional={readings[0].devotional} />
+            </p>
+          </div>
+        )}
+
+        <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && readings.length > 0} onClick={scrollToTop} />
+
+        {windowIsOpen && currentView && (
+          <ContextWindow
+            key={currentView.id}
+            view={currentView}
+            canGoBack={windows.views.length > 1}
+            terms={[]}
+            wholeWords={false}
+            onBack={windows.goBack}
+            onClose={windows.close}
+            onOpenVerse={windows.openVerse}
+            onChangeDirection={windows.changeDirection}
+            onChangeCommentary={windows.changeCommentary}
+          />
+        )}
+      </div>
+    </>
   )
 }
 
