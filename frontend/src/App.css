@@ -1635,3 +1635,33 @@ select:disabled {
   border-radius: 4px;
   font: inherit;
 }
+
+/* "583 Bible results for ..." sits at the right end of the Verse / Contents row of the list. Where that row is
+   not shown (a phone, or while there is nothing to list) the same line is the heading above the list. */
+.results-summary {
+  flex: 0 1 auto;
+  margin: 0 0 0 auto;
+  text-align: right;
+  color: var(--text);
+}
+
+.results-summary strong {
+  color: var(--text-h);
+}
+
+.results-heading p {
+  margin: 0;
+}
+
+@media (min-width: 701px) {
+  .has-header-row .results-summary-standalone,
+  .results-heading.is-folded {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .results-summary {
+    display: none;
+  }
+}

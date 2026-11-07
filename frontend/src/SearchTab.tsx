@@ -129,11 +129,6 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
 
   // "Show in Context" under a commentary result needs a Bible to show.
   const contextTranslation = chooseContextTranslation(translations)
-  const sourceLabel =
-    searchParameters?.commentary == null
-      ? 'all commentaries'
-      : (commentaries.find((entry) => entry.id === searchParameters.commentary)?.short_name ?? 'one commentary')
-
   return (
     // The search stays mounted while the other tab or the copyright page is open, so nothing typed is lost.
     <div hidden={isHidden}>
@@ -162,7 +157,6 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
             <SearchResults
               mode={mode}
               contextTranslation={contextTranslation}
-              sourceLabel={sourceLabel}
               searchParameters={searchParameters}
               response={response}
               books={books}

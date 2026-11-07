@@ -44,8 +44,6 @@ interface SearchResultsProps {
   mode: 'bible' | 'commentary'
   // The Bible that "Show in Context" uses for a commentary result.
   contextTranslation: string
-  // What a commentary search looked through ("all commentaries" or one name), for the heading.
-  sourceLabel: string
   searchParameters: SearchParameters
   response: SearchResponse | null
   books: Book[]
@@ -63,7 +61,6 @@ interface SearchResultsProps {
 function SearchResults({
   mode,
   contextTranslation,
-  sourceLabel,
   searchParameters,
   response,
   books,
@@ -202,20 +199,21 @@ function SearchResults({
     )
   }
 
+  const hasHeaderRow = response !== null && response.total > 0
   const pageCount = response ? Math.max(1, Math.ceil(response.total / response.per_page)) : 1
   const showTranslationCode = searchParameters.translations.length > 1
 
   return (
     <div className="results-layout">
-      <div className="results-main panel">
-        <div className="results-heading">
-          <p>
+      <div className={hasHeaderRow ? 'results-main panel has-header-row' : 'results-main panel'}>
+        {/* The count line is also in the header row of the list (at its right end) when there is one. This one
+            is for the other times: while searching, with no results, or on a phone, where that row is not shown. */}
+        <div className={hasHeaderRow && !response?.strong ? 'results-heading is-folded' : 'results-heading'}>
+          <p className="results-summary-standalone">
             <strong>
               {response ? response.total.toLocaleString() : '…'}{' '}
-              {mode === 'commentary' ? 'commentary results' : 'Bible results'} for “
-              {searchParameters.query}”
-            </strong>{' '}
-            {mode === 'commentary' ? `in ${sourceLabel}` : `from ${searchParameters.translations.join(', ')}`}
+              {mode === 'commentary' ? 'commentary results' : 'Bible results'}
+            </strong>
             {selectedBook !== null && (
               <>
                 {' '}
@@ -288,6 +286,21 @@ function SearchResults({
                   Clear Sort
                 </button>
               )}
+              <p className="results-summary">
+                <strong>
+                  {response ? response.total.toLocaleString() : '…'}{' '}
+                  {mode === 'commentary' ? 'commentary results' : 'Bible results'}
+                </strong>
+                {selectedBook !== null && (
+                  <>
+                    {' '}
+                    · only {books.find((book) => book.number === selectedBook)?.name ?? 'one book'}{' '}
+                    <button type="button" className="link-button" onClick={() => onSelectBook(null)}>
+                      Show all books
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
           )}
 
