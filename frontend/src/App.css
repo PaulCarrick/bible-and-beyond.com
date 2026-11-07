@@ -1505,3 +1505,73 @@ select:disabled {
   color: #b5300f;
   font-weight: 600;
 }
+
+/* The headings of the contact, account, confirm-email and My notes pages: the same size and line spacing
+   as the welcome page, so a heading that wraps onto two lines is readable. */
+.contact-page h1,
+.account-page h1,
+.notes-page h1 {
+  margin: 0.2rem 0 0.75rem;
+  font-size: 34px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+@media (max-width: 800px) {
+  .contact-page h1,
+  .account-page h1,
+  .notes-page h1 {
+    font-size: 28px;
+  }
+}
+
+/* On a phone the header is tight: a smaller name and icon, and account links that stay on one line. */
+.site-account button {
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .site-header {
+    gap: 0.5rem;
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .site-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .menu-button {
+    padding: 0.3rem 0.55rem;
+  }
+
+  .site-title {
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .site-name {
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-account {
+    gap: 0.5rem;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+  }
+
+  .site-account button {
+    font-size: inherit;
+  }
+}
+
+/* On a narrow phone, "Set up account" is shortened to "Set up" to leave room for the name. */
+@media (max-width: 480px) {
+  .phone-hidden {
+    display: none;
+  }
+}

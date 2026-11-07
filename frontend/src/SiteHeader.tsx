@@ -49,8 +49,8 @@ function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAc
           </>
         ) : (
           <>
-            <button type="button" className="link-button" onClick={onSetUpAccount}>
-              Set up account
+            <button type="button" className="link-button" aria-label="Set up account" onClick={onSetUpAccount}>
+              Set up<span className="phone-hidden"> account</span>
             </button>
             <button type="button" className="link-button" onClick={onLogIn}>
               Log in
