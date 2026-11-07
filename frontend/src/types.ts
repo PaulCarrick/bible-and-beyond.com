@@ -412,3 +412,18 @@ export type Destination =
   | { id: number; kind: 'bible'; translation: string; book: number; chapter: number; verse: number }
   | { id: number; kind: 'commentary'; commentary: string; book: number; chapter: number; verse: number }
   | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number }
+
+// A devotional the logged-in visitor gets by email each day.
+export interface DevotionalSubscription {
+  devotional_id: string
+  devotional_name: string
+  kind: 'daily' | 'chapters'
+  // The time of day, such as "07:00", in the visitor's own time zone.
+  send_time: string
+  timezone: string
+  // For a devotional with chapters: the one that will be sent next.
+  next_section: number | null
+  next_unit: number | null
+  next_title: string | null
+  last_sent_on: string | null
+}

@@ -42,6 +42,13 @@ from contact import (
   verify_recaptcha,
 )
 from context import get_chapter, get_context, get_parallel, get_related
+from subscriptions import (
+  SubscriptionProblem,
+  delete_subscription,
+  list_subscriptions,
+  save_subscription,
+  unsubscribe_with_token,
+)
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
 from original_words import get_lexicon_entry, get_original_words
 from search import (
@@ -619,3 +626,53 @@ def notes_delete(note_id: int, request: Request):
   except NoteProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}
+
+
+class SubscriptionRequest(BaseModel):
+  # The time of day, such as "07:00", in the visitor's own time zone (an IANA name such as America/Chicago).
+  send_time: str
+  timezone: str
+  # For a devotional with chapters: the chapter to start with (the first when not given).
+  start_section: int | None = None
+  start_unit: int | None = None
+
+
+@app.get("/devotional-subscriptions")
+def subscriptions_list(request: Request):
+  """The devotionals the logged-in visitor gets by email each day."""
+  user = require_user(request)
+  return {"subscriptions": list_subscriptions(user["id"])}
+
+
+@app.put("/devotional-subscriptions/{devotional_id}")
+def subscriptions_save(devotional_id: str, body: SubscriptionRequest, request: Request):
+  """Starts the daily email of a devotional, or changes its time (needs a confirmed email address)."""
+  user = require_user(request)
+  try:
+    return {
+      "subscription": save_subscription(
+        user["id"], devotional_id, body.send_time, body.timezone, body.start_section, body.start_unit
+      )
+    }
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/devotional-subscriptions/{devotional_id}")
+def subscriptions_delete(devotional_id: str, request: Request):
+  user = require_user(request)
+  try:
+    delete_subscription(user["id"], devotional_id)
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+@app.post("/subscriptions/unsubscribe")
+def subscriptions_unsubscribe(token: str = Query(max_length=100)):
+  """The link in every devotional email: stops that one subscription, with no login. Mail programs call it
+  too (one-click unsubscribe), which is why the token is in the address."""
+  try:
+    return {"devotional": unsubscribe_with_token(token)}
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))

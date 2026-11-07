@@ -106,8 +106,11 @@ if touched '^ml-service/requirements.txt$'; then
 fi
 if touched '^deploy/systemd/'; then
   cp deploy/systemd/bible-and-beyond-ml.service ~/.config/systemd/user/
+  cp deploy/systemd/bible-and-beyond-devotional-emails.service deploy/systemd/bible-and-beyond-devotional-emails.timer ~/.config/systemd/user/
   systemctl --user daemon-reload
-  echo "  service file updated"
+  # The timer that sends the daily devotional emails (a no-op when it is already running).
+  systemctl --user enable --now bible-and-beyond-devotional-emails.timer
+  echo "  service and timer files updated"
 fi
 if touched '^ml-service/(requirements\.txt|[^/]+\.py|bible_import/|scripts/)|^deploy/systemd/'; then
   systemctl --user restart bible-and-beyond-ml.service

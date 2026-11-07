@@ -1,0 +1,10 @@
+# User service for paul: install as ~/.config/systemd/user/bible-and-beyond-devotional-emails.service
+# Sends the daily devotional emails that are due. The timer next to it runs it every five minutes.
+[Unit]
+Description=Bible and Beyond: send the daily devotional emails that are due
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/bible-and-beyond.com/ml-service
+ExecStart=%h/bible-and-beyond.com/ml-service/.venv/bin/python scripts/send_devotional_emails.py
+Environment=PYTHONUNBUFFERED=1

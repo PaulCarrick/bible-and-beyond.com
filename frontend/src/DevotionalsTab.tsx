@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchDevotionalContents, fetchDevotionalUnit } from './api'
 import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
+import DevotionalEmailPanel from './DevotionalEmailPanel'
 import { chooseContextTranslation } from './contextTranslation'
 import DevotionalCredit from './DevotionalCredit'
 import NoteText from './NoteText'
@@ -232,6 +233,12 @@ function DevotionalsTab({ devotionals, translations, isHidden, destination }: De
           ↑ Back to top
         </button>
       </div>
+
+      {current && contents && (
+        <div hidden={windowIsOpen}>
+          <DevotionalEmailPanel devotional={current} sections={contents.sections} currentSection={shownSection} currentUnit={shownUnit} />
+        </div>
+      )}
 
       {(errorMessage || stripErrorMessage) && <p className="error">{errorMessage || stripErrorMessage}</p>}
       {readings.length === 0 && !errorMessage && !stripErrorMessage && <p>Loading…</p>}

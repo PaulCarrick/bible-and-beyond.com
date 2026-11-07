@@ -77,7 +77,8 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
             <h3>Devotionals</h3>
             <p>
               Daily readings for every day of the year, opening at today&rsquo;s date, and two short classics of the
-              devotional life: {joinList(devotionals.map((entry) => entry.name))}.
+              devotional life: {joinList(devotionals.map((entry) => entry.name))}. With an account, any of them can be
+              emailed to you each day at a time you choose.
             </p>
             <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
               Open the devotionals

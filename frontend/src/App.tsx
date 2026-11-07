@@ -15,6 +15,7 @@ import { AccountContext } from './AccountContext'
 import { chooseContextTranslation } from './contextTranslation'
 import NotesPage from './NotesPage'
 import AccountPage from './AccountPage'
+import UnsubscribePage from './UnsubscribePage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
@@ -36,15 +37,16 @@ const defaultSiteSettings: SiteSettings = {
   copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
 }
 
-// The links in our emails open the site with ?verify=... or ?reset=... on the end.
-function readEmailLink(): { kind: 'verify' | 'reset'; token: string } | null {
+// The links in our emails open the site with ?verify=..., ?reset=... or ?unsubscribe=... on the end.
+function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe'; token: string } | null {
   const parameters = new URLSearchParams(window.location.search)
-  const verifyToken = parameters.get('verify')
-  const resetToken = parameters.get('reset')
-  if (verifyToken) {
-    return { kind: 'verify', token: verifyToken }
+  for (const kind of ['verify', 'reset', 'unsubscribe'] as const) {
+    const token = parameters.get(kind)
+    if (token) {
+      return { kind, token }
+    }
   }
-  return resetToken ? { kind: 'reset', token: resetToken } : null
+  return null
 }
 
 function App() {
@@ -231,6 +233,7 @@ function App() {
                 </p>
               )}
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
+            {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'verify' && emailLink && (
                 <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
               )}

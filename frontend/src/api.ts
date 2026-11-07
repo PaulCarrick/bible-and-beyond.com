@@ -3,6 +3,7 @@ import type {
   BibleContents,
   CommentaryChapter,
   DevotionalContents,
+  DevotionalSubscription,
   DevotionalInfo,
   DevotionalUnit,
   CommentaryContents,
@@ -409,4 +410,45 @@ export async function updateNote(id: number, body: string): Promise<Note> {
 
 export async function deleteNote(id: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/notes/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// Daily devotional emails. The first three need a logged-in visitor with a confirmed email address.
+export async function fetchSubscriptions(signal: AbortSignal): Promise<DevotionalSubscription[]> {
+  const response = await fetch(`${mlServiceUrl}/devotional-subscriptions`, { credentials: 'include', signal })
+  return (await readJson<{ subscriptions: DevotionalSubscription[] }>(response)).subscriptions
+}
+
+export async function saveSubscription(
+  devotionalId: string,
+  options: { sendTime: string; timezone: string; startSection?: number; startUnit?: number },
+): Promise<DevotionalSubscription> {
+  const response = await fetch(`${mlServiceUrl}/devotional-subscriptions/${encodeURIComponent(devotionalId)}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      send_time: options.sendTime,
+      timezone: options.timezone,
+      start_section: options.startSection ?? null,
+      start_unit: options.startUnit ?? null,
+    }),
+  })
+  return (await readJson<{ subscription: DevotionalSubscription }>(response)).subscription
+}
+
+export async function deleteSubscription(devotionalId: string): Promise<void> {
+  await readJson(
+    await fetch(`${mlServiceUrl}/devotional-subscriptions/${encodeURIComponent(devotionalId)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+  )
+}
+
+// The link in every email: stops that devotional's emails with no login. Answers with the devotional's name.
+export async function unsubscribeWithToken(token: string): Promise<string> {
+  const response = await fetch(`${mlServiceUrl}/subscriptions/unsubscribe?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+  return (await readJson<{ devotional: string }>(response)).devotional
 }
