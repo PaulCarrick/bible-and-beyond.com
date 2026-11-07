@@ -217,6 +217,17 @@ def test_an_other_book_is_kept_apart_from_the_devotionals_and_has_no_emails(tmp_
   assert all(entry["id"] != "test-upload-book" for entry in list_devotionals())
   assert any(entry["id"] == "test-upload-book" for entry in client.get("/other-books").json())
   assert get_unit("test-upload-book", 1, 2)["entries"][0]["text"] == "Chapter two."
+  # The book can be searched, word forms included, and only books are searched.
+  found = client.get("/search-other-books", params={"query": "chapters", "book": "test-upload-book", "sort_by": "order"}).json()
+  assert found["total"] == 2 and [(entry["unit"], entry["unit_title"]) for entry in found["results"]] == [
+    (1, "The First Chapter"), (2, "The Second Chapter"),
+  ]
+  phrase = client.get("/search-other-books", params={"query": "chapter two", "match_mode": "phrase", "book": "test-upload-book"}).json()
+  assert phrase["total"] == 1 and "\u0001two\u0002" in phrase["results"][0]["text"]
+  assert any(entry["book"] == "test-upload-book" for entry in phrase["book_counts"])
+  assert client.get("/search-other-books", params={"query": "chapter", "book": "nobody"}).status_code == 422
+  assert client.get("/search-other-books", params={"query": "  "}).status_code == 422
+
   # A preface is section 0, and the reader can open it.
   preface = client.get("/devotional-unit", params={"devotional": "test-upload-book", "section": 0, "unit": 1})
   assert preface.status_code == 200 and preface.json()["entries"][0]["text"] == "A preface."

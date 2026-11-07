@@ -133,6 +133,9 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
               <button type="button" className="primary-button" onClick={() => onNavigate('books')}>
                 Read other books
               </button>
+              <button type="button" className="primary-button" onClick={() => onNavigate('searchBooks')}>
+                Search other books
+              </button>
             </div>
           </section>
         )}

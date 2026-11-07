@@ -57,8 +57,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           or the Back to top button, takes you to the top of the page.
         </li>
         <li>
-          <strong>Search tips.</strong> Put a phrase in quotation marks to keep its words together. In the commentaries,
-          words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo;.
+          <strong>Search tips.</strong> Put a phrase in quotation marks to keep its words together. In the commentaries
+          and the other books, words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo;.
         </li>
       </ul>
 

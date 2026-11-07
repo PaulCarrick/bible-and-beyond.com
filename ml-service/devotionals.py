@@ -22,7 +22,8 @@ import httpx
 from defusedxml import ElementTree
 
 from scripture_references import find_references
-from search import connect
+from commentaries import HEADLINE_OPTIONS
+from search import connect, parse_terms
 
 MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -1173,4 +1174,89 @@ def get_unit(devotional_id, section, unit):
     ],
     "previous": neighbour(position - 1),
     "next": neighbour(position + 1),
+  }
+
+
+def search_books(query, match_mode, book_id, page, per_page, sort_by):
+  """Search the text of the published Other books.
+
+  Matching is the commentary search's (see search_commentaries): words in any form, no word ignored for
+  being common; all words, any word, or an exact phrase. Results are the best matches first, or in the
+  order of the books and their chapters when sort_by is "order". Each result is one passage (an entry of
+  a chapter), with an excerpt around the words found, wrapped in \\u0001 and \\u0002.
+  """
+  terms = parse_terms(query, match_mode)
+  if not terms:
+    raise ValueError("Enter at least one word or phrase to search for.")
+  joiner = " || " if match_mode == "any" else " && "
+  tsquery = joiner.join(["phraseto_tsquery('commentary_english', %s)"] * len(terms))
+
+  with connect() as connection:
+    if book_id is not None and connection.execute(
+      "SELECT 1 FROM devotionals WHERE id = %s AND is_published AND collection = 'books'", (book_id,)
+    ).fetchone() is None:
+      raise ValueError(f"Unknown book: {book_id}")
+    if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
+      raise ValueError("Enter at least one word or phrase to search for.")
+
+    conditions = (
+      f"e.search_vector @@ ({tsquery}) AND d.is_published AND d.collection = 'books'"
+    )
+    book_counts = [
+      {"book": found_id, "name": name, "count": count}
+      for found_id, name, count in connection.execute(
+        f"SELECT d.id, d.name, count(*) FROM devotional_entries e JOIN devotionals d ON d.id = e.devotional_id "
+        f"WHERE {conditions} GROUP BY d.id, d.name, d.position ORDER BY d.position",
+        terms,
+      ).fetchall()
+    ]
+    total = sum(entry["count"] for entry in book_counts if book_id is None or entry["book"] == book_id)
+
+    if sort_by == "order":
+      order = "d.position, e.section, e.unit, e.part"
+    else:
+      order = "rank DESC, d.position, e.section, e.unit, e.part"
+    # Choose the page first, then build excerpts for just those passages (an excerpt reads the whole text).
+    page_rows = connection.execute(
+      f"""
+      SELECT e.devotional_id, e.section, e.unit, e.part, ts_rank_cd(e.search_vector, ({tsquery}), 1) AS rank
+      FROM devotional_entries e
+      JOIN devotionals d ON d.id = e.devotional_id
+      WHERE {conditions} AND (%s::text IS NULL OR e.devotional_id = %s)
+      ORDER BY {order}
+      LIMIT %s OFFSET %s
+      """,
+      [*terms, *terms, book_id, book_id, per_page, (page - 1) * per_page],
+    ).fetchall()
+    results = []
+    for found_id, section, unit, part, _rank in page_rows:
+      name, section_title, unit_title, heading, excerpt = connection.execute(
+        f"""
+        SELECT d.name, s.title, e.unit_title, e.heading, ts_headline('commentary_english', e.text, ({tsquery}), %s)
+        FROM devotional_entries e
+        JOIN devotionals d ON d.id = e.devotional_id
+        JOIN devotional_sections s ON s.devotional_id = e.devotional_id AND s.number = e.section
+        WHERE e.devotional_id = %s AND e.section = %s AND e.unit = %s AND e.part = %s
+        """,
+        [*terms, HEADLINE_OPTIONS, found_id, section, unit, part],
+      ).fetchone()
+      results.append({
+        "book": found_id,
+        "book_name": name,
+        "section": section,
+        "section_title": section_title,
+        "unit": unit,
+        "unit_title": unit_title,
+        "heading": heading,
+        "text": excerpt,
+      })
+
+  return {
+    "query": query,
+    "terms": terms,
+    "total": total,
+    "page": page,
+    "per_page": per_page,
+    "book_counts": book_counts,
+    "results": results,
   }

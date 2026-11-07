@@ -262,6 +262,54 @@ export async function fetchDevotionals(): Promise<DevotionalInfo[]> {
   return readJson(await fetch(`${mlServiceUrl}/devotionals`))
 }
 
+// A search inside the Other books (GET /search-other-books).
+export interface BookSearchOptions {
+  query: string
+  matchMode: 'all' | 'any' | 'phrase'
+  // Empty for every book.
+  book: string
+  sortBy: '' | 'order'
+  page: number
+  perPage: number
+}
+
+export interface BookSearchResult {
+  book: string
+  book_name: string
+  section: number
+  section_title: string
+  unit: number
+  unit_title: string
+  heading: string
+  // An excerpt, with each word found wrapped in \u0001 and \u0002.
+  text: string
+}
+
+export interface BookSearchResponse {
+  query: string
+  total: number
+  page: number
+  per_page: number
+  book_counts: { book: string; name: string; count: number }[]
+  results: BookSearchResult[]
+}
+
+export async function searchOtherBooks(options: BookSearchOptions, signal: AbortSignal): Promise<BookSearchResponse> {
+  const queryString = new URLSearchParams({
+    query: options.query,
+    match_mode: options.matchMode,
+    page: String(options.page),
+    per_page: String(options.perPage),
+  })
+  if (options.book !== '') {
+    queryString.set('book', options.book)
+  }
+  if (options.sortBy !== '') {
+    queryString.set('sort_by', options.sortBy)
+  }
+  return readJson(await fetch(`${mlServiceUrl}/search-other-books?${queryString}`, { signal }))
+}
+
 // The Other books: read a chapter at a time, through the same contents and unit calls as a devotional.
 export async function fetchOtherBooks(): Promise<DevotionalInfo[]> {
   return readJson(await fetch(`${mlServiceUrl}/other-books`))

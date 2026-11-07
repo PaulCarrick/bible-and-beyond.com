@@ -26,6 +26,7 @@ from bible_reader import get_contents as get_bible_contents
 from devotionals import get_contents as get_devotional_contents
 from devotionals import get_unit as get_devotional_unit
 from devotionals import list_books as list_other_books
+from devotionals import search_books
 from devotionals import list_devotionals
 from commentaries import (
   get_chapter_notes,
@@ -365,6 +366,21 @@ def search_commentary_text(
     return search_commentaries(
       query, match_mode, commentary, book_start, book_end, book, page, per_page, sort_by, sort_direction
     )
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/search-other-books")
+def search_other_books(
+  query: str = Query(min_length=1, max_length=500),
+  match_mode: Literal["all", "any", "phrase"] = "all",
+  book: str | None = Query(default=None, max_length=60),
+  page: int = Query(default=1, ge=1, le=1000),
+  per_page: int = Query(default=25, ge=1, le=100),
+  sort_by: Literal["order"] | None = None,
+):
+  try:
+    return search_books(query, match_mode, book, page, per_page, sort_by)
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
 

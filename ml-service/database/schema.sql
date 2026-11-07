@@ -281,5 +281,10 @@ CREATE TABLE IF NOT EXISTS devotional_entries (
     unit_title TEXT NOT NULL,
     heading TEXT NOT NULL,
     text TEXT NOT NULL,
+    -- Search inside the Other books (migration 018).
+    search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', unit_title || ' ' || text)) STORED,
     PRIMARY KEY (devotional_id, section, unit, part)
 );
+
+CREATE INDEX IF NOT EXISTS devotional_entries_by_search_vector
+    ON devotional_entries USING GIN (search_vector);

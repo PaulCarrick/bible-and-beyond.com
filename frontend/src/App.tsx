@@ -21,6 +21,7 @@ import UnsubscribePage from './UnsubscribePage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
+import BookSearchPage from './BookSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import DevotionalsTab from './DevotionalsTab'
@@ -232,7 +233,15 @@ function App() {
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
       : []),
     ...(otherBooks.length > 0
-      ? [{ heading: 'Other books', entries: [{ view: 'books' as View, label: 'Read other books' }] }]
+      ? [
+          {
+            heading: 'Other books',
+            entries: [
+              { view: 'books' as View, label: 'Read other books' },
+              { view: 'searchBooks' as View, label: 'Search other books' },
+            ],
+          },
+        ]
       : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
@@ -368,6 +377,16 @@ function App() {
                   translations={translations}
                   isHidden={activeView !== 'books'}
                   destination={destination?.kind === 'devotional' && isOtherBook(destination.devotional) ? destination : null}
+                />
+              )}
+              {otherBooks.length > 0 && (
+                <BookSearchPage
+                  books={otherBooks}
+                  isHidden={activeView !== 'searchBooks'}
+                  onOpen={(book, section, unit) => {
+                    setDestination({ id: Date.now(), kind: 'devotional', devotional: book, section, unit })
+                    navigate('books')
+                  }}
                 />
               )}
             </main>
