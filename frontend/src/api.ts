@@ -21,6 +21,7 @@ import type {
   SiteSettings,
   AccountUser,
   Note,
+  NotePage,
   NoteSubject,
   Translation,
   VerseContext,
@@ -379,10 +380,21 @@ export async function saveNote(subject: NoteSubject, body: string): Promise<Note
   return (await readJson<{ note: Note }>(response)).note
 }
 
-// All of the visitor's notes (newest first), for the My notes page.
-export async function fetchAllNotes(signal: AbortSignal): Promise<Note[]> {
-  const response = await fetch(`${mlServiceUrl}/notes`, { credentials: 'include', signal })
-  return (await readJson<{ notes: Note[] }>(response)).notes
+// One page of the visitor's notes (newest first) for the My notes page, kept to one kind and to the notes
+// that have every word of the search.
+export async function fetchNotePage(
+  options: { query: string; itemType: string; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<NotePage> {
+  const queryString = new URLSearchParams({ page: String(options.page), per_page: String(options.perPage) })
+  if (options.query.trim() !== '') {
+    queryString.set('query', options.query.trim())
+  }
+  if (options.itemType !== 'all') {
+    queryString.set('item_type', options.itemType)
+  }
+  const response = await fetch(`${mlServiceUrl}/notes?${queryString}`, { credentials: 'include', signal })
+  return readJson<NotePage>(response)
 }
 
 export async function updateNote(id: number, body: string): Promise<Note> {

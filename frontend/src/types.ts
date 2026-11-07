@@ -397,3 +397,11 @@ export interface NoteSubject {
   section?: number
   unit?: number
 }
+
+// One page of a visitor's notes, with how many match in all.
+export interface NotePage {
+  notes: Note[]
+  total: number
+  page: number
+  per_page: number
+}

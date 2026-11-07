@@ -15,7 +15,6 @@ SCRIPTURE_TYPES = ("bible_verse", "commentary")
 NOTE_TEXT_LIMIT = 10000
 NOTE_HTML_LIMIT = 60000
 SOURCE_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
-LIST_LIMIT = 200
 # Enough for any reader; it stops one account from filling the database.
 MAX_NOTES_PER_USER = 5000
 
@@ -127,8 +126,8 @@ def create_note(
       raise NoteProblem(f"You have reached the limit of {MAX_NOTES_PER_USER} notes. Please delete some first.")
     row = connection.execute(
       f"""
-      INSERT INTO notes (user_id, item_type, source_code, book_number, chapter, verse, section, unit, body)
-      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+      INSERT INTO notes (user_id, item_type, source_code, book_number, chapter, verse, section, unit, body, body_text)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
       RETURNING {COLUMNS}
       """,
       (
@@ -141,9 +140,19 @@ def create_note(
         item["section"],
         item["unit"],
         cleaned["html"],
+        cleaned["text"],
       ),
     ).fetchone()
     return _describe(connection, [_row_to_note(row)])[0]
+
+
+PER_PAGE_LIMIT = 200
+
+
+def _like_pattern(word: str) -> str:
+  """A word as a LIKE pattern that matches it anywhere, with %, _ and the escape itself taken literally."""
+  escaped = word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+  return f"%{escaped}%"
 
 
 def list_notes(
@@ -155,32 +164,47 @@ def list_notes(
   verse: int | None = None,
   section: int | None = None,
   unit: int | None = None,
-) -> list[dict]:
-  """The visitor's own notes, newest first. With item_type, only the notes about that one item: a verse is
-  the same item in every Bible (the numbering is the KJV's), and a commentary or devotional note is
-  matched by its commentary or devotional as well."""
+  query: str | None = None,
+  page: int = 1,
+  per_page: int = PER_PAGE_LIMIT,
+) -> dict:
+  """The visitor's own notes, newest first, one page of them: {"notes", "total", "page", "per_page"}.
+
+  item_type alone keeps one kind of note. With the place as well (the verse, the commentary and verse, or
+  the devotional, section and unit) only the notes about that one item are kept; a verse is the same item in
+  every Bible (the numbering is the KJV's). query keeps the notes whose text has every word of it, in any
+  case and any part of a word."""
+  if item_type is not None and item_type not in ITEM_TYPES:
+    raise NoteProblem("A note is about a Bible verse, a commentary or a devotional.")
+  if page < 1 or not 1 <= per_page <= PER_PAGE_LIMIT:
+    raise NoteProblem(f"Pages are from 1 to {PER_PAGE_LIMIT} notes.")
   conditions = ["user_id = %s"]
   values: list = [user_id]
   if item_type is not None:
-    if item_type not in ITEM_TYPES:
-      raise NoteProblem("A note is about a Bible verse, a commentary or a devotional.")
     conditions.append("item_type = %s")
     values.append(item_type)
-    if item_type in SCRIPTURE_TYPES:
-      conditions.append("book_number = %s AND chapter = %s AND verse = %s")
-      values.extend([book_number, chapter, verse])
-      if item_type == "commentary":
-        conditions.append("source_code = %s")
-        values.append(source_code)
-    else:
-      conditions.append("source_code = %s AND section = %s AND unit = %s")
-      values.extend([source_code, section, unit])
+  for column, value in (("book_number", book_number), ("chapter", chapter), ("verse", verse), ("section", section), ("unit", unit)):
+    if value is not None:
+      conditions.append(f"{column} = %s")
+      values.append(value)
+  if source_code is not None and item_type in ("commentary", "devotional"):
+    conditions.append("source_code = %s")
+    values.append(source_code)
+  words = (query or "").split()
+  if len(words) > 10:
+    raise NoteProblem("Please search for up to 10 words.")
+  for word in words:
+    conditions.append("body_text ILIKE %s")
+    values.append(_like_pattern(word))
+  where = " AND ".join(conditions)
   with connect() as connection:
+    total = connection.execute(f"SELECT count(*) FROM notes WHERE {where}", values).fetchone()[0]
     rows = connection.execute(
-      f"SELECT {COLUMNS} FROM notes WHERE {' AND '.join(conditions)} ORDER BY created_at DESC, id DESC LIMIT {LIST_LIMIT}",
-      values,
+      f"SELECT {COLUMNS} FROM notes WHERE {where} ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s",
+      [*values, per_page, (page - 1) * per_page],
     ).fetchall()
-    return _describe(connection, [_row_to_note(row) for row in rows])
+    notes = _describe(connection, [_row_to_note(row) for row in rows])
+  return {"notes": notes, "total": total, "page": page, "per_page": per_page}
 
 
 def update_note(user_id: int, note_id: int, body: str) -> dict:
@@ -191,8 +215,8 @@ def update_note(user_id: int, note_id: int, body: str) -> dict:
     raise NoteProblem(str(problem))
   with connect() as connection:
     row = connection.execute(
-      f"UPDATE notes SET body = %s, updated_at = now() WHERE id = %s AND user_id = %s RETURNING {COLUMNS}",
-      (cleaned["html"], note_id, user_id),
+      f"UPDATE notes SET body = %s, body_text = %s, updated_at = now() WHERE id = %s AND user_id = %s RETURNING {COLUMNS}",
+      (cleaned["html"], cleaned["text"], note_id, user_id),
     ).fetchone()
     if row is None:
       raise NoteProblem("That note was not found.", 404)

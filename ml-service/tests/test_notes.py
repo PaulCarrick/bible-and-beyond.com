@@ -217,3 +217,98 @@ def test_a_note_on_a_verse_that_does_not_exist_is_refused():
   response = client.post("/notes", json={**VERSE, "chapter": 3, "verse": 199})
 
   assert response.status_code == 422 and "no such verse" in response.json()["detail"]
+
+
+def make_notes(count_bodies):
+  sign_up()
+  return [
+    client.post("/notes", json={**VERSE, "verse": 16 if index % 2 == 0 else 17, "body": f"<p>{text}</p>"}).json()["note"]
+    for index, text in enumerate(count_bodies)
+  ]
+
+
+def test_the_list_is_paged_newest_first_with_the_total():
+  make_notes([f"Note number {number}" for number in range(7)])
+
+  first = client.get("/notes", params={"per_page": 3, "page": 1}).json()
+  third = client.get("/notes", params={"per_page": 3, "page": 3}).json()
+  beyond = client.get("/notes", params={"per_page": 3, "page": 9}).json()
+
+  assert first["total"] == third["total"] == 7 and first["page"] == 1 and first["per_page"] == 3
+  assert [note["body"] for note in first["notes"]] == ["<p>Note number 6</p>", "<p>Note number 5</p>", "<p>Note number 4</p>"]
+  assert [note["body"] for note in third["notes"]] == ["<p>Note number 0</p>"]
+  assert beyond["notes"] == [] and beyond["total"] == 7
+
+
+def test_the_page_numbers_are_checked():
+  sign_up()
+
+  assert client.get("/notes", params={"page": 0}).status_code == 422
+  assert client.get("/notes", params={"per_page": 0}).status_code == 422
+  assert client.get("/notes", params={"per_page": 201}).status_code == 422
+
+
+def test_a_search_needs_every_word_in_any_case_and_any_part_of_a_word():
+  make_notes(["Grace and truth came by Jesus", "Faith without works", "GRACE alone, by faith"])
+
+  both = client.get("/notes", params={"query": "grace faith"}).json()
+  part = client.get("/notes", params={"query": "TRUT"}).json()
+  none = client.get("/notes", params={"query": "mercy"}).json()
+
+  assert [note["body"] for note in both["notes"]] == ["<p>GRACE alone, by faith</p>"] and both["total"] == 1
+  assert part["total"] == 1 and none["total"] == 0 and none["notes"] == []
+
+
+def test_a_search_looks_at_the_text_not_the_tags_and_takes_wildcards_literally():
+  make_notes(["Plain words", "Fifty% done_ right"])
+  client.post("/notes", json={**VERSE, "body": '<p>A <a href="https://example.com/strong">link</a> <strong>bold</strong></p>'})
+
+  assert client.get("/notes", params={"query": "href"}).json()["total"] == 0
+  assert client.get("/notes", params={"query": "example"}).json()["total"] == 0
+  assert client.get("/notes", params={"query": "bold"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "%"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "done_"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "_"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "P%n"}).json()["total"] == 0
+
+
+def test_an_edit_changes_what_a_search_finds():
+  note = make_notes(["Original wording"])[0]
+
+  client.put(f"/notes/{note['id']}", json={"body": "<p>Rewritten wording</p>"})
+
+  assert client.get("/notes", params={"query": "original"}).json()["total"] == 0
+  assert client.get("/notes", params={"query": "rewritten"}).json()["total"] == 1
+
+
+def test_the_kind_and_a_search_and_paging_work_together_and_a_search_is_only_among_ones_own():
+  make_notes(["Love one", "Love two", "Other"])
+  client.post("/notes", json={"item_type": "devotional", "source_code": "morning-and-evening", "section": 1, "unit": 5, "body": "<p>Love devotional</p>"})
+
+  assert client.get("/notes", params={"item_type": "bible_verse"}).json()["total"] == 3
+  assert client.get("/notes", params={"item_type": "devotional"}).json()["total"] == 1
+  assert client.get("/notes", params={"item_type": "bible_verse", "query": "love"}).json()["total"] == 2
+  assert client.get("/notes", params={"query": "love", "per_page": 2}).json()["total"] == 3
+  client.cookies.clear()
+  sign_up("bob")
+  assert client.get("/notes", params={"query": "love"}).json()["total"] == 0
+
+
+def test_too_many_search_words_are_refused():
+  sign_up()
+
+  assert client.get("/notes", params={"query": "a b c d e f g h i j k"}).status_code == 422
+
+
+def test_notes_from_before_the_search_text_existed_get_theirs_from_the_migration():
+  import pathlib
+
+  make_notes(["Old note"])
+  with connect() as connection:
+    connection.execute("UPDATE notes SET body = %s, body_text = ''", ("<p>Fish &amp; <strong>chips</strong> &lt;3</p>",))
+    migration = (pathlib.Path(__file__).resolve().parent.parent / "database" / "migrations" / "013_add_note_search_text.sql").read_text()
+    connection.execute(migration)
+
+  assert client.get("/notes", params={"query": "chips"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "&"}).json()["total"] == 1
+  assert client.get("/notes", params={"query": "strong"}).json()["total"] == 0

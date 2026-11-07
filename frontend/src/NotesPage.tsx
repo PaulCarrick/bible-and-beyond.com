@@ -1,17 +1,19 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
-import { fetchAllNotes, saveNote } from './api'
+import { fetchNotePage, saveNote } from './api'
 import NoteCard from './NoteCard'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
-import type { Book, Note } from './types'
+import type { Book, NotePage } from './types'
 
 interface NotesPageProps {
   books: Book[]
   // The Bible a new note on a verse is filed under (the verse itself is the same in every Bible).
   translation: string
 }
+
+const notesPerPage = 25
 
 const typeChoices = [
   { value: 'all', label: 'All notes' },
@@ -25,8 +27,14 @@ const typeChoices = [
 // Notes link beside it.)
 function NotesPage({ books, translation }: NotesPageProps) {
   const { user, onNavigate } = useContext(AccountContext)
-  const [notes, setNotes] = useState<Note[] | null>(null)
+  const [result, setResult] = useState<NotePage | null>(null)
   const [filter, setFilter] = useState('all')
+  // What is typed in the search box, and what the list is actually searched for (set when it is submitted).
+  const [searchText, setSearchText] = useState('')
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+  // Changed to ask for the list again (after a note is added or deleted).
+  const [reload, setReload] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [bookNumber, setBookNumber] = useState('')
@@ -42,15 +50,35 @@ function NotesPage({ books, translation }: NotesPageProps) {
       return
     }
     const controller = new AbortController()
-    fetchAllNotes(controller.signal)
-      .then(setNotes)
+    fetchNotePage({ query, itemType: filter, page, perPage: notesPerPage }, controller.signal)
+      .then((loaded) => {
+        // Deleting the last note of the last page leaves that page empty: show the one before.
+        if (loaded.notes.length === 0 && loaded.total > 0 && page > 1) {
+          setPage(Math.ceil(loaded.total / notesPerPage))
+        } else {
+          setErrorMessage('')
+          setResult(loaded)
+        }
+      })
       .catch((error: Error) => {
         if (!controller.signal.aborted) {
           setErrorMessage(error.message)
         }
       })
     return () => controller.abort()
-  }, [userId])
+  }, [userId, query, filter, page, reload])
+
+  function handleSearch(event: FormEvent) {
+    event.preventDefault()
+    setQuery(searchText.trim())
+    setPage(1)
+  }
+
+  function clearSearch() {
+    setSearchText('')
+    setQuery('')
+    setPage(1)
+  }
 
   async function handleAdd(event: FormEvent) {
     event.preventDefault()
@@ -71,11 +99,16 @@ function NotesPage({ books, translation }: NotesPageProps) {
     }
     setIsSaving(true)
     try {
-      const note = await saveNote(
+      await saveNote(
         { item_type: 'bible_verse', source_code: translation, book_number: Number(bookNumber), chapter, verse },
         editor.getHtml(),
       )
-      setNotes((current) => [note, ...(current ?? [])])
+      // The new note is the newest: show the list from its start, without a search or kind that hides it.
+      setFilter('all')
+      setSearchText('')
+      setQuery('')
+      setPage(1)
+      setReload((count) => count + 1)
       editor.clear()
       setChapterText('')
       setVerseText('')
@@ -106,7 +139,8 @@ function NotesPage({ books, translation }: NotesPageProps) {
     )
   }
 
-  const shown = (notes ?? []).filter((note) => filter === 'all' || note.item_type === filter)
+  const pageCount = result ? Math.max(1, Math.ceil(result.total / notesPerPage)) : 1
+  const isFiltered = query !== '' || filter !== 'all'
 
   return (
     <div className="notes-page">
@@ -119,7 +153,13 @@ function NotesPage({ books, translation }: NotesPageProps) {
       <div className="notes-toolbar">
         <label className="inline-label">
           Show
-          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <select
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value)
+              setPage(1)
+            }}
+          >
             {typeChoices.map((choice) => (
               <option key={choice.value} value={choice.value}>
                 {choice.label}
@@ -133,6 +173,25 @@ function NotesPage({ books, translation }: NotesPageProps) {
           </button>
         )}
       </div>
+
+      <form className="notes-search" role="search" onSubmit={handleSearch}>
+        <input
+          type="search"
+          value={searchText}
+          maxLength={200}
+          placeholder="Search your notes"
+          aria-label="Search your notes"
+          onChange={(event) => setSearchText(event.target.value)}
+        />
+        <button type="submit" className="primary-button">
+          Search
+        </button>
+        {(query !== '' || searchText !== '') && (
+          <button type="button" className="link-button" onClick={clearSearch}>
+            Clear search
+          </button>
+        )}
+      </form>
 
       {/* The editor stays in the page while the form is closed, so it is never made twice. */}
       <form className="contact-form notes-add" onSubmit={handleAdd} hidden={!isAdding}>
@@ -178,22 +237,54 @@ function NotesPage({ books, translation }: NotesPageProps) {
       </form>
 
       {errorMessage && <p className="error">{errorMessage}</p>}
-      {notes === null && !errorMessage && <p>Loading…</p>}
-      {notes !== null && shown.length === 0 && (
-        <p>{notes.length === 0 ? 'You have not written any notes yet.' : 'You have no notes of that kind.'}</p>
+      {result === null && !errorMessage && <p>Loading…</p>}
+      {result !== null && (
+        <p className="notes-count" role="status">
+          {result.total === 0
+            ? isFiltered
+              ? 'No notes match.'
+              : 'You have not written any notes yet.'
+            : `${result.total} ${result.total === 1 ? 'note' : 'notes'}${isFiltered ? (result.total === 1 ? ' matches' : ' match') : ''}${
+                query !== '' ? ` “${query}”` : ''
+              }.`}
+        </p>
       )}
-      {shown.length > 0 && (
+      {result !== null && result.notes.length > 0 && (
         <ul className="note-list">
-          {shown.map((note) => (
+          {result.notes.map((note) => (
             <NoteCard
               key={note.id}
               note={note}
               showTitle
-              onChanged={(changed) => setNotes((current) => (current ?? []).map((entry) => (entry.id === changed.id ? changed : entry)))}
-              onDeleted={(id) => setNotes((current) => (current ?? []).filter((entry) => entry.id !== id))}
+              onChanged={(changed) =>
+                setResult((current) =>
+                  current ? { ...current, notes: current.notes.map((entry) => (entry.id === changed.id ? changed : entry)) } : current,
+                )
+              }
+              onDeleted={() => setReload((count) => count + 1)}
             />
           ))}
         </ul>
+      )}
+
+      {result !== null && pageCount > 1 && (
+        <nav className="pagination" aria-label="Pages of notes">
+          <button type="button" disabled={page <= 1} onClick={() => setPage(1)}>
+            First
+          </button>
+          <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {page} of {pageCount}
+          </span>
+          <button type="button" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>
+            Next
+          </button>
+          <button type="button" disabled={page >= pageCount} onClick={() => setPage(pageCount)}>
+            Last
+          </button>
+        </nav>
       )}
     </div>
   )

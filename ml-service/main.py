@@ -584,13 +584,15 @@ def notes_list(
   verse: int | None = None,
   section: int | None = None,
   unit: int | None = None,
+  query: str | None = Query(default=None, max_length=200),
+  page: int = 1,
+  per_page: int = 200,
 ):
-  """The logged-in visitor's own notes, newest first; with item_type, only those about that one item."""
+  """One page of the logged-in visitor's own notes, newest first, with the total that match. Narrow it by
+  kind (item_type), by item (the place as well) and by words in the text (query)."""
   user = require_user(request)
   try:
-    return {
-      "notes": list_notes(user["id"], item_type, source_code, book_number, chapter, verse, section, unit)
-    }
+    return list_notes(user["id"], item_type, source_code, book_number, chapter, verse, section, unit, query, page, per_page)
   except NoteProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 

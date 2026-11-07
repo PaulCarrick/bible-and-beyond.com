@@ -1575,3 +1575,28 @@ select:disabled {
     display: none;
   }
 }
+
+.notes-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.notes-search input[type='search'] {
+  flex: 1 1 14rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.notes-search .primary-button {
+  margin-top: 0;
+}
+
+.notes-count {
+  color: #5a6472;
+  font-size: 0.9rem;
+}
