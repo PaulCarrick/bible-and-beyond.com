@@ -1,9 +1,10 @@
 # Bible and Beyond in two containers
 
 Run your own copy of Bible and Beyond, a free, non-commercial Bible study site: public-domain Bibles,
-the Hebrew and Greek behind the English (Strong's numbers and a lexicon), cross references, six classic
-commentaries, four devotional books with daily emails, eleven other classic books, notes for visitors with accounts, and an
-AI-answered FAQ.
+the Hebrew and Greek behind the English (Strong's numbers and a lexicon), cross references, classic
+commentaries (Matthew Henry, Calvin, Luther on Galatians, Spurgeon's Treasury of David and more), devotional books
+with daily emails, other classic books (Augustine, Aquinas, Bunyan, Chesterton, Wesley, Edwards and more), a search
+over all of them at once, notes for visitors with accounts, and an AI-answered FAQ.
 
 - **web**: nginx serving the public site (port 80 in the container) and the Drupal admin (port 8081),
   with the Python service behind the site's `/api/` and the daily devotional emails.
@@ -15,10 +16,17 @@ AI-answered FAQ.
 public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the public-domain commentaries, the cross references
 (OpenBible.info, CC BY 4.0, credited on the site) and the Berean Bible's word links (public domain).
 **Fetched from their owners on the first start**, because they ask that their files not be redistributed:
-the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository) and the
-four devotionals (two from the Christian Classics Ethereal Library, two from Project Gutenberg) and the
-eleven other books (Project Gutenberg). No source
-data file is in the images, and no visitor data from the original site is included.
+the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository), the
+devotionals and the other books (from Project Gutenberg and the Christian Classics Ethereal Library), and
+Wesley's Notes on the Bible (a commentary, from CCEL). No source data file is in the images, and no visitor
+data from the original site is included.
+
+**Hidden until you publish them.** CCEL's copyright policy asks to be contacted before its editions are
+republished. Its editions of Faith's Checkbook, A Plain Account of Christian Perfection, The Journal of John
+Wesley, Religious Affections, Freedom of the Will, The Works of Jonathan Edwards (Volume One), All of Grace and
+Wesley's Notes on the Bible are therefore loaded **hidden**: ask CCEL (https://www.ccel.org/contact), then
+publish each from its admin page (Devotionals, Other books or Commentaries). Morning and Evening and Daily Light
+on the Daily Path, also CCEL's, are shown; if you would rather wait, hide them on the Devotionals page.
 
 ## Install on a server
 
@@ -39,8 +47,8 @@ docker compose -f docker/compose.yml logs -f web     # watch the first start; Ct
 ```
 
 The first start loads the built-in data (about a minute), sets up the admin, and then, while the site
-is already running, downloads and loads the STEPBible data, the devotionals and the other books (a few minutes, about
-130 MB; the server needs to reach github.com, ccel.org and gutenberg.org). Until they are loaded the
+is already running, downloads and loads the STEPBible data, the devotionals, the other books and Wesley's
+Notes (several minutes, about 150 MB; the server needs to reach github.com, ccel.org and gutenberg.org). Until they are loaded the
 devotionals and other books do not appear and the Original Words windows say there is nothing to show. If a download
 fails, the next start tries again (`docker compose -f docker/compose.yml restart web`). Then:
 

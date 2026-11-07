@@ -23,7 +23,7 @@ docker compose -f docker/compose.yml up -d
 docker compose -f docker/compose.yml logs -f web
 ```
 
-The first start loads the Bible data, sets up the admin, and then downloads the original-language data and the devotionals from their owners. It takes a few minutes.
+The first start loads the Bible data, sets up the admin, and then downloads the original-language data, the devotionals, the other books and Wesley's Notes from their owners. It takes several minutes. Some of these (the Christian Classics Ethereal Library's editions) are loaded hidden until you publish them from the admin; the [container guide](docker/README.md) explains why.
 
 ## Open the site
 
