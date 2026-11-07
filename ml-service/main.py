@@ -42,6 +42,7 @@ from contact import (
   verify_recaptcha,
 )
 from context import get_chapter, get_context, get_parallel, get_related
+from notes import NoteProblem, create_note, list_notes
 from original_words import get_lexicon_entry, get_original_words
 from search import (
   FIRST_BOOK_NUMBER,
@@ -542,3 +543,53 @@ def account_reset_password(body: ResetRequest):
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"reset": True}
+
+
+class NoteRequest(BaseModel):
+  item_type: Literal["bible_verse", "commentary", "devotional"]
+  source_code: str
+  book_number: int | None = None
+  chapter: int | None = None
+  verse: int | None = None
+  section: int | None = None
+  unit: int | None = None
+  # What the visitor wrote, as the editor (Quill) makes it: a little HTML, cleaned before it is kept.
+  body: str
+
+
+def require_user(request: Request) -> dict:
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  if user is None:
+    raise HTTPException(status_code=401, detail="Please log in to use notes.")
+  return user
+
+
+@app.post("/notes")
+def notes_create(body: NoteRequest, request: Request):
+  """Saves a note for the logged-in visitor."""
+  user = require_user(request)
+  try:
+    return {"note": create_note(user["id"], **body.model_dump())}
+  except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.get("/notes")
+def notes_list(
+  request: Request,
+  item_type: Literal["bible_verse", "commentary", "devotional"] | None = None,
+  source_code: str | None = None,
+  book_number: int | None = None,
+  chapter: int | None = None,
+  verse: int | None = None,
+  section: int | None = None,
+  unit: int | None = None,
+):
+  """The logged-in visitor's own notes, newest first; with item_type, only those about that one item."""
+  user = require_user(request)
+  try:
+    return {
+      "notes": list_notes(user["id"], item_type, source_code, book_number, chapter, verse, section, unit)
+    }
+  except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))

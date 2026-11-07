@@ -50,6 +50,10 @@ export function useVerseWindows<Key>(currentKey: Key | null, isReady: boolean) {
   // Ask the server for what a window shows, and put the answer in that window.
   function loadView(view: WindowView) {
     request.current?.abort()
+    // A note window has nothing to ask the server for up front: its panel loads its own notes.
+    if (view.kind === 'note') {
+      return
+    }
     const controller = new AbortController()
     request.current = controller
 

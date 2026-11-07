@@ -2,6 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { highlight, highlightLinked } from './highlight'
 import CommentaryPanel from './CommentaryPanel'
 import LexiconPanel from './LexiconPanel'
+import NotesPanel from './NotesPanel'
 import RelatedPanel from './RelatedPanel'
 import WordsPanel from './WordsPanel'
 import type {
@@ -82,6 +83,8 @@ function describe(kind: ContextKind, reference: string) {
       return `Lexicon entry ${reference}`
     case 'commentary':
       return `Commentaries on ${reference}`
+    case 'note':
+      return `Notes on ${reference}`
     default:
       return `${reference} in context`
   }
@@ -142,7 +145,8 @@ function ContextWindow({
       ]
     : []
   const answers = { parallel, related, words, lexicon, commentary, context, chapter: context }
-  const hasAnswer = answers[kind] !== null
+  // A note window has nothing to load: the editor is its content.
+  const hasAnswer = kind === 'note' || answers[kind] !== null
 
   return (
     <section className="context-window" aria-label={describe(kind, reference)}>
@@ -153,7 +157,9 @@ function ContextWindow({
           </button>
         )}
         <h2>
-          {kind === 'commentary' ? (
+          {kind === 'note' ? (
+            <>Notes on {reference}</>
+          ) : kind === 'commentary' ? (
             <>Commentaries on {commentary ? `${commentary.book_name} ${commentary.chapter}:${commentary.verse}` : reference}</>
           ) : kind === 'words' ? (
             <>
@@ -257,6 +263,8 @@ function ContextWindow({
         {words && <WordsPanel words={words} translation={translation} onOpenVerse={onOpenVerse} />}
 
         {lexicon && <LexiconPanel entry={lexicon} translation={translation} onOpenVerse={onOpenVerse} />}
+
+        {kind === 'note' && <NotesPanel target={view.target} onClose={onClose} />}
 
         {parallel && (
           <>

@@ -20,6 +20,7 @@ import type {
   SearchResponse,
   SiteSettings,
   AccountUser,
+  Note,
   Translation,
   VerseContext,
 } from './types'
@@ -355,4 +356,39 @@ export function forgotPassword(email: string) {
 
 export function resetPassword(token: string, password: string, passwordConfirmation: string) {
   return accountAction('reset-password', { token, password, password_confirmation: passwordConfirmation })
+}
+
+// Notes. Both calls need a logged-in visitor (the session cookie says who).
+export async function fetchVerseNotes(book: number, chapter: number, verse: number, signal: AbortSignal): Promise<Note[]> {
+  const queryString = new URLSearchParams({
+    item_type: 'bible_verse',
+    book_number: String(book),
+    chapter: String(chapter),
+    verse: String(verse),
+  })
+  const response = await fetch(`${mlServiceUrl}/notes?${queryString}`, { credentials: 'include', signal })
+  return (await readJson<{ notes: Note[] }>(response)).notes
+}
+
+export async function saveVerseNote(
+  translation: string,
+  book: number,
+  chapter: number,
+  verse: number,
+  body: string,
+): Promise<Note> {
+  const response = await fetch(`${mlServiceUrl}/notes`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      item_type: 'bible_verse',
+      source_code: translation,
+      book_number: book,
+      chapter,
+      verse,
+      body,
+    }),
+  })
+  return (await readJson<{ note: Note }>(response)).note
 }

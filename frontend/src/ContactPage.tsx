@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
 import { fetchContactSettings, sendContactMessage } from './api'
+import RichTextEditor from './RichTextEditor'
+import type { RichTextEditorHandle } from './RichTextEditor'
 
 interface Recaptcha {
   ready: (callback: () => void) => void
@@ -50,9 +50,7 @@ function ContactPage({ isHidden }: ContactPageProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const [isSent, setIsSent] = useState(false)
 
-  const toolbarReference = useRef<HTMLDivElement>(null)
-  const editorReference = useRef<HTMLDivElement>(null)
-  const quillReference = useRef<Quill | null>(null)
+  const editorReference = useRef<RichTextEditorHandle>(null)
 
   useEffect(() => {
     fetchContactSettings()
@@ -66,33 +64,22 @@ function ContactPage({ isHidden }: ContactPageProps) {
       .catch(() => setSetupMessage('The contact form is not available right now.'))
   }, [])
 
-  // The editor is made once the form is on the page.
-  useEffect(() => {
-    if (siteKey === null || quillReference.current || !editorReference.current || !toolbarReference.current) {
-      return
-    }
-    quillReference.current = new Quill(editorReference.current, {
-      theme: 'snow',
-      modules: { toolbar: toolbarReference.current, history: { delay: 1000, maxStack: 100 } },
-      placeholder: 'Write your message',
-    })
-  }, [siteKey])
-
   // Google's script is loaded as soon as the form is, so a token is quick to get when Send is pressed.
+  // Only once the page is opened, so a visitor who never uses the form never loads anything from Google.
   useEffect(() => {
-    if (siteKey !== null) {
+    if (siteKey !== null && !isHidden) {
       loadRecaptcha(siteKey).catch((error: Error) => setErrorMessage(error.message))
     }
-  }, [siteKey])
+  }, [siteKey, isHidden])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const quill = quillReference.current
-    if (!quill || siteKey === null || isSending) {
+    const editor = editorReference.current
+    if (!editor || siteKey === null || isSending) {
       return
     }
     setErrorMessage('')
-    if (quill.getText().trim() === '') {
+    if (editor.isEmpty()) {
       setErrorMessage('Please enter a message.')
       return
     }
@@ -105,14 +92,14 @@ function ContactPage({ isHidden }: ContactPageProps) {
         name: fullName,
         email: emailAddress,
         phone: phoneNumber,
-        message: quill.getSemanticHTML(),
+        message: editor.getHtml(),
         recaptcha_token: token,
       })
       setIsSent(true)
       setFullName('')
       setEmailAddress('')
       setPhoneNumber('')
-      quill.setText('')
+      editor.clear()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Your message could not be sent.')
     } finally {
@@ -176,32 +163,7 @@ function ContactPage({ isHidden }: ContactPageProps) {
 
           <div className="contact-field">
             <span id="contact-message-label">Message*</span>
-            <div className="contact-editor" role="group" aria-labelledby="contact-message-label">
-              <div ref={toolbarReference} className="contact-toolbar">
-                <span className="ql-formats">
-                  <button type="button" className="ql-bold" aria-label="Bold" />
-                  <button type="button" className="ql-italic" aria-label="Italic" />
-                  <button type="button" className="ql-strike" aria-label="Strikethrough" />
-                  <button type="button" className="ql-link" aria-label="Link" />
-                </span>
-                <span className="ql-formats">
-                  <button type="button" className="ql-header" value="2" aria-label="Heading" />
-                  <button type="button" className="ql-blockquote" aria-label="Quote" />
-                  <button type="button" className="ql-code-block" aria-label="Code" />
-                  <button type="button" className="ql-list" value="bullet" aria-label="Bulleted list" />
-                  <button type="button" className="ql-list" value="ordered" aria-label="Numbered list" />
-                </span>
-                <span className="ql-formats">
-                  <button type="button" onClick={() => quillReference.current?.history.undo()} aria-label="Undo">
-                    ↶
-                  </button>
-                  <button type="button" onClick={() => quillReference.current?.history.redo()} aria-label="Redo">
-                    ↷
-                  </button>
-                </span>
-              </div>
-              <div ref={editorReference} className="contact-text" />
-            </div>
+            <RichTextEditor ref={editorReference} placeholder="Write your message" labelledBy="contact-message-label" />
           </div>
 
           <p className="contact-required">* - Required Fields</p>

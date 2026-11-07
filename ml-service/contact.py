@@ -222,6 +222,19 @@ def check_message(name: str, email: str, phone: str, message_html: str) -> dict:
   return {"name": name, "email": email, "phone": phone, "html": cleaned_html, "text": text}
 
 
+def check_rich_text(html: str, html_limit: int, text_limit: int, what: str) -> dict:
+  """Cleans text from the editor (Quill) and checks its size. Returns {"html", "text"} or raises ContactProblem."""
+  if len(html) > html_limit:
+    raise ContactProblem(f"The {what} is too long.")
+  cleaned_html = clean_message_html(CONTROL_CHARACTERS.sub("", html))
+  text = message_to_text(cleaned_html)
+  if not text:
+    raise ContactProblem(f"Please write something in the {what}.")
+  if len(text) > text_limit:
+    raise ContactProblem(f"The {what} can be up to {text_limit} characters.")
+  return {"html": cleaned_html, "text": text}
+
+
 def load_mail_settings() -> dict:
   """The email settings from Drupal. DRUSH_COMMAND names drush when it is not the one in drupal/vendor/bin."""
   drush = shlex.split(os.environ.get("DRUSH_COMMAND", "")) or [str(DRUPAL_DIRECTORY / "vendor" / "bin" / "drush")]

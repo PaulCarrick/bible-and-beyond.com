@@ -28,6 +28,7 @@ const verseMenuItems: { kind: ContextKind; label: string }[] = [
   { kind: 'related', label: 'Related Verses' },
   { kind: 'words', label: 'Original Words' },
   { kind: 'commentary', label: 'Commentaries' },
+  { kind: 'note', label: 'Notes' },
 ]
 
 function verseId(chapter: BibleChapter, verse: BibleVerse) {

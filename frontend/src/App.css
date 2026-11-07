@@ -1404,3 +1404,33 @@ select:disabled {
     font-size: 0.8rem;
   }
 }
+
+/* Notes */
+.notes-panel h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.note-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.note time {
+  color: #5a6472;
+  font-size: 0.8rem;
+}
+
+.note-body > :first-child {
+  margin-top: 0.25rem;
+}
+
+.note-body > :last-child {
+  margin-bottom: 0;
+}

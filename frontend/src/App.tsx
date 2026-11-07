@@ -11,6 +11,7 @@ import {
 } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
+import { AccountContext } from './AccountContext'
 import AccountPage from './AccountPage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
@@ -140,114 +141,116 @@ function App() {
   ]
 
   return (
-    <div className="app-shell">
-      <SiteHeader
-        title={siteSettings.title}
-        isMenuOpen={isMenuOpen}
-        onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
-        onGoHome={() => navigate('welcome')}
-        user={user}
-        onSetUpAccount={() => navigate('register')}
-        onLogIn={() => navigate('login')}
-        onLogOut={() => {
-          logOut()
-            .catch(() => undefined)
-            .finally(() => {
-              setUser(null)
-              navigate('welcome')
-            })
-        }}
-      />
+    <AccountContext.Provider value={{ user, onNavigate: navigate }}>
+      <div className="app-shell">
+        <SiteHeader
+          title={siteSettings.title}
+          isMenuOpen={isMenuOpen}
+          onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
+          onGoHome={() => navigate('welcome')}
+          user={user}
+          onSetUpAccount={() => navigate('register')}
+          onLogIn={() => navigate('login')}
+          onLogOut={() => {
+            logOut()
+              .catch(() => undefined)
+              .finally(() => {
+                setUser(null)
+                navigate('welcome')
+              })
+          }}
+        />
 
-      <div className="site-body">
-        <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
+        <div className="site-body">
+          <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
 
-        {/* The page content and the footer share the column to the right of the sidebar. */}
-        <div className="site-column">
-          <main className="site-main" id="content">
-            {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
+          {/* The page content and the footer share the column to the right of the sidebar. */}
+          <div className="site-column">
+            <main className="site-main" id="content">
+              {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
 
-            {activeView === 'welcome' && (
-              <WelcomePage
-              siteTitle={siteSettings.title}
-                translations={translations}
-                commentaries={commentaries}
-                devotionals={devotionals}
-                onNavigate={navigate}
-              />
-            )}
-            {user && !user.email_verified && activeView !== 'verify' && (
-              <p className="contact-sent" role="status">
-                Please confirm your email address: we sent a link to {user.email}.{' '}
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => {
-                    setResendMessage('')
-                    resendVerification()
-                      .then(() => setResendMessage('Sent. If it does not arrive in a few minutes, check your spam folder.'))
-                      .catch((error: Error) => setResendMessage(error.message))
-                  }}
-                >
-                  Send it again
-                </button>{' '}
-                {resendMessage}
-              </p>
-            )}
-            {activeView === 'verify' && emailLink && (
-              <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
-            )}
-            {(activeView === 'register' || activeView === 'login' || activeView === 'forgot' || activeView === 'reset') && (
-              <AccountPage
-                key={activeView}
-                mode={activeView}
-                token={emailLink?.token ?? ''}
-                onDone={(loggedInUser) => {
-                  setUser(loggedInUser)
-                  navigate('welcome')
-                }}
-                onNavigate={navigate}
-              />
-            )}
-            {activeView === 'copyright' && (
-              <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
-            )}
-
-            {/* The form stays mounted too, so a half-written message is not lost. */}
-            <ContactPage isHidden={activeView !== 'contact'} />
-
-            {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
-            <BibleTab translations={translations} isHidden={activeView !== 'read'} />
-            <SearchTab
-              mode="bible"
-              translations={translations}
-              books={books}
-              commentaries={commentaries}
-              isHidden={activeView !== 'bible'}
-              onShowCopyrights={() => navigate('copyright')}
-            />
-            {commentaries.length > 0 && (
-              <>
-                <SearchTab
-                  mode="commentary"
+              {activeView === 'welcome' && (
+                <WelcomePage
+                siteTitle={siteSettings.title}
                   translations={translations}
-                  books={books}
                   commentaries={commentaries}
-                  isHidden={activeView !== 'commentary'}
-                  onShowCopyrights={() => navigate('copyright')}
+                  devotionals={devotionals}
+                  onNavigate={navigate}
                 />
-                <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
-              </>
-            )}
-            {devotionals.length > 0 && (
-              <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
-            )}
-          </main>
+              )}
+              {user && !user.email_verified && activeView !== 'verify' && (
+                <p className="contact-sent" role="status">
+                  Please confirm your email address: we sent a link to {user.email}.{' '}
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => {
+                      setResendMessage('')
+                      resendVerification()
+                        .then(() => setResendMessage('Sent. If it does not arrive in a few minutes, check your spam folder.'))
+                        .catch((error: Error) => setResendMessage(error.message))
+                    }}
+                  >
+                    Send it again
+                  </button>{' '}
+                  {resendMessage}
+                </p>
+              )}
+              {activeView === 'verify' && emailLink && (
+                <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
+              )}
+              {(activeView === 'register' || activeView === 'login' || activeView === 'forgot' || activeView === 'reset') && (
+                <AccountPage
+                  key={activeView}
+                  mode={activeView}
+                  token={emailLink?.token ?? ''}
+                  onDone={(loggedInUser) => {
+                    setUser(loggedInUser)
+                    navigate('welcome')
+                  }}
+                  onNavigate={navigate}
+                />
+              )}
+              {activeView === 'copyright' && (
+                <CopyrightPage onBack={() => navigate('welcome')} devotionals={devotionals} />
+              )}
 
-          <SiteFooter copyrightText={siteSettings.copyright} onShowCopyrightNotices={() => navigate('copyright')} />
+              {/* The form stays mounted too, so a half-written message is not lost. */}
+              <ContactPage isHidden={activeView !== 'contact'} />
+
+              {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
+              <BibleTab translations={translations} isHidden={activeView !== 'read'} />
+              <SearchTab
+                mode="bible"
+                translations={translations}
+                books={books}
+                commentaries={commentaries}
+                isHidden={activeView !== 'bible'}
+                onShowCopyrights={() => navigate('copyright')}
+              />
+              {commentaries.length > 0 && (
+                <>
+                  <SearchTab
+                    mode="commentary"
+                    translations={translations}
+                    books={books}
+                    commentaries={commentaries}
+                    isHidden={activeView !== 'commentary'}
+                    onShowCopyrights={() => navigate('copyright')}
+                  />
+                  <BrowseTab commentaries={commentaries} translations={translations} isHidden={activeView !== 'browse'} />
+                </>
+              )}
+              {devotionals.length > 0 && (
+                <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} />
+              )}
+            </main>
+
+            <SiteFooter copyrightText={siteSettings.copyright} onShowCopyrightNotices={() => navigate('copyright')} />
+          </div>
         </div>
       </div>
-    </div>
+    </AccountContext.Provider>
   )
 }
 

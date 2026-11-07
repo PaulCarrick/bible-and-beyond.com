@@ -82,7 +82,7 @@ export interface VerseContext {
   verses: ContextVerse[]
 }
 
-export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related' | 'words' | 'lexicon' | 'commentary'
+export type ContextKind = 'context' | 'chapter' | 'parallel' | 'related' | 'words' | 'lexicon' | 'commentary' | 'note'
 
 // A verse that a window is about, named well enough to ask for more about it.
 export interface VerseTarget {
@@ -359,4 +359,20 @@ export interface AccountUser {
   email: string
   // True once the owner followed the link emailed to the address.
   email_verified: boolean
+}
+
+// A note a logged-in visitor wrote about a verse, a commentary note or a devotional reading.
+export interface Note {
+  id: number
+  item_type: 'bible_verse' | 'commentary' | 'devotional'
+  source_code: string
+  book_number: number | null
+  chapter: number | null
+  verse: number | null
+  section: number | null
+  unit: number | null
+  // A little HTML, cleaned by the server.
+  body: string
+  created_at: string
+  updated_at: string
 }

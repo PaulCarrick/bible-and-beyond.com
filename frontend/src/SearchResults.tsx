@@ -374,6 +374,14 @@ function SearchResults({
                         Commentaries
                         <span className="visually-hidden"> on {result.reference}</span>
                       </button>
+                      <button
+                        type="button"
+                        className="link-button context-link"
+                        onClick={(event) => openContext('note', result, event.currentTarget)}
+                      >
+                        Notes
+                        <span className="visually-hidden"> on {result.reference}</span>
+                      </button>
                     </div>
                   )}
                 </div>
