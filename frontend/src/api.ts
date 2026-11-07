@@ -469,6 +469,8 @@ export interface FaqAnswer {
   question: string
   // Markdown written by Gemini; the page draws it as text, never as HTML.
   answer: string
+  // The Scripture references found in it (each once), with the verse each begins at.
+  references: { text: string; book: number; chapter: number; verse: number }[]
 }
 
 export async function fetchFaqQuestions(): Promise<FaqListing> {

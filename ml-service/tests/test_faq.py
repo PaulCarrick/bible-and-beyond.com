@@ -10,6 +10,14 @@ from main import app
 client = TestClient(app)
 
 
+class VerseLimits(dict):
+  """Stands in for the verse table: every book has 50 chapters of 40 verses."""
+
+  def get(self, key, default=None):
+    book, chapter = key
+    return 40 if chapter <= 50 else 0
+
+
 @pytest.fixture(autouse=True)
 def fake_gemini(monkeypatch):
   """Replaces the Gemini call with one that records the questions asked."""
@@ -22,6 +30,7 @@ def fake_gemini(monkeypatch):
 
   monkeypatch.setenv("GEMINI_API_KEY", "test-key")
   monkeypatch.setattr(faq, "ask_gemini", answer)
+  monkeypatch.setattr(faq, "verse_limits", VerseLimits)
   yield calls
   faq.clear_cache()
 
@@ -53,6 +62,7 @@ def test_an_answer_is_asked_once_and_kept_for_a_day(fake_gemini):
     "question_id": 7,
     "question": "What evidence is there that Jesus rose from the dead?",
     "answer": "Answer to: What evidence is there that Jesus rose from the dead?",
+    "references": [],
   }
   assert second.json() == first.json()
   assert fake_gemini == ["What evidence is there that Jesus rose from the dead?"]
@@ -187,3 +197,39 @@ def test_the_next_model_is_tried_when_one_is_busy(monkeypatch):
   tried.clear()
   faq.ask_gemini("How should I pray?")
   assert tried == ["gemini-3.6-flash"]
+
+
+def test_the_references_in_an_answer_are_listed_once_with_their_verse(monkeypatch):
+  monkeypatch.setattr(
+    faq,
+    "ask_gemini",
+    lambda question: "See **John 3:16** and Romans 8:38–39; also 1 John 4:1.\n\n- John 3:16 again (Genesis 99:1).",
+  )
+
+  references = client.post("/faq/answer", json={"question_id": 8}).json()["references"]
+
+  assert references == [
+    {"text": "John 3:16", "book": 43, "chapter": 3, "verse": 16},
+    {"text": "Romans 8:38–39", "book": 45, "chapter": 8, "verse": 38},
+    {"text": "1 John 4:1", "book": 62, "chapter": 4, "verse": 1},
+  ]
+
+
+def test_a_reference_to_a_verse_that_does_not_exist_is_not_listed():
+  assert faq.list_references("Read John 3:99 and Obadiah 1:5.") == [
+    {"text": "Obadiah 1:5", "book": 31, "chapter": 1, "verse": 5},
+  ]
+
+
+def test_the_answer_still_shows_when_the_verse_table_cannot_be_read(monkeypatch):
+  def broken():
+    raise RuntimeError("no database")
+
+  monkeypatch.setattr(faq, "verse_limits", broken)
+  monkeypatch.setattr(faq, "ask_gemini", lambda question: "Read John 3:16.")
+
+  response = client.post("/faq/answer", json={"question_id": 2})
+
+  assert response.status_code == 200
+  assert response.json()["answer"] == "Read John 3:16."
+  assert response.json()["references"] == []

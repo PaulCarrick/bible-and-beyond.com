@@ -11,6 +11,8 @@ import os
 import threading
 import time
 
+from scripture_references import find_references, verse_limits
+
 ANSWER_CACHE_SECONDS = 24 * 60 * 60
 # Tried in order. gemini-flash-latest is Google's name for its newest Flash model, kept as the second choice.
 DEFAULT_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
@@ -169,7 +171,7 @@ def get_answer(question_id: int, now: float | None = None) -> dict:
     with _cache_lock:
       cached = _cache.get(question_id)
     if cached and current - cached[0] < ANSWER_CACHE_SECONDS:
-      return {"question_id": question_id, "question": question, "answer": cached[1]}
+      return _response(question_id, question, cached[1])
 
     try:
       answer = ask_gemini(question)
@@ -178,7 +180,34 @@ def get_answer(question_id: int, now: float | None = None) -> dict:
       raise
     with _cache_lock:
       _cache[question_id] = (current, answer)
-    return {"question_id": question_id, "question": question, "answer": answer}
+    return _response(question_id, question, answer)
+
+
+def list_references(answer: str) -> list[dict]:
+  """The Scripture references in an answer, each once, with the verse it begins at (for links to the reader).
+
+  Found with the same code as the references in the commentaries, so a reference to a verse that does not
+  exist is left out. The text is given rather than positions, because the page draws the Markdown.
+  """
+  try:
+    limits = verse_limits()
+  except Exception as error:  # The links are a nicety: without the database the answer still shows.
+    logging.getLogger("faq").warning("FAQ references not found (no verse limits): %s", error)
+    return []
+  references = []
+  seen = set()
+  for start, end, code in find_references(answer, limits):
+    text = answer[start:end]
+    if text in seen:
+      continue
+    seen.add(text)
+    book, chapter, verse = (int(part) for part in code.split(":"))
+    references.append({"text": text, "book": book, "chapter": chapter, "verse": verse})
+  return references
+
+
+def _response(question_id: int, question: str, answer: str) -> dict:
+  return {"question_id": question_id, "question": question, "answer": answer, "references": list_references(answer)}
 
 
 def clear_cache() -> None:

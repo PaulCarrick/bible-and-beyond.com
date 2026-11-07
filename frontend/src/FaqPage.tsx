@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
 import MarkdownText from './MarkdownText'
+import type { TextLink } from './MarkdownText'
 
 interface FaqPageProps {
   isHidden: boolean
@@ -106,7 +107,16 @@ function FaqPage({ isHidden, onOpenVerse }: FaqPageProps) {
         {shownAnswer && !isAsking && (
           <article className="faq-answer">
             <h2>{shownAnswer.question}</h2>
-            <MarkdownText markdown={shownAnswer.answer} />
+            <MarkdownText
+              markdown={shownAnswer.answer}
+              links={shownAnswer.references.map(
+                (reference): TextLink => ({
+                  text: reference.text,
+                  label: `Open ${reference.text} in the Bible`,
+                  onClick: () => onOpenVerse(reference.book, reference.chapter, reference.verse),
+                }),
+              )}
+            />
             <div className="faq-ai-note">
               <p>
                 This answer was written by an AI and may contain mistakes. This is true of people as well: for example,
