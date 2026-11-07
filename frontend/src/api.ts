@@ -310,6 +310,60 @@ export async function searchOtherBooks(options: BookSearchOptions, signal: Abort
   return readJson(await fetch(`${mlServiceUrl}/search-other-books?${queryString}`, { signal }))
 }
 
+// The search on the welcome page (GET /search-everything): a few hits of each kind, in groups.
+export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book'
+
+export type SiteSearchResult =
+  | { kind: 'bible'; translation: string; book_number: number; chapter: number; verse: number; reference: string; text: string }
+  | {
+      kind: 'commentary'
+      commentary_id: string
+      commentary_name: string
+      book_number: number
+      chapter: number
+      verse: number
+      reference: string
+      text: string
+    }
+  | ({ kind: 'devotional' | 'book' } & BookSearchResult)
+
+export interface SiteSearchGroup {
+  kind: SiteSearchKind
+  total: number
+  page: number
+  per_page: number
+  // The Bible searched, and the words to show in bold in its verses (the other kinds come with excerpts).
+  translation?: string
+  terms?: string[]
+  results: SiteSearchResult[]
+}
+
+export async function searchEverything(
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase'; kind?: SiteSearchKind; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<{ query: string; groups: SiteSearchGroup[] }> {
+  const queryString = new URLSearchParams({
+    query: options.query,
+    match_mode: options.matchMode,
+    page: String(options.page),
+    per_page: String(options.perPage),
+  })
+  if (options.kind) {
+    queryString.set('kind', options.kind)
+  }
+  const found: { query: string; groups: SiteSearchGroup[] } = await readJson(
+    await fetch(`${mlServiceUrl}/search-everything?${queryString}`, { signal }),
+  )
+  // Each hit says what kind it is, so it can be drawn and opened without looking at its group.
+  return {
+    ...found,
+    groups: found.groups.map((group) => ({
+      ...group,
+      results: group.results.map((result) => ({ ...result, kind: group.kind }) as SiteSearchResult),
+    })),
+  }
+}
+
 // The Other books: read a chapter at a time, through the same contents and unit calls as a devotional.
 export async function fetchOtherBooks(): Promise<DevotionalInfo[]> {
   return readJson(await fetch(`${mlServiceUrl}/other-books`))

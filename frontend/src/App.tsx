@@ -31,6 +31,7 @@ import type { NavGroup } from './SideNav'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
+import WelcomeSearch from './WelcomeSearch'
 import { readVerseAddress } from './verseAddress'
 import { addressFor, readPageHistoryState, viewForAddress } from './pageAddress'
 import type { PageHistoryState } from './pageAddress'
@@ -294,6 +295,14 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
+              {/* Below the welcome cards, but kept mounted so its hits are still there after going Back. */}
+              <WelcomeSearch
+                isHidden={activeView !== 'welcome'}
+                onOpen={(found, view) => {
+                  setDestination(found)
+                  navigate(view)
+                }}
+              />
               {user && !user.email_verified && activeView !== 'verify' && (
                 <p className="contact-sent" role="status">
                   Please confirm your email address: we sent a link to {user.email}.{' '}

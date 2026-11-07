@@ -1178,7 +1178,12 @@ def get_unit(devotional_id, section, unit):
 
 
 def search_books(query, match_mode, book_id, page, per_page, sort_by):
-  """Search the text of the published Other books.
+  """Search the text of the published Other books (see search_library)."""
+  return search_library(query, match_mode, "books", book_id, page, per_page, sort_by)
+
+
+def search_library(query, match_mode, collection, book_id, page, per_page, sort_by):
+  """Search the text of the published devotionals or Other books (collection "devotionals" or "books").
 
   Matching is the commentary search's (see search_commentaries): words in any form, no word ignored for
   being common; all words, any word, or an exact phrase. Results are the best matches first, or in the
@@ -1193,21 +1198,19 @@ def search_books(query, match_mode, book_id, page, per_page, sort_by):
 
   with connect() as connection:
     if book_id is not None and connection.execute(
-      "SELECT 1 FROM devotionals WHERE id = %s AND is_published AND collection = 'books'", (book_id,)
+      "SELECT 1 FROM devotionals WHERE id = %s AND is_published AND collection = %s", (book_id, collection)
     ).fetchone() is None:
-      raise ValueError(f"Unknown book: {book_id}")
+      raise ValueError(f"Unknown {'book' if collection == 'books' else 'devotional'}: {book_id}")
     if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
       raise ValueError("Enter at least one word or phrase to search for.")
 
-    conditions = (
-      f"e.search_vector @@ ({tsquery}) AND d.is_published AND d.collection = 'books'"
-    )
+    conditions = f"e.search_vector @@ ({tsquery}) AND d.is_published AND d.collection = %s"
     book_counts = [
       {"book": found_id, "name": name, "count": count}
       for found_id, name, count in connection.execute(
         f"SELECT d.id, d.name, count(*) FROM devotional_entries e JOIN devotionals d ON d.id = e.devotional_id "
         f"WHERE {conditions} GROUP BY d.id, d.name, d.position ORDER BY d.position",
-        terms,
+        [*terms, collection],
       ).fetchall()
     ]
     total = sum(entry["count"] for entry in book_counts if book_id is None or entry["book"] == book_id)
@@ -1226,7 +1229,7 @@ def search_books(query, match_mode, book_id, page, per_page, sort_by):
       ORDER BY {order}
       LIMIT %s OFFSET %s
       """,
-      [*terms, *terms, book_id, book_id, per_page, (page - 1) * per_page],
+      [*terms, *terms, collection, book_id, book_id, per_page, (page - 1) * per_page],
     ).fetchall()
     results = []
     for found_id, section, unit, part, _rank in page_rows:

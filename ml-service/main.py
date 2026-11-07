@@ -27,6 +27,7 @@ from devotionals import get_contents as get_devotional_contents
 from devotionals import get_unit as get_devotional_unit
 from devotionals import list_books as list_other_books
 from devotionals import search_books
+from site_search import search_everything
 from devotionals import list_devotionals
 from commentaries import (
   get_chapter_notes,
@@ -381,6 +382,20 @@ def search_other_books(
 ):
   try:
     return search_books(query, match_mode, book, page, per_page, sort_by)
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/search-everything")
+def search_everything_on_the_site(
+  query: str = Query(min_length=1, max_length=500),
+  match_mode: Literal["all", "any", "phrase"] = "all",
+  kind: Literal["bible", "commentary", "devotional", "book"] | None = None,
+  page: int = Query(default=1, ge=1, le=1000),
+  per_page: int = Query(default=5, ge=1, le=25),
+):
+  try:
+    return search_everything(query, match_mode, kind, page, per_page)
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
 

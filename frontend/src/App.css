@@ -1817,3 +1817,27 @@ select:disabled {
   margin: 0;
   text-align: left;
 }
+
+/* The search under the welcome cards. */
+.welcome-search {
+  margin-top: 2rem;
+}
+
+.welcome-search-group h3 {
+  margin: 1.5rem 0 0;
+  font-size: 18px;
+}
+
+.welcome-search-count {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.welcome-search-group.is-loading {
+  opacity: 0.5;
+}
+
+.welcome-search-more {
+  margin-top: 0.75rem;
+}
