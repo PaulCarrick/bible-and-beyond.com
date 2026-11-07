@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteNote, updateNote } from './api'
+import { highlightHtml } from './highlightHtml'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
 import type { Note } from './types'
@@ -12,6 +13,8 @@ interface NoteCardProps {
   onDeleted: (id: number) => void
   // On the My notes page: open the verse, commentary note or reading the note is about.
   onOpenItem?: (note: Note) => void
+  // The words searched for, shown highlighted in the note (none outside a search).
+  highlightTerms?: string[]
 }
 
 function formatTime(isoTime: string) {
@@ -19,11 +22,17 @@ function formatTime(isoTime: string) {
 }
 
 // One note, with Edit and Delete. Editing happens in place; deleting asks first.
-function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem }: NoteCardProps) {
+function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem, highlightTerms = [] }: NoteCardProps) {
   const [mode, setMode] = useState<'reading' | 'editing' | 'confirming'>('reading')
   const [isBusy, setIsBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const editorReference = useRef<RichTextEditorHandle>(null)
+  // A new array each render would redo this for nothing: key it on the words themselves.
+  const termsKey = highlightTerms.join('\u0000')
+  const shownBody = useMemo(
+    () => highlightHtml(note.body, termsKey === '' ? [] : termsKey.split('\u0000')),
+    [note.body, termsKey],
+  )
   const wasEdited = note.updated_at !== note.created_at
   const openLabel = { bible_verse: 'Open in the Bible', commentary: 'Open the commentary note', devotional: 'Open the reading' }[note.item_type]
 
@@ -95,8 +104,9 @@ function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem }: NoteCar
         </div>
       ) : (
         <>
-          {/* The server cleans the note (a short list of tags, safe links) before it keeps it. */}
-          <div className="note-body" dangerouslySetInnerHTML={{ __html: note.body }} />
+          {/* The server cleans the note (a short list of tags, safe links) before it keeps it; the search words are
+              only wrapped in <mark> in its text. */}
+          <div className="note-body" dangerouslySetInnerHTML={{ __html: shownBody }} />
           {mode === 'confirming' ? (
             <div className="note-actions" role="alert">
               <span>Delete this note?</span>

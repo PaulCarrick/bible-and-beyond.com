@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
 import { fetchNotePage, saveNote } from './api'
@@ -47,6 +47,8 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
   const editorReference = useRef<RichTextEditorHandle>(null)
   const addFormReference = useRef<HTMLFormElement>(null)
   const userId = user?.id ?? null
+  // The words of the search that is showing (not what is being typed), as the server splits them.
+  const searchWords = useMemo(() => query.split(/\s+/).filter((word) => word !== ''), [query])
 
   useEffect(() => {
     if (userId === null) {
@@ -223,6 +225,7 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
               note={note}
               showTitle
               onOpenItem={onOpenItem}
+              highlightTerms={searchWords}
               onChanged={(changed) =>
                 setResult((current) =>
                   current ? { ...current, notes: current.notes.map((entry) => (entry.id === changed.id ? changed : entry)) } : current,

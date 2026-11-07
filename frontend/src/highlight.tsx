@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 
-function escapeRegularExpression(text: string) {
+export function escapeRegularExpression(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 

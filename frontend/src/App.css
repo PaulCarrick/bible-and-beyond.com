@@ -1600,3 +1600,17 @@ select:disabled {
   color: #5a6472;
   font-size: 0.9rem;
 }
+
+/* Search words in a note */
+.note-body mark {
+  padding: 0 0.1em;
+  border-radius: 2px;
+  background: #fff1a8;
+  color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .note-body mark {
+    background: #6b5a00;
+  }
+}
