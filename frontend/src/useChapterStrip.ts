@@ -103,6 +103,8 @@ export function useChapterStrip<Chapter extends StripChapter>(
       return true
     } catch (error) {
       if (!request.signal.aborted) {
+        // Do not leave the reading that was shown before under the message: it is not what was asked for.
+        setChapters([])
         setErrorMessage(error instanceof Error ? error.message : 'Could not load the chapter.')
         setIsStarting(false)
       }

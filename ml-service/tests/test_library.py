@@ -198,6 +198,7 @@ def test_the_tool_answers_in_json(tmp_path):
 BOOK = {"id": "test-upload-book", "name": "Test Book", "author": "C. Writer", "source_name": "A test source"}
 BOOK_FILE = (
   "section\tsection_title\tunit\tunit_title\theading\ttext\n"
+  "0\tPreface\t1\tPreface\t\tA preface.\n"
   "1\tThe Book\t1\tThe First Chapter\t\tChapter one.\n"
   "1\t\t2\tThe Second Chapter\t\tChapter two.\n"
 )
@@ -207,7 +208,7 @@ def test_an_other_book_is_kept_apart_from_the_devotionals_and_has_no_emails(tmp_
   from devotionals import list_books
 
   result = import_file("book", write(tmp_path, BOOK_FILE), BOOK)
-  assert result["is_published"] is False and result["count"] == 2
+  assert result["is_published"] is False and result["count"] == 3
   assert all(item["id"] != "test-upload-book" for item in library_admin.list_items("devotional"))
   assert any(item["id"] == "test-upload-book" for item in library_admin.list_items("book"))
 
@@ -216,6 +217,9 @@ def test_an_other_book_is_kept_apart_from_the_devotionals_and_has_no_emails(tmp_
   assert all(entry["id"] != "test-upload-book" for entry in list_devotionals())
   assert any(entry["id"] == "test-upload-book" for entry in client.get("/other-books").json())
   assert get_unit("test-upload-book", 1, 2)["entries"][0]["text"] == "Chapter two."
+  # A preface is section 0, and the reader can open it.
+  preface = client.get("/devotional-unit", params={"devotional": "test-upload-book", "section": 0, "unit": 1})
+  assert preface.status_code == 200 and preface.json()["entries"][0]["text"] == "A preface."
 
   user = create_user("book-reader@library-test.example", "a long enough password", True, False)
   with pytest.raises(SubscriptionProblem, match="not found"):
@@ -226,7 +230,7 @@ def test_an_other_book_is_kept_apart_from_the_devotionals_and_has_no_emails(tmp_
     library_admin.set_published("devotional", "test-upload-book", False)
   with pytest.raises(UploadProblem, match="already an Other book"):
     check_details("devotional", {**CHAPTERS, "id": "test-upload-book"})
-  assert library_admin.delete("book", "test-upload-book")["deleted_count"] == 2
+  assert library_admin.delete("book", "test-upload-book")["deleted_count"] == 3
 
 
 def test_the_known_books_can_be_loaded_from_the_admin():

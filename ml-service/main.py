@@ -438,7 +438,8 @@ def devotional_contents(devotional: str = Query(min_length=1, max_length=60)):
 @app.get("/devotional-unit")
 def devotional_unit(
   devotional: str = Query(min_length=1, max_length=60),
-  section: int = Query(ge=1, le=99),
+  # Section 0 is a preface or prologue (the Summa's, or an uploaded book's).
+  section: int = Query(ge=0, le=99),
   unit: int = Query(ge=1, le=999),
 ):
   result = get_devotional_unit(devotional, section, unit)

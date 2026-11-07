@@ -399,7 +399,8 @@ def test_the_api_serves_the_list_the_contents_and_a_day(loaded):
 
   assert client.get("/devotional-contents", params={"devotional": "nobody"}).status_code == 404
   assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": 1, "unit": 99}).status_code == 404
-  assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": 0, "unit": 1}).status_code == 422
+  assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": 0, "unit": 1}).status_code == 404
+  assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": -1, "unit": 1}).status_code == 422
 
 
 def gutenberg(body: str) -> str:
