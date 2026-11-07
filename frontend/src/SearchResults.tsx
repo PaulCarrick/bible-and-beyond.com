@@ -3,6 +3,8 @@ import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
 import { useVerseWindows } from './useVerseWindows'
+import { verseButtonProps } from './verseAddress'
+import type { VerseInBible } from './verseAddress'
 import type {
   Book,
   SearchParameters,
@@ -146,6 +148,16 @@ function SearchResults({
   const currentView = windows.currentView
 
   // A link under a result: open a window for that verse, in place of the list.
+  // Where a result's verse is, for opening it in a new tab (a commentary result uses the Bible chosen for that).
+  function verseOf(result: SearchResult): VerseInBible {
+    return {
+      translation: response?.source === 'commentary' ? contextTranslation : result.translation,
+      book: result.book_number,
+      chapter: result.chapter,
+      verse: result.verse,
+    }
+  }
+
   function openContext(kind: ContextKind, result: SearchResult, trigger: HTMLElement) {
     if (response === null) {
       return
@@ -340,7 +352,7 @@ function SearchResults({
                       <button
                         type="button"
                         className="link-button context-link"
-                        onClick={(event) => openContext('context', result, event.currentTarget)}
+                        {...verseButtonProps(verseOf(result), (element) => openContext('context', result, element))}
                       >
                         Show in Context
                         <span className="visually-hidden"> for {result.reference}</span>
@@ -360,7 +372,7 @@ function SearchResults({
                       <button
                         type="button"
                         className="link-button context-link"
-                        onClick={(event) => openContext('context', result, event.currentTarget)}
+                        {...verseButtonProps(verseOf(result), (element) => openContext('context', result, element))}
                       >
                         Show in Context
                         <span className="visually-hidden"> for {result.reference}</span>
@@ -368,7 +380,7 @@ function SearchResults({
                       <button
                         type="button"
                         className="link-button context-link"
-                        onClick={(event) => openContext('chapter', result, event.currentTarget)}
+                        {...verseButtonProps(verseOf(result), (element) => openContext('chapter', result, element))}
                       >
                         Full Chapter
                         <span className="visually-hidden"> containing {result.reference}</span>

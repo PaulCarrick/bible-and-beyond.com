@@ -1,4 +1,6 @@
-import type { ReactElement } from 'react'
+import type { MouseEvent, ReactElement } from 'react'
+import { verseButtonProps } from './verseAddress'
+import type { VerseInBible } from './verseAddress'
 
 export function escapeRegularExpression(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -40,6 +42,9 @@ export interface LinkOptions {
   // handful of references in a note are.
   isTabbable: boolean
   titleFor: (code: string, shownText: string) => string
+  // For links to verses: where a link's verse is, so Shift, Ctrl or Cmd with a click (or the middle button)
+  // opens it in the Bible reader in a new tab. Not set for Strong's numbers.
+  newTabVerse?: (code: string) => VerseInBible
 }
 
 export const strongLinkOptions: LinkOptions = {
@@ -104,7 +109,9 @@ export function highlightLinked(
           className={options.className}
           tabIndex={options.isTabbable ? 0 : -1}
           title={options.titleFor(link[2], group.map((piece) => piece.text).join(''))}
-          onClick={(event) => onChoose(link[2], event.currentTarget)}
+          {...(options.newTabVerse
+            ? verseButtonProps(options.newTabVerse(link[2]), (element) => onChoose(link[2], element))
+            : { onClick: (event: MouseEvent<HTMLButtonElement>) => onChoose(link[2], event.currentTarget) })}
         >
           {content}
         </button>

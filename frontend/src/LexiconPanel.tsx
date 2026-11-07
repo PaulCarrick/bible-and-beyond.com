@@ -1,4 +1,5 @@
 import StepBibleCredit from './StepBibleCredit'
+import { verseButtonProps } from './verseAddress'
 import type { ContextKind, LexiconEntry, VerseTarget } from './types'
 
 interface LexiconPanelProps {
@@ -37,15 +38,17 @@ function LexiconPanel({ entry, translation, onOpenVerse }: LexiconPanelProps) {
               <button
                 type="button"
                 className="link-button"
-                onClick={() =>
-                  onOpenVerse('context', {
-                    translation,
-                    book_number: verse.book_number,
-                    chapter: verse.chapter,
-                    verse: verse.verse,
-                    reference: verse.reference,
-                  })
-                }
+                {...verseButtonProps(
+                  { translation, book: verse.book_number, chapter: verse.chapter, verse: verse.verse },
+                  () =>
+                    onOpenVerse('context', {
+                      translation,
+                      book_number: verse.book_number,
+                      chapter: verse.chapter,
+                      verse: verse.verse,
+                      reference: verse.reference,
+                    }),
+                )}
               >
                 Show in Context
                 <span className="visually-hidden"> for {verse.reference}</span>

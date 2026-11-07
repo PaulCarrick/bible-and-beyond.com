@@ -15,6 +15,7 @@ import type {
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
+import { verseButtonProps } from './verseAddress'
 
 interface BrowseTabProps {
   commentaries: CommentarySource[]
@@ -289,6 +290,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                   <summary>Introduction to {chapter.book_name}</summary>
                   <NoteText
                     text={chapter.book_introduction}
+                    translation={contextTranslation}
                     references={chapter.book_introduction_references}
                     terms={[]}
                     onOpenReference={(book, chapterNumber, verse, shown, trigger) =>
@@ -304,6 +306,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                   </summary>
                   <NoteText
                     text={chapter.chapter_introduction}
+                    translation={contextTranslation}
                     references={chapter.chapter_introduction_references}
                     terms={[]}
                     onOpenReference={(book, chapterNumber, verse, shown, trigger) =>
@@ -324,9 +327,10 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     <button
                       type="button"
                       className="link-button"
-                      onClick={(event) =>
-                        openWindow(chapter, 'context', chapter.book_number, chapter.chapter, note.verse, note.covers, event.currentTarget)
-                      }
+                      {...verseButtonProps(
+                        { translation: contextTranslation, book: chapter.book_number, chapter: chapter.chapter, verse: note.verse },
+                        (element) => openWindow(chapter, 'context', chapter.book_number, chapter.chapter, note.verse, note.covers, element),
+                      )}
                     >
                       Show in Context
                       <span className="visually-hidden"> for {note.covers}</span>
@@ -372,6 +376,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                   <div className="commentary-text">
                     <NoteText
                       text={note.text}
+                      translation={contextTranslation}
                       references={note.references}
                       terms={[]}
                       onOpenReference={(book, chapterNumber, verse, shown, trigger) =>

@@ -48,6 +48,11 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           the verse. Back returns to where you were, and Escape closes the window.
         </li>
         <li>
+          <strong>Open a verse in a new tab.</strong> Hold Shift or Ctrl (Cmd on a Mac) while clicking Show in Context,
+          Full Chapter or a Scripture reference, or click it with the middle mouse button, to open that verse in the
+          Bible reader in a new tab and keep your place here.
+        </li>
+        <li>
           <strong>Keep scrolling.</strong> The readers load the next and the previous chapter as you go. The Home key,
           or the Back to top button, takes you to the top of the page.
         </li>

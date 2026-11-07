@@ -80,7 +80,7 @@ function CommentaryPanel({
             </button>
           </p>
           <div className="commentary-text">
-            <NoteText text={commentary.text} references={commentary.references} terms={terms} onOpenReference={openReference} />
+            <NoteText text={commentary.text} references={commentary.references} terms={terms} translation={translation} onOpenReference={openReference} />
           </div>
           {commentary.chapter_introduction && (
             <details className="commentary-introduction">
@@ -89,6 +89,7 @@ function CommentaryPanel({
               </summary>
               <NoteText
                 text={commentary.chapter_introduction}
+                translation={translation}
                 references={commentary.chapter_introduction_references}
                 terms={[]}
                 onOpenReference={openReference}
@@ -100,6 +101,7 @@ function CommentaryPanel({
               <summary>Introduction to {commentary.book_name}</summary>
               <NoteText
                 text={commentary.book_introduction}
+                translation={translation}
                 references={commentary.book_introduction_references}
                 terms={[]}
                 onOpenReference={openReference}

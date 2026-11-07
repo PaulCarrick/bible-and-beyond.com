@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import CrossReferenceCredit from './CrossReferenceCredit'
+import { verseButtonProps } from './verseAddress'
 import type { ContextKind, RelatedDirection, RelatedResponse, VerseTarget } from './types'
 
 interface RelatedPanelProps {
@@ -83,7 +84,10 @@ function RelatedPanel({ related, direction, onChangeDirection, onOpenVerse }: Re
                     <button
                       type="button"
                       className="link-button"
-                      onClick={() => onOpenVerse('context', target)}
+                      {...verseButtonProps(
+                        { translation: target.translation, book: entry.book_number, chapter: entry.chapter, verse: entry.verse },
+                        () => onOpenVerse('context', target),
+                      )}
                     >
                       Show in Context
                       <span className="visually-hidden"> for {entry.reference}</span>

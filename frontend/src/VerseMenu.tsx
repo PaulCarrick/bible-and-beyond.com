@@ -1,10 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { ContextKind } from './types'
+import { openVerseInNewTab, wantsNewTab } from './verseAddress'
+import type { VerseInBible } from './verseAddress'
 
 export interface VerseMenuItem {
   kind: ContextKind
   label: string
+  // Shows the verse itself (Show in Context, Full Chapter), so Shift, Ctrl or Cmd with a click, or the middle
+  // button, opens the verse in the Bible reader in a new tab instead.
+  opensVerse?: boolean
 }
 
 interface VerseMenuProps {
@@ -14,6 +19,8 @@ interface VerseMenuProps {
   // The verse the menu is about, such as "John 3:16".
   heading: string
   items: VerseMenuItem[]
+  // The verse, for the items that can open it in a new tab.
+  verse: VerseInBible
   onChoose: (kind: ContextKind) => void
   onClose: () => void
 }
@@ -22,7 +29,7 @@ const edgeMargin = 8
 
 // A small menu of what can be done with a verse. It opens at the pointer and stays inside the window.
 // Arrow keys move through it, Enter chooses, Escape or a click elsewhere closes it.
-function VerseMenu({ x, y, heading, items, onChoose, onClose }: VerseMenuProps) {
+function VerseMenu({ x, y, heading, items, verse, onChoose, onClose }: VerseMenuProps) {
   const menu = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ left: x, top: y })
 
@@ -90,7 +97,27 @@ function VerseMenu({ x, y, heading, items, onChoose, onClose }: VerseMenuProps) 
     >
       <div className="verse-menu-heading">{heading}</div>
       {items.map((item) => (
-        <button type="button" role="menuitem" key={item.kind} className="verse-menu-item" onClick={() => onChoose(item.kind)}>
+        <button
+          type="button"
+          role="menuitem"
+          key={item.kind}
+          className="verse-menu-item"
+          onClick={(event) => {
+            if (item.opensVerse && wantsNewTab(event)) {
+              openVerseInNewTab(verse)
+              onClose()
+            } else {
+              onChoose(item.kind)
+            }
+          }}
+          onAuxClick={(event) => {
+            if (item.opensVerse && event.button === 1) {
+              event.preventDefault()
+              openVerseInNewTab(verse)
+              onClose()
+            }
+          }}
+        >
           {item.label}
         </button>
       ))}

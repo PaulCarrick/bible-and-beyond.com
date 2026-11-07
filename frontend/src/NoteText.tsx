@@ -27,12 +27,21 @@ interface NoteTextProps {
   references: [number, number, string][]
   // Words searched for, shown in bold.
   terms: string[]
+  // The Bible a reference opens in when it goes to a new tab (Shift, Ctrl or Cmd held); the BSB when not given.
+  translation?: string
   // A reference was chosen: its verse, the words as written, and the link that was used.
   onOpenReference: (book: number, chapter: number, verse: number, shownText: string, element: HTMLElement) => void
 }
 
 // The text of a commentary note as paragraphs, with its scripture references as links.
-function NoteText({ text, references, terms, onOpenReference }: NoteTextProps) {
+function NoteText({ text, references, terms, translation = 'BSB', onOpenReference }: NoteTextProps) {
+  const linkOptions: LinkOptions = {
+    ...referenceLinkOptions,
+    newTabVerse: (code) => {
+      const [book, chapter, verse] = code.split(':').map(Number)
+      return { translation, book, chapter, verse }
+    },
+  }
   return (
     <>
       {paragraphsOf(text).map((paragraph) => {
@@ -51,7 +60,7 @@ function NoteText({ text, references, terms, onOpenReference }: NoteTextProps) {
                 const link = links.find(([, , linkCode]) => linkCode === code)
                 onOpenReference(book, chapter, verse, link ? paragraph.text.slice(link[0], link[1]) : '', element)
               },
-              referenceLinkOptions,
+              linkOptions,
             )}
           </p>
         )

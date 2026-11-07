@@ -1,7 +1,9 @@
+import type { MouseEvent } from 'react'
 import type { Destination } from './types'
 
 // An address that opens the Bible reader at a verse, such as /?read=BSB&book=62&chapter=4&verse=1. The FAQ's
-// verse links use it so they can open in a new tab. Both halves are here so the format stays the same.
+// verse links use it so they can open in a new tab, and so do the site's other verse buttons when Shift, Ctrl or
+// Cmd is held or the middle button is used. Both halves are here so the format stays the same.
 
 export function verseAddress(translation: string, book: number, chapter: number, verse: number): string {
   const parameters = new URLSearchParams({
@@ -25,4 +27,48 @@ export function readVerseAddress(search: string): Destination | null {
     return null
   }
   return { id: Date.now(), kind: 'bible', translation, book, chapter, verse }
+}
+
+export interface VerseInBible {
+  translation: string
+  book: number
+  chapter: number
+  verse: number
+}
+
+// Whether a click asks for a new tab: Shift, Ctrl or Cmd held, or the middle button.
+export function wantsNewTab(event: MouseEvent<HTMLElement>): boolean {
+  return event.button === 1 || event.shiftKey || event.ctrlKey || event.metaKey
+}
+
+export function openVerseInNewTab({ translation, book, chapter, verse }: VerseInBible) {
+  window.open(verseAddress(translation || 'BSB', book, chapter, verse), '_blank', 'noopener')
+}
+
+// The click handlers of a button that opens a verse on this page (Show in Context, Full Chapter, a reference in a
+// note). A plain click calls openHere as before; a click with Shift, Ctrl or Cmd, or with the middle button,
+// opens the Bible reader at the verse in a new tab instead.
+export function verseButtonProps(verse: VerseInBible, openHere: (element: HTMLElement) => void) {
+  return {
+    onClick: (event: MouseEvent<HTMLElement>) => {
+      if (wantsNewTab(event)) {
+        event.preventDefault()
+        openVerseInNewTab(verse)
+      } else {
+        openHere(event.currentTarget)
+      }
+    },
+    onAuxClick: (event: MouseEvent<HTMLElement>) => {
+      if (event.button === 1) {
+        event.preventDefault()
+        openVerseInNewTab(verse)
+      }
+    },
+    // Shift-click would otherwise select text, and a middle press would start the browser's autoscroll.
+    onMouseDown: (event: MouseEvent<HTMLElement>) => {
+      if (event.button === 1 || event.shiftKey) {
+        event.preventDefault()
+      }
+    },
+  }
 }

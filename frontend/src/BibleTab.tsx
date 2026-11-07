@@ -4,6 +4,7 @@ import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
 import { highlightLinked } from './highlight'
 import VerseMenu from './VerseMenu'
+import type { VerseMenuItem } from './VerseMenu'
 import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Destination, Translation } from './types'
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
@@ -23,9 +24,9 @@ interface Target {
 }
 
 // What the verse menu offers: the same things as the links under a search result.
-const verseMenuItems: { kind: ContextKind; label: string }[] = [
-  { kind: 'context', label: 'Show in Context' },
-  { kind: 'chapter', label: 'Full Chapter' },
+const verseMenuItems: VerseMenuItem[] = [
+  { kind: 'context', label: 'Show in Context', opensVerse: true },
+  { kind: 'chapter', label: 'Full Chapter', opensVerse: true },
   { kind: 'parallel', label: 'Other Translations' },
   { kind: 'related', label: 'Related Verses' },
   { kind: 'words', label: 'Original Words' },
@@ -409,6 +410,12 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
           y={menu.y}
           heading={`${menu.chapter.book_name} ${menu.chapter.chapter}:${menu.verse.verse}`}
           items={verseMenuItems}
+          verse={{
+            translation: menu.chapter.translation.code,
+            book: menu.chapter.book_number,
+            chapter: menu.chapter.chapter,
+            verse: menu.verse.verse,
+          }}
           onChoose={chooseFromMenu}
           onClose={closeMenu}
         />
