@@ -671,6 +671,8 @@ select:disabled {
   font-size: 17px;
 }
 
+/* Each card is a heading, a paragraph and its buttons. The cards share those three rows (subgrid), so the
+   first buttons of cards side by side line up however long each paragraph is. */
 .welcome-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
@@ -678,9 +680,10 @@ select:disabled {
 }
 
 .welcome-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 0.6rem;
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -689,10 +692,6 @@ select:disabled {
 .welcome-card h3 {
   margin: 0;
   font-size: 17px;
-}
-
-.welcome-card p {
-  flex: 1;
 }
 
 .welcome-card .primary-button {
@@ -705,7 +704,8 @@ select:disabled {
   display: grid;
   grid-template-columns: max-content;
   gap: 0.5rem;
-  align-self: flex-start;
+  align-self: start;
+  justify-self: start;
 }
 
 .welcome-buttons .primary-button {

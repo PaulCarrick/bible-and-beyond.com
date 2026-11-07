@@ -76,9 +76,11 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
               devotional life: {joinList(devotionals.map((entry) => entry.name))}. With an account, any of them can be
               emailed to you each day at a time you choose.
             </p>
-            <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
-              Open the devotionals
-            </button>
+            <div className="welcome-buttons">
+              <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
+                Open the devotionals
+              </button>
+            </div>
           </section>
         )}
       </div>
