@@ -27,6 +27,8 @@ interface SearchFormProps {
   onSearch: (searchParameters: SearchParameters) => void
   // The results, shown between the search box and the options.
   children: ReactNode
+  // The filters of the results (which book to keep), shown in the options. None until there are results.
+  filters?: ReactNode
 }
 
 function SearchForm({
@@ -38,6 +40,7 @@ function SearchForm({
   onChangePerPage,
   onSearch,
   children,
+  filters,
 }: SearchFormProps) {
   const [query, setQuery] = useState('')
   const [matchMode, setMatchMode] = useState<MatchMode>('all')
@@ -309,6 +312,8 @@ function SearchForm({
             </select>
             Results per page
           </label>
+
+          {filters}
         </div>
       </details>
     </form>

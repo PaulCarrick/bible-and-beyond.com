@@ -2,11 +2,9 @@ import { useEffect, useRef } from 'react'
 import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
-import { parsePerPage, perPageOptions } from './perPage'
 import { useVerseWindows } from './useVerseWindows'
 import type {
   Book,
-  PerPage,
   SearchParameters,
   SearchResponse,
   ContextKind,
@@ -56,7 +54,6 @@ interface SearchResultsProps {
   errorMessage: string
   onSelectBook: (book: number | null) => void
   onChangePage: (page: number) => void
-  onChangePerPage: (perPage: PerPage) => void
   onFit: (fitCount: number) => void
   onSort: (sortBy: SortField) => void
   onClearSort: () => void
@@ -75,7 +72,6 @@ function SearchResults({
   errorMessage,
   onSelectBook,
   onChangePage,
-  onChangePerPage,
   onFit,
   onSort,
   onClearSort,
@@ -206,14 +202,6 @@ function SearchResults({
     )
   }
 
-  const countsByBook = new Map(
-    (response?.book_counts ?? []).map((entry) => [entry.book_number, entry.count]),
-  )
-  const totalAcrossBooks = (response?.book_counts ?? []).reduce((sum, entry) => sum + entry.count, 0)
-  const testaments = [
-    { label: 'Old Testament', code: 'OT' },
-    { label: 'New Testament', code: 'NT' },
-  ]
   const pageCount = response ? Math.max(1, Math.ceil(response.total / response.per_page)) : 1
   const showTranslationCode = searchParameters.translations.length > 1
 
@@ -228,6 +216,15 @@ function SearchResults({
               {searchParameters.query}”
             </strong>{' '}
             {mode === 'commentary' ? `in ${sourceLabel}` : `from ${searchParameters.translations.join(', ')}`}
+            {selectedBook !== null && (
+              <>
+                {' '}
+                · only {books.find((book) => book.number === selectedBook)?.name ?? 'one book'}{' '}
+                <button type="button" className="link-button" onClick={() => onSelectBook(null)}>
+                  Show all books
+                </button>
+              </>
+            )}
           </p>
           {response?.strong && (
             <p className="strong-note">
@@ -482,63 +479,6 @@ function SearchResults({
         )}
       </div>
 
-      <aside className="results-sidebar">
-        <label className="inline-label">
-          <select
-            value={searchParameters.perPage}
-            onChange={(event) => onChangePerPage(parsePerPage(event.target.value))}
-          >
-            {perPageOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          results per page
-        </label>
-
-        {!isLicensed && (
-          <div className="panel filters">
-            <h2>Filters</h2>
-            <button
-              type="button"
-              className={selectedBook === null ? 'filter active' : 'filter'}
-              onClick={() => onSelectBook(null)}
-            >
-              All ({totalAcrossBooks.toLocaleString()})
-            </button>
-            {testaments.map((testament) => {
-              const testamentBooks = books.filter(
-                (book) => book.testament === testament.code && countsByBook.has(book.number),
-              )
-              if (testamentBooks.length === 0) {
-                return null
-              }
-              const testamentTotal = testamentBooks.reduce(
-                (sum, book) => sum + (countsByBook.get(book.number) ?? 0),
-                0,
-              )
-              return (
-                <div key={testament.code}>
-                  <h3>
-                    {testament.label} ({testamentTotal.toLocaleString()})
-                  </h3>
-                  {testamentBooks.map((book) => (
-                    <button
-                      type="button"
-                      key={book.number}
-                      className={selectedBook === book.number ? 'filter active' : 'filter'}
-                      onClick={() => onSelectBook(book.number)}
-                    >
-                      {book.name} ({countsByBook.get(book.number)})
-                    </button>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </aside>
     </div>
   )
 }

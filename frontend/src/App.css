@@ -332,13 +332,6 @@ select:disabled {
   min-width: 0;
 }
 
-.results-sidebar {
-  flex: 0 0 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .results-heading {
   display: flex;
   flex-wrap: wrap;
@@ -548,16 +541,9 @@ select:disabled {
   margin-top: 1rem;
 }
 
-.results-sidebar > .inline-label {
-  flex-wrap: wrap;
-  gap: 0.25rem 0.5rem;
-}
-
-/* The filter list scrolls inside its box and never makes the row taller than the results. */
+/* The filters (in the Search Options): a box that scrolls on its own, so a long list of books stays short. */
 .filters {
-  flex: 1 1 0;
-  min-height: 12rem;
-  contain: size;
+  max-height: 18rem;
   overflow-y: auto;
 }
 
@@ -617,15 +603,6 @@ select:disabled {
 
 /* Narrow windows put the sidebar under the results, where it has no height to match. */
 @media (max-width: 860px) {
-  .results-sidebar {
-    flex-basis: 100%;
-  }
-
-  .filters {
-    flex: none;
-    max-height: 20rem;
-    contain: none;
-  }
 }
 
 .option-note {

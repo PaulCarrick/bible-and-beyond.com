@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { searchBible, searchCommentaries } from './api'
 import { chooseContextTranslation } from './contextTranslation'
+import ResultFilters from './ResultFilters'
 import SearchForm from './SearchForm'
 import SearchResults from './SearchResults'
 import type {
@@ -145,6 +146,17 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
           perPage={perPage}
           onChangePerPage={handleChangePerPage}
           onSearch={handleSearch}
+          // Not for the licensed Bibles, whose results cannot be counted by book.
+          filters={
+            response !== null && response.source !== 'api_bible' ? (
+              <ResultFilters
+                books={books}
+                bookCounts={response.book_counts}
+                selectedBook={selectedBook}
+                onSelectBook={handleSelectBook}
+              />
+            ) : null
+          }
         >
           {searchParameters !== null && (
             <SearchResults
@@ -159,7 +171,6 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
               errorMessage={searchErrorMessage}
               onSelectBook={handleSelectBook}
               onChangePage={handleChangePage}
-              onChangePerPage={handleChangePerPage}
               onFit={handleFit}
               onSort={handleSort}
               onClearSort={handleClearSort}
