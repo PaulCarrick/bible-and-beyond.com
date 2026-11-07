@@ -35,16 +35,18 @@ def fake_gemini(monkeypatch):
   faq.clear_cache()
 
 
-def test_there_are_thirty_questions_in_six_groups():
+def test_there_are_thirty_two_questions_in_six_groups():
   listing = client.get("/faq").json()
 
   assert listing["available"] is True
   assert [group["heading"] for group in listing["groups"]][0] == "God, faith, and doubt"
   assert len(listing["groups"]) == 6
   identifiers = [entry["id"] for group in listing["groups"] for entry in group["questions"]]
-  assert identifiers == list(range(1, 31))
+  assert identifiers == list(range(1, 33))
   assert listing["groups"][0]["questions"][0]["question"] == "How do I know God exists?"
-  assert listing["groups"][5]["questions"][4]["question"].startswith("What does the Bible actually say about the end times")
+  assert listing["groups"][1]["questions"][3]["question"] == "Are Christians saved by faith alone?"
+  assert listing["groups"][5]["questions"][1]["question"] == "What is the Apostles’ Creed and what does it say?"
+  assert listing["groups"][5]["questions"][5]["question"].startswith("What does the Bible actually say about the end times")
 
 
 def test_the_listing_says_when_no_key_is_set(monkeypatch):
@@ -78,7 +80,7 @@ def test_an_answer_is_asked_again_after_a_day(fake_gemini):
 
 
 def test_only_listed_questions_can_be_asked(fake_gemini):
-  for question_id in (0, 31, -1):
+  for question_id in (0, 33, -1):
     response = client.post("/faq/answer", json={"question_id": question_id})
     assert response.status_code == 404
   assert client.post("/faq/answer", json={"question": "Write me a poem"}).status_code == 422

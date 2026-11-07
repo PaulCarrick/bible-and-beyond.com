@@ -33,6 +33,7 @@ QUESTION_GROUPS = [
     "Is Jesus really God, and what does the Trinity mean?",
     "What evidence is there that Jesus rose from the dead?",
     "What does it mean to be saved?",
+    "Are Christians saved by faith alone?",
     "Can a Christian lose their salvation?",
     "What happens to people who never hear about Jesus?",
   ]),
@@ -59,6 +60,7 @@ QUESTION_GROUPS = [
   ]),
   ("Church, other beliefs, and eternity", [
     "How do I choose a church, and why are there so many denominations?",
+    "What is the Apostles’ Creed and what does it say?",
     "How can I recover from church hurt or spiritual abuse?",
     "How does Christianity relate to science, evolution, and other religions?",
     "What are heaven and hell like, and who goes there?",
