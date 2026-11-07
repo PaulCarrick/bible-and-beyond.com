@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import {
   fetchBooks,
   fetchCommentarySources,
@@ -29,6 +30,8 @@ import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
 import { readVerseAddress } from './verseAddress'
+import { addressFor, readPageHistoryState, viewForAddress } from './pageAddress'
+import type { PageHistoryState } from './pageAddress'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
 import type { AccountUser, Destination, Note } from './types'
 import type { View } from './views'
@@ -66,7 +69,26 @@ function App() {
   // Where a note's link asked a reader to open, with a new id each time.
   const [destination, setDestination] = useState<Destination | null>(verseLink)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
-  const [activeView, setActiveView] = useState<View>(emailLink?.kind ?? (verseLink ? 'read' : 'welcome'))
+  // The page the visit opens on: an emailed link's page, the reader for a verse address, else the page the
+  // address names (/help, /faq, ...).
+  const [initialView] = useState<View>(
+    () => emailLink?.kind ?? (verseLink ? 'read' : viewForAddress(window.location.pathname)),
+  )
+  const [activeView, setActiveView] = useState<View>(initialView)
+  // Each page visited is an entry in the browser's history (only for this tab, nothing is stored), so Back
+  // and Forward move between pages. Where each entry was scrolled to is kept here, by entry number.
+  const scrollPlaces = useRef(new Map<number, number>())
+  // The first history entry is the page the visit opened on, at that page's own address. It is set before
+  // anything can be clicked, so a quick first click cannot be overwritten. An emailed link's token is taken
+  // out of the address so it is not bookmarked or shared by mistake, and a verse address is too, because the
+  // reader moves on from it.
+  const [firstEntry] = useState(() => {
+    const state: PageHistoryState = { view: initialView, entry: Date.now() }
+    window.history.scrollRestoration = 'manual'
+    window.history.replaceState(state, '', addressFor(initialView))
+    return state.entry
+  })
+  const currentEntry = useRef(firstEntry)
   // On a phone the sidebar is a menu under the header.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -98,13 +120,24 @@ function App() {
       .catch(() => setSiteSettings(defaultSiteSettings))
   }, [])
 
-  // The token is kept in the page; it is taken out of the address so it is not bookmarked or shared by mistake.
-  // A verse address is taken out too: the reader moves on from it, so the address would soon be wrong.
+  // On Back or Forward, show that entry's page at the place it was scrolled to when it was left. The pages stay
+  // mounted, so their contents (search results, the chapter being read) are as they were.
   useEffect(() => {
-    if (emailLink || verseLink) {
-      window.history.replaceState(null, '', window.location.pathname)
+    function showHistoryEntry(event: PopStateEvent) {
+      scrollPlaces.current.set(currentEntry.current, window.scrollY)
+      const state = readPageHistoryState(event.state)
+      currentEntry.current = state?.entry ?? Date.now()
+      const place = scrollPlaces.current.get(currentEntry.current) ?? 0
+      // The page has to be on screen before it can be scrolled to its place.
+      flushSync(() => {
+        setActiveView(state?.view ?? viewForAddress(window.location.pathname))
+        setIsMenuOpen(false)
+      })
+      window.scrollTo(0, place)
     }
-  }, [emailLink, verseLink])
+    window.addEventListener('popstate', showHistoryEntry)
+    return () => window.removeEventListener('popstate', showHistoryEntry)
+  }, [])
 
   // Whether a visitor is logged in (the browser sends its session cookie). Nobody has to be.
   useEffect(() => {
@@ -148,7 +181,15 @@ function App() {
     }
   }
 
+  // Open a page: a new history entry (unless it is the page already shown), at the top.
   function navigate(view: View) {
+    if (view !== readPageHistoryState(window.history.state)?.view) {
+      // Where the page being left was scrolled to, for coming back to it.
+      scrollPlaces.current.set(currentEntry.current, window.scrollY)
+      currentEntry.current = Math.max(Date.now(), currentEntry.current + 1)
+      const state: PageHistoryState = { view, entry: currentEntry.current }
+      window.history.pushState(state, '', addressFor(view))
+    }
     setActiveView(view)
     setIsMenuOpen(false)
     window.scrollTo(0, 0)
