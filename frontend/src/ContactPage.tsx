@@ -6,7 +6,9 @@ import type { RichTextEditorHandle } from './RichTextEditor'
 
 interface Recaptcha {
   ready: (callback: () => void) => void
-  execute: (siteKey: string, options: { action: string }) => Promise<string>
+  // Draws the reCAPTCHA badge inside an element (explicit rendering) and returns the widget's id.
+  render: (container: HTMLElement, parameters: { sitekey: string; badge: 'inline'; size: 'invisible' }) => number
+  execute: (widgetId: number, options: { action: string }) => Promise<string>
 }
 
 declare global {
@@ -20,12 +22,14 @@ interface ContactPageProps {
 }
 
 // Loads Google's reCAPTCHA v3 script once (it works unseen: no box to tick) and says when it is ready.
+// "render=explicit" means Google draws no badge of its own (its usual badge floats in the corner of every
+// page from then on); the form draws it inline instead, so it shows only with the form.
 let recaptchaScript: Promise<void> | null = null
-function loadRecaptcha(siteKey: string): Promise<void> {
+function loadRecaptcha(): Promise<void> {
   if (!recaptchaScript) {
     recaptchaScript = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`
+      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'
       script.async = true
       script.onload = () => window.grecaptcha?.ready(resolve)
       script.onerror = () => {
@@ -51,6 +55,9 @@ function ContactPage({ isHidden }: ContactPageProps) {
   const [isSent, setIsSent] = useState(false)
 
   const editorReference = useRef<RichTextEditorHandle>(null)
+  // Where the reCAPTCHA badge is drawn, inside the form, and the id Google gave the badge drawn there.
+  const badgeReference = useRef<HTMLDivElement>(null)
+  const widgetId = useRef<number | null>(null)
 
   useEffect(() => {
     fetchContactSettings()
@@ -64,13 +71,38 @@ function ContactPage({ isHidden }: ContactPageProps) {
       .catch(() => setSetupMessage('The contact form is not available right now.'))
   }, [])
 
-  // Google's script is loaded as soon as the form is, so a token is quick to get when Send is pressed.
-  // Only once the page is opened, so a visitor who never uses the form never loads anything from Google.
+  // Google's script is loaded, and the badge drawn in the form, as soon as the form is shown, so a token is
+  // quick to get when Send is pressed. Only once the page is opened, so a visitor who never uses the form
+  // never loads anything from Google. The badge is part of the form: it goes when the message has been
+  // sent (the form is replaced by the thank-you note) and when another page is opened (this page is
+  // hidden), and is drawn again for "Send another message".
   useEffect(() => {
-    if (siteKey !== null && !isHidden) {
-      loadRecaptcha(siteKey).catch((error: Error) => setErrorMessage(error.message))
+    if (siteKey === null || isHidden || isSent) {
+      return
     }
-  }, [siteKey, isHidden])
+    const container = badgeReference.current
+    if (!container || widgetId.current !== null) {
+      return
+    }
+    let isCurrent = true
+    loadRecaptcha()
+      .then(() => {
+        if (isCurrent && widgetId.current === null && window.grecaptcha) {
+          widgetId.current = window.grecaptcha.render(container, { sitekey: siteKey, badge: 'inline', size: 'invisible' })
+        }
+      })
+      .catch((error: Error) => setErrorMessage(error.message))
+    return () => {
+      isCurrent = false
+    }
+  }, [siteKey, isHidden, isSent])
+
+  // The form (and the badge in it) is removed once a message is sent; a new one is drawn with the next form.
+  useEffect(() => {
+    if (isSent) {
+      widgetId.current = null
+    }
+  }, [isSent])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -86,8 +118,11 @@ function ContactPage({ isHidden }: ContactPageProps) {
     setIsSending(true)
     try {
       // A new token for each message: Google rates this visit, with nothing for the visitor to do.
-      await loadRecaptcha(siteKey)
-      const token = await window.grecaptcha!.execute(siteKey, { action: 'contact' })
+      await loadRecaptcha()
+      if (widgetId.current === null) {
+        throw new Error('The check that you are not a robot is still loading. Please try again in a moment.')
+      }
+      const token = await window.grecaptcha!.execute(widgetId.current, { action: 'contact' })
       await sendContactMessage({
         name: fullName,
         email: emailAddress,
@@ -179,6 +214,7 @@ function ContactPage({ isHidden }: ContactPageProps) {
             </a>{' '}
             apply.
           </p>
+          <div ref={badgeReference} className="contact-recaptcha-badge" />
 
           {errorMessage && (
             <p className="error" role="alert">

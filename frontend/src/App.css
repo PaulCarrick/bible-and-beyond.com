@@ -1760,3 +1760,8 @@ select:disabled {
   align-items: center;
   gap: 1rem;
 }
+
+/* The reCAPTCHA badge, drawn by Google inside the contact form (ContactPage.tsx) rather than in the corner. */
+.contact-recaptcha-badge:empty {
+  display: none;
+}
