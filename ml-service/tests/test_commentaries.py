@@ -10,9 +10,11 @@ from fastapi.testclient import TestClient
 import commentaries
 from commentaries import (
   COMMENTARIES,
-  GUTENBERG_COMMENTARIES,
+  FILE_COMMENTARIES,
   KNOWN_COMMENTARIES,
   read_gutenberg_commentary,
+  read_treasury,
+  read_wesley_notes,
   CommentaryProblem,
   check_ids,
   get_chapter_notes,
@@ -71,9 +73,95 @@ def test_every_commentary_is_named_and_says_whether_it_comments_on_sections():
   }
 
 
-def test_the_gutenberg_commentaries_come_after_the_others():
-  assert list(KNOWN_COMMENTARIES) == list(COMMENTARIES) + list(GUTENBERG_COMMENTARIES)
+def test_the_file_commentaries_come_after_the_others_and_the_ccel_one_loads_hidden():
+  assert list(KNOWN_COMMENTARIES) == list(COMMENTARIES) + list(FILE_COMMENTARIES)
   assert KNOWN_COMMENTARIES["luther-galatians"]["source_name"] == "Project Gutenberg"
+  assert KNOWN_COMMENTARIES["treasury-of-david"]["publish"] is True
+  assert KNOWN_COMMENTARIES["wesley-notes"]["publish"] is False
+  assert KNOWN_COMMENTARIES["matthew-henry"]["publish"] is True
+
+
+TREASURY_SAMPLE = """Header
+*** START OF THE PROJECT GUTENBERG EBOOK TREASURY ***
+
+                                PSALM I.
+
+TITLE.—_The preface Psalm._
+
+                              EXPOSITION.
+
+    Blessed is the man that walketh not in the counsel of the ungodly.
+
+    2 But his delight is in the law of the LORD.
+
+On verses one and two.
+
+    Happy the man whose hopes rely
+    On Israel's God.
+
+    4 The ungodly are not so.
+
+On verse four.
+
+                 EXPLANATORY NOTES AND QUAINT SAYINGS.
+
+_Whole Psalm._—The Psalm of Psalms.
+
+_Verse 2._—On delight.
+
+More on delight.
+
+_Verse 5._—On the judgment.
+
+                          HINTS TO PREACHERS.
+
+_Verse 1._—Three steps of sin.
+
+*** END OF THE PROJECT GUTENBERG EBOOK TREASURY ***
+"""
+
+
+def test_the_treasury_of_david_is_read_by_its_verse_groups(tmp_path, monkeypatch):
+  monkeypatch.setattr(commentaries, "verse_limits", lambda: {(19, 1): 6})
+  path = tmp_path / "pg1.txt"
+  path.write_text(TREASURY_SAMPLE, encoding="utf-8")
+  entries, introductions = read_treasury([path])
+
+  # Verses 1 and 2 are one note; the quoted hymn stays in the comment; verse 4 runs to the end of the Psalm.
+  assert [(book, chapter, verse, end) for book, chapter, verse, end, _text in entries] == [(19, 1, 1, 3), (19, 1, 4, None)]
+  first = entries[0][4]
+  assert "Happy the man whose hopes rely" in first
+  assert "Explanatory Notes and Quaint Sayings\n\nVerse 2.—On delight.\n\nMore on delight." in first
+  assert first.endswith("Hints to Preachers\n\nVerse 1.—Three steps of sin.")
+  assert "Verse 5.—On the judgment." in entries[1][4]
+  assert introductions == [(19, 1, "TITLE.—The preface Psalm.\n\nExplanatory Notes and Quaint Sayings: the whole Psalm\n\nWhole Psalm.—The Psalm of Psalms.")]
+
+
+def test_wesleys_notes_are_read_by_verse_numbers_in_bible_order(tmp_path, monkeypatch):
+  monkeypatch.setattr(commentaries, "verse_limits", lambda: {(40, 1): 25, (19, 1): 6})
+  books = []
+  for index in range(66):
+    chapters = '<div3 title="I"><p>1. Only a note.</p></div3>'
+    if index == 0:  # Matthew, the first of the New Testament
+      chapters = (
+        '<div3 title="Introduction to Matthew"><p>About Matthew.</p></div3>'
+        '<div3 title="I"><h3>I</h3><scripCom/><p>The chapter begins.</p><p>1. The book - of the generation.</p>'
+        '<p>1. A numbered point inside the note.</p><p>3, 4. And Judas - begat.</p><p>40. Past the chapter.</p></div3>'
+      )
+    if index == 45:  # Psalms, numbered with figures
+      chapters = '<div3 title="1"><div4><p>2. His delight - In the law.</p></div4></div3>'
+    books.append(f'<div2 title="NOTES ON BOOK {index}">{chapters}</div2>')
+  path = tmp_path / "notes.xml"
+  path.write_text(f'<ThML><ThML.body><div1><div2 title="PREFACE"><p>x</p></div2>{"".join(books)}</div1></ThML.body></ThML>', encoding="utf-8")
+  entries, introductions = read_wesley_notes([path])
+
+  matthew = [(verse, end, text) for book, chapter, verse, end, text in entries if (book, chapter) == (40, 1)]
+  assert [(verse, end) for verse, end, _text in matthew] == [(1, 1), (3, 4)]
+  assert matthew[0][2] == "1. The book - of the generation.\n\n1. A numbered point inside the note."
+  assert matthew[1][2].endswith("40. Past the chapter.")
+  assert (40, 0, "About Matthew.") in introductions and (40, 1, "The chapter begins.") in introductions
+  assert (19, 1, 2, 2, "2. His delight - In the law.") in entries
+  assert (1, 1, 1, 1, "1. Only a note.") in entries  # Genesis, the first of the Old Testament, comes after Revelation
 
 
 LUTHER_SAMPLE = """Header

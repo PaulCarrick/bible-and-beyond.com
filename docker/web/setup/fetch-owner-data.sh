@@ -55,6 +55,27 @@ if [ "$book_count" = "0" ] && [ "$(row_count devotional_entries)" != "0" ]; then
   rm -rf "$folder"
 fi
 
+# Commentaries whose owner asks not to be redistributed (Wesley's Notes, CCEL), when not loaded: loaded hidden,
+# like the CCEL books, until the site's administrator publishes them.
+for commentary in wesley-notes; do
+  loaded=$("$python" -c "
+import sys
+from search import connect
+with connect() as connection:
+    print(connection.execute('SELECT count(*) FROM commentaries WHERE id = %s', (sys.argv[1],)).fetchone()[0])
+" "$commentary")
+  if [ "$loaded" = "0" ]; then
+    echo "Fetching the commentary $commentary from its owner ..."
+    folder=data/commentary-download
+    if "$python" scripts/download_commentaries.py "$folder" "$commentary" && "$python" scripts/import_commentaries.py "$folder" "$commentary"; then
+      echo "Loaded $commentary (hidden until published)."
+    else
+      echo "Could not fetch or load $commentary; it will be tried again at the next start." >&2
+    fi
+    rm -rf "$folder"
+  fi
+done
+
 if [ "$(row_count devotional_entries)" = "0" ]; then
   echo "Fetching the devotionals (CCEL, Project Gutenberg) and the Other books (Project Gutenberg) ..."
   folder=data/devotionals-download

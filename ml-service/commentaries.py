@@ -5,8 +5,9 @@ one JSON file per chapter and marks each Public Domain (https://creativecommons.
 We load six of its commentaries into our own database. (Its seventh, the Tyndale Open Study Notes,
 is CC BY-SA, not public domain, and is not used.)
 
-One more, Luther's Commentary on Galatians, is a Project Gutenberg plain-text eBook
-(GUTENBERG_COMMENTARIES), read by its verse headings ("VERSE 6.", "VERSES 11, 12.").
+More come as whole files from elsewhere (FILE_COMMENTARIES), each read by a reader of its own: Luther on
+Galatians and Spurgeon's Treasury of David (Project Gutenberg plain text), and Wesley's Notes on the Bible (a
+CCEL ThML file, loaded hidden until CCEL agrees to its edition being shown).
 
 An entry in a file is {"type": "verse", "number": N, "content": ["paragraph", ...]}. Some
 commentaries comment on one verse at a time (Gill, Clarke, Jamieson-Fausset-Brown) and skip verses
@@ -21,8 +22,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import httpx
+from defusedxml import ElementTree
 
-from scripture_references import find_references
+from scripture_references import find_references, verse_limits
 from search import connect, parse_terms
 
 BASE_URL = "https://bible.helloao.org/api"
@@ -37,20 +39,44 @@ COMMENTARIES = {
   "john-calvin": ("John Calvin's Commentaries", "John Calvin", True),
   "keil-delitzsch": ("Keil and Delitzsch's Old Testament Commentary", "Keil and Delitzsch", True),
 }
-# Commentaries that are Project Gutenberg plain-text eBooks on one book of the Bible. They come after the
-# six above in the order of the tabs.
-GUTENBERG_COMMENTARIES = {
+# Commentaries that come as whole files, each read by its own reader (FILE_READERS). They come after the six
+# above in the order of the tabs. The files are saved in a folder named after the id, under their own names.
+# "publish": False loads one hidden (a CCEL edition, until CCEL agrees).
+FILE_COMMENTARIES = {
   "luther-galatians": {
     "name": "Martin Luther's Commentary on Galatians",
     "short_name": "Martin Luther",
-    "book_number": 48,
-    "ebook": 1549,
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/1549",
+    "download_urls": ["https://www.gutenberg.org/cache/epub/1549/pg1549.txt"],
+    "reader": "luther",
+  },
+  "treasury-of-david": {
+    "name": "Spurgeon's Treasury of David (Psalms 1–57)",
+    "short_name": "C. H. Spurgeon",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/79723",
+    # Volumes 1 and 2 of 6 (Psalms 1-26 and 27-57), the ones on Project Gutenberg so far.
+    "download_urls": [
+      "https://www.gutenberg.org/cache/epub/79723/pg79723.txt",
+      "https://www.gutenberg.org/cache/epub/79727/pg79727.txt",
+    ],
+    "reader": "treasury",
+  },
+  "wesley-notes": {
+    "name": "John Wesley's Notes on the Bible",
+    "short_name": "John Wesley",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/wesley/notes",
+    "download_urls": ["https://www.ccel.org/ccel/w/wesley/notes.xml"],
+    "reader": "wesley_notes",
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
   },
 }
 LICENSE_URL = "https://creativecommons.org/publicdomain/mark/1.0/"
 SOURCE_NAME = "Free Use Bible API"
 SOURCE_URL = "https://bible.helloao.org"
-GUTENBERG_SOURCE_NAME = "Project Gutenberg"
 
 
 def known_commentaries():
@@ -59,10 +85,12 @@ def known_commentaries():
     commentary_id: {"name": name, "short_name": short_name, "source_name": SOURCE_NAME, "source_url": SOURCE_URL}
     for commentary_id, (name, short_name, _sections) in COMMENTARIES.items()
   }
-  for commentary_id, details in GUTENBERG_COMMENTARIES.items():
+  for details in known.values():
+    details["publish"] = True
+  for commentary_id, details in FILE_COMMENTARIES.items():
     known[commentary_id] = {
-      "name": details["name"], "short_name": details["short_name"], "source_name": GUTENBERG_SOURCE_NAME,
-      "source_url": f"https://www.gutenberg.org/ebooks/{details['ebook']}",
+      "name": details["name"], "short_name": details["short_name"], "source_name": details["source_name"],
+      "source_url": details["source_url"], "publish": details.get("publish", True),
     }
   return known
 
@@ -105,8 +133,8 @@ def download(folder, commentary_ids, report=print):
   downloaded = 0
   with httpx.Client(follow_redirects=True) as client:
     for commentary_id in commentary_ids:
-      if commentary_id in GUTENBERG_COMMENTARIES:
-        downloaded += download_gutenberg(client, folder, commentary_id, report)
+      if commentary_id in FILE_COMMENTARIES:
+        downloaded += download_files(client, folder, commentary_id, report)
         continue
       books = fetch_json(client, f"{BASE_URL}/c/{commentary_id}/books.json")
       if books is None:
@@ -140,22 +168,21 @@ def download(folder, commentary_ids, report=print):
   return downloaded
 
 
-def gutenberg_path(folder, commentary_id):
-  return Path(folder) / commentary_id / f"pg{GUTENBERG_COMMENTARIES[commentary_id]['ebook']}.txt"
+def file_paths(folder, commentary_id):
+  """Where the files of one of the FILE_COMMENTARIES are saved: folder/<id>/<the file's own name>."""
+  return [Path(folder) / commentary_id / url.rsplit("/", 1)[-1] for url in FILE_COMMENTARIES[commentary_id]["download_urls"]]
 
 
-def download_gutenberg(client, folder, commentary_id, report):
-  """Save the plain-text eBook of one of the GUTENBERG_COMMENTARIES. Returns 1."""
-  ebook = GUTENBERG_COMMENTARIES[commentary_id]["ebook"]
-  url = f"https://www.gutenberg.org/cache/epub/{ebook}/pg{ebook}.txt"
-  report(f"{commentary_id}: {url}")
-  response = client.get(url, timeout=120)
-  if response.status_code != 200 or len(response.content) < 10_000:
-    raise CommentaryProblem(f"Could not download {url} (status {response.status_code}).")
-  path = gutenberg_path(folder, commentary_id)
-  path.parent.mkdir(parents=True, exist_ok=True)
-  path.write_bytes(response.content)
-  return 1
+def download_files(client, folder, commentary_id, report):
+  """Save the files of one of the FILE_COMMENTARIES. Returns how many were saved."""
+  for url, path in zip(FILE_COMMENTARIES[commentary_id]["download_urls"], file_paths(folder, commentary_id)):
+    report(f"{commentary_id}: {url}")
+    response = client.get(url, timeout=300)
+    if response.status_code != 200 or len(response.content) < 10_000:
+      raise CommentaryProblem(f"Could not download {url} (status {response.status_code}).")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(response.content)
+  return len(FILE_COMMENTARIES[commentary_id]["download_urls"])
 
 
 GUTENBERG_CHAPTER = re.compile(r"^CHAPTER (\d+)$")
@@ -239,6 +266,236 @@ def read_gutenberg_commentary(path, book_number):
   return entries, introductions
 
 
+def gutenberg_body(path):
+  """The lines of a Project Gutenberg text between its start and end notices."""
+  text = Path(path).read_text(encoding="utf-8-sig").replace("\r", "")
+  start = text.find("*** START OF")
+  end = text.find("*** END OF")
+  if start < 0 or end < 0:
+    raise CommentaryProblem(f"{path} is not a Project Gutenberg text (no start and end notices).")
+  return text[text.index("\n", start) + 1:end].split("\n")
+
+
+def read_luther(paths):
+  return read_gutenberg_commentary(paths[0], 48)
+
+
+TREASURY_PSALM = re.compile(r"^\s+PSALM ([IVXLC]+)\.?\s*$")
+TREASURY_PARTS = {
+  "EXPOSITION.": "exposition",
+  "EXPLANATORY NOTES AND QUAINT SAYINGS.": "notes",
+  "HINTS TO PREACHERS.": "hints",
+  "HINTS TO THE VILLAGE PREACHER.": "hints",
+}
+# "_Verse 1._—", "_Verses 1, 2._—", "_Verse 1.—“The scornful.”_" at the start of a note or a hint.
+TREASURY_VERSE_MARK = re.compile(r"^_?Verses? (\d+)(?:\s*(?:,|-|–|to|and)\s*(\d+))*\.?")
+TREASURY_WHOLE_PSALM = re.compile(r"^_?Whole Psalm\.?", re.IGNORECASE)
+
+
+def roman_to_number(text):
+  values = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
+  total = 0
+  for index, letter in enumerate(text):
+    value = values[letter]
+    total += -value if index + 1 < len(text) and values[text[index + 1]] > value else value
+  return total
+
+
+def treasury_blocks(lines):
+  """Paragraphs of hard-wrapped lines, each with whether it is indented (a verse of the Psalm) or not."""
+  blocks = []
+  current = []
+  for line in lines + [""]:
+    if line.strip():
+      current.append(line)
+    elif current:
+      indented = all(line.startswith("    ") for line in current)
+      text = re.sub(r"_([^_\n]+)_", r"\1", " ".join(line.strip() for line in current))
+      blocks.append((indented, text))
+      current = []
+  return blocks
+
+
+def read_treasury(paths):
+  """Read Spurgeon's Treasury of David (Project Gutenberg volumes): one chapter of Psalms per Psalm.
+
+  A Psalm has its title notes, then its Exposition: groups of verses of the Psalm (indented; a verse after
+  the first begins with its number) each followed by Spurgeon's comment. Each group and its comment is a note
+  on those verses. The Explanatory Notes and Quaint Sayings and the Hints to Preachers that name a verse
+  ("Verse 3.") are added to the note on that verse, under their own heading; those on the whole Psalm, with
+  the title notes, are the Psalm's introduction.
+  """
+  entries = []
+  introductions = []
+  limits = verse_limits()
+  for path in paths:
+    lines = gutenberg_body(path)
+    starts = [(index, roman_to_number(match[1])) for index, line in enumerate(lines) if (match := TREASURY_PSALM.match(line))]
+    for position, (start, psalm) in enumerate(starts):
+      stop = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+      parts = {"title": [], "exposition": [], "notes": [], "hints": []}
+      part = "title"
+      for line in lines[start + 1:stop]:
+        name = TREASURY_PARTS.get(line.strip())
+        if name is not None:
+          part = name
+        else:
+          parts[part].append(line)
+      if not parts["exposition"]:
+        raise CommentaryProblem(f"{path}: Psalm {psalm} has no exposition.")
+
+      # The exposition: verse groups and the comments after them. Verses next to each other are one group. An
+      # indented paragraph is a verse when it is the Psalm's first (verse 1 has no number) or begins with the
+      # number of a later verse that the Psalm has; any other (a hymn quoted in a comment) is part of the comment.
+      groups = []  # [first verse, last verse, [paragraphs]]
+      previous_was_verse = False
+      last_verse = limits.get((19, psalm), 999)
+      for indented, text in treasury_blocks(parts["exposition"]):
+        leading = re.match(r"^(\d{1,3})\s", text)
+        number = int(leading[1]) if leading else None
+        is_verse = indented and (
+          (not groups and number is None) or (number is not None and number > (groups[-1][1] if groups else 0) and number <= last_verse)
+        )
+        if is_verse:
+          first = number or 1
+          if previous_was_verse and groups:
+            groups[-1][1] = max(groups[-1][1], first)
+            groups[-1][2].append(text)
+          else:
+            groups.append([first, first, [text]])
+          previous_was_verse = True
+        else:
+          if not groups:
+            groups.append([1, 1, []])
+          groups[-1][2].append(text)
+          previous_was_verse = False
+
+      # The notes and hints, by the verse they name.
+      extra = {"notes": {}, "hints": {}}
+      whole = {"notes": [], "hints": []}
+      for name in ("notes", "hints"):
+        current = None
+        for _indented, text in treasury_blocks(parts[name]):
+          plain = text.lstrip("_ ")
+          mark = TREASURY_VERSE_MARK.match(text) or TREASURY_VERSE_MARK.match(plain)
+          if mark:
+            current = int(mark[1])
+          elif TREASURY_WHOLE_PSALM.match(text) or TREASURY_WHOLE_PSALM.match(plain):
+            current = None
+          if current is None:
+            whole[name].append(text)
+          else:
+            extra[name].setdefault(current, []).append(text)
+
+      def group_for(verse):
+        for index, (first, last, _paragraphs) in enumerate(groups):
+          if first <= verse <= last:
+            return index
+        earlier = [index for index, (first, _last, _paragraphs) in enumerate(groups) if first <= verse]
+        return earlier[-1] if earlier else 0
+
+      additions = {index: {"notes": [], "hints": []} for index in range(len(groups))}
+      for name in ("notes", "hints"):
+        for verse in sorted(extra[name]):
+          additions[group_for(verse)][name].extend(extra[name][verse])
+
+      for index, (first, last, paragraphs) in enumerate(groups):
+        last = max(last, groups[index + 1][0] - 1) if index + 1 < len(groups) else None
+        text = list(paragraphs)
+        if additions[index]["notes"]:
+          text += ["Explanatory Notes and Quaint Sayings", *additions[index]["notes"]]
+        if additions[index]["hints"]:
+          text += ["Hints to Preachers", *additions[index]["hints"]]
+        entries.append((19, psalm, first, last, "\n\n".join(text)))
+
+      introduction = [text for _indented, text in treasury_blocks(parts["title"])]
+      if whole["notes"]:
+        introduction += ["Explanatory Notes and Quaint Sayings: the whole Psalm", *whole["notes"]]
+      if whole["hints"]:
+        introduction += ["Hints to Preachers: the whole Psalm", *whole["hints"]]
+      if introduction:
+        introductions.append((19, psalm, "\n\n".join(introduction)))
+  if not entries:
+    raise CommentaryProblem("No Psalms were found in the Treasury of David files.")
+  return entries, introductions
+
+
+# "3. Jesus answered - ...", "4-6. ...", "11, 12. ..." at the start of a note in Wesley's Notes.
+WESLEY_NOTE_VERSES = re.compile(r"^(\d{1,3})((?:\s*[-–,&]\s*\d{1,3})*)\.\s")
+
+
+def ccel_plain(element):
+  """The text of a CCEL element in one line, its footnotes left out."""
+  parts = [element.text or ""]
+  for child in element:
+    if child.tag != "note":
+      parts.append(ccel_plain(child))
+    parts.append(child.tail or "")
+  return " ".join("".join(parts).split())
+
+
+def read_wesley_notes(paths):
+  """Read Wesley's Notes on the Bible (CCEL ThML): the New Testament, then the Old, a division per book in
+  Bible order and one per chapter inside it ("Introduction to John", "I", "II" ...). A paragraph that starts
+  with verse numbers ("3.", "4-6.", "11, 12.") starts a note on those verses; the paragraphs before the first
+  one are the chapter's introduction, and a book's introduction is its book introduction (chapter 0)."""
+  body = ElementTree.parse(paths[0]).getroot().find("ThML.body")
+  if body is None:
+    raise CommentaryProblem(f"{paths[0]} has no text.")
+  books = [division for division in body.iter("div2") if (division.get("title") or "").upper().startswith("NOTES ON")]
+  if len(books) != 66:
+    raise CommentaryProblem(f"{paths[0]}: expected 66 books of notes, found {len(books)}.")
+  book_numbers = list(range(40, 67)) + list(range(1, 40))
+  limits = verse_limits()
+  entries = []
+  introductions = []
+  for book_number, book in zip(book_numbers, books):
+    for chapter_division in book.iter("div3"):
+      title = (chapter_division.get("title") or "").strip()
+      blocks = []
+      for child in chapter_division:
+        if child.tag == "p":
+          blocks.append(ccel_plain(child))
+        elif child.tag == "div4":
+          inner = [ccel_plain(paragraph) for paragraph in child.iter("p")]
+          blocks.extend(inner if inner else [ccel_plain(child)])
+      blocks = [block for block in blocks if block]
+      if title.lower().startswith("introduction"):
+        if blocks:
+          introductions.append((book_number, 0, "\n\n".join(blocks)))
+        continue
+      # Chapters are "I", "II" ... (the Psalms "1", "2" ...); a one-chapter book may be "Commentary on Obadiah".
+      if re.fullmatch(r"[IVXLC]+", title):
+        chapter = roman_to_number(title)
+      elif title.isdigit():
+        chapter = int(title)
+      elif title.lower().startswith("commentary on"):
+        chapter = 1
+      else:
+        continue
+      notes = []
+      introduction = []
+      last_verse = limits.get((book_number, chapter), 999)
+      for block in blocks:
+        match = WESLEY_NOTE_VERSES.match(block)
+        numbers = [int(match[1]), *(int(found) for found in re.findall(r"\d+", match[2]))] if match else []
+        # A note starts at a later verse that the chapter has; a numbered point inside a note ("2. ...") does not.
+        if numbers and min(numbers) > (notes[-1][0] if notes else 0) and min(numbers) <= last_verse:
+          notes.append([min(numbers), min(max(numbers), last_verse), [block]])
+        elif notes:
+          notes[-1][2].append(block)
+        else:
+          introduction.append(block)
+      if introduction:
+        introductions.append((book_number, chapter, "\n\n".join(introduction)))
+      for first, last, paragraphs in notes:
+        entries.append((book_number, chapter, first, last, "\n\n".join(paragraphs)))
+  return entries, introductions
+
+
+FILE_READERS = {"luther": read_luther, "treasury": read_treasury, "wesley_notes": read_wesley_notes}
+
+
 def paragraphs_to_text(content):
   """The paragraphs of an entry as one text, paragraphs separated by a blank line."""
   parts = [part.strip() for part in content if isinstance(part, str) and part.strip()]
@@ -251,11 +508,12 @@ def read_commentary(folder, commentary_id, book_numbers_by_code):
   entries are (book, chapter, verse, end_verse or None, text). introductions are
   (book, chapter, text), chapter 0 being the introduction to the whole book.
   """
-  if commentary_id in GUTENBERG_COMMENTARIES:
-    path = gutenberg_path(folder, commentary_id)
-    if not path.exists():
-      raise CommentaryProblem(f"{path} is missing. Download the commentary first.")
-    return read_gutenberg_commentary(path, GUTENBERG_COMMENTARIES[commentary_id]["book_number"])
+  if commentary_id in FILE_COMMENTARIES:
+    paths = file_paths(folder, commentary_id)
+    for path in paths:
+      if not path.exists():
+        raise CommentaryProblem(f"{path} is missing. Download the commentary first.")
+    return FILE_READERS[FILE_COMMENTARIES[commentary_id]["reader"]](paths)
   sections = COMMENTARIES[commentary_id][2]
   directory = Path(folder) / commentary_id
   books_file = directory / "books.json"
@@ -297,12 +555,13 @@ def read_commentary(folder, commentary_id, book_numbers_by_code):
 def replace_commentary(commentary_id, entries, introductions):
   """Replace everything of one of the known commentaries (KNOWN_COMMENTARIES) in the database, in one transaction.
 
-  It keeps its place in the order and, if it was there already, whether it is published.
+  It keeps its place in the order and, if it was there already, whether it is published. A new one marked
+  "publish": False is loaded hidden.
   """
   details = KNOWN_COMMENTARIES[commentary_id]
   return save_commentary(
     commentary_id, details["name"], details["short_name"], details["source_name"], details["source_url"], LICENSE_URL,
-    entries, introductions, publish_if_new=True, position=list(KNOWN_COMMENTARIES).index(commentary_id) + 1,
+    entries, introductions, publish_if_new=details["publish"], position=list(KNOWN_COMMENTARIES).index(commentary_id) + 1,
   )
 
 

@@ -34,7 +34,7 @@ ORDINALS = {
   "NINTH": 9, "TENTH": 10, "ELEVENTH": 11, "TWELFTH": 12, "THIRTEENTH": 13, "FOURTEENTH": 14,
   "FIFTEENTH": 15, "SIXTEENTH": 16, "SEVENTEENTH": 17, "EIGHTEENTH": 18, "NINETEENTH": 19, "TWENTIETH": 20,
 }
-SMALL_WORDS = {"a", "an", "and", "for", "in", "of", "on", "the", "to"}
+SMALL_WORDS = {"a", "an", "and", "by", "for", "in", "of", "on", "the", "to"}
 
 
 class DevotionalProblem(ValueError):
@@ -103,6 +103,19 @@ DEVOTIONALS = {
     "download_url": "https://www.gutenberg.org/cache/epub/13871/pg13871.txt",
     "file_name": "practice-of-the-presence-of-god.txt",
     "units": 20,
+  },
+  "faiths-checkbook": {
+    "name": "Faith's Checkbook",
+    "author": "Charles H. Spurgeon",
+    "kind": "daily",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/spurgeon/checkbook",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/s/spurgeon/checkbook.xml",
+    "file_name": "faiths-checkbook.xml",
+    "units": 367,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
   },
 }
 
@@ -240,6 +253,120 @@ BOOKS = {
     "download_url": "https://www.gutenberg.org/cache/epub/19950/pg19950.txt",
     "file_name": "summa-theologica-part-3.txt",
     "units": 91,
+  },
+  "wesley-sermons": {
+    "name": "Sermons on Several Occasions",
+    "author": "John Wesley",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/59743",
+    "translator": None,
+    # The first four volumes of his Works (1771), which hold the 53 sermons; saved in a folder of their own.
+    "download_urls": [
+      "https://www.gutenberg.org/cache/epub/59743/pg59743.txt",
+      "https://www.gutenberg.org/cache/epub/63452/pg63452.txt",
+      "https://www.gutenberg.org/cache/epub/63909/pg63909.txt",
+      "https://www.gutenberg.org/cache/epub/68320/pg68320.txt",
+    ],
+    "file_name": "wesley-sermons",
+    "units": 53,
+  },
+  "edwards-selected-sermons": {
+    "name": "Selected Sermons of Jonathan Edwards",
+    "author": "Jonathan Edwards",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/34632",
+    "translator": "edited by H. Norman Gardiner",
+    "download_url": "https://www.gutenberg.org/cache/epub/34632/pg34632.txt",
+    "file_name": "edwards-selected-sermons.txt",
+    "units": 9,
+  },
+  "plain-account-of-christian-perfection": {
+    "name": "A Plain Account of Christian Perfection",
+    "author": "John Wesley",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/wesley/perfection",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/w/wesley/perfection.xml",
+    "file_name": "plain-account-of-christian-perfection.xml",
+    "units": 7,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
+  },
+  "journal-of-john-wesley": {
+    "name": "The Journal of John Wesley",
+    "author": "John Wesley",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/wesley/journal",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/w/wesley/journal.xml",
+    "file_name": "journal-of-john-wesley.xml",
+    "units": 25,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
+  },
+  "religious-affections": {
+    "name": "Religious Affections",
+    "author": "Jonathan Edwards",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/edwards/affections",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/e/edwards/affections.xml",
+    "file_name": "religious-affections.xml",
+    "units": 28,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
+  },
+  "freedom-of-the-will": {
+    "name": "Freedom of the Will",
+    "author": "Jonathan Edwards",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/edwards/will",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/e/edwards/will.xml",
+    "file_name": "freedom-of-the-will.xml",
+    "units": 36,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
+  },
+  "works-of-jonathan-edwards-1": {
+    "name": "The Works of Jonathan Edwards, Volume One",
+    "author": "Jonathan Edwards",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/edwards/works1",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/e/edwards/works1.xml",
+    "file_name": "works-of-jonathan-edwards-1.xml",
+    "units": 111,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
+  },
+  "all-of-grace": {
+    "name": "All of Grace",
+    "author": "Charles H. Spurgeon",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Christian Classics Ethereal Library",
+    "source_url": "https://ccel.org/ccel/spurgeon/grace",
+    "translator": None,
+    "download_url": "https://www.ccel.org/ccel/s/spurgeon/grace.xml",
+    "file_name": "all-of-grace.xml",
+    "units": 20,
+    # CCEL asks to be contacted before its editions are republished: loaded hidden until it agrees.
+    "publish": False,
   },
 }
 
@@ -977,12 +1104,358 @@ def parse_table_talk(path):
   return Parsed(sections, entries)
 
 
+# --- CCEL books (ThML), and the sermons of Wesley and Edwards -------------------------------------------------
+
+# Divisions that are not part of the reading: the title page, the indexes, the acknowledgements.
+CCEL_SKIPPED_DIVISION = re.compile(r"^\s*(title page|indexes|index of|acknowledg)", re.IGNORECASE)
+CCEL_HEADINGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+CCEL_PARAGRAPHS = {"p", "li"} | CCEL_HEADINGS
+CCEL_IGNORED = {"pb", "hr", "insertIndex", "scripCom", "added", "br", "img"}
+CCEL_PART_ONLY = re.compile(r"^Part [IVXLC]+\.?$", re.IGNORECASE)
+
+
+def ccel_text(element, notes):
+  """The text of a paragraph, its footnotes (<note>) taken out into notes and marked [n] where they were."""
+  parts = [element.text or ""]
+  for child in element:
+    if child.tag == "note":
+      notes.append(collapse("".join(child.itertext())))
+      parts.append(f" [{len(notes)}]")
+    elif child.tag not in ("pb",):
+      parts.append(ccel_text(child, notes))
+    parts.append(child.tail or "")
+  return "".join(parts)
+
+
+def ccel_paragraphs(element, notes, skip_title=""):
+  """The paragraphs of a division (or of a list of elements), in order, with the headings of the divisions inside it as paragraphs of
+  their own. A verse (<verse> of <l> lines) is one paragraph, a line each. The first heading is left out when
+  it only repeats the division's title (the reader shows that already)."""
+  paragraphs = []
+
+  def walk(node):
+    for child in node:
+      if child.tag in CCEL_IGNORED or (child.tag.startswith("div") and CCEL_SKIPPED_DIVISION.match(child.get("title") or "")):
+        continue
+      if child.tag in CCEL_PARAGRAPHS:
+        text = collapse(ccel_text(child, notes))
+        if text:
+          paragraphs.append(text)
+      elif child.tag == "verse":
+        lines = [collapse(ccel_text(line, notes)) for line in child.iter("l")]
+        if any(lines):
+          paragraphs.append("\n".join(line for line in lines if line))
+      else:
+        walk(child)
+
+  walk(element)
+  wanted = collapse(skip_title).lower().rstrip(".")
+  if paragraphs and wanted and collapse(paragraphs[0]).lower().rstrip(".") == wanted:
+    paragraphs = paragraphs[1:]
+  return paragraphs
+
+
+def ccel_title(division):
+  """A division's title, in title case when it is written in capitals ("BIOGRAPHICAL SKETCH")."""
+  title = collapse(division.get("title") or "")
+  letters = [letter for letter in title if letter.isalpha()]
+  if letters and sum(letter.isupper() for letter in letters) > 0.7 * len(letters):
+    # Keep a leading Roman numeral ("VI. A DISSERTATION ...") as it is.
+    numeral = re.match(r"^([IVXLC]+\.?\s+)(.*)$", title)
+    return numeral[1] + title_case(numeral[2]) if numeral else title_case(title)
+  return title
+
+
+def ccel_unit_text(element, title):
+  """A unit's text: its paragraphs, then its footnotes."""
+  notes = []
+  paragraphs = ccel_paragraphs(element, notes, title)
+  if notes:
+    paragraphs.append("Notes")
+    paragraphs.extend(f"[{number}] {note}" for number, note in enumerate(notes, start=1))
+  return "\n\n".join(paragraphs)
+
+
+def parse_ccel_book(path):
+  """Read a CCEL book (ThML): its top divisions are the parts and the divisions inside them the chapters.
+
+  A top division with no divisions inside is a chapter by itself; such chapters next to each other are kept
+  together in one part (All of Grace is all of them). A part's own text before its first chapter is a chapter
+  named after the part. A lone "Part III." followed by a division with chapters (as in Religious Affections)
+  is that part's title. The title page, the indexes and the like are left out; footnotes go at the end of
+  their chapter.
+  """
+  root = ElementTree.parse(path).getroot()
+  body = root.find("ThML.body")
+  if body is None:
+    raise DevotionalProblem(f"{path} has no text.")
+  book_title = collapse("".join(next(root.iter("DC.Title"), root).itertext())) or "Chapters"
+  top = [division for division in body if division.tag == "div1" and not CCEL_SKIPPED_DIVISION.match(division.get("title") or "")]
+
+  def chapters_of(division):
+    return [child for child in division if child.tag == "div2" and not CCEL_SKIPPED_DIVISION.match(child.get("title") or "")]
+
+  def own_text(division):
+    """The part of a division before its first chapter."""
+    notes = []
+    before = []
+    for child in division:
+      if child.tag == "div2":
+        break
+      before.append(child)
+    paragraphs = ccel_paragraphs(before, notes, division.get("title") or "")
+    if notes:
+      paragraphs.append("Notes")
+      paragraphs.extend(f"[{number}] {note}" for number, note in enumerate(notes, start=1))
+    return "\n\n".join(paragraphs)
+
+  groups = []  # [(title, [(unit title, text)])]
+  loose = []
+  index = 0
+  while index < len(top):
+    division = top[index]
+    title = ccel_title(division)
+    inside = chapters_of(division)
+    following = top[index + 1] if index + 1 < len(top) else None
+    if not inside and CCEL_PART_ONLY.match(title) and following is not None and chapters_of(following):
+      # "Part III." alone, then its chapters in the next division.
+      if loose:
+        groups.append((None, loose))
+        loose = []
+      units = []
+      intro = own_text(division)
+      if intro:
+        units.append((title.rstrip("."), intro))
+      first_title = ccel_title(following)
+      first_text = own_text(following)
+      if first_text:
+        units.append((first_title, first_text))
+      units.extend((ccel_title(chapter), ccel_unit_text(chapter, chapter.get("title") or "")) for chapter in chapters_of(following))
+      groups.append((title.rstrip("."), units))
+      index += 2
+      continue
+    if not inside:
+      loose.append((title, ccel_unit_text(division, title)))
+    else:
+      if loose:
+        groups.append((None, loose))
+        loose = []
+      units = []
+      intro = own_text(division)
+      if intro:
+        units.append((title, intro))
+      units.extend((ccel_title(chapter), ccel_unit_text(chapter, chapter.get("title") or "")) for chapter in inside)
+      groups.append((title, units))
+    index += 1
+  if loose:
+    groups.append((None, loose))
+
+  has_parts = any(title is not None for title, _units in groups)
+  sections = []
+  entries = []
+  for number, (title, units) in enumerate(groups, start=1):
+    if title is None:
+      # Chapters that stood alone: the whole book, one chapter's name, or the opening chapters.
+      if not has_parts:
+        title = book_title
+      elif len(units) == 1:
+        title = units[0][0]
+      elif len(units) == 2:
+        title = " and ".join(unit[0].split(".")[0] if CCEL_PART_ONLY.match(unit[0].split(".")[0] + ".") else unit[0] for unit in units)
+      else:
+        title = "Introductions"
+    sections.append((number, title))
+    for unit_number, (unit_title, text) in enumerate(units, start=1):
+      if text:
+        entries.append(Entry(number, unit_number, 1, unit_title, "", text))
+  if not entries:
+    raise DevotionalProblem(f"{path}: no chapters were found.")
+  return Parsed(sections, entries)
+
+
+CHECKBOOK_DATE = re.compile(r"^(Jan|Feb|Mar|Apr|May|June?|July?|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})$")
+CHECKBOOK_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+
+def parse_checkbook(path):
+  """Read Faith's Checkbook (CCEL): a preface, then one reading for each day of the year, each opening with its
+  date line ("Jan. 1"), its title and its promise. The preface is section 0, before January."""
+  body = ElementTree.parse(path).getroot().find("ThML.body")
+  if body is None:
+    raise DevotionalProblem(f"{path} has no text.")
+  entries = []
+  for division in body:
+    if division.tag != "div1":
+      continue
+    title = collapse(division.get("title") or "")
+    if title.lower() == "preface":
+      entries.append(Entry(0, 1, 1, "Preface", "", ccel_unit_text(division, title)))
+      continue
+    if not title.lower().startswith("the month of"):
+      continue
+    day = None
+    heading = ""
+    lines = []
+
+    def finish():
+      if day is not None:
+        month, number = day
+        if not lines:
+          raise DevotionalProblem(f"{path}: {MONTHS[month - 1]} {number} is empty.")
+        entries.append(Entry(month, number, 1, f"{MONTHS[month - 1]} {number}", heading, "\n\n".join(lines)))
+
+    for child in division:
+      text = collapse("".join(child.itertext()))
+      date = CHECKBOOK_DATE.match(text) if child.tag == "p" and child.get("class") == "Date" else None
+      if date:
+        finish()
+        day = (CHECKBOOK_MONTHS.index(date[1][:3].lower()) + 1, int(date[2]))
+        heading, lines = "", []
+      elif day is None or child.tag in ("h1",) or not text:
+        continue
+      elif child.tag == "h3" and not heading:
+        heading = title_case(text)
+      else:
+        lines.append(text)
+    finish()
+  return Parsed([(0, "Preface")] + [(number, name) for number, name in enumerate(MONTHS, start=1)], entries)
+
+
+WESLEY_SERMON = re.compile(r"^\s*SERMON ♦?([IVXLC]+)\.(?:\[\d+\]|¹)?\s*$")
+WESLEY_FOOTNOTE = re.compile(r"^\s*(\d+) – (.*)$")
+# A sermon's text reference standing where its title would be ("1 PETER i. 6.", "NUMB. xxiii. 10.").
+WESLEY_TEXT_REFERENCE = re.compile(r"^(?:[1-3] )?[A-Z][A-Za-z]*\.? [ivxlc]+\. [\d, ]+\.?$")
+WESLEY_VOLUME_END = re.compile(r"^\s*(the end of the \w+ volume\.?|advice)\s*$", re.IGNORECASE)
+
+
+def pretty_reference(reference):
+  """ "1 PETER i. 6" as "1 Peter i. 6"; "Ephes. v. 14" stays."""
+  return " ".join(word.capitalize() if word.rstrip(".").isalpha() and word.isupper() else word for word in reference.split())
+
+
+def roman_number(text):
+  values = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
+  total = 0
+  for index, letter in enumerate(text):
+    value = values[letter]
+    total += -value if index + 1 < len(text) and values[text[index + 1]] > value else value
+  return total
+
+
+def parse_wesley_sermons(folder):
+  """Read Wesley's Sermons on Several Occasions from the first four volumes of his Works (Project Gutenberg).
+
+  A volume lists its sermons in its contents, then has them in order: a sermon starts at its second
+  "SERMON XVII." line (the first is in the contents) and runs to the next, and the last runs to the end of
+  the volume ("The End of the First Volume", or in the fourth the "Advice" that follows). Its title is the
+  line after the heading. The footnotes collected at the end of a volume go at the end of their sermon.
+  """
+  paths = sorted(Path(folder).glob("volume-*.txt"))
+  if len(paths) != 4:
+    raise DevotionalProblem(f"{folder} should hold the four volumes (volume-1.txt to volume-4.txt).")
+  sections = []
+  entries = []
+  for volume, path in enumerate(paths, start=1):
+    lines = gutenberg_lines(path)
+    footnotes = {}
+    footnote_start = next((index for index, line in enumerate(lines) if line.strip() == "Footnotes."), len(lines))
+    current = None
+    for line in lines[footnote_start + 1:]:
+      match = WESLEY_FOOTNOTE.match(line)
+      if match:
+        current = int(match[1])
+        footnotes[current] = [match[2].strip()]
+      elif line.strip() and current is not None and not line.strip().startswith(("Transcriber", "│", "┌", "└")):
+        footnotes[current].append(line.strip())
+      elif line.strip().startswith(("Transcriber", "┌")):
+        current = None
+    lines = lines[:footnote_start]
+    headings = [(index, roman_number(match[1])) for index, line in enumerate(lines) if (match := WESLEY_SERMON.match(line))]
+    numbers = [number for _index, number in headings]
+    first = numbers[0]
+    # The body starts at the second heading with the first sermon's number.
+    body_start = [index for index, number in headings if number == first][1]
+    body = [(index, number) for index, number in headings if index >= body_start]
+    end = next((index for index, line in enumerate(lines) if index > body[-1][0] and WESLEY_VOLUME_END.match(line)), len(lines))
+    # The contents: a heading, then (indented to the middle) its title, or straight away its text (indented two).
+    titles = {}
+    for index, number in headings:
+      if index >= body_start:
+        break
+      following = next((line for line in lines[index + 1:index + 6] if line.strip()), "")
+      if len(following) - len(following.lstrip()) >= 6 and not WESLEY_SERMON.match(following):
+        titles[number] = collapse(following).rstrip(".").replace("♦", "")
+    sections.append((volume, f"Volume {volume}: Sermons {body[0][1]}–{body[-1][1]}"))
+    for position, (index, number) in enumerate(body):
+      stop = body[position + 1][0] if position + 1 < len(body) else end
+      text_lines = lines[index + 1:stop]
+      while text_lines and not text_lines[0].strip():
+        text_lines.pop(0)
+      # The line after the heading is the title (left out of the text, the reader shows it), unless it is the
+      # text ("1 PETER i. 6.") or a footnote ("¹ On the death of ..."), which stay.
+      first_line = collapse(text_lines[0]) if text_lines else ""
+      reference = first_line.rstrip(".") if WESLEY_TEXT_REFERENCE.match(first_line) else ""
+      body_title = ""
+      if first_line and not reference and not first_line.startswith("¹"):
+        body_title = collapse(text_lines.pop(0)).rstrip(".")
+      paragraphs = [paragraph.replace("♦", "") for paragraph in paragraphs_of_lines(text_lines)]
+      # A footnote on the heading itself ("SERMON I.[1]": where and when it was preached) comes first.
+      used = [int(found) for found in re.findall(r"\[(\d+)\]", lines[index]) if int(found) in footnotes]
+      for paragraph in paragraphs:
+        used.extend(int(found) for found in re.findall(r"\[(\d+)\]", paragraph) if int(found) in footnotes and int(found) not in used)
+      if used:
+        paragraphs.append("Notes")
+        paragraphs.extend(f"[{found}] {' '.join(footnotes[found])}" for found in used)
+      # The title from the contents; a sermon with none there is named by its text ("On 1 Peter i. 6").
+      title = titles.get(number) or title_case(body_title) or (f"On {pretty_reference(reference)}" if reference else "")
+      unit_title = f"Sermon {number}: {title}" if title else f"Sermon {number}"
+      entries.append(Entry(volume, number, 1, unit_title, "", "\n\n".join(paragraphs)))
+  return Parsed(sections, entries)
+
+
+EDWARDS_SERMON = re.compile(r"^([IVX]+)$")
+
+
+def parse_edwards_selected_sermons(path):
+  """Read Selected Sermons of Jonathan Edwards (ed. Gardiner, Project Gutenberg): the editor's introduction,
+  seven sermons (each headed by its number, "I", then its title in capitals) and the editor's notes."""
+  lines = gutenberg_lines(path)
+  introduction = next(index for index, line in enumerate(lines) if line.strip() == "INTRODUCTION")
+  sermon_starts = [index for index, line in enumerate(lines) if index > introduction and EDWARDS_SERMON.match(line.strip())]
+  notes_start = next(index for index, line in enumerate(lines) if index > sermon_starts[-1] and line.strip() == "NOTES")
+  # The introduction ends at the second "SELECTED SERMONS OF JONATHAN EDWARDS" (the half-title before sermon I).
+  introduction_end = max(index for index, line in enumerate(lines[:sermon_starts[0]]) if "SELECTED SERMONS" in line)
+  entries = [Entry(1, 1, 1, "Introduction", "", "\n\n".join(paragraphs_of_lines(lines[introduction + 1:introduction_end])))]
+  for position, start in enumerate(sermon_starts):
+    stop = sermon_starts[position + 1] if position + 1 < len(sermon_starts) else notes_start
+    block = lines[start + 1:stop]
+    while block and not block[0].strip():
+      block.pop(0)
+    title_lines = []
+    while block and block[0].strip():
+      title_lines.append(block.pop(0).strip())
+    title = re.sub(r"\s*deg\.?$", "", " ".join(title_lines)).rstrip(".")
+    paragraphs = [paragraph for paragraph in paragraphs_of_lines(block) if not paragraph.startswith("[Illustration")]
+    entries.append(Entry(1, position + 2, 1, f"{EDWARDS_SERMON.match(lines[start].strip())[1]}. {title_case(title)}", "", "\n\n".join(paragraphs)))
+  entries.append(Entry(1, len(sermon_starts) + 2, 1, "Notes", "", "\n\n".join(paragraphs_of_lines(lines[notes_start + 1:]))))
+  return Parsed([(1, "Selected Sermons")], entries)
+
+
 PARSERS = {
   "prayers-of-the-early-church": parse_prayers_of_the_early_church,
   "table-talk-of-martin-luther": parse_table_talk,
   "grace-abounding": parse_grace_abounding,
   "summa-theologica-part-1": parse_summa_part_1,
   "summa-theologica-part-2-2": parse_summa_part_2_2,
+  "wesley-sermons": parse_wesley_sermons,
+  "edwards-selected-sermons": parse_edwards_selected_sermons,
+  "plain-account-of-christian-perfection": parse_ccel_book,
+  "journal-of-john-wesley": parse_ccel_book,
+  "religious-affections": parse_ccel_book,
+  "freedom-of-the-will": parse_ccel_book,
+  "works-of-jonathan-edwards-1": parse_ccel_book,
+  "all-of-grace": parse_ccel_book,
+  "faiths-checkbook": parse_checkbook,
   "summa-theologica-part-3": parse_summa_part_3,
   "maclaren-expositions-corinthians-to-timothy": parse_maclaren_expositions,
   "pursuit-of-god": parse_pursuit_of_god,
@@ -1004,6 +1477,7 @@ def check_ids(devotional_ids):
 
 
 def file_path(folder, devotional_id):
+  """Where a source is saved: a file, or for a book in several files (download_urls) a folder."""
   return Path(folder) / SOURCES[devotional_id]["file_name"]
 
 
@@ -1031,11 +1505,20 @@ def download(folder, devotional_ids, report=print):
   with httpx.Client(follow_redirects=True, timeout=120) as client:
     for devotional_id in devotional_ids:
       source = SOURCES[devotional_id]
-      report(f"{devotional_id}: {source['download_url']}")
-      response = client.get(source["download_url"])
-      if response.status_code != 200 or len(response.content) < 10_000:
-        raise DevotionalProblem(f"Could not download {source['download_url']} (status {response.status_code}).")
-      file_path(folder, devotional_id).write_bytes(response.content)
+      # A book in several files (download_urls) is saved as volume-1.txt, volume-2.txt ... in a folder of its own.
+      urls = source.get("download_urls") or [source["download_url"]]
+      targets = (
+        [file_path(folder, devotional_id) / f"volume-{number}.txt" for number in range(1, len(urls) + 1)]
+        if "download_urls" in source
+        else [file_path(folder, devotional_id)]
+      )
+      for url, target in zip(urls, targets):
+        report(f"{devotional_id}: {url}")
+        response = client.get(url)
+        if response.status_code != 200 or len(response.content) < 10_000:
+          raise DevotionalProblem(f"Could not download {url} (status {response.status_code}).")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(response.content)
       saved += 1
   return saved
 
@@ -1048,9 +1531,10 @@ def replace_devotional(devotional_id, parsed):
 
   It keeps its place in the order and, if it was there already, whether it is published.
   """
+  # A new one goes last; one already there keeps its place. One marked "publish": False (a CCEL edition, until
+  # CCEL agrees) is loaded hidden; one already there keeps whether it is published either way.
   return save_devotional(
-    devotional_id, SOURCES[devotional_id], parsed,
-    publish_if_new=True, position=list(SOURCES).index(devotional_id) + 1,
+    devotional_id, SOURCES[devotional_id], parsed, publish_if_new=SOURCES[devotional_id].get("publish", True),
   )
 
 

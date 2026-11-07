@@ -462,3 +462,82 @@ def test_a_summa_part_without_a_prologue_drops_treatise_headings_and_article_cou
     (1, 1, "Question 1: Of Faith", "Having to treat now of faith."),
     (2, 47, "Question 47: Of Prudence", "We now consider prudence."),
   ]
+
+
+def test_a_ccel_book_keeps_its_parts_and_footnotes_and_skips_the_title_page(tmp_path):
+  from devotionals import parse_ccel_book
+
+  path = tmp_path / "book.xml"
+  path.write_text(
+    "<ThML><ThML.head><DC.Title>Test Book</DC.Title></ThML.head><ThML.body>"
+    '<div1 title="Title Page"><p>TEST BOOK</p></div1>'
+    '<div1 title="INTRODUCTION"><h2>Introduction</h2><p>Opening words<note>A footnote.</note> here.</p></div1>'
+    '<div1 title="Part I. The first"><p>About part one.</p><div2 title="Section I. One"><p>First.</p></div2>'
+    '<div2 title="Section II. Two"><verse><l>A line</l><l>Another</l></verse></div2></div1>'
+    '<div1 title="Part II."><p>Part two begins.</p></div1>'
+    '<div1 title="I. The first sign"><p>Sign one.</p><div2 title="II. The second sign"><p>Sign two.</p></div2></div1>'
+    '<div1 title="Indexes"><div2 title="Index of Scripture References"><p>x</p></div2></div1>'
+    "</ThML.body></ThML>",
+    encoding="utf-8",
+  )
+  parsed = parse_ccel_book(path)
+
+  assert parsed.sections == [(1, "Introduction"), (2, "Part I. The first"), (3, "Part II")]
+  assert [(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries] == [
+    (1, 1, "Introduction"),
+    (2, 1, "Part I. The first"), (2, 2, "Section I. One"), (2, 3, "Section II. Two"),
+    (3, 1, "Part II"), (3, 2, "I. The first sign"), (3, 3, "II. The second sign"),
+  ]
+  # The heading that repeats the title is left out; the footnote goes to the end, marked where it was.
+  assert parsed.entries[0].text == "Opening words [1] here.\n\nNotes\n\n[1] A footnote."
+  assert parsed.entries[3].text == "A line\nAnother"
+
+
+def test_faiths_checkbook_is_read_by_its_date_lines(tmp_path):
+  from devotionals import parse_checkbook
+
+  path = tmp_path / "checkbook.xml"
+  path.write_text(
+    '<ThML><ThML.body><div1 title="Preface"><p>Why this book.</p></div1>'
+    '<div1 title="Index of Bible Verses Used"><p>x</p></div1>'
+    '<div1 title="The Month of January"><h1>THE MONTH OF JANUARY</h1>'
+    '<p class="Date">Jan. 1</p><h3>THE BIBLE\'S FIRST PROMISE</h3><p class="VerseQuote">"And I will put enmity." Gen. 3:15</p><p>This is the first promise.</p>'
+    '<p class="Date">Jan. 2</p><h3>CONQUEST TO VICTORY</h3><p>Bravely tread.</p></div1>'
+    "</ThML.body></ThML>",
+    encoding="utf-8",
+  )
+  parsed = parse_checkbook(path)
+
+  assert parsed.sections[:2] == [(0, "Preface"), (1, "January")]
+  assert [(entry.section, entry.unit, entry.unit_title, entry.heading) for entry in parsed.entries] == [
+    (0, 1, "Preface", ""), (1, 1, "January 1", "The Bible's First Promise"), (1, 2, "January 2", "Conquest to Victory"),
+  ]
+  assert parsed.entries[1].text == '"And I will put enmity." Gen. 3:15\n\nThis is the first promise.'
+
+
+def test_wesleys_sermons_are_read_from_four_volumes_with_their_footnotes(tmp_path):
+  from devotionals import parse_wesley_sermons
+
+  def volume(numbers, closing):
+    contents = "".join(f"                SERMON {number}.\n\n              Title {number}.\n\n  Text.\n\n" for number in numbers)
+    body = "".join(
+      f"                SERMON {number}.[{index + 1}]\n\n              TITLE {number}.\n\n  JOHN iii. 16.\n\n1. Words of sermon {number}.\n\n"
+      for index, number in enumerate(numbers)
+    )
+    footnotes = "".join(f"    {index + 1} – Preached at place {number}.\n\n" for index, number in enumerate(numbers))
+    return gutenberg(f"CONTENTS\n\n{contents}SERMONS ON SEVERAL OCCASIONS.\n\n{body}{closing}\n\nFootnotes.\n\n{footnotes}")
+
+  folder = tmp_path / "wesley-sermons"
+  folder.mkdir()
+  volumes = [(["I", "II"], "The End of the FIRST VOLUME."), (["III"], "The End of the SECOND VOLUME."),
+             (["IV"], "The End of the Third VOLUME."), (["V"], "ADVICE\n\nNot a sermon.")]
+  for number, (numbers, closing) in enumerate(volumes, start=1):
+    (folder / f"volume-{number}.txt").write_text(volume(numbers, closing), encoding="utf-8")
+  parsed = parse_wesley_sermons(folder)
+
+  assert [(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries] == [
+    (1, 1, "Sermon 1: Title I"), (1, 2, "Sermon 2: Title II"), (2, 3, "Sermon 3: Title III"),
+    (3, 4, "Sermon 4: Title IV"), (4, 5, "Sermon 5: Title V"),
+  ]
+  assert parsed.entries[1].text == "JOHN iii. 16.\n\n1. Words of sermon II.\n\nNotes\n\n[2] Preached at place II."
+  assert "Not a sermon" not in parsed.entries[4].text
