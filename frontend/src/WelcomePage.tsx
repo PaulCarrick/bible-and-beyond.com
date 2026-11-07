@@ -84,6 +84,14 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
           </section>
         )}
       </div>
+
+      <p className="welcome-faq">
+        Have a question about God, Jesus or the Bible? Try the{' '}
+        <button type="button" className="link-button" onClick={() => onNavigate('faq')}>
+          FAQ
+        </button>{' '}
+        page, where an AI answers 30 common questions from the Bible.
+      </p>
     </div>
   )
 }

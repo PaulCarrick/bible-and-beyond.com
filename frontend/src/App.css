@@ -1671,3 +1671,62 @@ select:disabled {
     display: none;
   }
 }
+
+/* The FAQ page (FaqPage.tsx): the question list, and Gemini's answer. */
+.faq-page {
+  max-width: 46rem;
+}
+
+.faq-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.faq-select {
+  width: 100%;
+  max-width: 100%;
+}
+
+.faq-waiting {
+  color: var(--text);
+  font-style: italic;
+}
+
+.faq-answer {
+  margin-top: 1.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.faq-answer h2 {
+  font-size: 22px;
+}
+
+.faq-answer h3 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 18px;
+}
+
+.faq-answer p,
+.faq-answer ul,
+.faq-answer ol {
+  margin: 0 0 0.8rem;
+}
+
+.faq-answer li {
+  margin-bottom: 0.3rem;
+}
+
+.faq-ai-note {
+  margin-top: 1.5rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 4px;
+  background: var(--code-bg);
+  font-size: 0.9rem;
+}
+
+.welcome-faq {
+  margin-top: 1.5rem;
+}

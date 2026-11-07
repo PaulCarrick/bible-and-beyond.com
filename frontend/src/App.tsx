@@ -19,6 +19,7 @@ import UnsubscribePage from './UnsubscribePage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
+import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
@@ -176,6 +177,7 @@ function App() {
     {
       heading: 'About',
       entries: [
+        { view: 'faq' as View, label: 'FAQ' },
         { view: 'help' as View, label: 'Help' },
         { view: 'contact' as View, label: 'Contact' },
       ],
@@ -263,6 +265,8 @@ function App() {
 
               {/* The form stays mounted too, so a half-written message is not lost. */}
               <ContactPage isHidden={activeView !== 'contact'} />
+              {/* The FAQ stays mounted too, so the answers it has shown are kept. */}
+              <FaqPage isHidden={activeView !== 'faq'} />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
               <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />

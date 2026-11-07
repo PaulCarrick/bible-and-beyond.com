@@ -41,6 +41,7 @@ from contact import (
   send_contact_message,
   verify_recaptcha,
 )
+from faq import FaqUnavailable, UnknownQuestion, get_answer, list_questions
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -95,6 +96,30 @@ def ask(request: QuestionRequest):
     question=request.question,
     answer="This is a placeholder answer. Real answers are coming soon.",
   )
+
+
+class FaqAnswerRequest(BaseModel):
+  question_id: int
+
+
+@app.get("/faq")
+def faq_questions():
+  """The FAQ questions grouped by heading, and whether answers can be had (a Gemini key is set)."""
+  return list_questions()
+
+
+@app.post("/faq/answer")
+def faq_answer(request: FaqAnswerRequest):
+  """Gemini's answer to one of the listed questions (by number only, never free text); kept for a day."""
+  try:
+    return get_answer(request.question_id)
+  except UnknownQuestion as problem:
+    raise HTTPException(status_code=404, detail=str(problem)) from problem
+  except FaqUnavailable as problem:
+    raise HTTPException(
+      status_code=503,
+      detail="The FAQ answers are not available right now. Please try again later.",
+    ) from problem
 
 
 @app.get("/translations")

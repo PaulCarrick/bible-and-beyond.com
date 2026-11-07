@@ -452,3 +452,40 @@ export async function unsubscribeWithToken(token: string): Promise<string> {
   })
   return (await readJson<{ devotional: string }>(response)).devotional
 }
+
+export interface FaqQuestion {
+  id: number
+  question: string
+}
+
+export interface FaqListing {
+  // False when the server has no Gemini key, so no answers can be had.
+  available: boolean
+  groups: { heading: string; questions: FaqQuestion[] }[]
+}
+
+export interface FaqAnswer {
+  question_id: number
+  question: string
+  // Markdown written by Gemini; the page draws it as text, never as HTML.
+  answer: string
+}
+
+export async function fetchFaqQuestions(): Promise<FaqListing> {
+  return readJson(await fetch(`${mlServiceUrl}/faq`))
+}
+
+export async function fetchFaqAnswer(questionId: number): Promise<FaqAnswer> {
+  const response = await fetch(`${mlServiceUrl}/faq/answer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question_id: questionId }),
+  })
+  if (response.status === 429) {
+    throw new Error("You're asking too quickly. Please wait a minute and try again.")
+  }
+  if (response.status >= 500) {
+    throw new Error('The FAQ answers are not available right now. Please try again later.')
+  }
+  return readJson(response)
+}

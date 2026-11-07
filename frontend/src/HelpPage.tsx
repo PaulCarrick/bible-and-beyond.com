@@ -79,6 +79,14 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           change it on the same page.
         </li>
         <li>
+          <strong>Common questions about the faith.</strong>{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('faq')}>
+            FAQ
+          </button>{' '}
+          (under About in the menu) answers 30 common questions about God, Jesus, the Bible and the Christian life.
+          The answers are written by an AI (Google Gemini) and may contain mistakes, so check them against the Bible.
+        </li>
+        <li>
           <strong>Questions or corrections?</strong> Use{' '}
           <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
             Contact
