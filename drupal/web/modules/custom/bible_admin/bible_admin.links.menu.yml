@@ -11,3 +11,10 @@ bible_admin.site_settings:
   route_name: bible_admin.site_settings
   parent: system.admin
   weight: -4
+
+bible_admin.site_users:
+  title: 'Site users'
+  description: 'The accounts of the public site''s visitors (not Drupal users): add, change and delete them.'
+  route_name: bible_admin.site_users
+  parent: system.admin
+  weight: -3

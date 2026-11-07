@@ -126,6 +126,83 @@ class BibleManager {
   }
 
   /**
+   * The main site's accounts (its visitors, not Drupal users), newest first, 50 at a time.
+   *
+   * @param string $query
+   *   Keeps only the accounts whose address contains this.
+   * @param int $page
+   *   The page, from 1.
+   *
+   * @return array
+   *   Keys: users (each with id, email, created_at, last_login_at, email_verified, open_ai_queries,
+   *   note_count and subscription_count), total, page and per_page.
+   */
+  public function listSiteUsers(string $query, int $page): array {
+    return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_users.py');
+  }
+
+  public function getSiteUser(int $userId): array {
+    return $this->run(['get', '--id=' . $userId], 'manage_users.py')['user'];
+  }
+
+  /**
+   * Adds an account to the main site. The password is passed on the tool's input, never as an argument.
+   */
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries): array {
+    $arguments = ['create', '--email=' . $email, '--password-on-input'];
+    if ($emailVerified) {
+      $arguments[] = '--email-verified';
+    }
+    if ($openAiQueries) {
+      $arguments[] = '--open-ai-queries';
+    }
+    $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
+    $this->logger->notice('@user added the site account @email.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@email' => $user['email'],
+    ]);
+    return $user;
+  }
+
+  /**
+   * Changes an account of the main site. An empty password keeps the old one; a new one logs it out everywhere.
+   */
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries): array {
+    $arguments = [
+      'update',
+      '--id=' . $userId,
+      '--email=' . $email,
+      '--email-verified=' . ($emailVerified ? 'yes' : 'no'),
+      '--open-ai-queries=' . ($openAiQueries ? 'yes' : 'no'),
+    ];
+    $input = NULL;
+    if ($password !== '') {
+      $arguments[] = '--password-on-input';
+      $input = $password . "\n";
+    }
+    $user = $this->run($arguments, 'manage_users.py', $input)['user'];
+    $this->logger->notice('@user changed the site account @email@password.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@email' => $user['email'],
+      '@password' => $password !== '' ? ' (new password)' : '',
+    ]);
+    return $user;
+  }
+
+  /**
+   * Deletes an account of the main site, with its notes and email subscriptions.
+   */
+  public function deleteSiteUser(int $userId): array {
+    $user = $this->run(['delete', '--id=' . $userId], 'manage_users.py')['user'];
+    $this->logger->notice('@user deleted the site account @email (@notes notes).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@email' => $user['email'],
+      '@notes' => $user['note_count'],
+    ]);
+    return $user;
+  }
+
+  /**
    * Keeps an uploaded file, and what the administrator typed, until they confirm or cancel.
    *
    * @return string
@@ -228,8 +305,11 @@ class BibleManager {
 
   /**
    * Runs one of the Python tools and returns its JSON answer.
+   *
+   * @param string|null $input
+   *   Sent to the tool's standard input (a password, so it never shows in the process list).
    */
-  private function run(array $arguments, string $tool = 'manage_bibles.py'): array {
+  private function run(array $arguments, string $tool = 'manage_bibles.py', ?string $input = NULL): array {
     $directory = $this->mlDirectory();
     $python = $directory . '/.venv/bin/python';
     $script = $directory . '/scripts/' . $tool;
@@ -239,7 +319,7 @@ class BibleManager {
       }
     }
 
-    $process = new Process([$python, $script, ...$arguments], $directory, NULL, NULL, self::COMMAND_TIMEOUT_SECONDS);
+    $process = new Process([$python, $script, ...$arguments], $directory, NULL, $input, self::COMMAND_TIMEOUT_SECONDS);
     try {
       $process->run();
     }

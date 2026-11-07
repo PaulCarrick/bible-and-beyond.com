@@ -51,3 +51,39 @@ bible_admin.settings:
     _title: 'Site settings'
   requirements:
     _permission: 'administer bibles+administer site configuration'
+
+# The accounts of the main site's visitors (in the Bible database, not Drupal's users). Only for
+# administrators: the Bible administrator role does not have this permission.
+bible_admin.site_users:
+  path: '/admin/site-users'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\SiteUserListController::build'
+    _title: 'Site users'
+  requirements:
+    _permission: 'administer site users'
+
+bible_admin.site_user_add:
+  path: '/admin/site-users/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SiteUserForm'
+    _title: 'Add a site user'
+  requirements:
+    _permission: 'administer site users'
+
+bible_admin.site_user_edit:
+  path: '/admin/site-users/{user_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SiteUserForm'
+    _title: 'Edit a site user'
+  requirements:
+    _permission: 'administer site users'
+    user_id: '\d+'
+
+bible_admin.site_user_delete:
+  path: '/admin/site-users/{user_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteSiteUserForm'
+    _title: 'Delete a site user'
+  requirements:
+    _permission: 'administer site users'
+    user_id: '\d+'

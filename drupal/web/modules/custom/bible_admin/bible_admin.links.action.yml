@@ -9,3 +9,9 @@ bible_admin.site_settings_action:
   title: 'Site settings'
   appears_on:
     - bible_admin.list
+
+bible_admin.site_user_add_action:
+  route_name: bible_admin.site_user_add
+  title: 'Add a site user'
+  appears_on:
+    - bible_admin.site_users
