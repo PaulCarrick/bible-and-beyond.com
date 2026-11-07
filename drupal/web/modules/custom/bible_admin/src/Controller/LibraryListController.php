@@ -21,6 +21,7 @@ class LibraryListController extends ControllerBase {
   public const COLLECTIONS = [
     'commentaries' => ['kind' => 'commentary', 'title' => 'Commentaries', 'one' => 'commentary', 'counted' => 'Notes', 'detail' => 'Short name'],
     'devotionals' => ['kind' => 'devotional', 'title' => 'Devotionals', 'one' => 'devotional', 'counted' => 'Readings', 'detail' => 'Author'],
+    'books' => ['kind' => 'book', 'title' => 'Other books', 'one' => 'book', 'counted' => 'Chapters', 'detail' => 'Author'],
   ];
 
   public function __construct(protected BibleManager $manager) {}
@@ -40,9 +41,11 @@ class LibraryListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $collection === 'commentaries'
-          ? $this->t('The commentaries on the public site. A hidden one disappears from the site everywhere (the lists, search, the reader and the Commentaries window) until you publish it again. Refresh downloads one of the known commentaries again from its source (several minutes, in the background); an uploaded one is replaced by uploading its file again.')
-          : $this->t('The devotionals on the public site. A hidden one disappears from the site, and its daily emails pause until you publish it again. Refresh downloads one of the known devotionals again from its source; an uploaded one is replaced by uploading its file again. Deleting one also stops its daily emails.'),
+        '#value' => match ($collection) {
+          'commentaries' => $this->t('The commentaries on the public site. A hidden one disappears from the site everywhere (the lists, search, the reader and the Commentaries window) until you publish it again. Refresh downloads one of the known commentaries again from its source (several minutes, in the background); an uploaded one is replaced by uploading its file again.'),
+          'books' => $this->t('The Other books on the public site, read a chapter at a time (with no daily emails). A hidden one disappears from the site until you publish it again. Load or Refresh downloads one of the known books from Project Gutenberg in the background; an uploaded one is replaced by uploading its file again.'),
+          default => $this->t('The devotionals on the public site. A hidden one disappears from the site, and its daily emails pause until you publish it again. Refresh downloads one of the known devotionals again from its source; an uploaded one is replaced by uploading its file again. Deleting one also stops its daily emails.'),
+        },
       ],
       'upload' => [
         '#type' => 'link',

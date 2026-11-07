@@ -77,6 +77,14 @@ class ChangeLibraryForm extends ConfirmFormBase {
 
   public function getDescription() {
     $isDevotional = $this->kind() === 'devotional';
+    if ($this->kind() === 'book') {
+      return match ($this->action) {
+        'publish' => $this->t('Visitors will see it on the Other books page.'),
+        'unpublish' => $this->t('It disappears from the site. Its text stays, and you can publish it again.'),
+        'refresh' => $this->t('Its text is downloaded again from Project Gutenberg and replaces the one here, in the background. It stays published or hidden as it is now.'),
+        default => $this->t('This permanently removes its text. Visitors\' notes on it stay. A known book can be loaded again with Load; an uploaded one only by uploading its file again.'),
+      };
+    }
     return match ($this->action) {
       'publish' => $isDevotional
         ? $this->t('Visitors will see it in the devotionals reader, and its daily emails start again.')

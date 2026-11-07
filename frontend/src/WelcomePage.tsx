@@ -49,12 +49,13 @@ interface WelcomePageProps {
   translations: Translation[]
   commentaries: CommentarySource[]
   devotionals: DevotionalInfo[]
+  otherBooks?: DevotionalInfo[]
   onNavigate: (view: View) => void
 }
 
 // The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
 // the Help page.
-function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -117,6 +118,20 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
                 Read the devotionals
+              </button>
+            </div>
+          </section>
+        )}
+        {otherBooks.length > 0 && (
+          <section className="welcome-card">
+            <h3>Other books</h3>
+            <p>
+              {otherBooks.length === 1 ? 'A book' : `${otherBooks.length} books`} to read a chapter at a time:{' '}
+              {titleList(otherBooks.map((entry) => entry.name))}.
+            </p>
+            <div className="welcome-buttons">
+              <button type="button" className="primary-button" onClick={() => onNavigate('books')}>
+                Read other books
               </button>
             </div>
           </section>

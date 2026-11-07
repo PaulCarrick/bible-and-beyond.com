@@ -11,6 +11,7 @@ const addresses: Record<View, string> = {
   commentary: '/search-commentaries',
   browse: '/browse-commentaries',
   devotionals: '/devotionals',
+  books: '/books',
   faq: '/faq',
   help: '/help',
   contact: '/contact',

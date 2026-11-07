@@ -31,6 +31,15 @@ KINDS = {
     "entries": "devotional_entries",
     "key": "devotional_id",
     "known": devotionals.DEVOTIONALS,
+    "collection": "devotionals",
+  },
+  # The Other books share the devotionals' tables, marked collection "books" (migration 017).
+  "book": {
+    "table": "devotionals",
+    "entries": "devotional_entries",
+    "key": "devotional_id",
+    "known": devotionals.BOOKS,
+    "collection": "books",
   },
 }
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
@@ -44,7 +53,7 @@ class LibraryProblem(ValueError):
 
 def _kind(kind: str) -> dict:
   if kind not in KINDS:
-    raise LibraryProblem("The kind must be commentary or devotional.")
+    raise LibraryProblem("The kind must be commentary, devotional or book.")
   return KINDS[kind]
 
 
@@ -83,13 +92,19 @@ def list_items(kind: str) -> list[dict]:
   """Every commentary or devotional in the database, then the known ones not loaded, with any refresh state."""
   definition = _kind(kind)
   name_column = "short_name" if kind == "commentary" else "author"
+  collection = definition.get("collection")
+  # Only the devotionals' table has a collection (devotionals or books); the commentaries' has none.
+  where, parameters = ("WHERE t.collection = %s", (collection,)) if collection else ("", ())
   with connect() as connection:
     rows = connection.execute(
       f"""
       SELECT t.id, t.name, t.{name_column}, t.source_name, t.is_published,
              (SELECT count(*) FROM {definition['entries']} e WHERE e.{definition['key']} = t.id)
-      FROM {definition['table']} t ORDER BY t.position
-      """
+      FROM {definition['table']} t
+      {where}
+      ORDER BY t.position
+      """,
+      parameters,
     ).fetchall()
   items = [
     {
@@ -114,7 +129,13 @@ def list_items(kind: str) -> list[dict]:
 
 def _existing_id(connection, kind: str, item_id: str) -> str:
   definition = _kind(kind)
-  row = connection.execute(f"SELECT id FROM {definition['table']} WHERE id = %s", (item_id,)).fetchone()
+  collection = definition.get("collection")
+  if collection:
+    row = connection.execute(
+      f"SELECT id FROM {definition['table']} WHERE id = %s AND collection = %s", (item_id, collection)
+    ).fetchone()
+  else:
+    row = connection.execute(f"SELECT id FROM {definition['table']} WHERE id = %s", (item_id,)).fetchone()
   if row is None:
     raise LibraryProblem(f"There is no {kind} {item_id}.")
   return row[0]
@@ -138,7 +159,7 @@ def delete(kind: str, item_id: str) -> dict:
       f"SELECT count(*) FROM {definition['entries']} WHERE {definition['key']} = %s", (item_id,)
     ).fetchone()[0]
     subscriptions = 0
-    if kind == "devotional":
+    if kind in ("devotional", "book"):
       subscriptions = connection.execute(
         "DELETE FROM devotional_subscriptions WHERE devotional_id = %s", (item_id,)
       ).rowcount
@@ -177,7 +198,7 @@ def run_refresh(kind: str, item_id: str):
       entries, introductions = commentaries.read_commentary(folder, item_id, commentaries.book_numbers_by_code())
       count = commentaries.replace_commentary(item_id, entries, introductions)
       message = f"Loaded {count:,} notes"
-    else:
+    else:  # a devotional or a book
       _write_status(kind, item_id, "running", "Downloading ...")
       devotionals.download(folder, [item_id], report=lambda message: None)
       _write_status(kind, item_id, "running", "Loading ...")

@@ -36,3 +36,12 @@ bible_admin.devotionals:
     collection: devotionals
   parent: system.admin
   weight: -5
+
+bible_admin.books:
+  title: 'Other books'
+  description: 'Publish, hide, delete, load and upload the Other books.'
+  route_name: bible_admin.library
+  route_parameters:
+    collection: books
+  parent: system.admin
+  weight: -5

@@ -91,7 +91,7 @@ function CopyrightPage({ onBack, devotionals = [], commentaries = [] }: Copyrigh
 
       {devotionals.length > 0 && (
         <>
-          <h3>Devotionals</h3>
+          <h3>Devotionals and other books</h3>
           {devotionals.map((devotional) => (
             <p key={devotional.id}>
               <DevotionalCredit devotional={devotional} />

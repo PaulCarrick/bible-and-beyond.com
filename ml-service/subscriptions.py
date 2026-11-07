@@ -63,8 +63,9 @@ def check_timezone(name: str) -> ZoneInfo:
 def _devotional(connection, devotional_id: str, must_be_published: bool = False) -> tuple[str, str, str]:
   """(id, name, kind) of a devotional, or a 404. A hidden one is still listed (so it can be stopped) but
   cannot be subscribed to (must_be_published)."""
-  row = connection.execute("SELECT id, name, kind, is_published FROM devotionals WHERE id = %s", (devotional_id,)).fetchone() if ID_PATTERN.match(devotional_id or "") else None
-  if row is None or (must_be_published and not row[3]):
+  row = connection.execute("SELECT id, name, kind, is_published, collection FROM devotionals WHERE id = %s", (devotional_id,)).fetchone() if ID_PATTERN.match(devotional_id or "") else None
+  # An Other book (collection "books") has no daily emails.
+  if row is None or (must_be_published and (not row[3] or row[4] != "devotionals")):
     raise SubscriptionProblem("That devotional was not found.", 404)
   return row[:3]
 
@@ -240,7 +241,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
                s.last_sent_on, s.attempts_on, s.attempts, s.unsubscribe_token, u.email
         FROM devotional_subscriptions s
         JOIN users u ON u.id = s.user_id
-        JOIN devotionals d ON d.id = s.devotional_id AND d.is_published
+        JOIN devotionals d ON d.id = s.devotional_id AND d.is_published AND d.collection = 'devotionals'
         WHERE u.email_verified_at IS NOT NULL
         ORDER BY s.id
         """

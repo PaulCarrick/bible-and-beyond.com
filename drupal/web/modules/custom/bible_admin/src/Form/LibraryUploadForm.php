@@ -35,12 +35,18 @@ class LibraryUploadForm extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state, string $collection = 'commentaries'): array {
     $form_state->set('collection', $collection);
     $isCommentary = $collection === 'commentaries';
-    $form['#title'] = $isCommentary ? $this->t('Upload a commentary') : $this->t('Upload a devotional');
+    $isBook = $collection === 'books';
+    $one = match ($collection) {
+      'commentaries' => $this->t('commentary'),
+      'books' => $this->t('book'),
+      default => $this->t('devotional'),
+    };
+    $form['#title'] = $this->t('Upload a @one', ['@one' => $one]);
 
     $form['notice'] = [
       '#type' => 'html_tag',
       '#tag' => 'p',
-      '#value' => $this->t('An uploaded @one is stored in the site\'s database and shown to the public once you publish it. Only upload text that is in the public domain or that you have permission to publish. Uploading again with the same id replaces its text.', ['@one' => $isCommentary ? $this->t('commentary') : $this->t('devotional')]),
+      '#value' => $this->t('An uploaded @one is stored in the site\'s database and shown to the public once you publish it. Only upload text that is in the public domain or that you have permission to publish. Uploading again with the same id replaces its text.', ['@one' => $one]),
     ];
     $form['format'] = [
       '#type' => 'details',
@@ -63,20 +69,22 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
           'intro' => $this->t('Tab-separated text in UTF-8, with this header row and one row per @row (a spreadsheet can save it as "Tab-delimited text", UTF-8). In the text, \\n starts a new line; two of them start a new paragraph.', ['@row' => $isCommentary ? $this->t('note') : $this->t('reading')]),
           'details' => $isCommentary
             ? $this->t('The book is a number from 1 to 66, a code such as JHN or a name such as John or 1 Corinthians. end_verse is empty for the verse alone, a later verse for a range, or "end" for the rest of the chapter. Leave the verse empty for an introduction to the chapter; chapter 0 is the introduction to the book.')
-            : $this->t('Daily: the section is the month (1 to 12) and the unit the day; the titles may be left empty (they become "January" and "January 1"), and several rows for one day (a morning and an evening reading) keep their order and heading. By chapter: the section is the part or book (a number, 0 for a preface) and the unit the chapter; both need their title on the first row of each.'),
+            : ($isBook
+              ? $this->t('The section is the part (a number, 0 for a preface) and the unit the chapter; both need their title on the first row of each. Several rows of one chapter are kept in their order.')
+              : $this->t('Daily: the section is the month (1 to 12) and the unit the day; the titles may be left empty (they become "January" and "January 1"), and several rows for one day (a morning and an evening reading) keep their order and heading. By chapter: the section is the part or book (a number, 0 for a preface) and the unit the chapter; both need their title on the first row of each.')),
         ],
       ],
     ];
 
     $form['upload_file'] = [
       '#type' => 'file',
-      '#title' => $isCommentary ? $this->t('Commentary file') : $this->t('Devotional file'),
+      '#title' => $this->t('The @one file', ['@one' => $one]),
       '#description' => $this->t('A .txt or .tsv file of up to @size MB.', ['@size' => (int) (BibleManager::MAX_UPLOAD_BYTES / 1048576)]),
     ];
     $form['id'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Id'),
-      '#description' => $this->t('3 to 50 lowercase letters, digits and hyphens, such as @example. It names the @one in the site\'s addresses.', ['@example' => $isCommentary ? 'matthew-poole' : 'my-utmost', '@one' => $isCommentary ? $this->t('commentary') : $this->t('devotional')]),
+      '#description' => $this->t('3 to 50 lowercase letters, digits and hyphens, such as @example. It names the @one in the site\'s addresses.', ['@example' => $isCommentary ? 'matthew-poole' : ($isBook ? 'mere-christianity' : 'my-utmost'), '@one' => $one]),
       '#required' => TRUE,
       '#maxlength' => 50,
       '#size' => 30,
@@ -84,7 +92,7 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
     $form['name'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Name'),
-      '#description' => $isCommentary ? $this->t('For example "Matthew Poole\'s Commentary".') : $this->t('For example "Streams in the Desert".'),
+      '#description' => $isCommentary ? $this->t('For example "Matthew Poole\'s Commentary".') : ($isBook ? $this->t('For example "The Cost of Discipleship".') : $this->t('For example "Streams in the Desert".')),
       '#required' => TRUE,
       '#maxlength' => 200,
     ];
@@ -105,7 +113,7 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
         '#required' => TRUE,
         '#maxlength' => 200,
       ];
-      $form['devotional_kind'] = [
+      $form['devotional_kind'] = $isBook ? ['#type' => 'value', '#value' => 'chapters'] : [
         '#type' => 'radios',
         '#title' => $this->t('Kind'),
         '#options' => [

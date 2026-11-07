@@ -5,6 +5,7 @@ import {
   fetchCommentarySources,
   fetchCurrentUser,
   fetchDevotionals,
+  fetchOtherBooks,
   fetchSiteSettings,
   fetchTranslations,
   logOut,
@@ -63,6 +64,8 @@ function App() {
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
+  // The Other books: read by chapter like a devotional, on their own page.
+  const [otherBooks, setOtherBooks] = useState<DevotionalInfo[]>([])
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
   const [user, setUser] = useState<AccountUser | null>(null)
   const [resendMessage, setResendMessage] = useState('')
@@ -110,6 +113,9 @@ function App() {
     fetchDevotionals()
       .then(setDevotionals)
       .catch(() => setDevotionals([]))
+    fetchOtherBooks()
+      .then(setOtherBooks)
+      .catch(() => setOtherBooks([]))
   }, [])
 
   // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
@@ -177,11 +183,17 @@ function App() {
       navigate('browse')
     } else {
       setDestination({ id, kind: 'devotional', devotional: note.source_code, section: note.section ?? 0, unit: note.unit ?? 1 })
-      navigate('devotionals')
+      // A note on an Other book is kept like one on a devotional reading; it opens in the books' reader.
+      navigate(otherBooks.some((book) => book.id === note.source_code) ? 'books' : 'devotionals')
     }
   }
 
   // Open a page: a new history entry (unless it is the page already shown), at the top.
+  // Whether a reading named by a link belongs to the Other books (else it is a devotional's).
+  function isOtherBook(id: string) {
+    return otherBooks.some((book) => book.id === id)
+  }
+
   function navigate(view: View) {
     if (view !== readPageHistoryState(window.history.state)?.view) {
       // Where the page being left was scrolled to, for coming back to it.
@@ -218,6 +230,9 @@ function App() {
       : []),
     ...(devotionals.length > 0
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
+      : []),
+    ...(otherBooks.length > 0
+      ? [{ heading: 'Other books', entries: [{ view: 'books' as View, label: 'Read other books' }] }]
       : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
@@ -266,6 +281,7 @@ function App() {
                   translations={translations}
                   commentaries={commentaries}
                   devotionals={devotionals}
+                  otherBooks={otherBooks}
                   onNavigate={navigate}
                 />
               )}
@@ -306,7 +322,7 @@ function App() {
               )}
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} />}
               {activeView === 'copyright' && (
-                <CopyrightPage onBack={() => navigate('help')} devotionals={devotionals} commentaries={commentaries} />
+                <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />
               )}
 
               {/* The form stays mounted too, so a half-written message is not lost. */}
@@ -338,7 +354,21 @@ function App() {
                 </>
               )}
               {devotionals.length > 0 && (
-                <DevotionalsTab devotionals={devotionals} translations={translations} isHidden={activeView !== 'devotionals'} destination={destination} />
+                <DevotionalsTab
+                  devotionals={devotionals}
+                  translations={translations}
+                  isHidden={activeView !== 'devotionals'}
+                  destination={destination?.kind === 'devotional' && isOtherBook(destination.devotional) ? null : destination}
+                />
+              )}
+              {otherBooks.length > 0 && (
+                <DevotionalsTab
+                  collection="books"
+                  devotionals={otherBooks}
+                  translations={translations}
+                  isHidden={activeView !== 'books'}
+                  destination={destination?.kind === 'devotional' && isOtherBook(destination.devotional) ? destination : null}
+                />
               )}
             </main>
 

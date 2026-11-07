@@ -25,6 +25,7 @@ from bible_reader import get_chapter as get_bible_chapter
 from bible_reader import get_contents as get_bible_contents
 from devotionals import get_contents as get_devotional_contents
 from devotionals import get_unit as get_devotional_unit
+from devotionals import list_books as list_other_books
 from devotionals import list_devotionals
 from commentaries import (
   get_chapter_notes,
@@ -417,6 +418,13 @@ def bible_chapter(
 @app.get("/devotionals")
 def devotionals():
   return list_devotionals()
+
+
+@app.get("/other-books")
+def other_books():
+  """The published Other books (read a chapter at a time). Their chapters come from /devotional-contents and
+  /devotional-unit, like a devotional's."""
+  return list_other_books()
 
 
 @app.get("/devotional-contents")

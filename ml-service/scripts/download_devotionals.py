@@ -16,16 +16,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from devotionals import DEVOTIONALS, DevotionalProblem, check_ids, download  # noqa: E402
+from devotionals import SOURCES, DevotionalProblem, check_ids, download  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser(description="Download public-domain devotionals.")
     parser.add_argument("folder", help="Folder to save the files in")
-    parser.add_argument("devotionals", nargs="*", help=f"Which ones (default: all of {', '.join(DEVOTIONALS)})")
+    parser.add_argument("devotionals", nargs="*", help=f"Which ones (default: all of {', '.join(SOURCES)})")
     arguments = parser.parse_args()
     try:
-        ids = check_ids(arguments.devotionals or list(DEVOTIONALS))
+        ids = check_ids(arguments.devotionals or list(SOURCES))
         count = download(arguments.folder, ids)
     except DevotionalProblem as problem:
         sys.exit(str(problem))

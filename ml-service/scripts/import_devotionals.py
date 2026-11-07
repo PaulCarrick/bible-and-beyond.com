@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from devotionals import (  # noqa: E402
-    DEVOTIONALS,
+    SOURCES,
     DevotionalProblem,
     check_ids,
     file_path,
@@ -36,7 +36,7 @@ def main():
 
     try:
         ids = check_ids(arguments.devotionals) if arguments.devotionals else [
-            devotional_id for devotional_id in DEVOTIONALS if file_path(arguments.folder, devotional_id).exists()
+            devotional_id for devotional_id in SOURCES if file_path(arguments.folder, devotional_id).exists()
         ]
         if not ids:
             sys.exit(f"No devotionals found in {arguments.folder}.")

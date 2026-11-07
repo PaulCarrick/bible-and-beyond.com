@@ -288,7 +288,7 @@ def test_a_file_that_has_the_wrong_number_of_days_or_chapters_is_refused(tmp_pat
 
 def test_unknown_devotionals_are_refused():
   assert check_ids(["daily-light"]) == ["daily-light"]
-  with pytest.raises(DevotionalProblem, match="Unknown devotional: nobody"):
+  with pytest.raises(DevotionalProblem, match="Unknown devotional or book: nobody"):
     check_ids(["nobody"])
 
 
@@ -400,3 +400,43 @@ def test_the_api_serves_the_list_the_contents_and_a_day(loaded):
   assert client.get("/devotional-contents", params={"devotional": "nobody"}).status_code == 404
   assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": 1, "unit": 99}).status_code == 404
   assert client.get("/devotional-unit", params={"devotional": "morning-and-evening", "section": 0, "unit": 1}).status_code == 422
+
+
+def gutenberg(body: str) -> str:
+  return "Header\n*** START OF THE PROJECT GUTENBERG EBOOK TEST ***\n" + body + "\n*** END OF THE PROJECT GUTENBERG EBOOK TEST ***\nLicence\n"
+
+
+def test_orthodoxy_is_read_as_a_preface_and_chapters_titled_from_the_contents(tmp_path):
+  from devotionals import parse_orthodoxy
+
+  path = tmp_path / "orthodoxy.txt"
+  path.write_text(gutenberg(
+    "ORTHODOXY\n\nPREFACE\n\n     This book is meant\nto be a companion.\n\nCONTENTS\n\n   I.  Introduction in Defence of Everything Else\n"
+    "  II.  The Maniac\n\nORTHODOXY\n\nI INTRODUCTION IN DEFENCE OF EVERYTHING ELSE\n\nThe only excuse.\n\nII THE MANIAC\n\nThoroughly worldly people.\n"
+  ))
+  parsed = parse_orthodoxy(path)
+
+  assert parsed.sections == [(1, "Preface"), (2, "Chapters")]
+  assert [(entry.section, entry.unit, entry.unit_title, entry.text) for entry in parsed.entries] == [
+    (1, 1, "Preface", "This book is meant to be a companion."),
+    (2, 1, "Introduction in Defence of Everything Else", "The only excuse."),
+    (2, 2, "The Maniac", "Thoroughly worldly people."),
+  ]
+
+
+def test_the_summa_reads_its_questions_by_treatise_even_one_without_its_heading(tmp_path):
+  from devotionals import SUMMA_TREATISES, parse_summa
+
+  path = tmp_path / "summa.txt"
+  path.write_text(gutenberg(
+    "CONTENTS\n\nPROLOGUE\n\nPROLOGUE\n\nBecause the Master.\n\nQUESTION 1\n\nTHE NATURE OF SACRED DOCTRINE\n(In Ten Articles)\n\nTo place our purpose.\n"
+    "_______________________\n\nON FATE\n(In Four Articles)\n\nWe now consider fate.\n\nQUESTION 3\n\nOF THE SIMPLICITY OF GOD\n(In Eight Articles)\n\nWhen the existence.\n"
+  ))
+  parsed = parse_summa(path, SUMMA_TREATISES)
+
+  assert [(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries] == [
+    (0, 1, "Prologue"),
+    (1, 1, "Question 1: The Nature of Sacred Doctrine"),
+    (2, 2, "Question 2: On Fate"),
+    (2, 3, "Question 3: Of the Simplicity of God"),
+  ]

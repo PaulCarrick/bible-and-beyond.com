@@ -31,13 +31,13 @@ def parse_arguments():
   commands = parser.add_subparsers(dest="command", required=True)
   for name in ("list", "publish", "unpublish", "delete", "refresh", "run-refresh"):
     command = commands.add_parser(name)
-    command.add_argument("--kind", required=True, choices=["commentary", "devotional"])
+    command.add_argument("--kind", required=True, choices=["commentary", "devotional", "book"])
     if name != "list":
       command.add_argument("--id", required=True)
   for name in ("preview", "import"):
     command = commands.add_parser(name)
     command.add_argument("file")
-    command.add_argument("--kind", required=True, choices=["commentary", "devotional"])
+    command.add_argument("--kind", required=True, choices=["commentary", "devotional", "book"])
     command.add_argument("--id", required=True)
     command.add_argument("--name", required=True)
     command.add_argument("--short-name", default="")

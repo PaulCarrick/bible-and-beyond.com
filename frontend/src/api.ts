@@ -262,6 +262,11 @@ export async function fetchDevotionals(): Promise<DevotionalInfo[]> {
   return readJson(await fetch(`${mlServiceUrl}/devotionals`))
 }
 
+// The Other books: read a chapter at a time, through the same contents and unit calls as a devotional.
+export async function fetchOtherBooks(): Promise<DevotionalInfo[]> {
+  return readJson(await fetch(`${mlServiceUrl}/other-books`))
+}
+
 export async function fetchDevotionalContents(devotional: string, signal: AbortSignal): Promise<DevotionalContents> {
   const queryString = new URLSearchParams({ devotional })
   return readJson(await fetch(`${mlServiceUrl}/devotional-contents?${queryString}`, { signal }))

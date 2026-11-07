@@ -2,7 +2,7 @@
 
 Run your own copy of Bible and Beyond, a free, non-commercial Bible study site: public-domain Bibles,
 the Hebrew and Greek behind the English (Strong's numbers and a lexicon), cross references, six classic
-commentaries, four devotional books with daily emails, notes for visitors with accounts, and an
+commentaries, four devotional books with daily emails, ten other classic books, notes for visitors with accounts, and an
 AI-answered FAQ.
 
 - **web**: nginx serving the public site (port 80 in the container) and the Drupal admin (port 8081),
@@ -16,7 +16,8 @@ public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the six public-domain commentari
 (OpenBible.info, CC BY 4.0, credited on the site) and the Berean Bible's word links (public domain).
 **Fetched from their owners on the first start**, because they ask that their files not be redistributed:
 the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository) and the
-four devotionals (two from the Christian Classics Ethereal Library, two from Project Gutenberg). No source
+four devotionals (two from the Christian Classics Ethereal Library, two from Project Gutenberg) and the
+ten other books (Project Gutenberg). No source
 data file is in the images, and no visitor data from the original site is included.
 
 ## Install on a server
@@ -38,9 +39,9 @@ docker compose -f docker/compose.yml logs -f web     # watch the first start; Ct
 ```
 
 The first start loads the built-in data (about a minute), sets up the admin, and then, while the site
-is already running, downloads and loads the STEPBible data and the devotionals (a few minutes, about
-115 MB; the server needs to reach github.com, ccel.org and gutenberg.org). Until they are loaded the
-devotionals do not appear and the Original Words windows say there is nothing to show. If a download
+is already running, downloads and loads the STEPBible data, the devotionals and the other books (a few minutes, about
+130 MB; the server needs to reach github.com, ccel.org and gutenberg.org). Until they are loaded the
+devotionals and other books do not appear and the Original Words windows say there is nothing to show. If a download
 fails, the next start tries again (`docker compose -f docker/compose.yml restart web`). Then:
 
 - the public site is on `http://your-server/` (`SITE_PORT`, 80);
@@ -108,7 +109,7 @@ docker compose -f docker/compose.yml down -v            # removes everything, da
 ```
 
 **People who run the website** do not need all of Drupal. In the admin, go to People, Add user, and give them
-the **Website administrator** role: they see only the website's pages (Bibles, Commentaries, Devotionals, Site settings,
+the **Website administrator** role: they see only the website's pages (Bibles, Commentaries, Devotionals, Other books, Site settings,
 Site users).
 Keep the first administrator for Drupal itself.
 

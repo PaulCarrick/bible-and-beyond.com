@@ -13,6 +13,8 @@ import type { StripChapter } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
 
 interface DevotionalsTabProps {
+  // "books" for the Other books page: the same reader, with no daily email.
+  collection?: 'devotionals' | 'books'
   devotionals: DevotionalInfo[]
   translations: Translation[]
   isHidden: boolean
@@ -57,7 +59,8 @@ async function loadReading(devotional: string, section: number, unit: number, si
 // Read the public-domain devotionals. Choose a devotional and the month and day (or the part and
 // chapter) and the page goes there, a daily devotional starting at today. Scroll on in either
 // direction to read the days or chapters before and after.
-function DevotionalsTab({ devotionals, translations, isHidden, destination }: DevotionalsTabProps) {
+function DevotionalsTab({ collection = 'devotionals', devotionals, translations, isHidden, destination }: DevotionalsTabProps) {
+  const isBooks = collection === 'books'
   const [contents, setContents] = useState<DevotionalContents | null>(null)
   const [devotionalId, setDevotionalId] = useState('')
   const [markedUnit, setMarkedUnit] = useState('')
@@ -180,9 +183,9 @@ function DevotionalsTab({ devotionals, translations, isHidden, destination }: De
     <div className="browse-tab" hidden={isHidden}>
       <div className="browse-controls" hidden={windowIsOpen}>
         <label className="inline-label">
-          Devotional
+          {isBooks ? 'Book' : 'Devotional'}
           <select
-            aria-label="Devotional"
+            aria-label={isBooks ? 'Book' : 'Devotional'}
             value={devotionalId}
             disabled={devotionalId === ''}
             onChange={(event) => changeDevotional(event.target.value)}
@@ -234,7 +237,7 @@ function DevotionalsTab({ devotionals, translations, isHidden, destination }: De
         </button>
       </div>
 
-      {current && contents && (
+      {current && contents && !isBooks && (
         <div hidden={windowIsOpen}>
           <DevotionalEmailPanel devotional={current} sections={contents.sections} currentSection={shownSection} currentUnit={shownUnit} />
         </div>

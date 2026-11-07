@@ -27,7 +27,7 @@ from pathlib import Path
 
 from bible_import.importer import load_books, normalize_book_name
 from commentaries import COMMENTARIES
-from devotionals import DEVOTIONALS, MONTHS, Entry, Parsed
+from devotionals import MONTHS, SOURCES, Entry, Parsed
 from scripture_references import verse_limits
 from search import connect
 
@@ -240,9 +240,18 @@ def check_details(kind: str, details: dict) -> dict:
   item_id = cleaned.get("id", "").lower()
   if not ID_PATTERN.match(item_id):
     raise UploadProblem("The id must be 3 to 50 lowercase letters, digits and hyphens, such as matthew-poole.")
-  known = COMMENTARIES if kind == "commentary" else DEVOTIONALS
+  known = COMMENTARIES if kind == "commentary" else SOURCES
   if item_id in known:
-    raise UploadProblem(f"{item_id} is one of the {kind} texts loaded from their source; use Refresh to reload it.")
+    raise UploadProblem(f"{item_id} is one of the texts loaded from their source; use Refresh to reload it.")
+  if kind in ("devotional", "book"):
+    # Devotionals and Other books share a table: an id of one may not be taken by the other.
+    collection = "books" if kind == "book" else "devotionals"
+    with connect() as connection:
+      row = connection.execute("SELECT collection FROM devotionals WHERE id = %s", (item_id,)).fetchone()
+    if row and row[0] != collection:
+      other = "an Other book" if row[0] == "books" else "a devotional"
+      raise UploadProblem(f"{item_id} is already {other}; choose another id.")
+    cleaned["collection"] = collection
   cleaned["id"] = item_id
   required = ["name", "short_name", "source_name"] if kind == "commentary" else ["name", "author", "source_name"]
   for key in required:
@@ -258,6 +267,8 @@ def check_details(kind: str, details: dict) -> dict:
   if kind == "commentary":
     cleaned["license_url"] = cleaned.get("license_url") or PUBLIC_DOMAIN_MARK
   else:
+    if kind == "book":
+      cleaned["kind"] = "chapters"  # an Other book is always read by chapter
     if cleaned.get("kind") not in ("daily", "chapters"):
       raise UploadProblem("Choose whether the devotional is daily or by chapter.")
     cleaned["translator"] = cleaned.get("translator") or None

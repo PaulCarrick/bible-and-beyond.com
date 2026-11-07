@@ -102,7 +102,7 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
 
       <h2>About the texts</h2>
       <p>
-        The Bibles you can read here, the commentaries and the devotionals are in the public domain.
+        The Bibles you can read here, the commentaries, the devotionals and the other books are in the public domain.
         {licensed.length > 0
           ? ` The ${joinList(licensed)} are licensed to us through API.Bible; they can be searched but not read a chapter at a time.`
           : ''}{' '}
@@ -149,7 +149,7 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
           CC BY 4.0
         </a>
-        ). The other Bibles, the commentaries and the devotionals are in the public domain. The full credits and notices
+        ). The other Bibles, the commentaries, the devotionals and the other books are in the public domain. The full credits and notices
         are on the{' '}
         <button type="button" className="link-button" onClick={() => onNavigate('copyright')}>
           Bible copyright notices

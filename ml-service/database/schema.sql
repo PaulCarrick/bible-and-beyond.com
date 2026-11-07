@@ -261,7 +261,9 @@ CREATE TABLE IF NOT EXISTS devotionals (
     source_url TEXT NOT NULL,
     translator TEXT,
     -- Hidden ones are not shown on the site and send no emails (migration 016).
-    is_published BOOLEAN NOT NULL DEFAULT true
+    is_published BOOLEAN NOT NULL DEFAULT true,
+    -- 'devotionals', or 'books' for the Other books page (no daily emails; migration 017).
+    collection TEXT NOT NULL DEFAULT 'devotionals' CHECK (collection IN ('devotionals', 'books'))
 );
 
 CREATE TABLE IF NOT EXISTS devotional_sections (

@@ -88,8 +88,8 @@ bible_admin.site_user_delete:
     _permission: 'administer site users'
     user_id: '\d+'
 
-# The commentaries and the devotionals: one set of pages for each ({collection}), open to whoever may
-# administer the Bibles.
+# The commentaries, the devotionals and the Other books: one set of pages for each ({collection}), open to
+# whoever may administer the Bibles.
 bible_admin.library:
   path: '/admin/{collection}'
   defaults:
@@ -97,7 +97,7 @@ bible_admin.library:
     _title_callback: '\Drupal\bible_admin\Controller\LibraryListController::title'
   requirements:
     _permission: 'administer bibles'
-    collection: 'commentaries|devotionals'
+    collection: 'commentaries|devotionals|books'
 
 bible_admin.library_upload:
   path: '/admin/{collection}/upload'
@@ -106,7 +106,7 @@ bible_admin.library_upload:
     _title: 'Upload a file'
   requirements:
     _permission: 'administer bibles'
-    collection: 'commentaries|devotionals'
+    collection: 'commentaries|devotionals|books'
 
 bible_admin.library_preview:
   path: '/admin/{collection}/preview/{token}'
@@ -115,7 +115,7 @@ bible_admin.library_preview:
     _title: 'Check the upload'
   requirements:
     _permission: 'administer bibles'
-    collection: 'commentaries|devotionals'
+    collection: 'commentaries|devotionals|books'
     token: '[0-9a-f]{32}'
 
 bible_admin.library_change:
@@ -125,6 +125,6 @@ bible_admin.library_change:
     _title: 'Change'
   requirements:
     _permission: 'administer bibles'
-    collection: 'commentaries|devotionals'
+    collection: 'commentaries|devotionals|books'
     action: 'publish|unpublish|delete|refresh'
     item_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'

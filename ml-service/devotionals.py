@@ -105,6 +105,134 @@ DEVOTIONALS = {
   },
 }
 
+# The "Other books" page: books read a chapter at a time, kept in the same tables with collection
+# "books" (migration 017). No daily emails.
+BOOKS = {
+  "orthodoxy": {
+    "name": "Orthodoxy",
+    "author": "G. K. Chesterton",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/130",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/130/pg130.txt",
+    "file_name": "orthodoxy.txt",
+    "units": 10,
+  },
+  "confessions-of-augustine": {
+    "name": "The Confessions of St. Augustine",
+    "author": "Augustine of Hippo",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/3296",
+    "translator": "translated by E. B. Pusey",
+    "download_url": "https://www.gutenberg.org/cache/epub/3296/pg3296.txt",
+    "file_name": "confessions-of-augustine.txt",
+    "units": 13,
+  },
+  "jesus-the-christ": {
+    "name": "Jesus the Christ",
+    "author": "James E. Talmage",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/22542",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/22542/pg22542.txt",
+    "file_name": "jesus-the-christ.txt",
+    "units": 44,
+  },
+  "pursuit-of-god": {
+    "name": "The Pursuit of God",
+    "author": "A. W. Tozer",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/25141",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/25141/pg25141.txt",
+    "file_name": "pursuit-of-god.txt",
+    "units": 12,
+  },
+  "grace-abounding": {
+    "name": "Grace Abounding to the Chief of Sinners",
+    "author": "John Bunyan",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/654",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/654/pg654.txt",
+    "file_name": "grace-abounding.txt",
+    "units": 12,
+  },
+  "summa-theologica-part-1": {
+    "name": "Summa Theologica, Part I (Prima Pars)",
+    "author": "Thomas Aquinas",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/17611",
+    "translator": "translated by the Fathers of the English Dominican Province",
+    "download_url": "https://www.gutenberg.org/cache/epub/17611/pg17611.txt",
+    "file_name": "summa-theologica-part-1.txt",
+    "units": 120,
+  },
+  "maclaren-expositions-corinthians-to-timothy": {
+    "name": "Expositions of Holy Scripture: 2 Corinthians to 1 Timothy",
+    "author": "Alexander Maclaren",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/21190",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/21190/pg21190.txt",
+    "file_name": "maclaren-expositions-corinthians-to-timothy.txt",
+    "units": 87,
+  },
+  "prayers-of-the-early-church": {
+    "name": "Prayers of the Early Church",
+    "author": "edited by J. Manning Potts",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/48247",
+    "translator": None,
+    "download_url": "https://www.gutenberg.org/cache/epub/48247/pg48247.txt",
+    "file_name": "prayers-of-the-early-church.txt",
+    "units": 6,
+  },
+  "table-talk-of-martin-luther": {
+    "name": "Selections from the Table Talk of Martin Luther",
+    "author": "Martin Luther",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/9841",
+    "translator": "translated by Captain Henry Bell",
+    "download_url": "https://www.gutenberg.org/cache/epub/9841/pg9841.txt",
+    "file_name": "table-talk-of-martin-luther.txt",
+    "units": 13,
+  },
+  "summa-theologica-part-3": {
+    "name": "Summa Theologica, Part III (Tertia Pars)",
+    "author": "Thomas Aquinas",
+    "kind": "chapters",
+    "collection": "books",
+    "source_name": "Project Gutenberg",
+    "source_url": "https://www.gutenberg.org/ebooks/19950",
+    "translator": "translated by the Fathers of the English Dominican Province",
+    "download_url": "https://www.gutenberg.org/cache/epub/19950/pg19950.txt",
+    "file_name": "summa-theologica-part-3.txt",
+    "units": 91,
+  },
+}
+
+# Everything that can be downloaded and loaded from a known source, devotionals and books.
+SOURCES = {**DEVOTIONALS, **BOOKS}
+
 
 # --- helpers ---------------------------------------------------------------------------------------------
 
@@ -323,7 +451,504 @@ def parse_practice(path):
   return Parsed(sections, entries)
 
 
+ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"]
+ORTHODOXY_HEADING = re.compile(r"^(I|II|III|IV|V|VI|VII|VIII|IX) ([A-Z][A-Z ,'-]+)$")
+CONFESSIONS_HEADING = re.compile(r"^BOOK (%s)$" % "|".join(ROMAN_NUMERALS))
+
+
+def parse_orthodoxy(path):
+  """Read Orthodoxy (G. K. Chesterton): the preface, then nine chapters headed "II THE MANIAC"."""
+  lines = gutenberg_lines(path)
+  titles = {}  # chapter number -> title as the contents list writes it ("The Maniac")
+  for line in lines:
+    match = re.match(r"^\s*(I|II|III|IV|V|VI|VII|VIII|IX)\.\s+(\S.*)$", line)
+    if match:
+      titles.setdefault(ROMAN_NUMERALS.index(match[1]) + 1, match[2].strip())
+  sections = [(1, "Preface"), (2, "Chapters")]
+  entries = []
+  current = None
+  body = []
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  for line in lines:
+    stripped = line.strip()
+    heading = ORTHODOXY_HEADING.match(stripped)
+    if stripped == "PREFACE" and current is None:
+      current, body = (1, 1, "Preface"), []
+    elif heading and current is not None:
+      finish()
+      number = ROMAN_NUMERALS.index(heading[1]) + 1
+      current, body = (2, number, titles.get(number) or title_case(heading[2])), []
+    elif stripped == "CONTENTS" and current is not None and current[0] == 1:
+      # The contents list ends the preface; the chapters' own headings follow.
+      finish()
+      current, body = (0, 0, ""), []
+    elif current is not None and current[0] != 0:
+      body.append(line)
+  finish()
+  entries = [entry for entry in entries if entry.section != 0]
+  if not entries:
+    raise DevotionalProblem(f"{path}: no chapters were found.")
+  return Parsed(sections, entries)
+
+
+def parse_confessions(path):
+  """Read the Confessions of St. Augustine (Pusey): thirteen Books, each one unit to read."""
+  lines = gutenberg_lines(path)
+  entries = []
+  current = None
+  body = []
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(1, current, 1, f"Book {ROMAN_NUMERALS[current - 1]}", "", text))
+
+  for line in lines:
+    heading = CONFESSIONS_HEADING.match(line.strip())
+    if heading:
+      finish()
+      current, body = ROMAN_NUMERALS.index(heading[1]) + 1, []
+    elif current is not None:
+      body.append(line)
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: no Books were found.")
+  return Parsed([(1, "The Confessions")], entries)
+
+
+TALMAGE_CHAPTER = re.compile(r"^CHAPTER (\d+)\.$")
+
+
+def parse_jesus_the_christ(path):
+  """Read Jesus the Christ (James E. Talmage): two prefaces, then 42 chapters headed "CHAPTER 2." with the
+  title in capitals on the lines after. Each chapter's notes and footnotes stay at its end."""
+  lines = gutenberg_lines(path)
+  sections = [(1, "Prefaces"), (2, "Chapters")]
+  entries = []
+  current = None  # (section, unit, title); section 0 while skipping the contents list
+  body = []
+  title_lines = None  # collecting a chapter's title, until the first blank line after it
+
+  def finish():
+    if current is not None and current[0] != 0:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  for line in lines:
+    stripped = line.strip()
+    chapter = TALMAGE_CHAPTER.match(stripped)
+    if title_lines is not None:
+      if stripped:
+        title_lines.append(stripped)
+        continue
+      if title_lines:
+        current = (current[0], current[1], title_case(" ".join(title_lines).rstrip(".")))
+        title_lines = None
+      continue
+    if stripped == "PREFACE." and current is None:
+      current, body = (1, 1, "Preface"), []
+    elif stripped == "PREFACE TO THE SIXTH EDITION." and current is not None and current[0] == 1:
+      finish()
+      current, body = (1, 2, "Preface to the Sixth Edition"), []
+    elif stripped == "CONTENTS." and current is not None and current[0] == 1:
+      finish()
+      current, body = (0, 0, ""), []
+    elif chapter and current is not None:
+      finish()
+      current, body, title_lines = (2, int(chapter[1]), ""), [], []
+    elif current is not None and current[0] != 0:
+      body.append(line)
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: no chapters were found.")
+  return Parsed(sections, entries)
+
+
+def parse_pursuit_of_god(path):
+  """Read The Pursuit of God (A. W. Tozer): Samuel Zwemer's introduction, the preface, then ten chapters, each
+  a line with its Roman numeral followed by its title in italics."""
+  lines = gutenberg_lines(path)
+  sections = [(1, "Introduction and Preface"), (2, "Chapters")]
+  entries = []
+  current = None
+  body = []
+  awaiting_title = False
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  for line in lines:
+    stripped = line.strip()
+    if awaiting_title:
+      if stripped:
+        current = (current[0], current[1], stripped.strip("_").strip())
+        awaiting_title = False
+      continue
+    if stripped == "Introduction" and current is None:
+      current, body = (1, 1, "Introduction"), []
+    elif stripped == "Preface" and current is not None and current[:2] == (1, 1):
+      finish()
+      current, body = (1, 2, "Preface"), []
+    elif stripped in ROMAN_NUMERALS[:10] and current is not None:
+      finish()
+      current, body, awaiting_title = (2, ROMAN_NUMERALS.index(stripped) + 1, ""), [], True
+    elif current is not None:
+      body.append(line)
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: no chapters were found.")
+  return Parsed(sections, entries)
+
+
+PAGE_MARK = re.compile(r"\{\d+\}")
+
+
+def parse_grace_abounding(path):
+  """Read Grace Abounding (John Bunyan): the preface, the 339 numbered paragraphs in groups of 50, the account
+  of his imprisonment and the conclusion; then A Relation of My Imprisonment and the postscript. The
+  edition's page numbers ({17}) and picture notes are left out."""
+  lines = [PAGE_MARK.sub("", line) for line in gutenberg_lines(path) if not line.strip().startswith("[Picture")]
+  sections = [(1, "Grace Abounding"), (2, "A Relation of My Imprisonment")]
+  headings = {
+    "A PREFACE": (1, "A Preface"),
+    "A BRIEF ACCOUNT OF THE AUTHOR’S IMPRISONMENT": (1, "A Brief Account of the Author’s Imprisonment"),
+    "THE CONCLUSION": (1, "The Conclusion"),
+    "A RELATION OF MY IMPRISONMENT IN THE MONTH OF NOVEMBER 1660": (2, "A Relation of My Imprisonment"),
+    "POSTSCRIPT": (2, "Postscript"),
+  }
+  entries = []
+  units = {1: 0, 2: 0}
+  current = None  # (section, unit, title)
+  body = []
+  in_main = False
+
+  def finish():
+    if current is not None:
+      # A part's heading may be followed by a subtitle in capitals ("OR, BRIEF ACCOUNT OF ..."): left out.
+      while body and (not body[0].strip() or body[0].strip().isupper()):
+        body.pop(0)
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  def start(section, title):
+    nonlocal current, body
+    finish()
+    units[section] += 1
+    current, body = (section, units[section], title), []
+
+  # The 339 numbered paragraphs (the first has no number) are read in groups of 50, each titled with the
+  # paragraphs it holds; the headings after them each begin a unit of their own.
+  past_contents = False
+  in_main = False
+  first_paragraph = last_paragraph = 0
+
+  def start_group(first):
+    nonlocal first_paragraph, last_paragraph
+    start(1, "")
+    first_paragraph = last_paragraph = first
+
+  def close_group():
+    if current is not None and current[2] == "":
+      retitle(f"Paragraphs {first_paragraph}–{last_paragraph}")
+
+  def retitle(title):
+    nonlocal current
+    current = (current[0], current[1], title)
+
+  for line in lines:
+    stripped = line.strip()
+    paragraph = re.match(r"^(\d{1,3})\.  ", line)
+    if not past_contents:
+      if stripped == "A PREFACE":
+        past_contents = True
+        start(*headings[stripped])
+      continue
+    if stripped == "GRACE ABOUNDING TO THE CHIEF OF SINNERS" and not in_main:
+      in_main = True
+      start_group(1)
+    elif stripped in headings:
+      if in_main:
+        close_group()
+        in_main = False
+      start(*headings[stripped])
+    elif in_main and paragraph:
+      number = int(paragraph[1])
+      if (number - 1) % 50 == 0:
+        close_group()
+        start_group(number)
+      last_paragraph = number
+      body.append(line)
+    elif current is not None and not (in_main and stripped.startswith("A BRIEF RELATION OF THE EXCEEDING")):
+      body.append(line)
+  close_group()
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: nothing was found.")
+  return Parsed(sections, entries)
+
+
+SUMMA_QUESTION = re.compile(r"^QUESTION (\d{1,3})$")
+# The treatises of each Part, by the Question each begins at (the texts have no headings for them).
+SUMMA_TREATISES_PART_3 = [
+  (1, "Treatise on the Incarnation"), (60, "Treatise on the Sacraments"), (66, "Treatise on Baptism"),
+  (72, "Treatise on Confirmation"), (73, "Treatise on the Holy Eucharist"), (84, "Treatise on Penance"),
+]
+SUMMA_TREATISES = [
+  (1, "Sacred Doctrine"), (2, "Treatise on the One God"), (27, "Treatise on the Trinity"),
+  (44, "Treatise on the Creation"), (50, "Treatise on the Angels"), (65, "Treatise on the Work of the Six Days"),
+  (75, "Treatise on Man"), (103, "Treatise on the Divine Government"),
+]
+
+
+def parse_summa_part_1(path):
+  return parse_summa(path, SUMMA_TREATISES)
+
+
+def parse_summa_part_3(path):
+  return parse_summa(path, SUMMA_TREATISES_PART_3)
+
+
+def parse_summa(path, treatises):
+  """Read a Part of the Summa Theologica (the English Dominican translation): its prologue, then its Questions
+  (each with its articles), grouped by treatise. A Question's title is the capitals line after "QUESTION 2".
+  The prologue is the one just before Question 1 (Part I also names it in its contents list)."""
+  lines = gutenberg_lines(path)
+  SUMMA_TREATISES = treatises
+  first_question = next(index for index, line in enumerate(lines) if line.strip() == "QUESTION 1")
+  prologue_line = max((index for index, line in enumerate(lines[:first_question]) if line.strip() == "PROLOGUE"), default=None)
+  sections = [(0, "Prologue")] + [(index + 1, title) for index, (_, title) in enumerate(SUMMA_TREATISES)]
+  entries = []
+  current = None
+  body = []
+  awaiting_title = False
+
+  def treatise(question):
+    return max(index + 1 for index, (first, _) in enumerate(SUMMA_TREATISES) if first <= question)
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  prologues = 0
+  after_separator = False
+  for index, line in enumerate(lines):
+    stripped = line.strip()
+    question = SUMMA_QUESTION.match(stripped)
+    # One Question (116, "On Fate") has no "QUESTION 116" line: just the separator, then its title in capitals
+    # and "(In Four Articles)". Such a title starts the next Question.
+    following = lines[index + 1].strip() if index + 1 < len(lines) else ""
+    if (not question and after_separator and current is not None and current[0] != 0 and stripped.isupper()
+        and following.lower().startswith("(in ") and following.lower().rstrip(")").endswith("articles")):
+      finish()
+      number = current[1] + 1
+      current, body = (treatise(number), number, f"Question {number}: {title_case(stripped)}"), []
+      after_separator = False
+      continue
+    if stripped:
+      after_separator = set(stripped) == {"_"}
+    if awaiting_title:
+      if stripped:
+        number = current[1]
+        current = (current[0], number, f"Question {number}: {title_case(stripped)}")
+        awaiting_title = False
+      continue
+    if index == prologue_line:
+      prologues += 1
+      current, body = (0, 1, "Prologue"), []
+    elif question and index >= first_question:
+      finish()
+      number = int(question[1])
+      current, body, awaiting_title = (treatise(number), number, ""), [], True
+    elif current is not None:
+      body.append(line)
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: no Questions were found.")
+  return Parsed(sections, entries)
+
+
+MACLAREN_LETTERS = {
+  "II. CORINTHIANS": "2 Corinthians", "GALATIANS": "Galatians", "PHILIPPIANS": "Philippians",
+  "COLOSSIANS": "Colossians", "I. THESSALONIANS": "1 Thessalonians", "II. THESSALONIANS": "2 Thessalonians",
+  "I. TIMOTHY": "1 Timothy",
+}
+MACLAREN_CONTENTS_ENTRY = re.compile(r"^(\S.*?)\s+\((.+?)\)\s+\d+$")
+
+
+def parse_maclaren_expositions(path):
+  """Read a volume of Maclaren's Expositions of Holy Scripture: one sermon per unit, grouped by letter. The
+  contents lists (one per original volume) name each sermon, with its text, under its letter; in the body each
+  sermon begins with its title alone on a line."""
+  lines = gutenberg_lines(path)
+  sermons = []  # (letter, title in capitals, reference)
+  letter = None
+  for line in lines:
+    stripped = line.strip()
+    if stripped in MACLAREN_LETTERS:
+      letter = MACLAREN_LETTERS[stripped]
+    entry = MACLAREN_CONTENTS_ENTRY.match(stripped)
+    if entry and letter:
+      sermons.append((letter, entry[1].strip(), entry[2].strip()))
+  letters = list(dict.fromkeys(letter for letter, _, _ in sermons))
+  sections = [(index + 1, letter) for index, letter in enumerate(letters)]
+  entries = []
+  position = 0
+  current = None
+  body = []
+  units = {}
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  def comparable(title):
+    return re.sub(r"\bTHE\b|[^A-Z]", "", title.upper())
+
+  for line in lines:
+    stripped = line.strip()
+    if position < len(sermons) and stripped.isupper() and comparable(stripped) == comparable(sermons[position][1]):
+      finish()
+      letter, title, reference = sermons[position]
+      section = letters.index(letter) + 1
+      units[section] = units.get(section, 0) + 1
+      current, body = (section, units[section], f"{title_case(title.strip(chr(39)))} ({reference})"), []
+      position += 1
+    elif current is not None:
+      if stripped in ("CONTENTS", "_EXPOSITIONS OF HOLY SCRIPTURE_"):
+        # The next volume's title page and contents: the last sermon of a volume ends here.
+        finish()
+        current = None
+      elif stripped not in MACLAREN_LETTERS:
+        body.append(line)
+  finish()
+  if position != len(sermons):
+    raise DevotionalProblem(f"{path}: found {position} of the {len(sermons)} sermons in the contents.")
+  return Parsed(sections, entries)
+
+
+CENTURY_CHAPTER = re.compile(r"^Chapter (I|II|III|IV|V)$")
+
+
+def parse_prayers_of_the_early_church(path):
+  """Read Prayers of the Early Church (ed. J. Manning Potts): the preface and five chapters, one per century,
+  each "Chapter II" with its title ("SECOND CENTURY PRAYERS") on the next line. The index is left out."""
+  lines = gutenberg_lines(path)
+  sections = [(1, "Preface"), (2, "Chapters")]
+  entries = []
+  current = None
+  body = []
+  awaiting_title = False
+  in_body = False
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  for line in lines:
+    stripped = line.strip()
+    if awaiting_title:
+      if stripped:
+        current = (current[0], current[1], title_case(stripped))
+        awaiting_title = False
+      continue
+    chapter = CENTURY_CHAPTER.match(stripped)
+    if stripped == "Preface" and current is None:
+      current, body = (1, 1, "Preface"), []
+    elif stripped == "Contents" and current is not None and current[0] == 1:
+      finish()
+      current = None
+    elif chapter and in_body:
+      # The contents list names the chapters too; the body's chapters come after it, with no page numbers.
+      finish()
+      current, body, awaiting_title = (2, ROMAN_NUMERALS.index(chapter[1]) + 1, ""), [], True
+    elif stripped == "INDEX" and current is not None and current[0] == 2:
+      finish()
+      current = None
+      break
+    elif current is not None:
+      body.append(line)
+    if stripped.startswith("FIFTH CENTURY PRAYERS") and stripped[-1].isdigit():
+      in_body = True  # the last line of the contents list
+  finish()
+  if not entries:
+    raise DevotionalProblem(f"{path}: no chapters were found.")
+  return Parsed(sections, entries)
+
+
+TABLE_TALK_TOPIC = re.compile(r"^(OF [A-Z][A-Z ’',-]+)\.$")
+
+
+def parse_table_talk(path):
+  """Read the Selections from the Table Talk of Martin Luther (Henry Bell): the introduction and Bell's
+  narrative, then the ten topics ("OF GOD’S WORD."), and the edition's footnotes last."""
+  lines = [PAGE_MARK.sub("", line) for line in gutenberg_lines(path) if not line.strip().startswith("[Picture")]
+  sections = [(1, "Introduction"), (2, "Table Talk")]
+  entries = []
+  current = None
+  body = []
+  topics = 0
+
+  def finish():
+    if current is not None:
+      text = "\n\n".join(paragraphs_of_lines(body))
+      if text:
+        entries.append(Entry(current[0], current[1], 1, current[2], "", text))
+
+  for line in lines:
+    stripped = line.strip()
+    topic = TABLE_TALK_TOPIC.match(stripped)
+    if stripped == "INTRODUCTION." and current is None:
+      current, body = (1, 1, "Introduction"), []
+    elif stripped.startswith("CAPTAIN HENRY BELL’S NARRATIVE") and current is not None and current[0] == 1:
+      finish()
+      current, body = (1, 2, "Captain Henry Bell’s Narrative"), [line]
+    elif stripped == "LUTHER’S TABLE-TALK.":
+      finish()
+      current = None
+    elif topic and current is None or (topic and current is not None and current[0] == 2):
+      finish()
+      topics += 1
+      current, body = (2, topics, title_case(topic[1])), []
+    elif stripped == "FOOTNOTES" and current is not None:
+      finish()
+      current, body = (2, topics + 1, "Footnotes"), []
+    elif current is not None:
+      body.append(line)
+  finish()
+  if topics == 0:
+    raise DevotionalProblem(f"{path}: no topics were found.")
+  return Parsed(sections, entries)
+
+
 PARSERS = {
+  "prayers-of-the-early-church": parse_prayers_of_the_early_church,
+  "table-talk-of-martin-luther": parse_table_talk,
+  "grace-abounding": parse_grace_abounding,
+  "summa-theologica-part-1": parse_summa_part_1,
+  "summa-theologica-part-3": parse_summa_part_3,
+  "maclaren-expositions-corinthians-to-timothy": parse_maclaren_expositions,
+  "pursuit-of-god": parse_pursuit_of_god,
+  "jesus-the-christ": parse_jesus_the_christ,
+  "orthodoxy": parse_orthodoxy,
+  "confessions-of-augustine": parse_confessions,
   "morning-and-evening": parse_ccel_daily,
   "daily-light": parse_ccel_daily,
   "imitation-of-christ": parse_imitation,
@@ -332,14 +957,14 @@ PARSERS = {
 
 
 def check_ids(devotional_ids):
-  unknown = [devotional_id for devotional_id in devotional_ids if devotional_id not in DEVOTIONALS]
+  unknown = [devotional_id for devotional_id in devotional_ids if devotional_id not in SOURCES]
   if unknown:
-    raise DevotionalProblem(f"Unknown devotional: {', '.join(unknown)}. Known: {', '.join(DEVOTIONALS)}.")
+    raise DevotionalProblem(f"Unknown devotional or book: {', '.join(unknown)}. Known: {', '.join(SOURCES)}.")
   return devotional_ids
 
 
 def file_path(folder, devotional_id):
-  return Path(folder) / DEVOTIONALS[devotional_id]["file_name"]
+  return Path(folder) / SOURCES[devotional_id]["file_name"]
 
 
 def read_devotional(folder, devotional_id):
@@ -349,7 +974,7 @@ def read_devotional(folder, devotional_id):
     raise DevotionalProblem(f"{path} is missing. Download the devotionals first.")
   parsed = PARSERS[devotional_id](path)
   found = len({(entry.section, entry.unit) for entry in parsed.entries})
-  expected = DEVOTIONALS[devotional_id]["units"]
+  expected = SOURCES[devotional_id]["units"]
   if found != expected:
     raise DevotionalProblem(f"{path}: expected {expected} days or chapters; found {found}.")
   return parsed
@@ -365,7 +990,7 @@ def download(folder, devotional_ids, report=print):
   saved = 0
   with httpx.Client(follow_redirects=True, timeout=120) as client:
     for devotional_id in devotional_ids:
-      source = DEVOTIONALS[devotional_id]
+      source = SOURCES[devotional_id]
       report(f"{devotional_id}: {source['download_url']}")
       response = client.get(source["download_url"])
       if response.status_code != 200 or len(response.content) < 10_000:
@@ -379,34 +1004,37 @@ def download(folder, devotional_ids, report=print):
 
 
 def replace_devotional(devotional_id, parsed):
-  """Replace one of the known devotionals (DEVOTIONALS) in the database, in one transaction.
+  """Replace one of the known devotionals or books (SOURCES) in the database, in one transaction.
 
   It keeps its place in the order and, if it was there already, whether it is published.
   """
   return save_devotional(
-    devotional_id, DEVOTIONALS[devotional_id], parsed,
-    publish_if_new=True, position=list(DEVOTIONALS).index(devotional_id) + 1,
+    devotional_id, SOURCES[devotional_id], parsed,
+    publish_if_new=True, position=list(SOURCES).index(devotional_id) + 1,
   )
 
 
 def save_devotional(devotional_id, details, parsed, publish_if_new, position=None):
   """Replace one devotional, known or uploaded, in one transaction. Returns its entry count.
 
-  details has name, author, kind, source_name, source_url and translator. A devotional that was there
+  details has name, author, kind, source_name, source_url, translator and collection ("devotionals", the
+  default, or "books"). A devotional that was there
   already keeps whether it is published; a new one is published only when publish_if_new. With no position
   it keeps its place, or a new one goes last.
   """
   with connect() as connection:
     with connection.cursor() as cursor:
       cursor.execute(
-        "INSERT INTO devotionals (id, name, author, kind, position, source_name, source_url, translator, is_published) "
-        "VALUES (%s, %s, %s, %s, COALESCE(%s, (SELECT COALESCE(MAX(position), 0) + 1 FROM devotionals)), %s, %s, %s, %s) "
+        "INSERT INTO devotionals (id, name, author, kind, position, source_name, source_url, translator, is_published, collection) "
+        "VALUES (%s, %s, %s, %s, COALESCE(%s, (SELECT COALESCE(MAX(position), 0) + 1 FROM devotionals)), %s, %s, %s, %s, %s) "
         "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, "
         "author = EXCLUDED.author, kind = EXCLUDED.kind, position = COALESCE(%s, devotionals.position), "
-        "source_name = EXCLUDED.source_name, source_url = EXCLUDED.source_url, translator = EXCLUDED.translator",
+        "source_name = EXCLUDED.source_name, source_url = EXCLUDED.source_url, translator = EXCLUDED.translator, "
+        "collection = EXCLUDED.collection",
         (
           devotional_id, details["name"], details["author"], details["kind"], position,
-          details["source_name"], details["source_url"], details.get("translator"), publish_if_new, position,
+          details["source_name"], details["source_url"], details.get("translator"), publish_if_new,
+          details.get("collection", "devotionals"), position,
         ),
       )
       cursor.execute("DELETE FROM devotional_entries WHERE devotional_id = %s", (devotional_id,))
@@ -433,10 +1061,17 @@ def describe(row):
   return dict(zip(keys, row))
 
 
-def list_devotionals():
+def list_devotionals(collection="devotionals"):
+  """The published devotionals, or with collection "books" the published Other books, in their order."""
   with connect() as connection:
-    rows = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE is_published ORDER BY position").fetchall()
+    rows = connection.execute(
+      f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE is_published AND collection = %s ORDER BY position", (collection,)
+    ).fetchall()
   return [describe(row) for row in rows]
+
+
+def list_books():
+  return list_devotionals("books")
 
 
 def get_contents(devotional_id):
