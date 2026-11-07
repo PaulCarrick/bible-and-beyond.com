@@ -15,24 +15,6 @@ Use Bible and Beyond to give a church, a study group, or your own readers a free
 - Keep private notes on verses, commentaries and readings with a free account.
 - Ask the FAQ: answers to 30 common questions, written by an AI from a Bible-centred point of view.
 
-## Why use Bible and Beyond?
-
-### 🚀 Free and open source
-
-Use, inspect, and modify the software under the Apache License 2.0. The software is free. Hosting and domain registration costs depend on what you choose.
-
-### 📖 Texts from trusted sources
-
-The Bibles, commentaries and devotionals are public-domain works, and the original-language data and cross references come from STEP Bible and OpenBible.info with credit. Each source is credited on the site, and the sources that ask not to be redistributed are downloaded from their owners when your site first starts.
-
-### 🔓 Choose where you host
-
-Run Bible and Beyond on infrastructure you control. Two Docker containers hold the whole site, so you can move it to a new host with its database.
-
-### 💰 Start with affordable hosting
-
-You can run the site on a small cloud server. The live site runs on Amazon Lightsail with 2 GB of memory.
-
 ## Get started
 
 Follow the [installation guide](INSTALLATION.md) to run Bible and Beyond with Docker. Once it's running, log in to the admin interface, check the site settings, and add the keys for the optional services (the AI answers, the licensed Bibles and the contact form's spam check).
