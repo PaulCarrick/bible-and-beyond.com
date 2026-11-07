@@ -104,7 +104,7 @@ def create_account(email: str, password: str, confirmation: str) -> dict:
       ).fetchone()
   except psycopg.errors.UniqueViolation:
     raise AccountProblem("An account with that email address already exists. Please log in.", 409)
-  return {"id": row[0], "email": row[1], "email_verified": False}
+  return {"id": row[0], "email": row[1], "email_verified": False, "open_ai_queries": False}
 
 
 def _hash_token(token: str) -> str:
@@ -119,7 +119,8 @@ def log_in(email: str, password: str) -> tuple[dict, str]:
     raise refusal
   with connect() as connection:
     row = connection.execute(
-      "SELECT id, email, password_hash, email_verified_at IS NOT NULL FROM users WHERE email = %s", (email,)
+      "SELECT id, email, password_hash, email_verified_at IS NOT NULL, open_ai_queries FROM users WHERE email = %s",
+      (email,),
     ).fetchone()
     if row is None:
       password_matches(password, _DUMMY_HASH)
@@ -134,7 +135,7 @@ def log_in(email: str, password: str) -> tuple[dict, str]:
       (_hash_token(token), row[0], expires_at),
     )
     connection.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (row[0],))
-  return {"id": row[0], "email": row[1], "email_verified": row[3]}, token
+  return {"id": row[0], "email": row[1], "email_verified": row[3], "open_ai_queries": row[4]}, token
 
 
 def user_for_token(token: str | None) -> dict | None:
@@ -143,13 +144,14 @@ def user_for_token(token: str | None) -> dict | None:
   with connect() as connection:
     row = connection.execute(
       """
-      SELECT users.id, users.email, users.email_verified_at IS NOT NULL
+      SELECT users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries
       FROM user_sessions JOIN users ON users.id = user_sessions.user_id
       WHERE user_sessions.token_hash = %s AND user_sessions.expires_at > now()
       """,
       (_hash_token(token),),
     ).fetchone()
-  return {"id": row[0], "email": row[1], "email_verified": row[2]} if row else None
+  # open_ai_queries: an administrator allowed this account to ask the AI its own questions (FAQ page).
+  return {"id": row[0], "email": row[1], "email_verified": row[2], "open_ai_queries": row[3]} if row else None
 
 
 def log_out(token: str | None) -> None:

@@ -1,5 +1,5 @@
 -- A yes/no setting on each account of the main site, set by an administrator on the Drupal "Site users"
--- page: open_ai_queries (false unless turned on). Nothing on the public site uses it yet.
+-- page: open_ai_queries (false unless turned on). It lets the account ask its own questions on the FAQ page.
 -- Safe to run more than once.
 --
 -- Apply with:

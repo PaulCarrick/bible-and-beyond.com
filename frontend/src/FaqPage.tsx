@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { AccountContext } from './AccountContext'
 import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
-import MarkdownText from './MarkdownText'
-import type { TextLink } from './MarkdownText'
-import { verseAddress } from './verseAddress'
+import FaqAnswerView from './FaqAnswerView'
+import OpenQuestionBox from './OpenQuestionBox'
 
 interface FaqPageProps {
   isHidden: boolean
@@ -12,6 +12,7 @@ interface FaqPageProps {
 // Common questions about the faith, answered by Google's Gemini. Only the listed questions can be asked; the
 // server keeps each answer for a day, and the page keeps the ones it has shown so going back is instant.
 function FaqPage({ isHidden }: FaqPageProps) {
+  const { user } = useContext(AccountContext)
   const [listing, setListing] = useState<FaqListing | null>(null)
   const [listingErrorMessage, setListingErrorMessage] = useState('')
   const [questionId, setQuestionId] = useState(1)
@@ -104,39 +105,12 @@ function FaqPage({ isHidden }: FaqPageProps) {
         {isAsking && <p className="faq-waiting">Writing the answer. This can take up to half a minute…</p>}
         {errorMessage && <p className="error">{errorMessage}</p>}
         {shownAnswer && !isAsking && (
-          <article className="faq-answer">
-            <h2>{shownAnswer.question}</h2>
-            <MarkdownText
-              markdown={shownAnswer.answer}
-              links={shownAnswer.references.map(
-                (reference): TextLink => ({
-                  text: reference.text,
-                  label: `${reference.text} (opens the Bible in a new tab)`,
-                  href: verseAddress('BSB', reference.book, reference.chapter, reference.verse),
-                }),
-              )}
-            />
-            <div className="faq-ai-note">
-              <p>
-                This answer was written by an AI and may contain mistakes. This is true of people as well: for example,
-                the Gnostic heresy of the 1st and 2nd centuries. John warns us in{' '}
-                <a href={verseAddress('BSB', 62, 4, 1)} target="_blank" rel="noopener" aria-label="1 John 4:1 (opens the Bible in a new tab)">
-                  1 John 4:1
-                </a>
-                :
-              </p>
-              <blockquote className="faq-ai-verse">
-                &ldquo;Beloved, do not believe every spirit, but test the spirits to see whether they are from God. For
-                many false prophets have gone out into the world.&rdquo; (BSB)
-              </blockquote>
-              <p>
-                Check what it says against the Bible itself (you can do this on this site), and talk over important
-                questions with a pastor or a trusted Christian friend.
-              </p>
-            </div>
-          </article>
+          <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references} />
         )}
       </div>
+
+      {/* Only for a logged-in account an administrator allowed (open_ai_queries); hidden for everyone else. */}
+      {user?.open_ai_queries && isAvailable && <OpenQuestionBox />}
     </div>
   )
 }

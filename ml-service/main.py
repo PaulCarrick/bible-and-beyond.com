@@ -41,7 +41,7 @@ from contact import (
   send_contact_message,
   verify_recaptcha,
 )
-from faq import FaqUnavailable, UnknownQuestion, get_answer, list_questions
+from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -119,6 +119,30 @@ def faq_answer(request: FaqAnswerRequest):
     raise HTTPException(
       status_code=503,
       detail="The FAQ answers are not available right now. Please try again later.",
+    ) from problem
+
+
+class OpenQuestionRequest(BaseModel):
+  # What the visitor wrote, as the editor (Quill) makes it: a little HTML. Only its plain text is sent to Gemini.
+  question: str
+
+
+@app.post("/faq/ask")
+def faq_ask(body: OpenQuestionRequest, request: Request):
+  """Gemini's answer to the visitor's own question. Only for a logged-in account an administrator allowed."""
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  if user is None:
+    raise HTTPException(status_code=401, detail="Please log in to ask your own question.")
+  if not user["open_ai_queries"]:
+    raise HTTPException(status_code=403, detail="Your account cannot ask its own questions.")
+  try:
+    return ask_open_question(user["id"], body.question)
+  except FaqProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem)) from problem
+  except FaqUnavailable as problem:
+    raise HTTPException(
+      status_code=503,
+      detail="The answer could not be written just now. Please try again in a minute.",
     ) from problem
 
 

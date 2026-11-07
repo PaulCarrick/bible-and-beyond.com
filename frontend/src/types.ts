@@ -364,7 +364,8 @@ export interface AccountUser {
   id: number
   email: string
   // True once the owner followed the link emailed to the address.
-  email_verified: boolean
+  email_verified: boolean  // An administrator allowed this account to ask the AI its own questions (the FAQ page); off unless set in Drupal.
+  open_ai_queries: boolean
 }
 
 // A note a logged-in visitor wrote about a verse, a commentary note or a devotional reading.

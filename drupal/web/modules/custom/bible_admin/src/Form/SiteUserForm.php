@@ -81,7 +81,7 @@ class SiteUserForm extends FormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Open AI queries'),
       '#default_value' => $user['open_ai_queries'] ?? FALSE,
-      '#description' => $this->t('Off unless turned on here. The public site does not use it yet.'),
+      '#description' => $this->t('Lets this visitor ask their own questions of the AI on the FAQ page (when logged in). Off unless turned on here.'),
     ];
     $form['password'] = [
       '#type' => 'password_confirm',

@@ -470,7 +470,49 @@ export interface FaqAnswer {
   // Markdown written by Gemini; the page draws it as text, never as HTML.
   answer: string
   // The Scripture references found in it (each once), with the verse each begins at.
-  references: { text: string; book: number; chapter: number; verse: number }[]
+  references: FaqReference[]
+}
+
+export interface FaqReference {
+  text: string
+  book: number
+  chapter: number
+  verse: number
+}
+
+// The answer to a visitor's own question (only for an account an administrator allowed).
+export interface OpenQuestionAnswer {
+  // The question as plain text, as it was sent.
+  question: string
+  answer: string
+  references: FaqReference[]
+}
+
+export async function askOpenQuestion(questionHtml: string): Promise<OpenQuestionAnswer> {
+  const response = await fetch(`${mlServiceUrl}/faq/ask`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: questionHtml }),
+  })
+  // The server's own refusals (the daily limit, a question too long) carry a message; the web server's
+  // rate limit does not.
+  if (!response.ok) {
+    let message =
+      response.status === 429
+        ? "You're asking too quickly. Please wait a minute and try again."
+        : 'The answer could not be written just now. Please try again in a minute.'
+    try {
+      const body = await response.json()
+      if (typeof body.detail === 'string') {
+        message = body.detail
+      }
+    } catch {
+      // No JSON body; keep the message above.
+    }
+    throw new Error(message)
+  }
+  return response.json()
 }
 
 export async function fetchFaqQuestions(): Promise<FaqListing> {

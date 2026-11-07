@@ -1741,3 +1741,22 @@ select:disabled {
 .welcome-faq {
   margin-top: 1.5rem;
 }
+
+/* "Ask your own question" on the FAQ page (OpenQuestionBox.tsx), for accounts allowed to ask. */
+.open-question {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.open-question .ql-container.ql-snow {
+  min-height: 7rem;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.open-question-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
