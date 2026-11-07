@@ -211,7 +211,12 @@ function App() {
 
   // The commentaries and the devotionals only appear in the sidebar once there are some.
   const navGroups: NavGroup[] = [
-    { entries: [{ view: 'welcome', label: 'Welcome' }] },
+    {
+      entries: [
+        { view: 'welcome', label: 'Welcome' },
+        { view: 'searchAll', label: 'Search everything' },
+      ],
+    },
     {
       heading: 'Bible',
       entries: [
@@ -295,9 +300,11 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
-              {/* Below the welcome cards, but kept mounted so its hits are still there after going Back. */}
+              {/* Below the welcome cards, and a page of its own (Search everything in the sidebar): one search, so the
+                  words and hits are the same on both. Kept mounted so its hits are still there after going Back. */}
               <WelcomeSearch
-                isHidden={activeView !== 'welcome'}
+                isHidden={activeView !== 'welcome' && activeView !== 'searchAll'}
+                isPage={activeView === 'searchAll'}
                 onOpen={(found, view) => {
                   setDestination(found)
                   navigate(view)

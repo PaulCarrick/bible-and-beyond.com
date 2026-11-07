@@ -9,6 +9,8 @@ import type { View } from './views'
 
 interface WelcomeSearchProps {
   isHidden: boolean
+  // On its own page (Search everything in the sidebar) rather than under the welcome cards.
+  isPage: boolean
   // Open a reader at a place: the Bible, the commentaries, the devotionals or the other books.
   onOpen: (destination: Destination, view: View) => void
 }
@@ -31,7 +33,7 @@ function countLabel(kind: SiteSearchKind, total: number) {
 // The search form under the welcome cards: one search over the Bible (one Bible, so a verse is listed once), the
 // commentaries, the devotionals and the other books. The hits come in groups, a few of each with "Show more",
 // and each opens its reader at that place. It stays mounted, so the hits are still there after going Back.
-function WelcomeSearch({ isHidden, onOpen }: WelcomeSearchProps) {
+function WelcomeSearch({ isHidden, isPage, onOpen }: WelcomeSearchProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
   const [matchMode, setMatchMode] = useState<'all' | 'any' | 'phrase'>('all')
@@ -164,8 +166,12 @@ function WelcomeSearch({ isHidden, onOpen }: WelcomeSearchProps) {
   }
 
   return (
-    <section className="welcome welcome-search" hidden={isHidden} aria-labelledby={`${queryId}-heading`}>
-      <h2 id={`${queryId}-heading`}>Search everything</h2>
+    <section
+      className={`welcome welcome-search${isPage ? ' is-page' : ''}`}
+      hidden={isHidden}
+      aria-labelledby={`${queryId}-heading`}
+    >
+      {isPage ? <h1 id={`${queryId}-heading`}>Search everything</h1> : <h2 id={`${queryId}-heading`}>Search everything</h2>}
       <p>Search the Bible, the commentaries, the devotionals and the other books at once.</p>
       <form className="book-search-form" onSubmit={handleSubmit}>
         <label htmlFor={queryId} className="visually-hidden">

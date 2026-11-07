@@ -1823,6 +1823,10 @@ select:disabled {
   margin-top: 2rem;
 }
 
+.welcome-search.is-page {
+  margin-top: 0;
+}
+
 .welcome-search-group h3 {
   margin: 1.5rem 0 0;
   font-size: 18px;
