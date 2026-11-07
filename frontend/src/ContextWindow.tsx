@@ -201,6 +201,8 @@ function ContextWindow({
         {errorMessage && <p className="error">{errorMessage}</p>}
         {!hasAnswer && !errorMessage && <p>Loading…</p>}
 
+        {context && <p className="word-link-hint">Choose a verse number to write a note on that verse.</p>}
+
         {context && context.verses.some((entry) => entry.links) && (
           <p className="word-link-hint">Choose a word to see the Hebrew or Greek word behind it.</p>
         )}
@@ -216,7 +218,25 @@ function ContextWindow({
                   ref={entry.is_target ? targetVerse : undefined}
                   className={entry.is_target ? 'context-verse target' : 'context-verse'}
                 >
-                  <sup className="verse-number">{entry.verse}</sup>
+                  <sup className="verse-number">
+                    <button
+                      type="button"
+                      className="verse-number-button"
+                      aria-label={`Notes on ${context.book_name} ${entry.chapter}:${entry.verse}`}
+                      title="Notes on this verse"
+                      onClick={() =>
+                        onOpenVerse('note', {
+                          translation,
+                          book_number: context.book_number,
+                          chapter: entry.chapter,
+                          verse: entry.verse,
+                          reference: `${context.book_name} ${entry.chapter}:${entry.verse}`,
+                        })
+                      }
+                    >
+                      {entry.verse}
+                    </button>
+                  </sup>
                   {entry.links
                     ? highlightLinked(
                         entry.text,

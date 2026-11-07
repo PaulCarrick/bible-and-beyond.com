@@ -1,5 +1,4 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
 import { fetchNotes, saveNote } from './api'
 import NoteCard from './NoteCard'
@@ -57,8 +56,7 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
     onNavigate(view)
   }
 
-  async function handleSave(event: FormEvent) {
-    event.preventDefault()
+  async function handleSave() {
     const editor = editorReference.current
     if (!editor || isSaving) {
       return
@@ -102,7 +100,9 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
 
   return (
     <div className="notes-panel">
-      <form className="contact-form" onSubmit={handleSave}>
+      {/* Not a <form>: this window opens inside the search page, which is a form, and forms cannot be nested
+          (a Save button in a nested form submits the search instead). */}
+      <div className="contact-form">
         <span id="note-editor-label" className="visually-hidden">
           Your note on {reference}
         </span>
@@ -113,10 +113,10 @@ function NotesPanel({ target, onClose }: NotesPanelProps) {
           </p>
         )}
         {savedMessage && <p role="status">{savedMessage}</p>}
-        <button type="submit" className="primary-button" disabled={isSaving}>
+        <button type="button" className="primary-button" disabled={isSaving} onClick={handleSave}>
           {isSaving ? 'Saving…' : 'Save note'}
         </button>
-      </form>
+      </div>
 
       {notes !== null && notes.length > 0 && (
         <>
