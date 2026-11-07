@@ -352,3 +352,9 @@ export interface SiteSettings {
   title: string
   copyright: string
 }
+
+// A visitor who has set up an account and is logged in.
+export interface AccountUser {
+  id: number
+  email: string
+}

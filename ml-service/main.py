@@ -2,10 +2,11 @@ import logging
 import os
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from accounts import AccountProblem, SESSION_DAYS, create_account, log_in, log_out, user_for_token
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from bible_reader import get_chapter as get_bible_chapter
 from bible_reader import get_contents as get_bible_contents
@@ -47,6 +48,7 @@ app = FastAPI(title="Bible and Beyond ML Service")
 app.add_middleware(
   CORSMiddleware,
   allow_origins=ALLOWED_ORIGINS,
+  allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
 )
@@ -406,3 +408,66 @@ def contact(request: ContactRequest, http_request: Request):
       detail="Your message could not be sent right now. Please try again later.",
     )
   return {"sent": True}
+
+
+SESSION_COOKIE = "session"
+
+
+class RegisterRequest(BaseModel):
+  email: str
+  password: str
+  password_confirmation: str
+
+
+class LoginRequest(BaseModel):
+  email: str
+  password: str
+
+
+def start_session(response: Response, request: Request, token: str):
+  """Puts the session token in a cookie that scripts cannot read (Secure when the visit is over HTTPS)."""
+  is_secure = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+  response.set_cookie(
+    SESSION_COOKIE,
+    token,
+    max_age=SESSION_DAYS * 24 * 60 * 60,
+    httponly=True,
+    secure=is_secure,
+    samesite="lax",
+    path="/",
+  )
+
+
+@app.post("/account/register")
+def account_register(body: RegisterRequest, request: Request, response: Response):
+  """Makes an account and logs the visitor in."""
+  try:
+    create_account(body.email, body.password, body.password_confirmation)
+    user, token = log_in(body.email, body.password)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  start_session(response, request, token)
+  return {"user": user}
+
+
+@app.post("/account/login")
+def account_login(body: LoginRequest, request: Request, response: Response):
+  try:
+    user, token = log_in(body.email, body.password)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  start_session(response, request, token)
+  return {"user": user}
+
+
+@app.post("/account/logout")
+def account_logout(request: Request, response: Response):
+  log_out(request.cookies.get(SESSION_COOKIE))
+  response.delete_cookie(SESSION_COOKIE, path="/")
+  return {"user": None}
+
+
+@app.get("/account/me")
+def account_me(request: Request):
+  """Who is logged in, or null. Logging in is never required; this only tells the page what to show."""
+  return {"user": user_for_token(request.cookies.get(SESSION_COOKIE))}

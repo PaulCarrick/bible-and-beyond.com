@@ -1367,3 +1367,40 @@ select:disabled {
   font-size: 0.8rem;
   color: #5a6472;
 }
+
+/* Account links in the header */
+.site-account {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.site-account-email {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.account-page {
+  max-width: 28rem;
+}
+
+.contact-field small {
+  color: #5a6472;
+}
+
+@media (max-width: 800px) {
+  .site-tagline,
+  .site-account-email {
+    display: none;
+  }
+
+  .site-account {
+    gap: 0.6rem;
+    font-size: 0.8rem;
+  }
+}

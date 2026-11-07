@@ -19,6 +19,7 @@ import type {
   SearchParameters,
   SearchResponse,
   SiteSettings,
+  AccountUser,
   Translation,
   VerseContext,
 } from './types'
@@ -298,4 +299,32 @@ export async function sendContactMessage(message: ContactMessage): Promise<void>
       body: JSON.stringify(message),
     }),
   )
+}
+
+// Accounts. The browser keeps the session in a cookie that scripts cannot read; "include" sends it
+// when the page and the service are on different addresses (as they are on a developer's machine).
+async function accountRequest(path: string, method: 'GET' | 'POST', body?: object): Promise<AccountUser | null> {
+  const response = await fetch(`${mlServiceUrl}/account/${path}`, {
+    method,
+    credentials: 'include',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  return (await readJson<{ user: AccountUser | null }>(response)).user
+}
+
+export function fetchCurrentUser(): Promise<AccountUser | null> {
+  return accountRequest('me', 'GET')
+}
+
+export function registerAccount(email: string, password: string, passwordConfirmation: string) {
+  return accountRequest('register', 'POST', { email, password, password_confirmation: passwordConfirmation })
+}
+
+export function logIn(email: string, password: string) {
+  return accountRequest('login', 'POST', { email, password })
+}
+
+export async function logOut(): Promise<void> {
+  await accountRequest('logout', 'POST', {})
 }

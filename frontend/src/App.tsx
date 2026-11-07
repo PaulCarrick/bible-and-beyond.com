@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
-import { fetchBooks, fetchCommentarySources, fetchDevotionals, fetchSiteSettings, fetchTranslations } from './api'
+import {
+  fetchBooks,
+  fetchCommentarySources,
+  fetchCurrentUser,
+  fetchDevotionals,
+  fetchSiteSettings,
+  fetchTranslations,
+  logOut,
+} from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
+import AccountPage from './AccountPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
 import DevotionalsTab from './DevotionalsTab'
@@ -12,6 +21,7 @@ import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
+import type { AccountUser } from './types'
 import type { View } from './views'
 import './App.css'
 
@@ -27,6 +37,7 @@ function App() {
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
   const [devotionals, setDevotionals] = useState<DevotionalInfo[]>([])
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
+  const [user, setUser] = useState<AccountUser | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [activeView, setActiveView] = useState<View>('welcome')
   // On a phone the sidebar is a menu under the header.
@@ -58,6 +69,13 @@ function App() {
     fetchSiteSettings()
       .then(setSiteSettings)
       .catch(() => setSiteSettings(defaultSiteSettings))
+  }, [])
+
+  // Whether a visitor is logged in (the browser sends its session cookie). Nobody has to be.
+  useEffect(() => {
+    fetchCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null))
   }, [])
 
   useEffect(() => {
@@ -99,7 +117,23 @@ function App() {
 
   return (
     <div className="app-shell">
-      <SiteHeader title={siteSettings.title} isMenuOpen={isMenuOpen} onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} onGoHome={() => navigate('welcome')} />
+      <SiteHeader
+        title={siteSettings.title}
+        isMenuOpen={isMenuOpen}
+        onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
+        onGoHome={() => navigate('welcome')}
+        user={user}
+        onSetUpAccount={() => navigate('register')}
+        onLogIn={() => navigate('login')}
+        onLogOut={() => {
+          logOut()
+            .catch(() => undefined)
+            .finally(() => {
+              setUser(null)
+              navigate('welcome')
+            })
+        }}
+      />
 
       <div className="site-body">
         <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
@@ -116,6 +150,16 @@ function App() {
                 commentaries={commentaries}
                 devotionals={devotionals}
                 onNavigate={navigate}
+              />
+            )}
+            {(activeView === 'register' || activeView === 'login') && (
+              <AccountPage
+                mode={activeView}
+                onDone={(loggedInUser) => {
+                  setUser(loggedInUser)
+                  navigate('welcome')
+                }}
+                onSwitchMode={() => navigate(activeView === 'register' ? 'login' : 'register')}
               />
             )}
             {activeView === 'copyright' && (

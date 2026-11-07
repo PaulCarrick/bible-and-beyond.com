@@ -1,3 +1,5 @@
+import type { AccountUser } from './types'
+
 interface SiteHeaderProps {
   // The name of the site, as the administrator has set it.
   title: string
@@ -5,10 +7,15 @@ interface SiteHeaderProps {
   isMenuOpen: boolean
   onToggleMenu: () => void
   onGoHome: () => void
+  // Who is logged in (nobody, unless they chose to).
+  user: AccountUser | null
+  onSetUpAccount: () => void
+  onLogIn: () => void
+  onLogOut: () => void
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome }: SiteHeaderProps) {
+function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -26,6 +33,27 @@ function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome }: SiteHeaderPro
         <span className="site-name">{title}</span>
       </button>
       <span className="site-tagline">Read, search and study the Bible</span>
+      <nav className="site-account" aria-label="Account">
+        {user ? (
+          <>
+            <span className="site-account-email" title={user.email}>
+              {user.email}
+            </span>
+            <button type="button" className="link-button" onClick={onLogOut}>
+              Log out
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="link-button" onClick={onSetUpAccount}>
+              Set up account
+            </button>
+            <button type="button" className="link-button" onClick={onLogIn}>
+              Log in
+            </button>
+          </>
+        )}
+      </nav>
     </header>
   )
 }
