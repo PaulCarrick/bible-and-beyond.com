@@ -22,7 +22,14 @@ def build_order_by(sort_by: str, sort_direction: str) -> str:
   return reference
 
 
+# The longest a query may run, in milliseconds. main.py sets it for the web service, so one costly search
+# cannot keep the database busy; the import scripts and the tools Drupal runs leave it unset (no limit).
+STATEMENT_TIMEOUT_MILLISECONDS: int | None = None
+
+
 def connect():
+  if STATEMENT_TIMEOUT_MILLISECONDS:
+    return psycopg.connect(os.environ["DATABASE_URL"], options=f"-c statement_timeout={STATEMENT_TIMEOUT_MILLISECONDS}")
   return psycopg.connect(os.environ["DATABASE_URL"])
 
 

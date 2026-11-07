@@ -2,7 +2,9 @@ import logging
 import os
 from typing import Literal
 
+import psycopg
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -55,6 +57,7 @@ from subscriptions import (
 )
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
 from original_words import get_lexicon_entry, get_original_words
+import search
 from search import (
   FIRST_BOOK_NUMBER,
   LAST_BOOK_NUMBER,
@@ -70,6 +73,18 @@ ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").spl
 
 app = FastAPI(title="Bible and Beyond ML Service")
 
+# No query of the web service may run longer than this (a search for nothing but very common words is the
+# slowest, about 3 s on the server); one that does is stopped and the visitor asked to narrow it.
+search.STATEMENT_TIMEOUT_MILLISECONDS = 10_000
+
+
+@app.exception_handler(psycopg.errors.QueryCanceled)
+def query_took_too_long(_request: Request, _error: psycopg.errors.QueryCanceled):
+  return JSONResponse(
+    status_code=503,
+    content={"detail": "That took too long. Please try more specific words, or try again in a moment."},
+  )
+
 app.add_middleware(
   CORSMiddleware,
   allow_origins=ALLOWED_ORIGINS,
@@ -79,26 +94,9 @@ app.add_middleware(
 )
 
 
-class QuestionRequest(BaseModel):
-  question: str
-
-
-class AnswerResponse(BaseModel):
-  question: str
-  answer: str
-
-
 @app.get("/health")
 def health():
   return {"status": "ok"}
-
-
-@app.post("/ask", response_model=AnswerResponse)
-def ask(request: QuestionRequest):
-  return AnswerResponse(
-    question=request.question,
-    answer="This is a placeholder answer. Real answers are coming soon.",
-  )
 
 
 class FaqAnswerRequest(BaseModel):

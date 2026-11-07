@@ -12,22 +12,15 @@ def test_health_returns_ok():
   assert response.json() == {"status": "ok"}
 
 
-def test_ask_returns_placeholder_answer():
-  response = client.post("/ask", json={"question": "Who was Moses?"})
-
-  assert response.status_code == 200
-  body = response.json()
-  assert body["question"] == "Who was Moses?"
-  assert body["answer"] == "This is a placeholder answer. Real answers are coming soon."
+def test_the_old_placeholder_ask_is_gone():
+  assert client.post("/ask", json={"question": "Who was Moses?"}).status_code == 404
 
 
-def test_ask_without_question_is_rejected():
-  response = client.post("/ask", json={})
+def test_a_query_that_runs_too_long_is_stopped_with_a_message(monkeypatch):
+  import search
 
-  assert response.status_code == 422
-
-
-def test_ask_with_non_string_question_is_rejected():
-  response = client.post("/ask", json={"question": 123})
-
-  assert response.status_code == 422
+  # A limit of 1 ms stops even a small search.
+  monkeypatch.setattr(search, "STATEMENT_TIMEOUT_MILLISECONDS", 1)
+  response = client.get("/search-everything", params={"query": "the of and"})
+  assert response.status_code == 503
+  assert "too long" in response.json()["detail"]
