@@ -5,6 +5,9 @@ one JSON file per chapter and marks each Public Domain (https://creativecommons.
 We load six of its commentaries into our own database. (Its seventh, the Tyndale Open Study Notes,
 is CC BY-SA, not public domain, and is not used.)
 
+One more, Luther's Commentary on Galatians, is a Project Gutenberg plain-text eBook
+(GUTENBERG_COMMENTARIES), read by its verse headings ("VERSE 6.", "VERSES 11, 12.").
+
 An entry in a file is {"type": "verse", "number": N, "content": ["paragraph", ...]}. Some
 commentaries comment on one verse at a time (Gill, Clarke, Jamieson-Fausset-Brown) and skip verses
 they have nothing to say about. Others comment on sections: an entry starts at its verse and runs
@@ -12,6 +15,7 @@ until the next entry (Matthew Henry, Calvin, Keil and Delitzsch).
 """
 
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -33,9 +37,37 @@ COMMENTARIES = {
   "john-calvin": ("John Calvin's Commentaries", "John Calvin", True),
   "keil-delitzsch": ("Keil and Delitzsch's Old Testament Commentary", "Keil and Delitzsch", True),
 }
+# Commentaries that are Project Gutenberg plain-text eBooks on one book of the Bible. They come after the
+# six above in the order of the tabs.
+GUTENBERG_COMMENTARIES = {
+  "luther-galatians": {
+    "name": "Martin Luther's Commentary on Galatians",
+    "short_name": "Martin Luther",
+    "book_number": 48,
+    "ebook": 1549,
+  },
+}
 LICENSE_URL = "https://creativecommons.org/publicdomain/mark/1.0/"
 SOURCE_NAME = "Free Use Bible API"
 SOURCE_URL = "https://bible.helloao.org"
+GUTENBERG_SOURCE_NAME = "Project Gutenberg"
+
+
+def known_commentaries():
+  """Every commentary that can be loaded from its source: id -> name, short name, where it comes from."""
+  known = {
+    commentary_id: {"name": name, "short_name": short_name, "source_name": SOURCE_NAME, "source_url": SOURCE_URL}
+    for commentary_id, (name, short_name, _sections) in COMMENTARIES.items()
+  }
+  for commentary_id, details in GUTENBERG_COMMENTARIES.items():
+    known[commentary_id] = {
+      "name": details["name"], "short_name": details["short_name"], "source_name": GUTENBERG_SOURCE_NAME,
+      "source_url": f"https://www.gutenberg.org/ebooks/{details['ebook']}",
+    }
+  return known
+
+
+KNOWN_COMMENTARIES = known_commentaries()
 # Be polite to the host: a few connections at a time.
 DOWNLOAD_WORKERS = 4
 ATTEMPTS = 4
@@ -73,6 +105,9 @@ def download(folder, commentary_ids, report=print):
   downloaded = 0
   with httpx.Client(follow_redirects=True) as client:
     for commentary_id in commentary_ids:
+      if commentary_id in GUTENBERG_COMMENTARIES:
+        downloaded += download_gutenberg(client, folder, commentary_id, report)
+        continue
       books = fetch_json(client, f"{BASE_URL}/c/{commentary_id}/books.json")
       if books is None:
         raise CommentaryProblem(f"The host has no commentary '{commentary_id}'.")
@@ -105,6 +140,105 @@ def download(folder, commentary_ids, report=print):
   return downloaded
 
 
+def gutenberg_path(folder, commentary_id):
+  return Path(folder) / commentary_id / f"pg{GUTENBERG_COMMENTARIES[commentary_id]['ebook']}.txt"
+
+
+def download_gutenberg(client, folder, commentary_id, report):
+  """Save the plain-text eBook of one of the GUTENBERG_COMMENTARIES. Returns 1."""
+  ebook = GUTENBERG_COMMENTARIES[commentary_id]["ebook"]
+  url = f"https://www.gutenberg.org/cache/epub/{ebook}/pg{ebook}.txt"
+  report(f"{commentary_id}: {url}")
+  response = client.get(url, timeout=120)
+  if response.status_code != 200 or len(response.content) < 10_000:
+    raise CommentaryProblem(f"Could not download {url} (status {response.status_code}).")
+  path = gutenberg_path(folder, commentary_id)
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_bytes(response.content)
+  return 1
+
+
+GUTENBERG_CHAPTER = re.compile(r"^CHAPTER (\d+)$")
+# "  VERSE 6. I marvel." or "  VERSES 11, 12. But I certify you ..." (indented; may wrap onto more lines).
+GUTENBERG_VERSE = re.compile(r"^\s+VERSES? (\d+(?:\s*(?:,|and|-|to)\s*\d+)*)\.\s")
+
+
+def gutenberg_paragraphs(lines):
+  """The paragraphs of hard-wrapped lines (a blank line ends one), with Gutenberg's _italic_ marks dropped."""
+  paragraphs = []
+  current = []
+  for line in lines + [""]:
+    if line.strip():
+      current.append(line.strip())
+    elif current:
+      paragraphs.append(re.sub(r"_([^_\n]+)_", r"\1", " ".join(current)))
+      current = []
+  return paragraphs
+
+
+def read_gutenberg_commentary(path, book_number):
+  """Read a Gutenberg commentary on one book. Returns (entries, introductions) like read_commentary.
+
+  What comes before CHAPTER 1 (the preface) is the introduction to the book, and what comes between a
+  chapter heading and its first verse heading the introduction to that chapter. A verse heading starts a
+  note, which runs until the next note begins; headings that name the same verse again in a row (the
+  commentary takes a verse a phrase at a time) are joined into one note, each heading kept as a line.
+  """
+  text = Path(path).read_text(encoding="utf-8-sig").replace("\r", "")
+  start = text.find("*** START OF")
+  end = text.find("*** END OF")
+  if start < 0 or end < 0:
+    raise CommentaryProblem(f"{path} is not a Project Gutenberg text (no start and end notices).")
+  lines = text[text.index("\n", start) + 1:end].split("\n")
+
+  preface = []
+  chapters = []  # [chapter number, introduction lines, [[start, end, lines], ...]]
+  for line in lines:
+    chapter_match = GUTENBERG_CHAPTER.match(line)
+    verse_match = GUTENBERG_VERSE.match(line)
+    if chapter_match:
+      number = int(chapter_match.group(1))
+      if number != len(chapters) + 1:
+        raise CommentaryProblem(f"{path}: chapter {number} comes after chapter {len(chapters)}.")
+      chapters.append([number, [], []])
+    elif not chapters:
+      preface.append(line)
+    elif verse_match:
+      numbers = [int(number) for number in re.findall(r"\d+", verse_match.group(1))]
+      notes = chapters[-1][2]
+      first, last = min(numbers), max(numbers)
+      if notes and notes[-1][0] == first:
+        notes[-1][1] = max(notes[-1][1], last)
+        notes[-1][2].extend(["", line])
+      else:
+        if notes and first < notes[-1][0]:
+          raise CommentaryProblem(f"{path}: chapter {chapters[-1][0]} goes back from verse {notes[-1][0]} to {first}.")
+        notes.append([first, last, [line]])
+    elif chapters[-1][2]:
+      chapters[-1][2][-1][2].append(line)
+    else:
+      chapters[-1][1].append(line)
+
+  if not chapters or not any(notes for _number, _introduction, notes in chapters):
+    raise CommentaryProblem(f"{path}: no chapters or verse headings were found.")
+  entries = []
+  introductions = []
+  book_introduction = "\n\n".join(gutenberg_paragraphs(preface))
+  if book_introduction:
+    introductions.append((book_number, 0, book_introduction))
+  for chapter, introduction_lines, notes in chapters:
+    introduction = "\n\n".join(gutenberg_paragraphs(introduction_lines))
+    if introduction:
+      introductions.append((book_number, chapter, introduction))
+    for index, (first, last, note_lines) in enumerate(notes):
+      if index + 1 < len(notes):
+        end_verse = max(last, notes[index + 1][0] - 1)
+      else:
+        end_verse = None if last == first else last
+      entries.append((book_number, chapter, first, end_verse, "\n\n".join(gutenberg_paragraphs(note_lines))))
+  return entries, introductions
+
+
 def paragraphs_to_text(content):
   """The paragraphs of an entry as one text, paragraphs separated by a blank line."""
   parts = [part.strip() for part in content if isinstance(part, str) and part.strip()]
@@ -117,6 +251,11 @@ def read_commentary(folder, commentary_id, book_numbers_by_code):
   entries are (book, chapter, verse, end_verse or None, text). introductions are
   (book, chapter, text), chapter 0 being the introduction to the whole book.
   """
+  if commentary_id in GUTENBERG_COMMENTARIES:
+    path = gutenberg_path(folder, commentary_id)
+    if not path.exists():
+      raise CommentaryProblem(f"{path} is missing. Download the commentary first.")
+    return read_gutenberg_commentary(path, GUTENBERG_COMMENTARIES[commentary_id]["book_number"])
   sections = COMMENTARIES[commentary_id][2]
   directory = Path(folder) / commentary_id
   books_file = directory / "books.json"
@@ -156,14 +295,14 @@ def read_commentary(folder, commentary_id, book_numbers_by_code):
 
 
 def replace_commentary(commentary_id, entries, introductions):
-  """Replace everything of one of the known commentaries (COMMENTARIES) in the database, in one transaction.
+  """Replace everything of one of the known commentaries (KNOWN_COMMENTARIES) in the database, in one transaction.
 
   It keeps its place in the order and, if it was there already, whether it is published.
   """
-  name, short_name, _sections = COMMENTARIES[commentary_id]
+  details = KNOWN_COMMENTARIES[commentary_id]
   return save_commentary(
-    commentary_id, name, short_name, SOURCE_NAME, SOURCE_URL, LICENSE_URL, entries, introductions,
-    publish_if_new=True, position=list(COMMENTARIES).index(commentary_id) + 1,
+    commentary_id, details["name"], details["short_name"], details["source_name"], details["source_url"], LICENSE_URL,
+    entries, introductions, publish_if_new=True, position=list(KNOWN_COMMENTARIES).index(commentary_id) + 1,
   )
 
 
@@ -286,9 +425,9 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
 
 
 def check_ids(commentary_ids):
-  unknown = [commentary_id for commentary_id in commentary_ids if commentary_id not in COMMENTARIES]
+  unknown = [commentary_id for commentary_id in commentary_ids if commentary_id not in KNOWN_COMMENTARIES]
   if unknown:
-    raise CommentaryProblem(f"Unknown commentary: {', '.join(unknown)}. Known: {', '.join(COMMENTARIES)}.")
+    raise CommentaryProblem(f"Unknown commentary: {', '.join(unknown)}. Known: {', '.join(KNOWN_COMMENTARIES)}.")
   return commentary_ids
 
 

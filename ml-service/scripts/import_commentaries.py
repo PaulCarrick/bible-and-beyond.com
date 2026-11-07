@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from commentaries import (  # noqa: E402
-    COMMENTARIES,
+    KNOWN_COMMENTARIES,
     CommentaryProblem,
     book_numbers_by_code,
     check_ids,
@@ -35,7 +35,7 @@ def main():
 
     try:
         ids = check_ids(arguments.commentaries) if arguments.commentaries else [
-            commentary_id for commentary_id in COMMENTARIES if (Path(arguments.folder) / commentary_id).is_dir()
+            commentary_id for commentary_id in KNOWN_COMMENTARIES if (Path(arguments.folder) / commentary_id).is_dir()
         ]
         if not ids:
             sys.exit(f"No commentaries found in {arguments.folder}.")

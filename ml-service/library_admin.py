@@ -1,6 +1,6 @@
 """Managing the commentaries and devotionals (the Drupal Commentaries and Devotionals pages).
 
-List them, publish or hide one, delete one, or refresh one of the known ones (COMMENTARIES, DEVOTIONALS)
+List them, publish or hide one, delete one, or refresh one of the known ones (KNOWN_COMMENTARIES, DEVOTIONALS, BOOKS)
 from its source. A refresh downloads for several minutes, longer than a web page may wait, so it runs in
 the background: refresh() starts scripts/manage_library.py run-refresh as a separate process and returns at
 once, and list_items() reports its progress from a small status file.
@@ -24,7 +24,7 @@ KINDS = {
     "table": "commentaries",
     "entries": "commentary_entries",
     "key": "commentary_id",
-    "known": commentaries.COMMENTARIES,
+    "known": commentaries.KNOWN_COMMENTARIES,
   },
   "devotional": {
     "table": "devotionals",
@@ -117,9 +117,9 @@ def list_items(kind: str) -> list[dict]:
   loaded = {item["id"] for item in items}
   for item_id, known in definition["known"].items():
     if item_id not in loaded:
-      name = known[0] if kind == "commentary" else known["name"]
-      detail = known[1] if kind == "commentary" else known["author"]
-      source_name = commentaries.SOURCE_NAME if kind == "commentary" else known["source_name"]
+      name = known["name"]
+      detail = known["short_name"] if kind == "commentary" else known["author"]
+      source_name = known["source_name"]
       items.append({
         "id": item_id, "name": name, "detail": detail, "source_name": source_name, "is_published": False,
         "count": 0, "loaded": False, "refreshable": True, "refresh": _read_status(kind, item_id),
@@ -192,7 +192,7 @@ def run_refresh(kind: str, item_id: str):
   try:
     shutil.rmtree(folder, ignore_errors=True)
     if kind == "commentary":
-      _write_status(kind, item_id, "running", "Downloading the chapters (several minutes) ...")
+      _write_status(kind, item_id, "running", "Downloading (a few minutes) ...")
       commentaries.download(folder, [item_id], report=lambda message: None)
       _write_status(kind, item_id, "running", "Loading ...")
       entries, introductions = commentaries.read_commentary(folder, item_id, commentaries.book_numbers_by_code())

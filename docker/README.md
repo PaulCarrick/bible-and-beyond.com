@@ -12,7 +12,7 @@ AI-answered FAQ.
   opens no port, nothing else can reach it, and it has no route to the internet.
 
 **Where the data comes from.** Built into the database image, as loaded in the database: the
-public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the six public-domain commentaries, the cross references
+public-domain Bibles (ASV, BSB, KJV, WEB, YLT), the public-domain commentaries, the cross references
 (OpenBible.info, CC BY 4.0, credited on the site) and the Berean Bible's word links (public domain).
 **Fetched from their owners on the first start**, because they ask that their files not be redistributed:
 the Hebrew and Greek words and the lexicons (STEPBible, CC BY 4.0, from its GitHub repository) and the

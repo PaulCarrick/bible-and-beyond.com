@@ -10,6 +10,9 @@ from fastapi.testclient import TestClient
 import commentaries
 from commentaries import (
   COMMENTARIES,
+  GUTENBERG_COMMENTARIES,
+  KNOWN_COMMENTARIES,
+  read_gutenberg_commentary,
   CommentaryProblem,
   check_ids,
   get_chapter_notes,
@@ -66,6 +69,78 @@ def test_every_commentary_is_named_and_says_whether_it_comments_on_sections():
   assert {key for key, (_name, _short, sections) in COMMENTARIES.items() if sections} == {
     "matthew-henry", "john-calvin", "keil-delitzsch",
   }
+
+
+def test_the_gutenberg_commentaries_come_after_the_others():
+  assert list(KNOWN_COMMENTARIES) == list(COMMENTARIES) + list(GUTENBERG_COMMENTARIES)
+  assert KNOWN_COMMENTARIES["luther-galatians"]["source_name"] == "Project Gutenberg"
+
+
+LUTHER_SAMPLE = """Header
+*** START OF THE PROJECT GUTENBERG EBOOK COMMENTARY ***
+
+PREFACE
+
+A preface that
+wraps.
+
+CHAPTER 1
+
+
+  VERSE 1. Paul, an apostle, (not of men, neither by man, but by Jesus
+  Christ).
+
+The _argument_ of the epistle.
+
+  VERSE 1. And God the Father.
+
+More on verse 1.
+
+  VERSES 2, 3. Grace be to you.
+
+On verses 2 and 3.
+
+  VERSE 3. And peace.
+
+On verse 3 alone.
+
+  VERSE 6. I marvel.
+
+The last note.
+
+CHAPTER 2
+
+Before the first verse.
+
+  VERSE 1. Then fourteen years after.
+
+Chapter 2.
+
+*** END OF THE PROJECT GUTENBERG EBOOK COMMENTARY ***
+License text.
+"""
+
+
+def test_a_gutenberg_commentary_is_read_by_its_verse_headings(tmp_path):
+  path = tmp_path / "pg1.txt"
+  path.write_text(LUTHER_SAMPLE, encoding="utf-8")
+  entries, introductions = read_gutenberg_commentary(path, 48)
+  assert [(chapter, verse, end_verse) for _book, chapter, verse, end_verse, _text in entries] == [
+    (1, 1, 1), (1, 2, 3), (1, 3, 5), (1, 6, None), (2, 1, None),
+  ]
+  # The two headings on verse 1 are one note, each heading kept as its own paragraph; italics are dropped.
+  assert entries[0][4] == (
+    "VERSE 1. Paul, an apostle, (not of men, neither by man, but by Jesus Christ).\n\n"
+    "The argument of the epistle.\n\nVERSE 1. And God the Father.\n\nMore on verse 1."
+  )
+  assert introductions == [(48, 0, "PREFACE\n\nA preface that wraps."), (48, 2, "Before the first verse.")]
+
+
+def test_a_gutenberg_commentary_that_goes_back_is_refused(tmp_path):
+  path = tmp_path / "pg1.txt"
+  path.write_text(LUTHER_SAMPLE.replace("  VERSE 6. I marvel.", "  VERSE 2. I marvel."), encoding="utf-8")
+  with pytest.raises(CommentaryProblem, match="goes back from verse 3 to 2"):
+    read_gutenberg_commentary(path, 48)
 
 
 def test_paragraphs_are_joined_and_blank_ones_dropped():

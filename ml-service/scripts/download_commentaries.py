@@ -1,4 +1,5 @@
-"""Download the public-domain commentaries from the Free Use Bible API (bible.helloao.org).
+"""Download the public-domain commentaries from the Free Use Bible API (bible.helloao.org)
+and Project Gutenberg (Luther on Galatians).
 
 Run (from ml-service):
 
@@ -16,16 +17,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from commentaries import COMMENTARIES, CommentaryProblem, check_ids, download  # noqa: E402
+from commentaries import KNOWN_COMMENTARIES, CommentaryProblem, check_ids, download  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser(description="Download public-domain commentaries.")
     parser.add_argument("folder", help="Folder to save the files in")
-    parser.add_argument("commentaries", nargs="*", help=f"Which ones (default: all of {', '.join(COMMENTARIES)})")
+    parser.add_argument("commentaries", nargs="*", help=f"Which ones (default: all of {', '.join(KNOWN_COMMENTARIES)})")
     arguments = parser.parse_args()
     try:
-        ids = check_ids(arguments.commentaries or list(COMMENTARIES))
+        ids = check_ids(arguments.commentaries or list(KNOWN_COMMENTARIES))
         count = download(arguments.folder, ids)
     except CommentaryProblem as problem:
         sys.exit(str(problem))

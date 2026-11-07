@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bible_import.importer import load_books, normalize_book_name
-from commentaries import COMMENTARIES
+from commentaries import KNOWN_COMMENTARIES
 from devotionals import MONTHS, SOURCES, Entry, Parsed
 from scripture_references import verse_limits
 from search import connect
@@ -240,7 +240,7 @@ def check_details(kind: str, details: dict) -> dict:
   item_id = cleaned.get("id", "").lower()
   if not ID_PATTERN.match(item_id):
     raise UploadProblem("The id must be 3 to 50 lowercase letters, digits and hyphens, such as matthew-poole.")
-  known = COMMENTARIES if kind == "commentary" else SOURCES
+  known = KNOWN_COMMENTARIES if kind == "commentary" else SOURCES
   if item_id in known:
     raise UploadProblem(f"{item_id} is one of the texts loaded from their source; use Refresh to reload it.")
   if kind in ("devotional", "book"):

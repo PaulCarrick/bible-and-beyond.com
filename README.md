@@ -13,7 +13,7 @@ Use Bible and Beyond to give a church, a study group, or your own readers a free
 - Read a chapter at a time in the ASV, BSB, KJV, WEB and YLT, scrolling on from book to book.
 - Search the Bible for words, phrases or a Strong's number, and search the NIV, NASB and The Message through API.Bible.
 - Open any verse in context, in other translations, with its cross references and its original Hebrew or Greek words.
-- Read and search six classic commentaries and four devotional books, and have a devotional emailed each day.
+- Read and search seven classic commentaries, read four devotional books and ten other classic books, and have a devotional emailed each day.
 - Keep private notes on verses, commentaries and readings with a free account.
 - Ask the FAQ: answers to 30 common questions, written by an AI from a Bible-centred point of view.
 
@@ -39,7 +39,7 @@ Bible and Beyond uses React and TypeScript for the website, Python with FastAPI 
 
 The Apache License covers this project's code. The texts and data it shows have their own terms, which the site states and credits:
 
-- The Bibles (ASV, BSB, KJV, WEB, YLT), the six commentaries and the devotionals are in the public domain.
+- The Bibles (ASV, BSB, KJV, WEB, YLT), the commentaries, the devotionals and the other books are in the public domain.
 - The Hebrew and Greek words and lexicons are from [STEP Bible](https://www.stepbible.org) (CC BY 4.0), and the cross references from [OpenBible.info](https://www.openbible.info/labs/cross-references/) (CC BY 4.0).
 - The NIV, NASB and The Message are fetched from [API.Bible](https://api.bible) for display only, under its terms, and are never stored.
 - Drupal keeps its own licence, the GNU GPL (see [`drupal/LICENSE.txt`](drupal/LICENSE.txt)).
