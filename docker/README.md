@@ -57,7 +57,9 @@ fails, the next start tries again (`docker compose -f docker/compose.yml restart
   `ADMIN_PASSWORD`. If you left the password empty, a random one was made and shown once in the log of
   the first start.
 
-`docker compose pull` downloads the published images; `up -d --build` builds them from this repository
+`docker compose pull` downloads the published images, from GitHub's registry (`ghcr.io/paulcarrick`) or,
+with `IMAGE_REGISTRY=docker.io/paulcarrick` in `docker/.env`, from Docker Hub (the same images);
+`up -d --build` builds them from this repository
 instead (building the database image needs `docker/public-data/bible-data.sql.gz`, which only the
 maintainer can make, with `docker/make-public-data.sh`).
 
@@ -139,5 +141,6 @@ docker compose -f docker/compose.yml exec database mariadb-dump --socket=/run/my
 
 `docker/make-public-data.sh` makes `docker/public-data/bible-data.sql.gz` from the live database, on
 the server, without the rows of any visitor table (it checks), and `docker/publish.sh` builds both images
-for amd64 and arm64 servers and pushes them to the registry in `IMAGE_REGISTRY` (log in first:
-`docker login ghcr.io`). The images are public once pushed.
+for amd64 and arm64 servers, pushes them to the registry in `IMAGE_REGISTRY` and copies them to the
+mirrors in `IMAGE_MIRRORS` (Docker Hub, `docker.io/paulcarrick`, unless set otherwise; empty for none). Log in
+to both first: `docker login ghcr.io` and `docker login`. The images are public once pushed.
