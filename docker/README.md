@@ -107,6 +107,10 @@ docker compose -f docker/compose.yml pull && docker compose -f docker/compose.ym
 docker compose -f docker/compose.yml down -v            # removes everything, data included
 ```
 
+**People who run the website** do not need all of Drupal. In the admin, go to People, Add user, and give them
+the **Website administrator** role: they see only the website's pages (Bibles, Site settings, Site users).
+Keep the first administrator for Drupal itself.
+
 A one-time admin login link, if the password is lost:
 
 ```bash

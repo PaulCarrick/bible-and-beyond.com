@@ -60,6 +60,11 @@ if ! drush status --field=bootstrap 2>/dev/null | grep -q Successful; then
     echo " Change it after logging in (the admin's My account > Edit)."
   fi
   echo "----------------------------------------------------------------------"
+else
+  # An existing site started with a newer image: apply Drupal's database updates (as deploy.sh does on
+  # the live server) and rebuild its caches, so new pages, permissions and roles appear.
+  drush updatedb --yes
+  drush cache:rebuild
 fi
 
 exec /usr/bin/supervisord -c /etc/supervisor/stack.conf

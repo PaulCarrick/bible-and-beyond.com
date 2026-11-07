@@ -7,3 +7,8 @@ administer site users:
   title: 'Administer the main site users'
   description: 'List, add, change and delete the accounts of the public site''s visitors (not Drupal users), including their passwords.'
   restrict access: true
+
+administer site settings:
+  title: 'Administer the site settings'
+  description: 'On the Site settings screen: the site title and copyright line, the email server and the keys of the outside services (Gemini, API.Bible, reCAPTCHA). Without it, only the verse-window numbers (with Administer Bibles).'
+  restrict access: true

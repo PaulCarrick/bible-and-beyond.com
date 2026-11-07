@@ -66,7 +66,9 @@ class SiteSettingsForm extends FormBase {
    * Whether this person may change the title, the copyright line and the email settings.
    */
   private function canEditSite(): bool {
-    return $this->currentUser()->hasPermission('administer site configuration');
+    // The module's own permission (the Website administrator role), or Drupal's (the administrator).
+    return $this->currentUser()->hasPermission('administer site settings')
+      || $this->currentUser()->hasPermission('administer site configuration');
   }
 
   /**

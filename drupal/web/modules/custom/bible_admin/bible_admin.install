@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * @file
+ * Updates for Bible administration.
+ */
+
+declare(strict_types=1);
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Adds the "Website administrator" role: the website's own pages only.
+ *
+ * It may use the Bibles, Site settings and Site users pages and nothing of Drupal's own (content, blocks,
+ * structure, appearance, extensions, configuration, people, reports). New sites get it from
+ * config/install when the module is installed; this adds it to sites that had the module already.
+ */
+function bible_admin_update_11001(): string {
+  if (Role::load('website_administrator')) {
+    return 'The Website administrator role already exists.';
+  }
+  $role = Role::create([
+    'id' => 'website_administrator',
+    'label' => 'Website administrator',
+    'weight' => 4,
+  ]);
+  foreach ([
+    'access administration pages',
+    'access navigation',
+    'administer bibles',
+    'administer site settings',
+    'administer site users',
+    'view the administration theme',
+  ] as $permission) {
+    $role->grantPermission($permission);
+  }
+  $role->save();
+  return 'Added the Website administrator role.';
+}
