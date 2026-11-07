@@ -700,10 +700,16 @@ select:disabled {
   margin: 0;
 }
 
+/* A card's buttons, one above the other, all as wide as the widest. */
 .welcome-buttons {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: max-content;
   gap: 0.5rem;
+  align-self: flex-start;
+}
+
+.welcome-buttons .primary-button {
+  width: 100%;
 }
 
 .welcome-tips {
