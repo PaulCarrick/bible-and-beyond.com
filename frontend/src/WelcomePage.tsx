@@ -79,7 +79,7 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, onNav
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
-                Open the devotionals
+                Read the devotionals
               </button>
             </div>
           </section>
