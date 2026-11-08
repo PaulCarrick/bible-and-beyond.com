@@ -12,6 +12,8 @@ const bookGroups = [
   { name: 'Prophets (Isaiah–Malachi)', bookStart: 23, bookEnd: 39 },
   { name: 'Gospels and Acts', bookStart: 40, bookEnd: 44 },
   { name: 'Epistles (Romans–Jude)', bookStart: 45, bookEnd: 65 },
+  // Paul's thirteen letters; Hebrews (58), whose author is not named, is left out.
+  { name: 'Pauline Epistles (Romans–Philemon)', bookStart: 45, bookEnd: 57 },
 ]
 
 type Scope = 'entire' | 'group' | 'range'
