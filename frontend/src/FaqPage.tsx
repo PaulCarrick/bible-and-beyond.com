@@ -3,6 +3,7 @@ import { AccountContext } from './AccountContext'
 import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
 import FaqAnswerView from './FaqAnswerView'
+import FaqOwnerNote, { OWNER_NOTE_QUESTION } from './FaqOwnerNote'
 import OpenQuestionBox from './OpenQuestionBox'
 
 interface FaqPageProps {
@@ -34,13 +35,12 @@ function FaqPage({ isHidden }: FaqPageProps) {
       .catch(() => setListingErrorMessage('The questions could not be loaded. Please try again later.'))
   }, [isHidden, listing])
 
-  function ask() {
+  function ask(askedId: number = questionId) {
     setErrorMessage('')
-    if (answers[questionId]) {
-      setShownQuestionId(questionId)
+    if (answers[askedId]) {
+      setShownQuestionId(askedId)
       return
     }
-    const askedId = questionId
     setIsAsking(true)
     setShownQuestionId(null)
     fetchFaqAnswer(askedId)
@@ -50,6 +50,17 @@ function FaqPage({ isHidden }: FaqPageProps) {
       })
       .catch((error: Error) => setErrorMessage(error.message))
       .finally(() => setIsAsking(false))
+  }
+
+  // Another question's answer, asked for from a link in the page (the owner's note points to the one on grace).
+  function showQuestion(question: string) {
+    const entry = listing?.groups.flatMap((group) => group.questions).find((candidate) => candidate.question === question)
+    if (!entry) {
+      return
+    }
+    setQuestionId(entry.id)
+    ask(entry.id)
+    window.scrollTo(0, 0)
   }
 
   const shownAnswer = shownQuestionId === null ? null : answers[shownQuestionId]
@@ -94,7 +105,7 @@ function FaqPage({ isHidden }: FaqPageProps) {
                 </optgroup>
               ))}
             </select>
-            <button type="button" className="primary-button" onClick={ask} disabled={!isAvailable || isAsking}>
+            <button type="button" className="primary-button" onClick={() => ask()} disabled={!isAvailable || isAsking}>
               {isAsking ? 'Asking…' : 'Show the answer'}
             </button>
           </div>
@@ -106,6 +117,9 @@ function FaqPage({ isHidden }: FaqPageProps) {
         {errorMessage && <p className="error">{errorMessage}</p>}
         {shownAnswer && !isAsking && (
           <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references} />
+        )}
+        {shownAnswer && !isAsking && shownAnswer.question === OWNER_NOTE_QUESTION && (
+          <FaqOwnerNote onShowQuestion={showQuestion} />
         )}
       </div>
 

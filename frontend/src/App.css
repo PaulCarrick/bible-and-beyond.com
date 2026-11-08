@@ -1748,6 +1748,41 @@ select:disabled {
   font-style: italic;
 }
 
+/* The site owner's own note under one FAQ answer (FaqOwnerNote.tsx): a box set apart from the AI's answer. */
+.faq-owner-note {
+  margin-top: 1.5rem;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid var(--accent-border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: var(--accent-bg);
+}
+
+.faq-owner-note h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+}
+
+.faq-owner-note p {
+  margin: 0.6rem 0;
+}
+
+.faq-owner-passage {
+  margin: 0.75rem 0 0.75rem 1rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--border);
+}
+
+.faq-owner-passage p {
+  margin: 0;
+  font-style: italic;
+}
+
+.faq-owner-passage footer {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
 .welcome-faq {
   margin-top: 1.5rem;
 }

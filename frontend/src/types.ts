@@ -417,7 +417,8 @@ export interface NotePage {
 // A place a reader is asked to open at: set when a note's link is followed, with a new id each time so
 // following the same link twice goes there twice.
 export type Destination =
-  | { id: number; kind: 'bible'; translation: string; book: number; chapter: number; verse: number }
+  // strongCode (G0264, H7225): also open that word's lexicon entry over the verse.
+  | { id: number; kind: 'bible'; translation: string; book: number; chapter: number; verse: number; strongCode?: string }
   | { id: number; kind: 'commentary'; commentary: string; book: number; chapter: number; verse: number }
   | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number }
 

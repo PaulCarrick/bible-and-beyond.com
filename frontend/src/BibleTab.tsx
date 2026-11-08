@@ -56,6 +56,8 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
   const [menu, setMenu] = useState<{ chapter: BibleChapter; verse: BibleVerse; x: number; y: number } | null>(null)
   const translationRef = useRef('')
   const pendingTarget = useRef<Target | null>(null)
+  // A Strong's number a link asked for: its lexicon entry opens over the verse once the verse is on screen.
+  const pendingStrongCode = useRef<string | null>(null)
   const hasStarted = useRef(false)
 
   const {
@@ -110,6 +112,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
       return
     }
     hasStarted.current = true
+    pendingStrongCode.current = destination.strongCode ?? null
     const code =
       (readable.find((translation) => translation.code === destination.translation) ??
         readable.find((translation) => translation.code === 'BSB') ??
@@ -141,14 +144,28 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
     }
     pendingTarget.current = null
     let element: HTMLElement | null = null
+    let markedEntry: BibleVerse | null = null
     if (target.verse !== null) {
       // A verse the Bible does not have (a number past the end) goes to the chapter's last verse.
       const verse = first.verses.find((entry) => entry.verse >= (target.verse ?? 0)) ?? first.verses[first.verses.length - 1]
+      markedEntry = verse
       setMarkedVerse(verseId(first, verse))
       element = document.getElementById(verseId(first, verse))
     }
     element ??= document.getElementById(`chapter-${first.book_number}-${first.chapter}`)
     element?.scrollIntoView({ block: 'start' })
+    // A link that names a Strong's number (the FAQ's Greek words) opens its lexicon entry over the verse;
+    // Back or the X returns to the verse.
+    const strongCode = pendingStrongCode.current
+    pendingStrongCode.current = null
+    if (strongCode && markedEntry) {
+      const trigger = numberButton(first, markedEntry) ?? element
+      if (trigger) {
+        openStrongNumber(first, markedEntry, strongCode, trigger)
+      }
+    }
+    // openStrongNumber only reads the windows, which do not change what this does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapters])
 
   const isScrolledDown = useBackToTop(isHidden, windowIsOpen, scrollToTop)

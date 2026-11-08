@@ -4,14 +4,22 @@ import type { Destination } from './types'
 // An address that opens the Bible reader at a verse, such as /?read=BSB&book=62&chapter=4&verse=1. The FAQ's
 // verse links use it so they can open in a new tab, and so do the site's other verse buttons when Shift, Ctrl or
 // Cmd is held or the middle button is used. Both halves are here so the format stays the same.
+//
+// With a Strong's number (&strong=G0264) it also opens the lexicon entry of that Hebrew or Greek word over the
+// verse, so a page can link to a word: choose a verse where the word is used.
 
-export function verseAddress(translation: string, book: number, chapter: number, verse: number): string {
+const strongPattern = /^[GH]\d{1,4}[A-Z]?$/
+
+export function verseAddress(translation: string, book: number, chapter: number, verse: number, strongCode?: string): string {
   const parameters = new URLSearchParams({
     read: translation,
     book: String(book),
     chapter: String(chapter),
     verse: String(verse),
   })
+  if (strongCode) {
+    parameters.set('strong', strongCode)
+  }
   return `/?${parameters}`
 }
 
@@ -26,7 +34,16 @@ export function readVerseAddress(search: string): Destination | null {
   if (!translation || !isWhole(book, 66) || !isWhole(chapter, 150) || !isWhole(verse, 176)) {
     return null
   }
-  return { id: Date.now(), kind: 'bible', translation, book, chapter, verse }
+  const strongCode = (parameters.get('strong') ?? '').toUpperCase()
+  return {
+    id: Date.now(),
+    kind: 'bible',
+    translation,
+    book,
+    chapter,
+    verse,
+    ...(strongPattern.test(strongCode) ? { strongCode } : {}),
+  }
 }
 
 export interface VerseInBible {
