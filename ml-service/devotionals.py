@@ -395,6 +395,8 @@ DAILY_TITLE = re.compile(r"^(Morning|Evening), (%s) (\d{1,2})$" % "|".join(MONTH
 # The line that opens a Daily Light reading ("JANUARY 1 MORNING"); the reading's heading says it already.
 DAILY_HEADING_LINE = re.compile(r"^(%s) \d{1,2}\s*(MORNING|EVENING)$" % "|".join(month.upper() for month in MONTHS))
 REFERENCE_SEPARATORS = set(".-–—;, ")
+# A reference that is only verse numbers ("4", "11-13", "16,17"), as after "I Thes. 5:3,".
+BARE_VERSE_NUMBERS = re.compile(r"\d+(?:\s*[-–,]\s*\d+)*")
 
 
 def paragraphs_of_element(element):
@@ -413,9 +415,18 @@ def paragraphs_of_element(element):
     if leftover.strip() and set(leftover) <= REFERENCE_SEPARATORS | {"\n"}:
       lines = []
       group = []
+      after_comma = False
       for reference in references:
-        group.append(collapse("".join(reference.itertext())))
-        if "-" not in (reference.tail or ""):
+        text = collapse("".join(reference.itertext()))
+        # "I Thes. 5:3,4": the 4 is a reference of its own in the file but only a verse number, so it is
+        # joined to the reference before it (it once showed as a lone "4" under the reading).
+        if group and after_comma and BARE_VERSE_NUMBERS.fullmatch(text):
+          group[-1] = f"{group[-1]},{text}"
+        else:
+          group.append(text)
+        tail = reference.tail or ""
+        after_comma = tail.strip().startswith(",")
+        if not after_comma and "-" not in tail:
           lines.append("; ".join(group))
           group = []
       if group:

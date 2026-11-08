@@ -663,6 +663,60 @@ select:disabled {
   font-size: 12px;
 }
 
+/* The user guide on the Help page (HelpPage.tsx): a list of contents, then a section per feature with its
+   screenshots, which open full size when clicked. */
+.help-contents ol {
+  margin: 0;
+  padding-left: 1.4rem;
+  columns: 2;
+  column-gap: 2rem;
+}
+
+.help-contents li {
+  margin: 0.2rem 0;
+  break-inside: avoid;
+}
+
+@media (max-width: 800px) {
+  .help-contents ol {
+    columns: 1;
+  }
+}
+
+.help-section {
+  scroll-margin-top: 1rem;
+}
+
+.help-section:focus {
+  outline: none;
+}
+
+.help-section p,
+.help-section ul,
+.help-section ol {
+  margin: 0.6rem 0;
+}
+
+.help-figure {
+  margin: 1rem 0 1.5rem;
+}
+
+.help-figure img {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.help-figure figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
 .help-copyrights {
   margin: 0 0 0.5rem;
   padding-left: 1.1rem;
@@ -1456,6 +1510,16 @@ select:disabled {
 .note time {
   color: #5a6472;
   font-size: 0.8rem;
+}
+
+/* A note holds whatever was pasted into the editor: a code block, text joined by non-breaking spaces or a long
+   word must still wrap inside the page (a pasted lexicon entry once ran off the right edge of My notes). */
+.note-body {
+  overflow-wrap: anywhere;
+}
+
+.note-body pre {
+  white-space: pre-wrap;
 }
 
 .note-body > :first-child {

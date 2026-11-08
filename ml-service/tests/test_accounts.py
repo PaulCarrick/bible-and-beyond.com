@@ -268,8 +268,15 @@ def test_the_links_are_stored_only_as_hashes(sent_mail):
   register()
   token = link_token(sent_mail[0], "verify")
 
+  # Only this test's account: other accounts in a development database may have links of their own.
   with connect() as connection:
-    stored = [row[0] for row in connection.execute("SELECT token_hash FROM account_tokens").fetchall()]
+    stored = [
+      row[0]
+      for row in connection.execute(
+        "SELECT t.token_hash FROM account_tokens t JOIN users u ON u.id = t.user_id WHERE u.email = %s",
+        ("ann@accounts-test.example",),
+      ).fetchall()
+    ]
   assert token not in stored and len(stored) == 1
 
 

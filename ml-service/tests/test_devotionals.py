@@ -213,6 +213,27 @@ def test_daily_light_lines_of_references_become_groups(tmp_path):
   assert "JANUARY 1" not in parsed.entries[0].text
 
 
+def test_a_lone_verse_number_after_a_comma_joins_the_reference_before_it(tmp_path):
+  # The file writes "I Thes. 5:3,4" as two references, the second only "4"; it once showed as a lone 4.
+  sample = DAILY_LIGHT_SAMPLE.replace(
+    '<scripRef passage="I Cor. 9:24-25">I Cor. 9:24,25</scripRef>.',
+    '<scripRef passage="I Thes. 5:3">I Thes. 5:3</scripRef>,<scripRef passage="I Thes. 5:4">4</scripRef>.',
+  )
+  parsed = parse_ccel_daily(write(tmp_path, "light.xml", sample))
+
+  assert parsed.entries[0].text.endswith("John 17:24; II Tim. 1:12\n\nI Thes. 5:3,4")
+
+
+def test_a_list_of_verse_numbers_after_a_comma_joins_too(tmp_path):
+  sample = DAILY_LIGHT_SAMPLE.replace(
+    '<scripRef passage="I Cor. 9:24-25">I Cor. 9:24,25</scripRef>.',
+    '<scripRef passage="Eph. 6:14">Eph. 6:14</scripRef>, <scripRef passage="Eph. 6:16-17">16,17</scripRef>.',
+  )
+  parsed = parse_ccel_daily(write(tmp_path, "light.xml", sample))
+
+  assert parsed.entries[0].text.endswith("\n\nEph. 6:14,16,17")
+
+
 def test_a_reading_with_no_text_is_refused(tmp_path):
   empty = DAILY_SAMPLE.replace('<p class="normal">Second morning.</p>', "")
 

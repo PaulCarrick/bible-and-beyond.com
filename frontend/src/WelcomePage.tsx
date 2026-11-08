@@ -146,7 +146,7 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
         <button type="button" className="link-button" onClick={() => onNavigate('faq')}>
           FAQ
         </button>{' '}
-        page, where an AI answers 30 common questions from the Bible.
+        page, where an AI answers common questions from the Bible.
       </p>
     </div>
   )
