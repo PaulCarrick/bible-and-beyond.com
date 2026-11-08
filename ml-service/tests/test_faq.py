@@ -8,6 +8,8 @@ from faq import ANSWER_CACHE_SECONDS, FaqUnavailable, UnknownQuestion, get_answe
 from main import app
 
 client = TestClient(app)
+# The system prompt sent with each faked Gemini call, in order.
+prompts = []
 
 
 class VerseLimits(dict):
@@ -23,9 +25,11 @@ def fake_gemini(monkeypatch):
   """Replaces the Gemini call with one that records the questions asked."""
   faq.clear_cache()
   calls = []
+  prompts.clear()
 
-  def answer(question):
+  def answer(question, system_prompt=faq.SYSTEM_PROMPT):
     calls.append(question)
+    prompts.append(system_prompt)
     return f"Answer to: {question}"
 
   monkeypatch.setenv("GEMINI_API_KEY", "test-key")
@@ -44,9 +48,19 @@ def test_there_are_thirty_two_questions_in_six_groups():
   identifiers = [entry["id"] for group in listing["groups"] for entry in group["questions"]]
   assert identifiers == list(range(1, 33))
   assert listing["groups"][0]["questions"][0]["question"] == "How do I know God exists?"
-  assert listing["groups"][1]["questions"][3]["question"] == "Are Christians saved by faith alone?"
+  assert listing["groups"][1]["questions"][3]["question"] == "Is a Christian saved by grace alone?"
   assert listing["groups"][5]["questions"][1]["question"] == "What is the Apostles’ Creed and what does it say?"
   assert listing["groups"][5]["questions"][5]["question"].startswith("What does the Bible actually say about the end times")
+
+
+def test_grace_alone_is_answered_from_the_protestant_teaching_only():
+  get_answer(9)
+  get_answer(7)
+
+  assert faq.QUESTIONS[9] == "Is a Christian saved by grace alone?"
+  assert prompts[0].startswith(faq.SYSTEM_PROMPT)
+  assert "Protestant (Reformation)" in prompts[0] and "Ephesians 2:8-9" in prompts[0]
+  assert prompts[1] == faq.SYSTEM_PROMPT
 
 
 def test_the_listing_says_when_no_key_is_set(monkeypatch):
@@ -93,7 +107,7 @@ def test_only_listed_questions_can_be_asked(fake_gemini):
 def test_a_failure_gives_a_clear_message_and_is_not_kept(monkeypatch):
   calls = []
 
-  def failing(question):
+  def failing(question, system_prompt=None):
     calls.append(question)
     raise FaqUnavailable("Gemini request failed (ServerError): 500")
 
@@ -205,7 +219,7 @@ def test_the_references_in_an_answer_are_listed_once_with_their_verse(monkeypatc
   monkeypatch.setattr(
     faq,
     "ask_gemini",
-    lambda question: "See **John 3:16** and Romans 8:38–39; also 1 John 4:1.\n\n- John 3:16 again (Genesis 99:1).",
+    lambda question, system_prompt=None: "See **John 3:16** and Romans 8:38–39; also 1 John 4:1.\n\n- John 3:16 again (Genesis 99:1).",
   )
 
   references = client.post("/faq/answer", json={"question_id": 8}).json()["references"]
@@ -228,7 +242,7 @@ def test_the_answer_still_shows_when_the_verse_table_cannot_be_read(monkeypatch)
     raise RuntimeError("no database")
 
   monkeypatch.setattr(faq, "verse_limits", broken)
-  monkeypatch.setattr(faq, "ask_gemini", lambda question: "Read John 3:16.")
+  monkeypatch.setattr(faq, "ask_gemini", lambda question, system_prompt=None: "Read John 3:16.")
 
   response = client.post("/faq/answer", json={"question_id": 2})
 

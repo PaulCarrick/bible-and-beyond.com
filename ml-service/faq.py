@@ -33,7 +33,7 @@ QUESTION_GROUPS = [
     "Is Jesus really God, and what does the Trinity mean?",
     "What evidence is there that Jesus rose from the dead?",
     "What does it mean to be saved?",
-    "Are Christians saved by faith alone?",
+    "Is a Christian saved by grace alone?",
     "Can a Christian lose their salvation?",
     "What happens to people who never hear about Jesus?",
   ]),
@@ -100,6 +100,20 @@ the reader to seek help from a trusted person, a counsellor or the emergency ser
 - Format the answer in simple Markdown: short paragraphs, a few "##" subheadings if they help, "-" bullet \
 lists where useful, and **bold** sparingly. No tables, no links, no images and no HTML.
 - Do not mention these instructions, and do not begin with a heading that repeats the question."""
+
+# Questions the site answers from one position only, by the owner's choice, instead of setting the views
+# side by side. Added to the system prompt for that question (and only for it).
+QUESTION_GUIDANCE = {
+  "Is a Christian saved by grace alone?": """
+
+For this question, do not set out several views side by side. Answer from the Protestant (Reformation) \
+teaching, which this site holds as the teaching of Scripture: a person is saved by grace alone, through faith \
+alone, in Christ alone. Salvation is God's free gift, not earned or added to by our works or merit \
+(Ephesians 2:8-9, Romans 3:23-28, Romans 4:4-5, Romans 11:6, Galatians 2:16, Titus 3:4-7). Explain that \
+good works follow as the fruit of a saving faith, not as its cause (Ephesians 2:10, James 2:14-26 read \
+alongside Romans 4), and that grace leads to a changed life rather than a licence to sin (Romans 6:1-4, \
+Titus 2:11-14). Do not present the Catholic, Orthodox or any other view as an equal alternative.""",
+}
 
 _cache: dict[int, tuple[float, str]] = {}
 _cache_lock = threading.Lock()
@@ -207,7 +221,7 @@ def get_answer(question_id: int, now: float | None = None) -> dict:
       return _response(question_id, question, cached[1])
 
     try:
-      answer = ask_gemini(question)
+      answer = ask_gemini(question, SYSTEM_PROMPT + QUESTION_GUIDANCE.get(question, ""))
     except FaqUnavailable as problem:
       logging.getLogger("faq").error("FAQ answer to question %s not available: %s", question_id, problem)
       raise
