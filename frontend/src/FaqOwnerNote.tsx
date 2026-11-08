@@ -128,6 +128,14 @@ function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
         gambling, or struggling with anything else, it doesn’t matter. They are my brother or sister, saved by grace,
         and I love them.
       </p>
+      <p>
+        If anyone is struggling with a hurt, habit or hang-up, I highly recommend{' '}
+        <a href="https://celebraterecovery.com/" target="_blank" rel="noopener" aria-label="Celebrate Recovery (opens its website in a new tab)">
+          Celebrate Recovery
+        </a>
+        . It is a Christian-based recovery program. It is not limited to addiction; it covers many other issues:
+        depression, grief, divorce, codependency, sexual addiction, anger issues and many more.
+      </p>
       <Passage book={40} chapter={22} verse={36} reference="Matthew 22:36–40">
         “Teacher, which commandment is the greatest in the Law?” Jesus declared, “‘Love the Lord your God with all your
         heart and with all your soul and with all your mind.’ This is the first and greatest commandment. And the
