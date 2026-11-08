@@ -116,10 +116,9 @@ function FaqPage({ isHidden }: FaqPageProps) {
         {isAsking && <p className="faq-waiting">Writing the answer. This can take up to half a minute…</p>}
         {errorMessage && <p className="error">{errorMessage}</p>}
         {shownAnswer && !isAsking && (
-          <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references} />
-        )}
-        {shownAnswer && !isAsking && shownAnswer.question === OWNER_NOTE_QUESTION && (
-          <FaqOwnerNote onShowQuestion={showQuestion} />
+          <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references}>
+            {shownAnswer.question === OWNER_NOTE_QUESTION && <FaqOwnerNote onShowQuestion={showQuestion} />}
+          </FaqAnswerView>
         )}
       </div>
 

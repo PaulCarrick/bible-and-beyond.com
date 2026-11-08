@@ -121,7 +121,7 @@ function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
         “But for this very reason I was shown mercy, so that in me, the worst of sinners, Christ Jesus might display
         His perfect patience as an example to those who would believe in Him for eternal life.”
       </Passage>
-      <p>I feel the same way (and those of you who know me know this).</p>
+      <p>I feel the same way as the Apostle Paul (and those of you who know me know this).</p>
       <p>
         I love the motto of my church: <em>“In essential things, unity; in non-essential things, liberty; in all
         things, grace.”</em> So for me, if my brother or sister is divorced, gay or lesbian, addicted to alcohol or
@@ -134,7 +134,9 @@ function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
         second is like it: ‘Love your neighbor as yourself.’ All the Law and the Prophets hang on these two
         commandments.”
       </Passage>
-      <p>To those of you who hold strong opinions otherwise, I hope you will consider my arguments.</p>
+      <p>
+        Grace trumps the law. If you are following the two greatest commandments, any specific sin is irrelevant.
+      </p>
     </aside>
   )
 }

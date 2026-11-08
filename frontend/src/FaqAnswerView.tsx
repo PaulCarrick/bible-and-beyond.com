@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { FaqReference } from './api'
 import MarkdownText from './MarkdownText'
 import type { TextLink } from './MarkdownText'
@@ -8,11 +9,13 @@ interface FaqAnswerViewProps {
   // Markdown written by Gemini; drawn as text, never as HTML.
   answer: string
   references: FaqReference[]
+  // Shown between the answer and the AI note (the site owner's note on one question).
+  children?: ReactNode
 }
 
 // An AI answer on the FAQ page (to a listed question or the visitor's own): the question, the answer with
 // its Scripture references as links that open the Bible in a new tab, and the note that an AI wrote it.
-function FaqAnswerView({ question, answer, references }: FaqAnswerViewProps) {
+function FaqAnswerView({ question, answer, references, children }: FaqAnswerViewProps) {
   return (
     <article className="faq-answer">
       <h2>{question}</h2>
@@ -26,6 +29,7 @@ function FaqAnswerView({ question, answer, references }: FaqAnswerViewProps) {
           }),
         )}
       />
+      {children}
       <div className="faq-ai-note">
         <p>
           This answer was written by an AI and may contain mistakes. This is true of people as well: for example, the
