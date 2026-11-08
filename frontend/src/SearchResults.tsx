@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import ContextWindow from './ContextWindow'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
@@ -58,6 +59,8 @@ interface SearchResultsProps {
   onSort: (sortBy: SortField) => void
   onClearSort: () => void
   onShowCopyrights: () => void
+  // Shown under the results and hidden with them while a window is open: the licensed Bibles' own sections.
+  children?: ReactNode
 }
 
 function SearchResults({
@@ -75,6 +78,7 @@ function SearchResults({
   onSort,
   onClearSort,
   onShowCopyrights,
+  children,
 }: SearchResultsProps) {
   const listReference = useRef<HTMLOListElement>(null)
   // The copyright line under licensed results takes room that the rows cannot use.
@@ -480,6 +484,8 @@ function SearchResults({
               </button>
             </nav>
           )}
+
+          {children}
         </div>
 
         {showContext && currentView && (

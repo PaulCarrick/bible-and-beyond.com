@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { searchBible, searchCommentaries } from './api'
 import { chooseContextTranslation } from './contextTranslation'
+import LicensedResults from './LicensedResults'
 import ResultFilters from './ResultFilters'
 import SearchForm from './SearchForm'
 import SearchResults from './SearchResults'
@@ -35,6 +36,21 @@ interface SearchTabProps {
   onShowCopyrights: () => void
 }
 
+// The licensed Bibles (API.Bible) are searched one at a time, so when they are chosen with the Bibles on this site
+// the main list searches the Bibles on this site and each licensed Bible gets a section of its own under it. When
+// only licensed Bibles are chosen, the first is the main list.
+function splitTranslations(searchParameters: SearchParameters, translations: Translation[]) {
+  const isLicensed = (code: string) =>
+    translations.some((translation) => translation.code === code && translation.source === 'api_bible')
+  const local = searchParameters.translations.filter((code) => !isLicensed(code))
+  const licensed = searchParameters.translations.filter(isLicensed)
+  const main = local.length > 0 ? local : licensed.slice(0, 1)
+  return {
+    mainParameters: { ...searchParameters, translations: main },
+    sectionCodes: local.length > 0 ? licensed : licensed.slice(1),
+  }
+}
+
 function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCopyrights }: SearchTabProps) {
   const [searchParameters, setSearchParameters] = useState<SearchParameters | null>(null)
   const [selectedBook, setSelectedBook] = useState<number | null>(null)
@@ -62,7 +78,9 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
 
     const rowsPerPage = newSearchParameters.perPage === 'automatic' ? fitCount : newSearchParameters.perPage
     const search = mode === 'commentary' ? searchCommentaries : searchBible
-    search(newSearchParameters, newPage, newBook, rowsPerPage, controller.signal)
+    const mainParameters =
+      mode === 'commentary' ? newSearchParameters : splitTranslations(newSearchParameters, translations).mainParameters
+    search(mainParameters, newPage, newBook, rowsPerPage, controller.signal)
       .then((searchResponse) => {
         setResponse(searchResponse)
         setIsLoading(false)
@@ -129,6 +147,8 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
 
   // "Show in Context" under a commentary result needs a Bible to show.
   const contextTranslation = chooseContextTranslation(translations)
+  const split =
+    searchParameters !== null && mode === 'bible' ? splitTranslations(searchParameters, translations) : null
   return (
     // The search stays mounted while the other tab or the copyright page is open, so nothing typed is lost.
     <div hidden={isHidden}>
@@ -157,7 +177,7 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
             <SearchResults
               mode={mode}
               contextTranslation={contextTranslation}
-              searchParameters={searchParameters}
+              searchParameters={split?.mainParameters ?? searchParameters}
               response={response}
               books={books}
               selectedBook={selectedBook}
@@ -169,7 +189,17 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
               onSort={handleSort}
               onClearSort={handleClearSort}
               onShowCopyrights={onShowCopyrights}
-            />
+            >
+              {split?.sectionCodes.map((code) => (
+                <LicensedResults
+                  key={code}
+                  code={code}
+                  name={translations.find((translation) => translation.code === code)?.name ?? code}
+                  searchParameters={searchParameters}
+                  onShowCopyrights={onShowCopyrights}
+                />
+              ))}
+            </SearchResults>
           )}
         </SearchForm>
       )}

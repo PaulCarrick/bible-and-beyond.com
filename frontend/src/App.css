@@ -615,6 +615,26 @@ select:disabled {
 @media (max-width: 860px) {
 }
 
+/* The results of a licensed Bible (API.Bible) searched with the Bibles on this site: a section of its own. */
+.licensed-results {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.licensed-results h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+/* The two rows of Bibles in "Search in multiple versions". */
+.option-group-label {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
 .option-note {
   max-width: 40rem;
   color: var(--text);
