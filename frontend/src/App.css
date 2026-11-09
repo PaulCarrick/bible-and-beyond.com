@@ -1851,6 +1851,12 @@ select:disabled {
   margin: 0.6rem 0;
 }
 
+/* Words the owner asked to be bold and underlined in a quotation. */
+.faq-owner-emphasis {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 /* A list in an owner's note: each point is a bold line with its explanation under it. */
 .faq-owner-list {
   margin: 0.6rem 0;

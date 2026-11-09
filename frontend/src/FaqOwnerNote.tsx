@@ -10,6 +10,7 @@ import { verseAddress } from './verseAddress'
 const LGBTQ_QUESTION = 'How should Christians understand LGBTQ identities and relationships?'
 const REPEATED_SIN_QUESTION = 'How can I overcome a sin I keep repeating?'
 const TROUBLING_PASSAGES_QUESTION = 'How do I understand passages that seem contradictory or morally troubling?'
+const COMMANDS_TODAY_QUESTION = 'How do I know which biblical commands still apply today?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -289,6 +290,44 @@ function TroublingPassagesNote() {
   )
 }
 
+// The note under the AI's answer to the question about which biblical commands still apply.
+function CommandsTodayNote() {
+  return (
+    <OwnerNoteBox>
+      <p>The answer is actually in the Bible:</p>
+      <Passage book={40} chapter={22} verse={36} reference="Matthew 22:36–40">
+        <sup>36</sup> “Teacher, which commandment is the greatest in the Law?” <sup>37</sup> Jesus declared, “‘Love the
+        Lord your God with all your heart and with all your soul and with all your mind.’ <sup>38</sup> This is the
+        first and greatest commandment. <sup>39</sup> And the second is like it: ‘Love your neighbor as yourself.’{' '}
+        <strong className="faq-owner-emphasis">
+          <sup>40</sup> All the Law and the Prophets hang on these two commandments.
+        </strong>
+        ”
+      </Passage>
+      <p>So if we obey these two commandments, we are obeying the spirit of the law.</p>
+      <p>
+        Note: The law never passed away (see{' '}
+        <VerseLink book={40} chapter={5} verse={17} label="Matthew 5:17">
+          Matthew 5:17
+        </VerseLink>
+        ), but we are justified through Christ’s sacrifice. Paul notes this in{' '}
+        <VerseLink book={48} chapter={5} verse={18} label="Galatians 5:18">
+          Galatians 5:18
+        </VerseLink>
+        .
+      </p>
+      <p>
+        So if you are obeying the greatest commandments, then that is what applies today. Love is the important thing.
+      </p>
+      <p>
+        <strong>Soapbox:</strong> If you hate, judge or condemn people, then you are not obeying these commandments.
+        Consider that before you judge or say “God hates…” God loves everyone and hopes they all will come to
+        salvation.
+      </p>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -300,6 +339,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === TROUBLING_PASSAGES_QUESTION) {
     return <TroublingPassagesNote />
+  }
+  if (question === COMMANDS_TODAY_QUESTION) {
+    return <CommandsTodayNote />
   }
   return null
 }
