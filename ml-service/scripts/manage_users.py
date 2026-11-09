@@ -4,10 +4,14 @@ These are the visitors' accounts in the Bible database, not Drupal's users. Ever
 object. On success it has "ok": true. On failure it has "ok": false and an "error" written for the
 administrator, and the exit status is not 0.
 
-    manage_users.py list [--query=part-of-an-address] [--page=1]
+    manage_users.py list [--query=part-of-an-address-or-name] [--page=1]
     manage_users.py get --id=7
-    manage_users.py create --email=ann@example.com [--email-verified] [--open-ai-queries] --password-on-input
-    manage_users.py update --id=7 [--email=...] [--email-verified=yes|no] [--open-ai-queries=yes|no] [--password-on-input]
+    manage_users.py create --email=ann@example.com [--first-name=Ann] [--last-name=Lee] [--phone=...]
+                           [--email-verified] [--open-ai-queries] --password-on-input
+    manage_users.py update --id=7 [--email=...] [--first-name=...] [--last-name=...] [--phone=...]
+                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--password-on-input]
+
+An empty --first-name=, --last-name= or --phone= on update clears it; leaving the option out keeps it.
     manage_users.py delete --id=7
 
 A password is never given as an argument (other users of the server could see it in the process list):
@@ -41,12 +45,18 @@ def parse_arguments():
     commands.add_parser(name).add_argument("--id", type=int, required=True)
   create = commands.add_parser("create")
   create.add_argument("--email", required=True)
+  create.add_argument("--first-name", default="")
+  create.add_argument("--last-name", default="")
+  create.add_argument("--phone", default="")
   create.add_argument("--email-verified", action="store_true")
   create.add_argument("--open-ai-queries", action="store_true")
   create.add_argument("--password-on-input", action="store_true")
   update = commands.add_parser("update")
   update.add_argument("--id", type=int, required=True)
   update.add_argument("--email")
+  update.add_argument("--first-name")
+  update.add_argument("--last-name")
+  update.add_argument("--phone")
   update.add_argument("--email-verified", type=yes_or_no)
   update.add_argument("--open-ai-queries", type=yes_or_no)
   update.add_argument("--password-on-input", action="store_true")
@@ -67,7 +77,15 @@ def run(arguments) -> dict:
   if arguments.command == "create":
     if not arguments.password_on_input:
       raise UserProblem("A new account needs a password.")
-    user = create_user(arguments.email, read_password(), arguments.email_verified, arguments.open_ai_queries)
+    user = create_user(
+      arguments.email,
+      read_password(),
+      arguments.email_verified,
+      arguments.open_ai_queries,
+      first_name=arguments.first_name,
+      last_name=arguments.last_name,
+      phone=arguments.phone,
+    )
     return {"ok": True, "user": user}
   password = read_password() if arguments.password_on_input else None
   user = update_user(
@@ -76,6 +94,9 @@ def run(arguments) -> dict:
     password=password,
     email_verified=arguments.email_verified,
     open_ai_queries=arguments.open_ai_queries,
+    first_name=arguments.first_name,
+    last_name=arguments.last_name,
+    phone=arguments.phone,
   )
   return {"ok": True, "user": user}
 

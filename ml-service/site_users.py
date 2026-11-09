@@ -7,7 +7,7 @@ and kept only as a scrypt hash; they are never returned or logged.
 
 import psycopg
 
-from accounts import AccountProblem, check_new_password, hash_password, normalize_email
+from accounts import AccountProblem, check_new_password, check_profile, hash_password, normalize_email
 from search import connect
 
 PER_PAGE = 50
@@ -15,7 +15,7 @@ QUERY_LIMIT = 200
 
 _COLUMNS = """
   users.id, users.email, users.created_at, users.last_login_at, users.email_verified_at IS NOT NULL,
-  users.open_ai_queries,
+  users.open_ai_queries, COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''),
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id)
 """
@@ -33,8 +33,11 @@ def _describe(row) -> dict:
     "last_login_at": row[3].isoformat() if row[3] else None,
     "email_verified": row[4],
     "open_ai_queries": row[5],
-    "note_count": row[6],
-    "subscription_count": row[7],
+    "first_name": row[6],
+    "last_name": row[7],
+    "phone": row[8],
+    "note_count": row[9],
+    "subscription_count": row[10],
   }
 
 
@@ -52,16 +55,27 @@ def _checked_password(password: str) -> None:
     raise UserProblem(str(problem)) from problem
 
 
+def _checked_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str, str]:
+  try:
+    return check_profile(first_name, last_name, phone, names_required=False)
+  except AccountProblem as problem:
+    raise UserProblem(str(problem)) from problem
+
+
+# An account matches a search when its address or its name ("first last") contains the words searched for.
+_MATCHES = "(email LIKE %s OR lower(concat_ws(' ', first_name, last_name)) LIKE %s)"
+
+
 def list_users(query: str = "", page: int = 1) -> dict:
-  """The accounts, newest first, PER_PAGE at a time; query keeps those whose address contains it."""
+  """The accounts, newest first, PER_PAGE at a time; query keeps those whose address or name contains it."""
   query = query.strip().lower()[:QUERY_LIMIT]
   page = max(page, 1)
   pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
   with connect() as connection:
-    total = connection.execute("SELECT count(*) FROM users WHERE email LIKE %s", (pattern,)).fetchone()[0]
+    total = connection.execute(f"SELECT count(*) FROM users WHERE {_MATCHES}", (pattern, pattern)).fetchone()[0]
     rows = connection.execute(
-      f"SELECT {_COLUMNS} FROM users WHERE email LIKE %s ORDER BY users.created_at DESC, users.id DESC LIMIT %s OFFSET %s",
-      (pattern, PER_PAGE, (page - 1) * PER_PAGE),
+      f"SELECT {_COLUMNS} FROM users WHERE {_MATCHES} ORDER BY users.created_at DESC, users.id DESC LIMIT %s OFFSET %s",
+      (pattern, pattern, PER_PAGE, (page - 1) * PER_PAGE),
     ).fetchall()
   return {"users": [_describe(row) for row in rows], "total": total, "page": page, "per_page": PER_PAGE}
 
@@ -74,18 +88,28 @@ def get_user(user_id: int) -> dict:
   return _describe(row)
 
 
-def create_user(email: str, password: str, email_verified: bool, open_ai_queries: bool) -> dict:
+def create_user(
+  email: str,
+  password: str,
+  email_verified: bool,
+  open_ai_queries: bool,
+  first_name: str = "",
+  last_name: str = "",
+  phone: str = "",
+) -> dict:
   email = _checked_email(email)
+  first_name, last_name, phone = _checked_profile(first_name, last_name, phone)
   _checked_password(password)
   password_hash = hash_password(password)
   try:
     with connect() as connection:
       user_id = connection.execute(
         """
-        INSERT INTO users (email, password_hash, email_verified_at, open_ai_queries)
-        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s) RETURNING id
+        INSERT INTO users (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone)
+        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''))
+        RETURNING id
         """,
-        (email, password_hash, email_verified, open_ai_queries),
+        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone),
       ).fetchone()[0]
   except psycopg.errors.UniqueViolation as error:
     raise UserProblem("An account with that email address already exists.") from error
@@ -98,8 +122,12 @@ def update_user(
   password: str | None = None,
   email_verified: bool | None = None,
   open_ai_queries: bool | None = None,
+  first_name: str | None = None,
+  last_name: str | None = None,
+  phone: str | None = None,
 ) -> dict:
-  """Changes what is given and leaves the rest. A new password logs the account out everywhere."""
+  """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
+  name or phone ("") clears it."""
   current = get_user(user_id)
   changes = []
   values: list = []
@@ -108,6 +136,11 @@ def update_user(
     if email != current["email"]:
       changes.append("email = %s")
       values.append(email)
+  checked = _checked_profile(first_name or "", last_name or "", phone or "")
+  for column, given, value in zip(("first_name", "last_name", "phone"), (first_name, last_name, phone), checked):
+    if given is not None and value != current[column]:
+      changes.append(f"{column} = NULLIF(%s, '')")
+      values.append(value)
   if password:
     _checked_password(password)
     changes.append("password_hash = %s")

@@ -371,8 +371,24 @@ export interface AccountUser {
   id: number
   email: string
   // True once the owner followed the link emailed to the address.
-  email_verified: boolean  // An administrator allowed this account to ask the AI its own questions (the FAQ page); off unless set in Drupal.
+  email_verified: boolean
+  // An administrator allowed this account to ask the AI its own questions (the FAQ page); off unless set in Drupal.
   open_ai_queries: boolean
+  // Given when the account was set up; '' for accounts set up before the names were asked for.
+  first_name: string
+  last_name: string
+  // Optional; '' when none was given.
+  phone: string
+}
+
+// What the Set up account form sends.
+export interface NewAccount {
+  email: string
+  password: string
+  passwordConfirmation: string
+  firstName: string
+  lastName: string
+  phone: string
 }
 
 // A note a logged-in visitor wrote about a verse, a commentary note or a devotional reading.

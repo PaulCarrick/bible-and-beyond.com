@@ -27,6 +27,10 @@ class SiteUserForm extends FormBase {
 
   private const PASSWORD_MAXIMUM = 128;
 
+  private const NAME_MAXIMUM = 100;
+
+  private const PHONE_MAXIMUM = 40;
+
   public function __construct(
     protected BibleManager $manager,
     protected DateFormatterInterface $dateFormatter,
@@ -71,6 +75,26 @@ class SiteUserForm extends FormBase {
       '#maxlength' => 254,
       '#description' => $this->t('The visitor logs in with it. It is kept in lower case.'),
     ];
+    $form['first_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('First name'),
+      '#default_value' => $user['first_name'] ?? '',
+      '#maxlength' => self::NAME_MAXIMUM,
+    ];
+    $form['last_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Last name'),
+      '#default_value' => $user['last_name'] ?? '',
+      '#maxlength' => self::NAME_MAXIMUM,
+      '#description' => $this->t('Visitors give their names when they set up an account; accounts set up before the names were asked for have none. Here they may be left empty.'),
+    ];
+    $form['phone'] = [
+      '#type' => 'tel',
+      '#title' => $this->t('Phone'),
+      '#default_value' => $user['phone'] ?? '',
+      '#maxlength' => self::PHONE_MAXIMUM,
+      '#description' => $this->t('Optional.'),
+    ];
     $form['email_verified'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Email address confirmed'),
@@ -108,6 +132,11 @@ class SiteUserForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
+    foreach (['first_name', 'last_name', 'phone'] as $field) {
+      if (preg_match('/[\x00-\x1f\x7f]/', (string) $form_state->getValue($field))) {
+        $form_state->setErrorByName($field, $this->t('This must be one line of plain text.'));
+      }
+    }
     $password = (string) $form_state->getValue('password');
     if ($password === '') {
       return;
@@ -127,13 +156,18 @@ class SiteUserForm extends FormBase {
     $password = (string) $form_state->getValue('password');
     $emailVerified = (bool) $form_state->getValue('email_verified');
     $openAiQueries = (bool) $form_state->getValue('open_ai_queries');
+    $profile = [
+      'first_name' => trim((string) $form_state->getValue('first_name')),
+      'last_name' => trim((string) $form_state->getValue('last_name')),
+      'phone' => trim((string) $form_state->getValue('phone')),
+    ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries);
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $profile);
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $profile);
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email']]));

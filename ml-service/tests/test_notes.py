@@ -29,7 +29,13 @@ def clean(monkeypatch):
 def sign_up(name="ann"):
   response = client.post(
     "/account/register",
-    json={"email": f"{name}@notes-test.example", "password": PASSWORD, "password_confirmation": PASSWORD},
+    json={
+      "email": f"{name}@notes-test.example",
+      "password": PASSWORD,
+      "password_confirmation": PASSWORD,
+      "first_name": name.title(),
+      "last_name": "Test",
+    },
   )
   assert response.status_code == 200
   return response.json()["user"]["id"]

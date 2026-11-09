@@ -223,13 +223,14 @@ class BibleManager {
    * The main site's accounts (its visitors, not Drupal users), newest first, 50 at a time.
    *
    * @param string $query
-   *   Keeps only the accounts whose address contains this.
+   *   Keeps only the accounts whose address or name contains this.
    * @param int $page
    *   The page, from 1.
    *
    * @return array
-   *   Keys: users (each with id, email, created_at, last_login_at, email_verified, open_ai_queries,
-   *   note_count and subscription_count), total, page and per_page.
+   *   Keys: users (each with id, email, first_name, last_name, phone, created_at, last_login_at,
+   *   email_verified, open_ai_queries, note_count and subscription_count; the names and phone are '' when
+   *   the account has none), total, page and per_page.
    */
   public function listSiteUsers(string $query, int $page): array {
     return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_users.py');
@@ -241,9 +242,12 @@ class BibleManager {
 
   /**
    * Adds an account to the main site. The password is passed on the tool's input, never as an argument.
+   *
+   * @param array $profile
+   *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries): array {
-    $arguments = ['create', '--email=' . $email, '--password-on-input'];
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, array $profile): array {
+    $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($emailVerified) {
       $arguments[] = '--email-verified';
     }
@@ -260,12 +264,16 @@ class BibleManager {
 
   /**
    * Changes an account of the main site. An empty password keeps the old one; a new one logs it out everywhere.
+   *
+   * @param array $profile
+   *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, array $profile): array {
     $arguments = [
       'update',
       '--id=' . $userId,
       '--email=' . $email,
+      ...$this->profileArguments($profile),
       '--email-verified=' . ($emailVerified ? 'yes' : 'no'),
       '--open-ai-queries=' . ($openAiQueries ? 'yes' : 'no'),
     ];
@@ -281,6 +289,17 @@ class BibleManager {
       '@password' => $password !== '' ? ' (new password)' : '',
     ]);
     return $user;
+  }
+
+  /**
+   * The tool's options for an account's name and phone. They are never written to the log.
+   */
+  private function profileArguments(array $profile): array {
+    return [
+      '--first-name=' . ($profile['first_name'] ?? ''),
+      '--last-name=' . ($profile['last_name'] ?? ''),
+      '--phone=' . ($profile['phone'] ?? ''),
+    ];
   }
 
   /**

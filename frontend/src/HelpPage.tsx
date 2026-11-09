@@ -490,8 +490,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
         <ul className="welcome-tips">
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
-            the page and enter your email address and a password twice (at least 10 characters). You are logged in at
-            once.
+            the page and enter your first and last name, your email address, a phone number if you like (it is
+            optional), and a password twice (at least 10 characters). You are logged in at once.
           </li>
           <li>
             <strong>Confirming your address.</strong> We email you a link; click it within three days. Notes work
@@ -508,7 +508,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           </li>
           <li>
             <strong>Your address</strong> is used only for the site&rsquo;s own emails (the confirmation link, a password
-            reset and any daily devotional you choose).
+            reset and any daily devotional you choose). Your name and phone number are kept with your account; only
+            the site&rsquo;s administrators can see them.
           </li>
         </ul>
       </section>

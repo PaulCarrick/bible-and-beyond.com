@@ -45,6 +45,43 @@ def test_a_new_account_is_stored_with_its_settings_and_a_hashed_password():
   assert log_in(f"ann@{DOMAIN}", PASSWORD)[0]["id"] == user["id"]
 
 
+def test_an_administrator_can_set_change_and_clear_the_names_and_phone():
+  user = create_user(f"ann@{DOMAIN}", PASSWORD, False, False, first_name=" Ann ", last_name="Lee", phone="555 0199")
+  assert (user["first_name"], user["last_name"], user["phone"]) == ("Ann", "Lee", "555 0199")
+
+  changed = update_user(user["id"], last_name="Lee-Smith")
+  assert (changed["first_name"], changed["last_name"], changed["phone"]) == ("Ann", "Lee-Smith", "555 0199")
+
+  changed = update_user(user["id"], phone="")
+  assert changed["phone"] == "" and changed["first_name"] == "Ann"
+  with connect() as connection:
+    assert connection.execute("SELECT phone FROM users WHERE id = %s", (user["id"],)).fetchone()[0] is None
+
+
+def test_an_administrator_may_leave_the_names_empty_but_not_send_bad_ones():
+  user = create_user(f"ann@{DOMAIN}", PASSWORD, False, False)
+  assert (user["first_name"], user["last_name"], user["phone"]) == ("", "", "")
+
+  for profile, fragment in [
+    ({"first_name": "A" * 101}, "at most 100"),
+    ({"last_name": "Lee\rX"}, "on one line"),
+    ({"phone": "5" * 41}, "at most 40"),
+  ]:
+    with pytest.raises(UserProblem, match=fragment):
+      create_user(f"bob@{DOMAIN}", PASSWORD, False, False, **profile)
+    with pytest.raises(UserProblem, match=fragment):
+      update_user(user["id"], **profile)
+  assert list_users(DOMAIN)["total"] == 1
+
+
+def test_the_list_can_be_searched_by_name():
+  create_user(f"ann@{DOMAIN}", PASSWORD, False, False, first_name="Ann", last_name="Lee")
+  create_user(f"bob@{DOMAIN}", PASSWORD, False, False)
+
+  assert [user["email"] for user in list_users("ann lee")["users"]] == [f"ann@{DOMAIN}"]
+  assert list_users("LEE")["users"][0]["last_name"] == "Lee"
+
+
 def test_open_ai_queries_is_off_for_accounts_made_on_the_site():
   with connect() as connection:
     user_id = connection.execute(
@@ -159,6 +196,11 @@ def test_the_tool_reads_the_password_from_its_input_and_answers_in_json():
 
   status, answer, _ = run_tool("update", f"--id={user_id}", "--open-ai-queries=no", "--email-verified=yes")
   assert status == 0 and answer["user"]["open_ai_queries"] is False and answer["user"]["email_verified"] is True
+
+  status, answer, _ = run_tool("update", f"--id={user_id}", "--first-name=Ann", "--last-name=Lee", "--phone=555 0199")
+  assert status == 0 and (answer["user"]["first_name"], answer["user"]["phone"]) == ("Ann", "555 0199")
+  status, answer, _ = run_tool("update", f"--id={user_id}", "--phone=")
+  assert status == 0 and answer["user"]["phone"] == "" and answer["user"]["last_name"] == "Lee"
 
   status, answer, _ = run_tool("list", f"--query={DOMAIN}")
   assert status == 0 and answer["total"] == 1

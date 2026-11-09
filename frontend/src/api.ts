@@ -21,6 +21,7 @@ import type {
   SearchResponse,
   SiteSettings,
   AccountUser,
+  NewAccount,
   Note,
   NotePage,
   NoteSubject,
@@ -428,8 +429,15 @@ export function fetchCurrentUser(): Promise<AccountUser | null> {
   return accountRequest('me', 'GET')
 }
 
-export function registerAccount(email: string, password: string, passwordConfirmation: string) {
-  return accountRequest('register', 'POST', { email, password, password_confirmation: passwordConfirmation })
+export function registerAccount(account: NewAccount) {
+  return accountRequest('register', 'POST', {
+    email: account.email,
+    password: account.password,
+    password_confirmation: account.passwordConfirmation,
+    first_name: account.firstName,
+    last_name: account.lastName,
+    phone: account.phone,
+  })
 }
 
 export function logIn(email: string, password: string) {

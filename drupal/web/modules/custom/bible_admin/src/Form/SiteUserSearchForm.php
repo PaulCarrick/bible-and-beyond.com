@@ -21,7 +21,7 @@ class SiteUserSearchForm extends FormBase {
     $form['#attributes']['class'][] = 'container-inline';
     $form['query'] = [
       '#type' => 'search',
-      '#title' => $this->t('Email address contains'),
+      '#title' => $this->t('Email address or name contains'),
       '#default_value' => $query,
       '#size' => 30,
       '#maxlength' => 200,

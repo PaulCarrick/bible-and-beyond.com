@@ -5,7 +5,8 @@ import type { AccountUser } from './types'
 import type { View } from './views'
 
 interface AccountPageProps {
-  // register: Setup Account (an email and the password twice). login: email and password.
+  // register: Set up account (first and last name, email, an optional phone and the password twice).
+  // login: email and password.
   // forgot: ask for a reset link. reset: choose a new password with the link's token.
   mode: 'register' | 'login' | 'forgot' | 'reset'
   token: string
@@ -16,6 +17,9 @@ interface AccountPageProps {
 // The pages for setting up an account, logging in and getting a forgotten password back. None is
 // needed to use the site.
 function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
   const [emailAddress, setEmailAddress] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
@@ -47,7 +51,7 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
       } else {
         const user =
           mode === 'register'
-            ? await registerAccount(emailAddress, password, passwordConfirmation)
+            ? await registerAccount({ email: emailAddress, password, passwordConfirmation, firstName, lastName, phone })
             : await logIn(emailAddress, password)
         if (user) {
           onDone(user)
@@ -86,6 +90,32 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
         </p>
       ) : (
         <form className="contact-form" onSubmit={handleSubmit}>
+          {mode === 'register' && (
+            <>
+              <label className="contact-field">
+                First name
+                <input
+                  type="text"
+                  value={firstName}
+                  maxLength={100}
+                  required
+                  autoComplete="given-name"
+                  onChange={(event) => setFirstName(event.target.value)}
+                />
+              </label>
+              <label className="contact-field">
+                Last name
+                <input
+                  type="text"
+                  value={lastName}
+                  maxLength={100}
+                  required
+                  autoComplete="family-name"
+                  onChange={(event) => setLastName(event.target.value)}
+                />
+              </label>
+            </>
+          )}
           {mode !== 'reset' && (
             <label className="contact-field">
               Email Address
@@ -96,6 +126,18 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
                 required
                 autoComplete="email"
                 onChange={(event) => setEmailAddress(event.target.value)}
+              />
+            </label>
+          )}
+          {mode === 'register' && (
+            <label className="contact-field">
+              Phone (optional)
+              <input
+                type="tel"
+                value={phone}
+                maxLength={40}
+                autoComplete="tel"
+                onChange={(event) => setPhone(event.target.value)}
               />
             </label>
           )}

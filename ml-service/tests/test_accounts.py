@@ -40,9 +40,11 @@ def clean_accounts():
   clear()
 
 
-def register(email="Ann@Accounts-Test.example", password=PASSWORD, confirmation=PASSWORD):
+def register(email="Ann@Accounts-Test.example", password=PASSWORD, confirmation=PASSWORD, **profile):
+  details = {"first_name": "Ann", "last_name": "Lee", **profile}
   return client.post(
-    "/account/register", json={"email": email, "password": password, "password_confirmation": confirmation}
+    "/account/register",
+    json={"email": email, "password": password, "password_confirmation": confirmation, **details},
   )
 
 
@@ -94,6 +96,59 @@ def test_the_session_token_is_stored_only_as_a_hash():
 )
 def test_a_bad_sign_up_is_refused(email, password, confirmation, fragment):
   response = register(email, password, confirmation)
+
+  assert response.status_code == 422 and fragment in response.json()["detail"]
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM users WHERE email LIKE '%@accounts-test.example'").fetchone()[0] == 0
+
+
+def test_the_names_and_phone_are_stored_and_returned():
+  response = register(first_name="  Ann ", last_name=" Lee", phone=" +1 (555) 010-0199 ")
+
+  expected = {"first_name": "Ann", "last_name": "Lee", "phone": "+1 (555) 010-0199"}
+  assert response.status_code == 200
+  assert {key: response.json()["user"][key] for key in expected} == expected
+  me = client.get("/account/me").json()["user"]
+  assert {key: me[key] for key in expected} == expected
+  client.cookies.clear()
+  login = client.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD}).json()["user"]
+  assert {key: login[key] for key in expected} == expected
+
+
+def test_the_phone_is_optional_and_stored_as_empty():
+  response = register()
+
+  assert response.status_code == 200 and response.json()["user"]["phone"] == ""
+  with connect() as connection:
+    assert connection.execute("SELECT phone FROM users WHERE email = 'ann@accounts-test.example'").fetchone()[0] is None
+
+
+def test_an_older_account_without_names_still_logs_in():
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO users (email, password_hash) VALUES ('old@accounts-test.example', %s)", (hash_password(PASSWORD),)
+    )
+
+  response = client.post("/account/login", json={"email": "old@accounts-test.example", "password": PASSWORD})
+
+  assert response.status_code == 200
+  user = response.json()["user"]
+  assert (user["first_name"], user["last_name"], user["phone"]) == ("", "", "")
+
+
+@pytest.mark.parametrize(
+  "profile, fragment",
+  [
+    ({"first_name": "  "}, "enter your first name"),
+    ({"last_name": ""}, "enter your last name"),
+    ({"first_name": "A" * 101}, "at most 100"),
+    ({"last_name": "Lee\nBcc: someone"}, "on one line"),
+    ({"phone": "5" * 41}, "at most 40"),
+    ({"phone": "555\t0199"}, "on one line"),
+  ],
+)
+def test_bad_names_or_phone_are_refused(profile, fragment):
+  response = register(**profile)
 
   assert response.status_code == 422 and fragment in response.json()["detail"]
   with connect() as connection:

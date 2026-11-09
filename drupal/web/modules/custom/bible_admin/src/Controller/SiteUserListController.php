@@ -70,8 +70,11 @@ class SiteUserListController extends ControllerBase {
         ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.site_user_edit', ['user_id' => $user['id']])],
         ['title' => $this->t('Delete'), 'url' => Url::fromRoute('bible_admin.site_user_delete', ['user_id' => $user['id']])],
       ];
+      $name = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
       $rows[] = [
+        ['data' => ['#plain_text' => $name]],
         ['data' => ['#plain_text' => $user['email']]],
+        ['data' => ['#plain_text' => $user['phone'] ?? '']],
         ['data' => ['#plain_text' => $user['email_verified'] ? $this->t('Yes') : $this->t('No')]],
         ['data' => ['#plain_text' => $user['open_ai_queries'] ? $this->t('Yes') : $this->t('No')]],
         ['data' => ['#plain_text' => number_format((int) $user['note_count'])]],
@@ -84,7 +87,9 @@ class SiteUserListController extends ControllerBase {
     $build['table'] = [
       '#type' => 'table',
       '#header' => [
+        $this->t('Name'),
         $this->t('Email'),
+        $this->t('Phone'),
         $this->t('Email confirmed'),
         $this->t('Open AI queries'),
         $this->t('Notes'),

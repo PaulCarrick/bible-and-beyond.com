@@ -525,6 +525,9 @@ class RegisterRequest(BaseModel):
   email: str
   password: str
   password_confirmation: str
+  first_name: str = ""
+  last_name: str = ""
+  phone: str = ""
 
 
 class LoginRequest(BaseModel):
@@ -550,7 +553,9 @@ def start_session(response: Response, request: Request, token: str):
 def account_register(body: RegisterRequest, request: Request, response: Response, background: BackgroundTasks):
   """Makes an account, emails a link to confirm the address, and logs the visitor in."""
   try:
-    created = create_account(body.email, body.password, body.password_confirmation)
+    created = create_account(
+      body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone
+    )
     user, token = log_in(body.email, body.password)
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))

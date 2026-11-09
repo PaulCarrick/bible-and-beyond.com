@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import psycopg
 
-from contact import EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, send_plain_message
+from contact import CONTROL_CHARACTERS, EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, send_plain_message
 from search import connect
 from site_settings import get_public_settings
 
@@ -22,6 +22,8 @@ logger = logging.getLogger("accounts")
 
 PASSWORD_MINIMUM = 10
 PASSWORD_MAXIMUM = 128
+NAME_LIMIT = 100
+PHONE_LIMIT = 40
 SESSION_DAYS = 30
 VERIFY_LINK_HOURS = 72
 RESET_LINK_MINUTES = 60
@@ -92,19 +94,63 @@ def check_new_password(password: str, confirmation: str) -> None:
     raise AccountProblem("The two passwords are not the same.")
 
 
-def create_account(email: str, password: str, confirmation: str) -> dict:
+def check_profile(first_name: str, last_name: str, phone: str, names_required: bool) -> tuple[str, str, str]:
+  """Trims and checks the name and phone of an account. Each is one line of plain text. The names are needed
+  when a visitor signs up; an administrator may leave them empty (older accounts have none)."""
+  first_name, last_name, phone = first_name.strip(), last_name.strip(), phone.strip()
+  for label, value in (("first name", first_name), ("last name", last_name), ("phone number", phone)):
+    if any(character in value for character in "\n\r\t") or CONTROL_CHARACTERS.search(value):
+      raise AccountProblem(f"The {label} must be on one line.")
+  for label, value in (("first name", first_name), ("last name", last_name)):
+    if names_required and not value:
+      raise AccountProblem(f"Please enter your {label}.")
+    if len(value) > NAME_LIMIT:
+      raise AccountProblem(f"The {label} can be at most {NAME_LIMIT} characters.")
+  if len(phone) > PHONE_LIMIT:
+    raise AccountProblem(f"The phone number can be at most {PHONE_LIMIT} characters.")
+  return first_name, last_name, phone
+
+
+# What the site is told about a logged-in account. The columns are read in this order.
+_USER_COLUMNS = """
+  users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
+  COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, '')
+"""
+
+
+def _describe_user(row) -> dict:
+  # open_ai_queries: an administrator allowed this account to ask the AI its own questions (FAQ page).
+  # The names and phone are "" when the account has none (accounts set up before they were asked for).
+  return {
+    "id": row[0],
+    "email": row[1],
+    "email_verified": row[2],
+    "open_ai_queries": row[3],
+    "first_name": row[4],
+    "last_name": row[5],
+    "phone": row[6],
+  }
+
+
+def create_account(
+  email: str, password: str, confirmation: str, first_name: str, last_name: str, phone: str = ""
+) -> dict:
   email = normalize_email(email)
+  first_name, last_name, phone = check_profile(first_name, last_name, phone, names_required=True)
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   try:
     with connect() as connection:
       row = connection.execute(
-        "INSERT INTO users (email, password_hash) VALUES (%s, %s) RETURNING id, email",
-        (email, password_hash),
+        f"""
+        INSERT INTO users (email, password_hash, first_name, last_name, phone)
+        VALUES (%s, %s, %s, %s, NULLIF(%s, '')) RETURNING {_USER_COLUMNS}
+        """,
+        (email, password_hash, first_name, last_name, phone),
       ).fetchone()
   except psycopg.errors.UniqueViolation:
     raise AccountProblem("An account with that email address already exists. Please log in.", 409)
-  return {"id": row[0], "email": row[1], "email_verified": False, "open_ai_queries": False}
+  return _describe_user(row)
 
 
 def _hash_token(token: str) -> str:
@@ -119,23 +165,24 @@ def log_in(email: str, password: str) -> tuple[dict, str]:
     raise refusal
   with connect() as connection:
     row = connection.execute(
-      "SELECT id, email, password_hash, email_verified_at IS NOT NULL, open_ai_queries FROM users WHERE email = %s",
+      f"SELECT users.password_hash, {_USER_COLUMNS} FROM users WHERE email = %s",
       (email,),
     ).fetchone()
     if row is None:
       password_matches(password, _DUMMY_HASH)
       raise refusal
-    if not password_matches(password, row[2]):
+    if not password_matches(password, row[0]):
       raise refusal
+    user = _describe_user(row[1:])
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
     connection.execute("DELETE FROM user_sessions WHERE expires_at < now()")
     connection.execute(
       "INSERT INTO user_sessions (token_hash, user_id, expires_at) VALUES (%s, %s, %s)",
-      (_hash_token(token), row[0], expires_at),
+      (_hash_token(token), user["id"], expires_at),
     )
-    connection.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (row[0],))
-  return {"id": row[0], "email": row[1], "email_verified": row[3], "open_ai_queries": row[4]}, token
+    connection.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (user["id"],))
+  return user, token
 
 
 def user_for_token(token: str | None) -> dict | None:
@@ -143,15 +190,14 @@ def user_for_token(token: str | None) -> dict | None:
     return None
   with connect() as connection:
     row = connection.execute(
-      """
-      SELECT users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries
+      f"""
+      SELECT {_USER_COLUMNS}
       FROM user_sessions JOIN users ON users.id = user_sessions.user_id
       WHERE user_sessions.token_hash = %s AND user_sessions.expires_at > now()
       """,
       (_hash_token(token),),
     ).fetchone()
-  # open_ai_queries: an administrator allowed this account to ask the AI its own questions (FAQ page).
-  return {"id": row[0], "email": row[1], "email_verified": row[2], "open_ai_queries": row[3]} if row else None
+  return _describe_user(row) if row else None
 
 
 def log_out(token: str | None) -> None:
