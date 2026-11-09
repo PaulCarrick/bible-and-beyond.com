@@ -57,7 +57,7 @@ def _checked_password(password: str) -> None:
 
 def _checked_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str, str]:
   try:
-    return check_profile(first_name, last_name, phone, names_required=False)
+    return check_profile(first_name, last_name, phone)
   except AccountProblem as problem:
     raise UserProblem(str(problem)) from problem
 

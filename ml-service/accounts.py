@@ -94,16 +94,14 @@ def check_new_password(password: str, confirmation: str) -> None:
     raise AccountProblem("The two passwords are not the same.")
 
 
-def check_profile(first_name: str, last_name: str, phone: str, names_required: bool) -> tuple[str, str, str]:
-  """Trims and checks the name and phone of an account. Each is one line of plain text. The names are needed
-  when a visitor signs up; an administrator may leave them empty (older accounts have none)."""
+def check_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str, str]:
+  """Trims and checks the name and phone of an account. Each is optional (only the email and the password
+  are needed to sign up) and, when given, one line of plain text."""
   first_name, last_name, phone = first_name.strip(), last_name.strip(), phone.strip()
   for label, value in (("first name", first_name), ("last name", last_name), ("phone number", phone)):
     if any(character in value for character in "\n\r\t") or CONTROL_CHARACTERS.search(value):
       raise AccountProblem(f"The {label} must be on one line.")
   for label, value in (("first name", first_name), ("last name", last_name)):
-    if names_required and not value:
-      raise AccountProblem(f"Please enter your {label}.")
     if len(value) > NAME_LIMIT:
       raise AccountProblem(f"The {label} can be at most {NAME_LIMIT} characters.")
   if len(phone) > PHONE_LIMIT:
@@ -133,10 +131,10 @@ def _describe_user(row) -> dict:
 
 
 def create_account(
-  email: str, password: str, confirmation: str, first_name: str, last_name: str, phone: str = ""
+  email: str, password: str, confirmation: str, first_name: str = "", last_name: str = "", phone: str = ""
 ) -> dict:
   email = normalize_email(email)
-  first_name, last_name, phone = check_profile(first_name, last_name, phone, names_required=True)
+  first_name, last_name, phone = check_profile(first_name, last_name, phone)
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   try:
@@ -144,7 +142,7 @@ def create_account(
       row = connection.execute(
         f"""
         INSERT INTO users (email, password_hash, first_name, last_name, phone)
-        VALUES (%s, %s, %s, %s, NULLIF(%s, '')) RETURNING {_USER_COLUMNS}
+        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, '')) RETURNING {_USER_COLUMNS}
         """,
         (email, password_hash, first_name, last_name, phone),
       ).fetchone()

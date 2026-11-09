@@ -136,11 +136,25 @@ def test_an_older_account_without_names_still_logs_in():
   assert (user["first_name"], user["last_name"], user["phone"]) == ("", "", "")
 
 
+def test_only_the_email_and_password_are_needed():
+  response = client.post(
+    "/account/register",
+    json={"email": "bare@accounts-test.example", "password": PASSWORD, "password_confirmation": PASSWORD, "first_name": "  "},
+  )
+
+  assert response.status_code == 200
+  user = response.json()["user"]
+  assert (user["first_name"], user["last_name"], user["phone"]) == ("", "", "")
+  with connect() as connection:
+    stored = connection.execute(
+      "SELECT first_name, last_name, phone FROM users WHERE email = 'bare@accounts-test.example'"
+    ).fetchone()
+  assert stored == (None, None, None)
+
+
 @pytest.mark.parametrize(
   "profile, fragment",
   [
-    ({"first_name": "  "}, "enter your first name"),
-    ({"last_name": ""}, "enter your last name"),
     ({"first_name": "A" * 101}, "at most 100"),
     ({"last_name": "Lee\nBcc: someone"}, "on one line"),
     ({"phone": "5" * 41}, "at most 40"),

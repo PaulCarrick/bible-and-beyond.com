@@ -5,7 +5,8 @@ import type { AccountUser } from './types'
 import type { View } from './views'
 
 interface AccountPageProps {
-  // register: Set up account (first and last name, email, an optional phone and the password twice).
+  // register: Set up account (email and the password twice, which are required; first name, last name and phone,
+  // which are optional).
   // login: email and password.
   // forgot: ask for a reset link. reset: choose a new password with the link's token.
   mode: 'register' | 'login' | 'forgot' | 'reset'
@@ -93,23 +94,21 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
           {mode === 'register' && (
             <>
               <label className="contact-field">
-                First name
+                First name (optional)
                 <input
                   type="text"
                   value={firstName}
                   maxLength={100}
-                  required
                   autoComplete="given-name"
                   onChange={(event) => setFirstName(event.target.value)}
                 />
               </label>
               <label className="contact-field">
-                Last name
+                Last name (optional)
                 <input
                   type="text"
                   value={lastName}
                   maxLength={100}
-                  required
                   autoComplete="family-name"
                   onChange={(event) => setLastName(event.target.value)}
                 />

@@ -490,8 +490,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
         <ul className="welcome-tips">
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
-            the page and enter your first and last name, your email address, a phone number if you like (it is
-            optional), and a password twice (at least 10 characters). You are logged in at once.
+            the page and enter your email address and a password twice (at least 10 characters). Your first
+            name, last name and phone number are optional. You are logged in at once.
           </li>
           <li>
             <strong>Confirming your address.</strong> We email you a link; click it within three days. Notes work
