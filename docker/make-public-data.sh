@@ -21,11 +21,13 @@ mkdir -p "$output_directory"
 personal_tables=(users user_sessions account_tokens notes devotional_subscriptions)
 # Fetched by each site from the owners (docker/web/fetch-owner-data.sh), never shipped.
 owner_tables=(original_words lexicon_entries devotionals devotional_sections devotional_entries)
+# This site's own stored FAQ answers from Gemini: each site makes its own with its own key.
+site_tables=(faq_answers)
 # Commentaries whose owner (CCEL) asks not to be redistributed: their rows are taken out of the commentary
 # tables below, and each site fetches them itself.
 owner_commentaries=(wesley-notes)
 exclude=""
-for table in "${personal_tables[@]}" "${owner_tables[@]}"; do
+for table in "${personal_tables[@]}" "${owner_tables[@]}" "${site_tables[@]}"; do
   exclude+=" --exclude-table-data=public.$table"
 done
 
@@ -48,7 +50,7 @@ ssh "$server" "pg_dump --no-owner --no-privileges$exclude bibleandbeyond" \
   | gzip -9 > "$output_directory/bible-data.sql.gz.new"
 
 echo "Checking that no personal or owner-fetched rows are in it ..."
-for table in "${personal_tables[@]}" "${owner_tables[@]}"; do
+for table in "${personal_tables[@]}" "${owner_tables[@]}" "${site_tables[@]}"; do
   if gunzip -c "$output_directory/bible-data.sql.gz.new" | grep -q "^COPY public\.$table "; then
     echo "The dump has rows of $table; stopping." >&2
     rm -f "$output_directory/bible-data.sql.gz.new"

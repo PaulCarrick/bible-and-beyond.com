@@ -1,15 +1,24 @@
-"""Tests for the FAQ. Gemini is faked: nothing is sent to Google."""
+"""Tests for the FAQ. Gemini is faked: nothing is sent to Google. The stored answers are faked with a
+dictionary, except in the one test that uses its own row of the real faq_answers table."""
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 
 import faq
-from faq import ANSWER_CACHE_SECONDS, FaqUnavailable, UnknownQuestion, get_answer
+from faq import ANSWER_KEEP_DAYS, FaqUnavailable, UnknownQuestion, get_answer
 from main import app
 
 client = TestClient(app)
 # The system prompt sent with each faked Gemini call, in order.
 prompts = []
+# The faked faq_answers table: question to {answer, prompt_hash, fetched_at}.
+stored_answers = {}
+START = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
+# The real database functions, kept before the fixture replaces them.
+load_stored_answer = faq.load_stored_answer
+store_answer = faq.store_answer
 
 
 class VerseLimits(dict):
@@ -35,6 +44,13 @@ def fake_gemini(monkeypatch):
   monkeypatch.setenv("GEMINI_API_KEY", "test-key")
   monkeypatch.setattr(faq, "ask_gemini", answer)
   monkeypatch.setattr(faq, "verse_limits", VerseLimits)
+  stored_answers.clear()
+  monkeypatch.setattr(faq, "load_stored_answer", lambda question: stored_answers.get(question))
+
+  def store(question, answer, prompt_hash, fetched_at):
+    stored_answers[question] = {"answer": answer, "prompt_hash": prompt_hash, "fetched_at": fetched_at}
+
+  monkeypatch.setattr(faq, "store_answer", store)
   yield calls
   faq.clear_cache()
 
@@ -69,7 +85,7 @@ def test_the_listing_says_when_no_key_is_set(monkeypatch):
   assert client.get("/faq").json()["available"] is False
 
 
-def test_an_answer_is_asked_once_and_kept_for_a_day(fake_gemini):
+def test_an_answer_is_asked_once_and_kept(fake_gemini):
   first = client.post("/faq/answer", json={"question_id": 7})
   second = client.post("/faq/answer", json={"question_id": 7})
 
@@ -84,13 +100,62 @@ def test_an_answer_is_asked_once_and_kept_for_a_day(fake_gemini):
   assert fake_gemini == ["What evidence is there that Jesus rose from the dead?"]
 
 
-def test_an_answer_is_asked_again_after_a_day(fake_gemini):
-  get_answer(1, now=1000.0)
-  get_answer(1, now=1000.0 + ANSWER_CACHE_SECONDS - 1)
+def test_an_answer_is_asked_again_after_a_month(fake_gemini):
+  get_answer(1, now=START)
+  assert stored_answers["How do I know God exists?"]["fetched_at"] == START
+  get_answer(1, now=START + timedelta(days=ANSWER_KEEP_DAYS) - timedelta(seconds=1))
   assert len(fake_gemini) == 1
 
-  get_answer(1, now=1000.0 + ANSWER_CACHE_SECONDS)
+  get_answer(1, now=START + timedelta(days=ANSWER_KEEP_DAYS))
   assert len(fake_gemini) == 2
+  assert stored_answers["How do I know God exists?"]["fetched_at"] == START + timedelta(days=ANSWER_KEEP_DAYS)
+
+
+def test_an_answer_is_asked_again_when_its_instructions_change(fake_gemini, monkeypatch):
+  get_answer(9, now=START)
+  monkeypatch.setitem(faq.QUESTION_GUIDANCE, "Is a Christian saved by grace alone?", "\n\nNew guidance.")
+  get_answer(9, now=START + timedelta(days=1))
+
+  assert len(fake_gemini) == 2
+  assert prompts[1].endswith("New guidance.")
+
+
+def test_an_older_answer_is_shown_when_gemini_fails(monkeypatch):
+  get_answer(5, now=START)
+
+  def failing(question, system_prompt=None):
+    raise FaqUnavailable("Gemini request failed: 503")
+
+  monkeypatch.setattr(faq, "ask_gemini", failing)
+  answer = get_answer(5, now=START + timedelta(days=ANSWER_KEEP_DAYS + 10))
+
+  assert answer["answer"] == "Answer to: How do I hear God’s voice and distinguish it from my own thoughts?"
+  assert stored_answers[faq.QUESTIONS[5]]["fetched_at"] == START
+
+
+def test_a_database_problem_still_gives_an_answer(fake_gemini, monkeypatch):
+  def broken(*arguments):
+    raise RuntimeError("database down")
+
+  monkeypatch.setattr(faq, "load_stored_answer", broken)
+  monkeypatch.setattr(faq, "store_answer", broken)
+
+  assert get_answer(2)["answer"] == "Answer to: Why does a loving God allow suffering and evil?"
+  assert len(fake_gemini) == 1
+
+
+def test_answers_are_stored_in_the_database():
+  # The real table, with a question that is not on the list, removed afterwards.
+  question = "Test question from tests/test_faq.py"
+  store_answer(question, "First answer", "hash-1", START)
+  store_answer(question, "Second answer", "hash-2", START + timedelta(days=1))
+  try:
+    stored = load_stored_answer(question)
+    assert stored == {"answer": "Second answer", "prompt_hash": "hash-2", "fetched_at": START + timedelta(days=1)}
+  finally:
+    with faq.connect() as connection:
+      connection.execute("DELETE FROM faq_answers WHERE question = %s", (question,))
+  assert load_stored_answer(question) is None
 
 
 def test_only_listed_questions_can_be_asked(fake_gemini):

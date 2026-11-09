@@ -1,21 +1,24 @@
 """Frequently asked questions, answered by Google's Gemini.
 
 Only the questions listed here can be asked (the page sends a question's number, never free text), and
-each answer is kept in memory for a day, so the same question costs at most one Gemini call a day.
+each answer is kept in the database (table faq_answers) for a month, so the same question costs at most one
+Gemini call a month. It is asked again sooner if the instructions sent with that question change.
 No Bible text goes into the prompt: Gemini is asked to cite references, which the reader can look up.
 The licensed Bibles (NIV, NASB, The Message) must never be put in an AI prompt.
 """
 
+import hashlib
 import logging
 import threading
-import time
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from contact import ContactProblem, check_rich_text
 from scripture_references import find_references, verse_limits
+from search import connect
 from service_settings import get_setting
 
-ANSWER_CACHE_SECONDS = 24 * 60 * 60
+# How long a stored answer is used before Gemini is asked again.
+ANSWER_KEEP_DAYS = 30
 # Tried in order. gemini-flash-latest is Google's name for its newest Flash model, kept as the second choice.
 DEFAULT_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
 # For each model; two tries stay within nginx's 90-second wait.
@@ -115,8 +118,6 @@ alongside Romans 4), and that grace leads to a changed life rather than a licenc
 Titus 2:11-14). Do not present the Catholic, Orthodox or any other view as an equal alternative.""",
 }
 
-_cache: dict[int, tuple[float, str]] = {}
-_cache_lock = threading.Lock()
 # One lock per question, so two visitors asking the same question at once cause one Gemini call, not two.
 _question_locks: dict[int, threading.Lock] = {number: threading.Lock() for number in QUESTIONS}
 
@@ -207,27 +208,69 @@ def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
   raise FaqUnavailable("Gemini request failed. " + " | ".join(problems))
 
 
-def get_answer(question_id: int, now: float | None = None) -> dict:
-  """The answer to one listed question, from the cache when it is less than a day old."""
+def get_answer(question_id: int, now: datetime | None = None) -> dict:
+  """The answer to one listed question: the stored one when it is less than a month old and was written with
+  the instructions in use now, else a new one from Gemini, which is then stored.
+
+  If Gemini cannot answer, an older stored answer is shown rather than nothing. If the database cannot be
+  read or written, the answer still comes from Gemini (it is just not kept).
+  """
   question = QUESTIONS.get(question_id)
   if question is None:
     raise UnknownQuestion(f"There is no question number {question_id}.")
 
+  system_prompt = SYSTEM_PROMPT + QUESTION_GUIDANCE.get(question, "")
+  prompt_hash = hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()
+  current = now or datetime.now(timezone.utc)
+  log = logging.getLogger("faq")
+
   with _question_locks[question_id]:
-    current = time.time() if now is None else now
-    with _cache_lock:
-      cached = _cache.get(question_id)
-    if cached and current - cached[0] < ANSWER_CACHE_SECONDS:
-      return _response(question_id, question, cached[1])
+    try:
+      stored = load_stored_answer(question)
+    except Exception as error:  # A database problem should not stop the answer.
+      log.warning("Stored FAQ answer to question %s not read: %s", question_id, error)
+      stored = None
+    if stored and stored["prompt_hash"] == prompt_hash and current - stored["fetched_at"] < timedelta(days=ANSWER_KEEP_DAYS):
+      return _response(question_id, question, stored["answer"])
 
     try:
-      answer = ask_gemini(question, SYSTEM_PROMPT + QUESTION_GUIDANCE.get(question, ""))
+      answer = ask_gemini(question, system_prompt)
     except FaqUnavailable as problem:
-      logging.getLogger("faq").error("FAQ answer to question %s not available: %s", question_id, problem)
+      if stored:
+        log.warning("FAQ question %s: Gemini failed, showing the answer stored on %s: %s", question_id, stored["fetched_at"], problem)
+        return _response(question_id, question, stored["answer"])
+      log.error("FAQ answer to question %s not available: %s", question_id, problem)
       raise
-    with _cache_lock:
-      _cache[question_id] = (current, answer)
+
+    try:
+      store_answer(question, answer, prompt_hash, current)
+    except Exception as error:
+      log.warning("FAQ answer to question %s not stored: %s", question_id, error)
     return _response(question_id, question, answer)
+
+
+def load_stored_answer(question: str) -> dict | None:
+  """The stored answer to a question ({answer, prompt_hash, fetched_at}), or None."""
+  with connect() as connection:
+    row = connection.execute(
+      "SELECT answer, prompt_hash, fetched_at FROM faq_answers WHERE question = %s", (question,)
+    ).fetchone()
+  if row is None:
+    return None
+  return {"answer": row[0], "prompt_hash": row[1], "fetched_at": row[2]}
+
+
+def store_answer(question: str, answer: str, prompt_hash: str, fetched_at: datetime) -> None:
+  """Keeps an answer, replacing any earlier one to the same question."""
+  with connect() as connection:
+    connection.execute(
+      """
+      INSERT INTO faq_answers (question, answer, prompt_hash, fetched_at) VALUES (%s, %s, %s, %s)
+      ON CONFLICT (question) DO UPDATE
+        SET answer = EXCLUDED.answer, prompt_hash = EXCLUDED.prompt_hash, fetched_at = EXCLUDED.fetched_at
+      """,
+      (question, answer, prompt_hash, fetched_at),
+    )
 
 
 def list_references(answer: str) -> list[dict]:
@@ -291,7 +334,6 @@ def ask_open_question(user_id: int, question_html: str, today: date | None = Non
 
 
 def clear_cache() -> None:
-  with _cache_lock:
-    _cache.clear()
+  """Forgets the open-question counts (the FAQ answers are in the database)."""
   with _open_question_lock:
     _open_question_counts.clear()
