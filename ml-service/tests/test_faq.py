@@ -280,6 +280,104 @@ def test_the_next_model_is_tried_when_one_is_busy(monkeypatch):
   assert tried == ["gemini-3.6-flash"]
 
 
+class GeminiError(Exception):
+  """Stands in for the SDK's errors, which carry Google's status code."""
+
+  def __init__(self, code):
+    super().__init__(f"{code} from Google")
+    self.code = code
+
+
+class FakeClock:
+  """Stands in for faq.time: sleeping moves the clock on, and each Gemini call can too."""
+
+  def __init__(self):
+    self.now = 0.0
+    self.sleeps = []
+
+  def monotonic(self):
+    return self.now
+
+  def sleep(self, seconds):
+    self.sleeps.append(seconds)
+    self.now += seconds
+
+
+def fake_gemini_models(monkeypatch, outcomes, clock, seconds_per_call=1):
+  """Makes each Gemini call take the next outcome for its model: a status code to fail with, or an answer.
+  Returns the list of (model, timeout) tried."""
+  monkeypatch.undo()
+  monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+  monkeypatch.setenv("GEMINI_MODEL", "first-model, second-model")
+  monkeypatch.setattr(faq, "time", clock)
+  tried = []
+
+  class FakeModels:
+    def __init__(self, timeout):
+      self.timeout = timeout
+
+    def generate_content(self, model, contents, config):
+      tried.append((model, self.timeout))
+      clock.now += seconds_per_call
+      outcome = outcomes[model].pop(0)
+      if isinstance(outcome, int):
+        raise GeminiError(outcome)
+      return type("Response", (), {"text": outcome})()
+
+  class FakeClient:
+    def __init__(self, api_key, http_options):
+      self.models = FakeModels(http_options.timeout)
+
+  from google import genai
+
+  monkeypatch.setattr(genai, "Client", FakeClient)
+  return tried
+
+
+def test_a_busy_model_is_tried_again_after_a_short_wait(monkeypatch):
+  clock = FakeClock()
+  tried = fake_gemini_models(monkeypatch, {"first-model": [503, "Second try"], "second-model": []}, clock)
+
+  assert faq.ask_gemini("How should I pray?") == "Second try"
+  assert [model for model, _ in tried] == ["first-model", "first-model"]
+  assert clock.sleeps == [faq.RETRY_WAIT_SECONDS]
+
+
+def test_a_model_is_tried_twice_at_most_then_the_next_one(monkeypatch):
+  clock = FakeClock()
+  tried = fake_gemini_models(monkeypatch, {"first-model": [503, 500], "second-model": ["From the second"]}, clock)
+
+  assert faq.ask_gemini("How should I pray?") == "From the second"
+  assert [model for model, _ in tried] == ["first-model", "first-model", "second-model"]
+
+
+def test_a_timeout_or_a_refusal_is_not_tried_again(monkeypatch):
+  clock = FakeClock()
+  tried = fake_gemini_models(monkeypatch, {"first-model": [504], "second-model": [400]}, clock)
+
+  with pytest.raises(FaqUnavailable, match="first-model \\(try 1\\).*second-model \\(try 1\\)"):
+    faq.ask_gemini("How should I pray?")
+  assert [model for model, _ in tried] == ["first-model", "second-model"]
+  assert clock.sleeps == []
+
+
+def test_the_tries_stay_within_the_time_nginx_waits(monkeypatch):
+  # Each call uses its whole 40 seconds: the first model's two tries take 83 of the 85 seconds, so the second
+  # model is not tried, and the second try is given only the time that is left.
+  clock = FakeClock()
+  tried = fake_gemini_models(monkeypatch, {"first-model": [503, 503], "second-model": ["Too late"]}, clock, seconds_per_call=40)
+
+  with pytest.raises(FaqUnavailable, match="second-model: not tried"):
+    faq.ask_gemini("How should I pray?")
+  assert tried == [("first-model", 40_000), ("first-model", 40_000)]
+
+  # Calls of 30 seconds: two tries and the wait use 63 seconds, so the second model gets the 22 that are left.
+  clock = FakeClock()
+  tried = fake_gemini_models(monkeypatch, {"first-model": [503, 503], "second-model": ["Just in time"]}, clock, seconds_per_call=30)
+  assert faq.ask_gemini("How should I pray?") == "Just in time"
+  assert tried == [("first-model", 40_000), ("first-model", 40_000), ("second-model", 22_000)]
+
+
 def test_the_references_in_an_answer_are_listed_once_with_their_verse(monkeypatch):
   monkeypatch.setattr(
     faq,

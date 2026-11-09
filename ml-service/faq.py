@@ -10,6 +10,7 @@ The licensed Bibles (NIV, NASB, The Message) must never be put in an AI prompt.
 import hashlib
 import logging
 import threading
+import time
 from datetime import date, datetime, timedelta, timezone
 
 from contact import ContactProblem, check_rich_text
@@ -21,8 +22,16 @@ from service_settings import get_setting
 ANSWER_KEEP_DAYS = 30
 # Tried in order. gemini-flash-latest is Google's name for its newest Flash model, kept as the second choice.
 DEFAULT_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
-# For each model; two tries stay within nginx's 90-second wait.
+# For each try.
 REQUEST_TIMEOUT_MILLISECONDS = 40_000
+# All the tries of one question together stay under nginx's 90-second wait (deploy/nginx). A try starts only
+# with at least MINIMUM_TRY_SECONDS left, and is given no more time than is left.
+TOTAL_SECONDS = 85
+MINIMUM_TRY_SECONDS = 10
+# Google's answers that mean "busy for a moment" (500 internal, 503 high demand): the same model is tried
+# once more after this wait before the next model. A timeout (504) is not tried again: it has used its time.
+RETRY_STATUS_CODES = (500, 503)
+RETRY_WAIT_SECONDS = 3
 
 QUESTION_GROUPS = [
   ("God, faith, and doubt", [
@@ -186,25 +195,38 @@ def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
   from google import genai
   from google.genai import types
 
-  # Gemini's models are sometimes too busy to answer ("high demand", or the time runs out), so the next
-  # model in the list is tried when one fails.
+  # Gemini's models are sometimes too busy to answer ("high demand", or the time runs out). A busy model is
+  # tried once more after a short wait, then the next model in the list.
   models = [name.strip() for name in get_setting("gemini_models").split(",") if name.strip()] or DEFAULT_MODELS
-  client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MILLISECONDS))
+  deadline = time.monotonic() + TOTAL_SECONDS
   problems = []
   for model in models:
-    try:
-      response = client.models.generate_content(
-        model=model,
-        contents=question,
-        config=types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.4),
-      )
-    except Exception as error:  # The SDK raises several kinds of errors; all mean "no answer".
-      problems.append(f"{model}: {type(error).__name__}: {str(error)[:200]}")
-      continue
-    answer = (response.text or "").strip()
-    if answer:
-      return answer
-    problems.append(f"{model}: empty answer")
+    for attempt in (1, 2):
+      seconds_left = deadline - time.monotonic()
+      if seconds_left < MINIMUM_TRY_SECONDS:
+        problems.append(f"{model}: not tried (out of time)")
+        break
+      timeout = min(REQUEST_TIMEOUT_MILLISECONDS, int(seconds_left * 1000))
+      client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=timeout))
+      try:
+        response = client.models.generate_content(
+          model=model,
+          contents=question,
+          config=types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.4),
+        )
+      except Exception as error:  # The SDK raises several kinds of errors; all mean "no answer".
+        problems.append(f"{model} (try {attempt}): {type(error).__name__}: {str(error)[:200]}")
+        if attempt == 1 and getattr(error, "code", None) in RETRY_STATUS_CODES:
+          time.sleep(RETRY_WAIT_SECONDS)
+          continue
+        break
+      answer = (response.text or "").strip()
+      if answer:
+        if problems:
+          logging.getLogger("faq").warning("Gemini answered with %s after: %s", model, " | ".join(problems))
+        return answer
+      problems.append(f"{model} (try {attempt}): empty answer")
+      break
   raise FaqUnavailable("Gemini request failed. " + " | ".join(problems))
 
 
