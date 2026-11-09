@@ -1,10 +1,15 @@
+import { useContext } from 'react'
 import type { ReactNode } from 'react'
+import { AccountContext } from './AccountContext'
+import { addressFor } from './pageAddress'
+import type { View } from './views'
 import { verseAddress } from './verseAddress'
 
 // The questions that have a note from the site owner. They are matched by their words, not their numbers,
 // because the numbers move when a question is added, so rewording a question drops its note.
 const LGBTQ_QUESTION = 'How should Christians understand LGBTQ identities and relationships?'
 const REPEATED_SIN_QUESTION = 'How can I overcome a sin I keep repeating?'
+const TROUBLING_PASSAGES_QUESTION = 'How do I understand passages that seem contradictory or morally troubling?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -23,6 +28,26 @@ function CelebrateRecoveryLink() {
   return (
     <a href={CELEBRATE_RECOVERY_ADDRESS} target="_blank" rel="noopener" aria-label="Celebrate Recovery (opens its website in a new tab)">
       Celebrate Recovery
+    </a>
+  )
+}
+
+// A link to another page of this site (Bible Search, the Bible reader), opened in the same tab like the sidebar.
+// It is a real link, so it can also be opened in a new tab.
+function SitePageLink({ view, children }: { view: View; children: ReactNode }) {
+  const { onNavigate } = useContext(AccountContext)
+  return (
+    <a
+      href={addressFor(view)}
+      onClick={(event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return
+        }
+        event.preventDefault()
+        onNavigate(view)
+      }}
+    >
+      {children}
     </a>
   )
 }
@@ -187,6 +212,83 @@ function RepeatedSinNote() {
   )
 }
 
+// The note under the AI's answer to the question about passages that seem contradictory or troubling.
+function TroublingPassagesNote() {
+  const bibleSearch = <SitePageLink view="bible">Bible Search</SitePageLink>
+  return (
+    <OwnerNoteBox>
+      <p>In addition to the suggestions above, you can do the following:</p>
+      <ul className="faq-owner-list">
+        <li>
+          <p>
+            <strong>Check other verses</strong> (you can do this on this site in the {bibleSearch}).
+          </p>
+          <p>Sometimes you can gain insight by seeing what other writers wrote.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Check other versions</strong> (you can do this on this site in the {bibleSearch}).
+          </p>
+          <p>Different versions translate passages differently.</p>
+        </li>
+        <li>
+          <p>
+            <strong>Check the original words</strong> (you can do this in the {bibleSearch} or the{' '}
+            <SitePageLink view="read">Bible Reader</SitePageLink> by clicking on the word).
+          </p>
+          <p>
+            The Bible was originally written in Hebrew, Aramaic, and Greek. Translation is a complex process and some
+            words don’t translate directly. A classic example of a New Testament Greek word that does not have a clean,
+            direct one-to-one equivalent in English is <em>splanchnizomai</em> (
+            <VerseLink book={42} chapter={15} verse={20} strongCode="G4697" label="σπλαγχνίζομαι, splanchnizomai, in the Greek lexicon">
+              <strong lang="grc">σπλαγχνίζομαι</strong>
+            </VerseLink>
+            ).
+          </p>
+          <p>
+            The translation problem: English Bibles usually translate this as “felt compassion” or “had pity.” However,
+            those English words completely miss the physical and visceral weight of the original Greek. The root of the
+            word is <em>splanchna</em>, which refers to the inward parts or upper viscera—specifically the heart, lungs,
+            liver, and intestines (the “guts”). To the ancient Greeks and the biblical writers, these internal organs
+            were considered the literal seat of the strongest human emotions.
+          </p>
+          <p>
+            Therefore, <em>splanchnizomai</em> does not just mean someone felt a mental or polite sense of sympathy. It
+            means “to be moved in one’s bowels” or “to feel a gut-level, wrenching physical reaction” to someone else’s
+            suffering.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Consider both the cultural and Biblical context.</strong>
+          </p>
+          <p>First, read the verse in its full context. Don’t just take one verse.</p>
+          <p>
+            Second, consider when and where it was written. When I was in Bible school, one of my professors gave this
+            example:
+          </p>
+          <Passage book={40} chapter={13} verse={31} reference="Matthew 13:31–32">
+            He put before them another parable: “The kingdom of heaven is like a mustard seed that a man took and
+            planted in his field. Although it is the smallest of all seeds, yet it grows into the largest of garden
+            plants and becomes a tree…”
+          </Passage>
+          <p>
+            We know today that that is not technically true. Orchid seeds are often microscopic, but I’m fairly sure
+            that few people at the time knew that. Jesus did (being God), but He knew His listeners wouldn’t understand
+            if He started talking about orchids (also it would spoil the analogy).
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Talk to other Christians.</strong>
+          </p>
+          <p>Sometimes, others may have already dealt with this and may have some insights.</p>
+        </li>
+      </ul>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -195,6 +297,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === REPEATED_SIN_QUESTION) {
     return <RepeatedSinNote />
+  }
+  if (question === TROUBLING_PASSAGES_QUESTION) {
+    return <TroublingPassagesNote />
   }
   return null
 }

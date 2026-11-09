@@ -1851,6 +1851,20 @@ select:disabled {
   margin: 0.6rem 0;
 }
 
+/* A list in an owner's note: each point is a bold line with its explanation under it. */
+.faq-owner-list {
+  margin: 0.6rem 0;
+  padding-left: 1.4rem;
+}
+
+.faq-owner-list li {
+  margin-bottom: 0.9rem;
+}
+
+.faq-owner-list li p {
+  margin: 0.3rem 0;
+}
+
 .faq-owner-passage {
   margin: 0.75rem 0 0.75rem 1rem;
   padding-left: 0.75rem;
