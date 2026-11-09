@@ -407,6 +407,11 @@ function ChurchHurtNote() {
   return (
     <OwnerNoteBox>
       <p>
+        If this is true in your case, then I am truly sorry. Jesus welcomes all, but unfortunately Christians are human.
+        I wish and pray that this never happens to anyone, but realize it’s not God or Jesus. It’s broken human beings
+        that deserve our sympathy and prayer.
+      </p>
+      <p>
         If you need help, <CelebrateRecoveryLink /> may be a place to reach out to. They are there for help with your
         hurts, habits, or hangups.
       </p>
