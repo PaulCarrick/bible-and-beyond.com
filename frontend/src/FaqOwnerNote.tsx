@@ -224,7 +224,7 @@ function LgbtqNote({ onShowQuestion }: { onShowQuestion: (question: string) => v
         commandments.”
       </Passage>
       <p>
-        Grace trumps the law. If you are following the two greatest commandments, any specific sin is irrelevant.
+        Grace trumps the law. If you are following the two greatest commandments, any specific issue is irrelevant.
       </p>
     </OwnerNoteBox>
   )
