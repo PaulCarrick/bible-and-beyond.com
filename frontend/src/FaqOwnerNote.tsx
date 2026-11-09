@@ -11,6 +11,7 @@ const LGBTQ_QUESTION = 'How should Christians understand LGBTQ identities and re
 const REPEATED_SIN_QUESTION = 'How can I overcome a sin I keep repeating?'
 const TROUBLING_PASSAGES_QUESTION = 'How do I understand passages that seem contradictory or morally troubling?'
 const COMMANDS_TODAY_QUESTION = 'How do I know which biblical commands still apply today?'
+const DIVORCE_QUESTION = 'What does Christianity teach about divorce and remarriage?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -105,6 +106,59 @@ function Passage({ book, chapter, verse, reference, children }: PassageProps) {
   )
 }
 
+interface QuestionLinkProps {
+  question: string
+  onShowQuestion: (question: string) => void
+  children: ReactNode
+}
+
+// A link that shows another FAQ question's answer on this page.
+function QuestionLink({ question, onShowQuestion, children }: QuestionLinkProps) {
+  return (
+    <a
+      href="/faq"
+      onClick={(event) => {
+        event.preventDefault()
+        onShowQuestion(question)
+      }}
+    >
+      {children}
+    </a>
+  )
+}
+
+// Matthew 19:9, Matthew 5:22 and Romans 8:1–4, quoted in both the LGBTQ note and the divorce note.
+function DivorcePassage() {
+  return (
+    <Passage book={40} chapter={19} verse={9} reference="Matthew 19:9">
+      “Now I tell you that whoever divorces his wife, except for sexual immorality, and marries another woman commits
+      adultery.”
+    </Passage>
+  )
+}
+
+function AngerPassage() {
+  return (
+    <Passage book={40} chapter={5} verse={22} reference="Matthew 5:22">
+      “But I tell you that anyone who is angry with his brother will be subject to judgment. Again, anyone who says to
+      his brother, ‘Raca,’ will be subject to the Sanhedrin. But anyone who says, ‘You fool!’ will be subject to the
+      fire of hell.”
+    </Passage>
+  )
+}
+
+function NoCondemnationPassage() {
+  return (
+    <Passage book={45} chapter={8} verse={1} reference="Romans 8:1–4">
+      “Therefore, there is now no condemnation for those who are in Christ Jesus. For in Christ Jesus the law of the
+      Spirit of life set you free from the law of sin and death. For what the law was powerless to do in that it was
+      weakened by the flesh, God did by sending His own Son in the likeness of sinful man, as an offering for sin. He
+      thus condemned sin in the flesh, so that the righteous standard of the law might be fulfilled in us, who do not
+      walk according to the flesh but according to the Spirit.”
+    </Passage>
+  )
+}
+
 // The note under the AI's answer to the LGBTQ question.
 function LgbtqNote({ onShowQuestion }: { onShowQuestion: (question: string) => void }) {
   return (
@@ -130,41 +184,22 @@ function LgbtqNote({ onShowQuestion }: { onShowQuestion: (question: string) => v
         missed the target. It doesn’t matter whether you miss by inches or by yards. We all sin daily.
       </p>
       <p>Jesus set a high bar for sin:</p>
-      <Passage book={40} chapter={19} verse={9} reference="Matthew 19:9">
-        “Now I tell you that whoever divorces his wife, except for sexual immorality, and marries another woman commits
-        adultery.”
-      </Passage>
+      <DivorcePassage />
       <p>
         Most Protestants no longer have a problem with divorce. I have many good Christian friends who have been
         divorced and remarried.
       </p>
       <p>Here is another:</p>
-      <Passage book={40} chapter={5} verse={22} reference="Matthew 5:22">
-        “But I tell you that anyone who is angry with his brother will be subject to judgment. Again, anyone who says
-        to his brother, ‘Raca,’ will be subject to the Sanhedrin. But anyone who says, ‘You fool!’ will be subject to
-        the fire of hell.”
-      </Passage>
+      <AngerPassage />
       <p>
         So it is evident that we all sin. How, then, can anyone be saved? By grace (see the{' '}
-        <a
-          href="/faq"
-          onClick={(event) => {
-            event.preventDefault()
-            onShowQuestion(GRACE_QUESTION)
-          }}
-        >
+        <QuestionLink question={GRACE_QUESTION} onShowQuestion={onShowQuestion}>
           FAQ on grace
-        </a>
+        </QuestionLink>
         ). Grace overcomes the law. I don’t know about you, but I love pork, lobster and crab, all of which are
         forbidden in the Old Testament. As Paul says:
       </p>
-      <Passage book={45} chapter={8} verse={1} reference="Romans 8:1–4">
-        “Therefore, there is now no condemnation for those who are in Christ Jesus. For in Christ Jesus the law of the
-        Spirit of life set you free from the law of sin and death. For what the law was powerless to do in that it was
-        weakened by the flesh, God did by sending His own Son in the likeness of sinful man, as an offering for sin. He
-        thus condemned sin in the flesh, so that the righteous standard of the law might be fulfilled in us, who do not
-        walk according to the flesh but according to the Spirit.”
-      </Passage>
+      <NoCondemnationPassage />
       <p>I also have a few gay and lesbian Christian friends. As Paul said:</p>
       <Passage book={54} chapter={1} verse={16} reference="1 Timothy 1:16">
         “But for this very reason I was shown mercy, so that in me, the worst of sinners, Christ Jesus might display
@@ -328,6 +363,44 @@ function CommandsTodayNote() {
   )
 }
 
+// The note under the AI's answer to the question about divorce and remarriage.
+function DivorceNote({ onShowQuestion }: { onShowQuestion: (question: string) => void }) {
+  return (
+    <OwnerNoteBox>
+      <p>
+        I address this in{' '}
+        <QuestionLink question={LGBTQ_QUESTION} onShowQuestion={onShowQuestion}>
+          How should Christians understand LGBTQ identities and relationships?
+        </QuestionLink>
+        , but here is the short answer in my opinion.
+      </p>
+      <p>Jesus set a high bar for sin:</p>
+      <DivorcePassage />
+      <p>
+        Most Protestants no longer have a problem with divorce. I have many good Christian friends who have been
+        divorced and remarried.
+      </p>
+      <p>Here is another:</p>
+      <AngerPassage />
+      <p>
+        So it is evident that we all sin. How, then, can anyone be saved? By grace (see the{' '}
+        <QuestionLink question={GRACE_QUESTION} onShowQuestion={onShowQuestion}>
+          FAQ on grace
+        </QuestionLink>
+        ). Grace overcomes the law. I don’t know about you, but I love pork, lobster and crab, all of which are
+        forbidden in the Old Testament. As Paul says:
+      </p>
+      <NoCondemnationPassage />
+      <p>
+        I love the motto of my church: <em>“In essential things, unity; in non-essential things, liberty; in all
+        things, grace.”</em> So for me, if my brother or sister is divorced or struggling with anything else, it
+        doesn’t matter. They are my brother or sister, saved by grace, and I love them.
+      </p>
+      <p>Grace trumps the law. If you are following the two greatest commandments, any specific issue is irrelevant.</p>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -342,6 +415,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === COMMANDS_TODAY_QUESTION) {
     return <CommandsTodayNote />
+  }
+  if (question === DIVORCE_QUESTION) {
+    return <DivorceNote onShowQuestion={onShowQuestion} />
   }
   return null
 }
