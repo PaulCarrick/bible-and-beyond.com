@@ -382,7 +382,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
                       id={`${verseId(chapter, verse)}-number`}
                       className="verse-number-button"
                       aria-haspopup="menu"
-                      title="Options for this verse (or right-click the verse)"
+                      title="More for this verse: right-click it, or click its number. Show in Context, Full Chapter, Other Translations, Related Verses, Original Words, Commentaries and Notes."
                       onClick={(event) => {
                         const box = event.currentTarget.getBoundingClientRect()
                         setMenu({ chapter, verse, x: box.left, y: box.bottom })

@@ -29,6 +29,7 @@ import SearchTab from './SearchTab'
 import SideNav from './SideNav'
 import type { NavGroup } from './SideNav'
 import SiteFooter from './SiteFooter'
+import SiteTooltip from './SiteTooltip'
 import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
 import WelcomeSearch from './WelcomeSearch'
@@ -411,6 +412,7 @@ function App() {
           </div>
         </div>
       </div>
+      <SiteTooltip />
     </AccountContext.Provider>
   )
 }

@@ -2035,3 +2035,23 @@ select:disabled {
 .browse-list-link {
   white-space: nowrap;
 }
+
+/* The site's own tooltip (SiteTooltip.tsx), larger than the browser's: it shows the title of whatever the
+   mouse pointer rests on or the keyboard focuses. Dark on light pages and light on dark ones. */
+.site-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(24rem, calc(100vw - 16px));
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  background: var(--text-h);
+  color: var(--bg);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: normal;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
