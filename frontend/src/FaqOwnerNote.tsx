@@ -12,6 +12,7 @@ const REPEATED_SIN_QUESTION = 'How can I overcome a sin I keep repeating?'
 const TROUBLING_PASSAGES_QUESTION = 'How do I understand passages that seem contradictory or morally troubling?'
 const COMMANDS_TODAY_QUESTION = 'How do I know which biblical commands still apply today?'
 const DIVORCE_QUESTION = 'What does Christianity teach about divorce and remarriage?'
+const CHURCH_HURT_QUESTION = 'How can I recover from church hurt or spiritual abuse?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -401,6 +402,26 @@ function DivorceNote({ onShowQuestion }: { onShowQuestion: (question: string) =>
   )
 }
 
+// The note under the AI's answer to the question about church hurt and spiritual abuse.
+function ChurchHurtNote() {
+  return (
+    <OwnerNoteBox>
+      <p>
+        If you need help, <CelebrateRecoveryLink /> may be a place to reach out to. They are there for help with your
+        hurts, habits, or hangups.
+      </p>
+      <p>
+        Many churches have Celebrate Recovery as one of their ministries and even if your church doesn’t, there may be
+        a church near you that has meetings.
+      </p>
+      <p>
+        If you do go to Celebrate Recovery, be honest. Express your hurt and don’t be afraid about judgement. CR is a
+        safe place to share your hurts judgement free.
+      </p>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -418,6 +439,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === DIVORCE_QUESTION) {
     return <DivorceNote onShowQuestion={onShowQuestion} />
+  }
+  if (question === CHURCH_HURT_QUESTION) {
+    return <ChurchHurtNote />
   }
   return null
 }
