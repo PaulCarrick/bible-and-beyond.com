@@ -3,7 +3,7 @@ import { AccountContext } from './AccountContext'
 import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
 import FaqAnswerView from './FaqAnswerView'
-import FaqOwnerNote, { OWNER_NOTE_QUESTION } from './FaqOwnerNote'
+import FaqOwnerNote from './FaqOwnerNote'
 import OpenQuestionBox from './OpenQuestionBox'
 
 interface FaqPageProps {
@@ -117,7 +117,7 @@ function FaqPage({ isHidden }: FaqPageProps) {
         {errorMessage && <p className="error">{errorMessage}</p>}
         {shownAnswer && !isAsking && (
           <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references}>
-            {shownAnswer.question === OWNER_NOTE_QUESTION && <FaqOwnerNote onShowQuestion={showQuestion} />}
+            <FaqOwnerNote question={shownAnswer.question} onShowQuestion={showQuestion} />
           </FaqAnswerView>
         )}
       </div>

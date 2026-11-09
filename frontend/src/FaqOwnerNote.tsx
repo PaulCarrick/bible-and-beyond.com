@@ -1,16 +1,40 @@
 import type { ReactNode } from 'react'
 import { verseAddress } from './verseAddress'
 
-// The question the site owner's note belongs to. It is matched by its words, not its number, because the
-// numbers move when a question is added.
-export const OWNER_NOTE_QUESTION = 'How should Christians understand LGBTQ identities and relationships?'
+// The questions that have a note from the site owner. They are matched by their words, not their numbers,
+// because the numbers move when a question is added, so rewording a question drops its note.
+const LGBTQ_QUESTION = 'How should Christians understand LGBTQ identities and relationships?'
+const REPEATED_SIN_QUESTION = 'How can I overcome a sin I keep repeating?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
 
 interface FaqOwnerNoteProps {
+  // The question whose answer is shown; the note appears only for a question that has one.
+  question: string
   // Shows another FAQ question's answer on this page.
   onShowQuestion: (question: string) => void
+}
+
+const CELEBRATE_RECOVERY_ADDRESS = 'https://celebraterecovery.com/'
+
+// A link to Celebrate Recovery's website, in a new tab.
+function CelebrateRecoveryLink() {
+  return (
+    <a href={CELEBRATE_RECOVERY_ADDRESS} target="_blank" rel="noopener" aria-label="Celebrate Recovery (opens its website in a new tab)">
+      Celebrate Recovery
+    </a>
+  )
+}
+
+// The box the notes are drawn in, set apart from the AI's answer.
+function OwnerNoteBox({ children }: { children: ReactNode }) {
+  return (
+    <aside className="faq-owner-note" aria-labelledby="faq-owner-note-heading">
+      <h2 id="faq-owner-note-heading">A note from the site owner</h2>
+      {children}
+    </aside>
+  )
 }
 
 interface VerseLinkProps {
@@ -55,11 +79,10 @@ function Passage({ book, chapter, verse, reference, children }: PassageProps) {
   )
 }
 
-// The site owner's own note, shown in a box under the AI's answer to the LGBTQ question.
-function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
+// The note under the AI's answer to the LGBTQ question.
+function LgbtqNote({ onShowQuestion }: { onShowQuestion: (question: string) => void }) {
   return (
-    <aside className="faq-owner-note" aria-labelledby="faq-owner-note-heading">
-      <h2 id="faq-owner-note-heading">A note from the site owner</h2>
+    <OwnerNoteBox>
       <p>
         This is a very controversial subject, and I’m sure I am going to make many people angry. In my opinion, too
         much emphasis has been placed on sexual sin.
@@ -130,10 +153,7 @@ function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
       </p>
       <p>
         If anyone is struggling with a hurt, habit or hang-up, I highly recommend{' '}
-        <a href="https://celebraterecovery.com/" target="_blank" rel="noopener" aria-label="Celebrate Recovery (opens its website in a new tab)">
-          Celebrate Recovery
-        </a>
-        . It is a Christian-based recovery program. It is not limited to addiction; it covers many other issues:
+        <CelebrateRecoveryLink />. It is a Christian-based recovery program. It is not limited to addiction; it covers many other issues:
         depression, grief, divorce, codependency, sexual addiction, anger issues and many more.
       </p>
       <Passage book={40} chapter={22} verse={36} reference="Matthew 22:36–40">
@@ -145,8 +165,38 @@ function FaqOwnerNote({ onShowQuestion }: FaqOwnerNoteProps) {
       <p>
         Grace trumps the law. If you are following the two greatest commandments, any specific sin is irrelevant.
       </p>
-    </aside>
+    </OwnerNoteBox>
   )
+}
+
+// The note under the AI's answer to the question about a sin that keeps coming back.
+function RepeatedSinNote() {
+  return (
+    <OwnerNoteBox>
+      <p>
+        If you need help, <CelebrateRecoveryLink /> may be a place to reach out to. They are there for help with your
+        hurts, habits, or hangups. It’s not only about addictions. It can help with grief, mental health issues
+        (depression, etc.), divorce, codependence, sexual or gambling issues and many more.
+      </p>
+      <p>
+        Many churches have Celebrate Recovery as one of their ministries and even if your church doesn’t, there may be
+        a church near you that has meetings.
+      </p>
+      <p>Personally, I help with CR at our church and I find it very useful for my hurts, habits and hangups.</p>
+    </OwnerNoteBox>
+  )
+}
+
+// The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
+// nothing when that question has none.
+function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
+  if (question === LGBTQ_QUESTION) {
+    return <LgbtqNote onShowQuestion={onShowQuestion} />
+  }
+  if (question === REPEATED_SIN_QUESTION) {
+    return <RepeatedSinNote />
+  }
+  return null
 }
 
 export default FaqOwnerNote
