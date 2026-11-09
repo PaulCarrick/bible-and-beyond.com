@@ -13,6 +13,7 @@ const TROUBLING_PASSAGES_QUESTION = 'How do I understand passages that seem cont
 const COMMANDS_TODAY_QUESTION = 'How do I know which biblical commands still apply today?'
 const DIVORCE_QUESTION = 'What does Christianity teach about divorce and remarriage?'
 const CHURCH_HURT_QUESTION = 'How can I recover from church hurt or spiritual abuse?'
+const SCIENCE_AND_RELIGIONS_QUESTION = 'How does Christianity relate to science, evolution, and other religions?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -427,6 +428,43 @@ function ChurchHurtNote() {
   )
 }
 
+// The note under the AI's answer to the question about science, evolution and other religions.
+function ScienceAndReligionsNote() {
+  return (
+    <OwnerNoteBox>
+      <p>
+        For myself, it’s not a question of how God created the universe but rather the fact that He did create the
+        universe. I’m not going to give away my personal belief from above, but it is in the list.
+      </p>
+      <p>
+        As far as other religions, I have personally grown. When I was a young Christian, I considered myself a “cult”
+        evangelist. I had all sorts of facts and evidence why the specific “cults” were wrong. I even had an original
+        version of the Book of Mormon that I used to “prove” that it changed. I didn’t change one person’s mind.
+      </p>
+      <p>I’ve since grown.</p>
+      <Passage book={44} chapter={17} verse={22} reference="Acts 17:22–25">
+        <sup>22</sup> Then Paul stood up in the meeting of the Areopagus and said, “Men of Athens, I see that in every
+        way you are very religious. <sup>23</sup> For as I walked around and examined your objects of worship, I even
+        found an altar with this inscription: TO AN UNKNOWN GOD. Therefore what you worship as something unknown, I now
+        proclaim to you. <sup>24</sup> The God who made the world and everything in it is the Lord of heaven and earth
+        and does not live in temples made by human hands. <sup>25</sup> Nor is He served by human hands, as if He
+        needed anything, because He Himself gives everyone life and breath and everything else.
+      </Passage>
+      <p>
+        Note that Paul doesn’t start by saying “You’re wrong; there is only one true God.” He acknowledges their
+        beliefs but goes on to gently share the truth, creating a bridge.
+      </p>
+      <p>I have learned that love and respect go further than knowledge and rhetoric.</p>
+      <p>
+        I belong to a group that has people of many different beliefs (including no beliefs). I let them know that I’m
+        a Christian and I follow Jesus, but that I respect their right to believe as they choose. I feel that I’ve made
+        more progress in getting them to open up to my beliefs than I ever did when I was a “cult” evangelist. If you
+        respect other beliefs, they will respect yours, and that may create an opening for Christ.
+      </p>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -447,6 +485,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === CHURCH_HURT_QUESTION) {
     return <ChurchHurtNote />
+  }
+  if (question === SCIENCE_AND_RELIGIONS_QUESTION) {
+    return <ScienceAndReligionsNote />
   }
   return null
 }
