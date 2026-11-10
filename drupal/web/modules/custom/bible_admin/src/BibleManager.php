@@ -184,6 +184,10 @@ class BibleManager {
         $arguments[] = '--' . str_replace('_', '-', $key) . '=' . $parameters[$key];
       }
     }
+    // A devotional's or book's own credit line is always sent, so an empty box brings back the usual line.
+    if ($parameters['kind'] !== 'commentary') {
+      $arguments[] = '--credit=' . ($parameters['credit'] ?? '');
+    }
     return $arguments;
   }
 

@@ -64,7 +64,9 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
           : '<p>{{ intro }}</p><pre>section&#9;section_title&#9;unit&#9;unit_title&#9;heading&#9;text
 1&#9;&#9;1&#9;&#9;Morning&#9;The morning reading of January 1 ...
 1&#9;&#9;1&#9;&#9;Evening&#9;The evening reading of January 1 ...
-1&#9;The First Book&#9;1&#9;Of the Imitation of Christ&#9;&#9;Chapter 1 (a devotional by chapter) ...</pre><p>{{ details }}</p>',
+1&#9;The First Book&#9;1&#9;Of the Imitation of Christ&#9;&#9;Chapter 1 (a devotional by chapter) ...</pre><p>{{ details }}</p>{% if plain %}<p>{{ plain }}</p><pre>The Apostles’ Creed
+I believe in God, the Father Almighty, creator of heaven and earth.
+I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ links }}</p><pre>{{ link_example }}</pre>',
         '#context' => [
           'intro' => $this->t('Tab-separated text in UTF-8, with this header row and one row per @row (a spreadsheet can save it as "Tab-delimited text", UTF-8). In the text, \\n starts a new line; two of them start a new paragraph.', ['@row' => $isCommentary ? $this->t('note') : $this->t('reading')]),
           'details' => $isCommentary
@@ -72,6 +74,9 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
             : ($isBook
               ? $this->t('The section is the part (a number, 0 for a preface) and the unit the chapter; both need their title on the first row of each. Several rows of one chapter are kept in their order.')
               : $this->t('Daily: the section is the month (1 to 12) and the unit the day; the titles may be left empty (they become "January" and "January 1"), and several rows for one day (a morning and an evening reading) keep their order and heading. By chapter: the section is the part or book (a number, 0 for a preface) and the unit the chapter; both need their title on the first row of each.')),
+          'plain' => $isCommentary ? '' : $this->t('A short text of one chapter (a creed, a prayer, a short essay) can instead be plain text, with no tabs and no header row: the first line is its title, and each further line is a paragraph. Write it in any text editor and save it as UTF-8 text (.txt).') . ($isBook ? '' : ' ' . $this->t('Not for a daily devotional.')),
+          'links' => $this->t('In any of these, words can be a link to the Bible verse they come from, without the reference showing: put them in double braces with the verse after a bar. On the site they read as ordinary text; a click opens the verse. The preview warns about a verse it cannot find.'),
+          'link_example' => '{{who was conceived by the Holy Spirit|Luke 1:35}} {{and born of the Virgin Mary.|Matthew 1:23}}',
         ],
       ],
     ];
@@ -129,6 +134,13 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
         '#description' => $this->t('Optional.'),
         '#maxlength' => 200,
       ];
+      $form['credit'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('Credit line'),
+        '#description' => $this->t('Only for a text that is not in the public domain (a modern wording, or one used with permission): what to say about it under the text and on the copyright page, for example "This is a modern English wording of the Apostles’ Creed." Leave it empty for the usual line, "… by the author is in the public domain. The text comes from …". Uploading again replaces it.'),
+        '#rows' => 2,
+        '#maxlength' => 500,
+      ];
     }
     $form['source_name'] = [
       '#type' => 'textfield',
@@ -154,10 +166,12 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $this->t('Upload and preview')];
+    // A link drawn as a button (the admin theme's "button" class), so it sits beside the other button.
     $form['actions']['cancel'] = [
       '#type' => 'link',
       '#title' => $this->t('Cancel'),
       '#url' => Url::fromRoute('bible_admin.library', ['collection' => $collection]),
+      '#attributes' => ['class' => ['button']],
     ];
     return $form;
   }
@@ -193,7 +207,7 @@ John&#9;0&#9;&#9;&#9;An introduction to the book of John.</pre><p>{{ details }}<
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $collection = (string) $form_state->get('collection');
     $parameters = ['collection' => $collection, 'kind' => LibraryListController::COLLECTIONS[$collection]['kind']];
-    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url'] as $key) {
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit'] as $key) {
       $parameters[$key] = trim((string) $form_state->getValue($key));
     }
     $parameters['id'] = strtolower($parameters['id']);

@@ -17,6 +17,13 @@ A devotional:   section  section_title  unit  unit_title  heading  text
   - By chapter (kind "chapters"): section is the part or book (a number; 0 for a preface) with its title,
     unit is the chapter with its title (both titles needed on the first row of each).
 
+A short text of one chapter (an Other book or a devotional by chapter, such as a creed or a prayer) can
+instead be plain text, with no tabs: the first line is its title and each further line a paragraph (blank
+lines are left out).
+
+In any of them a statement can be linked to the verse it comes from, without the reference showing:
+{{the words|Luke 1:35}} (devotionals.text_and_references).
+
 Nothing is saved until the import; the preview says what would be.
 """
 
@@ -167,10 +174,49 @@ def read_commentary_file(path: Path):
 # --- devotionals ---------------------------------------------------------------------------------------
 
 
+def read_text(path: Path) -> str:
+  if path.stat().st_size > MAX_FILE_BYTES:
+    raise UploadProblem(f"The file is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB.")
+  try:
+    return path.read_text(encoding="utf-8-sig")
+  except UnicodeDecodeError as error:
+    raise UploadProblem("The file is not UTF-8 text. Save it as UTF-8.") from error
+
+
+def is_plain_text(path: Path) -> bool:
+  """Whether a file is a plain text of one chapter: no tabs anywhere (a tab-separated file has them)."""
+  return "\t" not in read_text(path)
+
+
+def read_plain_text(path: Path):
+  """(Parsed, result) for a plain text of one chapter: the first line is the title, each further line a paragraph."""
+  result = ReadResult()
+  lines = [" ".join(line.split()) for line in read_text(path).splitlines()]
+  lines = [line for line in lines if line]
+  if not lines:
+    result.problems.append("The file is empty.")
+    return Parsed([], []), result
+  title, paragraphs = lines[0], lines[1:]
+  if len(title) > 200:
+    result.problems.append("Line 1: the title can be at most 200 characters (the first line is the title).")
+  if not paragraphs:
+    result.problems.append("The file has a title but no text: put the text on the lines after the first.")
+  text = "\n\n".join(paragraphs)
+  if len(text) > MAX_TEXT_CHARACTERS:
+    result.problems.append(f"The text is longer than {MAX_TEXT_CHARACTERS:,} characters.")
+  if result.problems:
+    return Parsed([], []), result
+  return Parsed([(1, title)], [Entry(1, 1, 1, title, "", text)]), result
+
+
 def read_devotional_file(path: Path, kind: str):
-  """(Parsed, result) for a daily or a by-chapter devotional."""
+  """(Parsed, result) for a daily or a by-chapter devotional, or a plain text of one chapter."""
   if kind not in ("daily", "chapters"):
     raise UploadProblem("The kind must be daily or chapters.")
+  if is_plain_text(path):
+    if kind == "daily":
+      raise UploadProblem("A daily devotional must be a tab-separated file (a plain text is one chapter).")
+    return read_plain_text(path)
   result = ReadResult()
   sections: dict[int, str] = {}
   unit_titles: dict[tuple[int, int], str] = {}
@@ -231,12 +277,39 @@ def read_devotional_file(path: Path, kind: str):
   return Parsed(sorted(sections.items()), sorted(entries, key=lambda entry: (entry.section, entry.unit, entry.part))), result
 
 
+def check_statement_links(parsed, result: ReadResult) -> int:
+  """How many statements are linked to a verse ({{the words|Luke 1:35}}); a link to a verse that does not
+  exist, or braces that do not make a link, are reported as warnings (those words show as plain text)."""
+  from devotionals import STATEMENT_LINK, statement_verse
+
+  linked = 0
+  for entry in parsed.entries:
+    place = entry.unit_title + (f" ({entry.heading})" if entry.heading else "")
+    matches = list(STATEMENT_LINK.finditer(entry.text))
+    for match in matches:
+      if statement_verse(match.group(2)):
+        linked += 1
+      else:
+        note(result, "warning", f"{place}: “{match.group(2).strip()}” is not a verse in the Bibles here, so “{match.group(1).strip()}” is not linked.")
+    if entry.text.count("{{") != len(matches) or entry.text.count("}}") != len(matches):
+      note(result, "warning", f"{place}: some {{{{ or }}}} do not make a link (write {{{{the words|Luke 1:35}}}}); they show as they are.")
+  return linked
+
+
 # --- the details typed in the form ---------------------------------------------------------------------
 
 
 def check_details(kind: str, details: dict) -> dict:
-  """The details typed in the form, cleaned; raises UploadProblem when one is wrong."""
+  """The details typed in the form, cleaned; raises UploadProblem when one is wrong.
+
+  credit (devotionals and books only) is the text's own credit line; None (not given) keeps the one it has,
+  and "" goes back to the usual "... is in the public domain".
+  """
+  credit = details.get("credit")
   cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items()}
+  cleaned["credit"] = None if credit is None or kind == "commentary" else cleaned["credit"]
+  if cleaned["credit"] and len(cleaned["credit"]) > 500:
+    raise UploadProblem("The credit line can be at most 500 characters.")
   item_id = cleaned.get("id", "").lower()
   if not ID_PATTERN.match(item_id):
     raise UploadProblem("The id must be 3 to 50 lowercase letters, digits and hyphens, such as matthew-poole.")
@@ -305,7 +378,9 @@ def preview(kind: str, path: Path, details: dict) -> dict:
   else:
     parsed, result = read_devotional_file(path, cleaned["kind"])
     units = sorted({(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries})
+    linked = check_statement_links(parsed, result)
     summary = {
+      "statement_links": linked,
       "readings": len(parsed.entries),
       "units": len(units),
       "sections": [title for _, title in parsed.sections],
@@ -344,5 +419,8 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
     count = save_devotional(cleaned["id"], cleaned, parsed, publish_if_new=False)
+    if cleaned["credit"] is not None:
+      with connect() as connection:
+        connection.execute("UPDATE devotionals SET credit = %s WHERE id = %s", (cleaned["credit"] or None, cleaned["id"]))
   state = existing(kind, cleaned["id"])
   return {"id": cleaned["id"], "name": cleaned["name"], "count": count, "is_published": state["is_published"]}

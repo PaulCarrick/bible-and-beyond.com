@@ -40,6 +40,7 @@ function NoteText({ text, references, terms, translation = 'BSB', onOpenReferenc
   const linkOptions: LinkOptions = {
     ...referenceLinkOptions,
     titleFor: (code, shownText) => `Show ${verseLabels.get(code) ?? shownText.trim()} in context`,
+    isPlainText: (code) => verseLabels.has(code),
     newTabVerse: (code) => {
       const [book, chapter, verse] = code.split(':').map(Number)
       return { translation, book, chapter, verse }

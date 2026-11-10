@@ -282,3 +282,30 @@ def test_a_book_can_link_statements_to_verses_and_have_its_own_credit(tmp_path):
   assert get_unit("test-upload-creed", 1, 1)["devotional"]["credit"] is None
   with pytest.raises(library_admin.LibraryProblem):
     library_admin.set_credit("commentary", "test-upload-creed", "x")
+
+
+def test_a_plain_text_of_one_chapter_can_be_uploaded_with_its_credit_and_links(tmp_path):
+  plain = "  A Test Creed  \n\n{{I believe in God,|1 Corinthians 8:6}} {{Not a verse|Nowhere 9:9}}\n\nAmen. {{oops\n"
+  details = {**CHAPTERS, "id": "test-upload-plain", "credit": "  A modern   wording. "}
+  checked = preview("book", write(tmp_path, plain), details)
+  assert checked["problems"] == [] and checked["summary"]["units"] == 1 and checked["summary"]["statement_links"] == 1
+  assert checked["details"]["credit"] == "A modern wording."
+  assert any("Nowhere 9:9" in warning for warning in checked["warnings"])
+  assert any("do not make a link" in warning for warning in checked["warnings"])
+
+  import_file("book", write(tmp_path, plain), details)
+  library_admin.set_published("book", "test-upload-plain", True)
+  unit = get_unit("test-upload-plain", 1, 1)
+  assert unit["title"] == "A Test Creed" and unit["section_title"] == "A Test Creed"
+  assert unit["entries"][0]["text"] == "I believe in God, Not a verse\n\nAmen. {{oops"
+  assert unit["devotional"]["credit"] == "A modern wording."
+
+  # Left out, the credit is kept; empty, the usual line comes back.
+  import_file("book", write(tmp_path, plain), {**details, "credit": None})
+  assert get_unit("test-upload-plain", 1, 1)["devotional"]["credit"] == "A modern wording."
+  import_file("book", write(tmp_path, plain), {**details, "credit": ""})
+  assert get_unit("test-upload-plain", 1, 1)["devotional"]["credit"] is None
+
+  with pytest.raises(UploadProblem, match="daily"):
+    preview("devotional", write(tmp_path, plain), {**DEVOTIONAL, "id": "test-upload-plain-daily"})
+  assert preview("book", write(tmp_path, "Only a title\n"), details)["problems"]

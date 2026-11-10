@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactElement } from 'react'
-import { verseButtonProps } from './verseAddress'
+import { verseAddress, verseButtonProps } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 
 export function escapeRegularExpression(text: string) {
@@ -45,6 +45,9 @@ export interface LinkOptions {
   // For links to verses: where a link's verse is, so Shift, Ctrl or Cmd with a click (or the middle button)
   // opens it in the Bible reader in a new tab. Not set for Strong's numbers.
   newTabVerse?: (code: string) => VerseInBible
+  // Links that read as ordinary text (a statement of the Apostles' Creed linked to its verse): drawn as a
+  // link inside the sentence rather than a button, so the words wrap like the rest. Needs newTabVerse.
+  isPlainText?: (code: string) => boolean
 }
 
 export const strongLinkOptions: LinkOptions = {
@@ -101,6 +104,27 @@ export function highlightLinked(
     const content = group.map((piece, position) =>
       piece.bold ? <strong key={position}>{piece.text}</strong> : piece.text,
     )
+    const verse = link && options.newTabVerse && options.isPlainText?.(link[2]) ? options.newTabVerse(link[2]) : null
+    if (link && verse) {
+      const verseProps = verseButtonProps(verse, (element) => onChoose(link[2], element))
+      nodes.push(
+        <a
+          key={nodes.length}
+          className="statement-link"
+          href={verseAddress(verse.translation, verse.book, verse.chapter, verse.verse)}
+          title={options.titleFor(link[2], group.map((piece) => piece.text).join(''))}
+          {...verseProps}
+          onClick={(event) => {
+            // The link itself is not followed: a plain click opens the verse here, Shift, Ctrl or Cmd a new tab.
+            event.preventDefault()
+            verseProps.onClick(event)
+          }}
+        >
+          {content}
+        </a>,
+      )
+      continue
+    }
     nodes.push(
       link ? (
         <button

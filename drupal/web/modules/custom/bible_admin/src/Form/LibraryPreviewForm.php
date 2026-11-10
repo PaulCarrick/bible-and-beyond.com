@@ -74,6 +74,10 @@ class LibraryPreviewForm extends FormBase {
       $rows[] = [$this->t('Days or chapters'), number_format((int) $summary['units'])];
       $rows[] = [$this->t('Readings'), number_format((int) $summary['readings'])];
       $rows[] = [$this->t('Sections'), ['data' => ['#plain_text' => implode(', ', $summary['sections'])]]];
+      if (!empty($summary['statement_links'])) {
+        $rows[] = [$this->t('Words linked to a verse'), number_format((int) $summary['statement_links'])];
+      }
+      $rows[] = [$this->t('Credit line'), ['data' => ['#plain_text' => ($preview['details']['credit'] ?? '') !== '' ? $preview['details']['credit'] : $this->t('The usual line (public domain)')]]];
     }
     if ($existing) {
       $rows[] = [$this->t('Now in the site'), $this->t('@count entries, which this replaces', ['@count' => number_format((int) $existing['count'])])];

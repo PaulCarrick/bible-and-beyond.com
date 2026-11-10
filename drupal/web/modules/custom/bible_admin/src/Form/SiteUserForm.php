@@ -133,6 +133,7 @@ class SiteUserForm extends FormBase {
       '#type' => 'link',
       '#title' => $this->t('Cancel'),
       '#url' => Url::fromRoute('bible_admin.site_users'),
+      '#attributes' => ['class' => ['button']],
     ];
     return $form;
   }

@@ -1604,6 +1604,13 @@ STATEMENT_LINK = re.compile(r"\{\{([^{}|]+)\|([^{}|]+)\}\}")
 STATEMENT_LINK_PIECES = re.compile(r"\|[^{}|\n…]*(?:\}\}|$|(?=…))|(?:^|(?<=…))[^{}|\n…]*\}\}|\{\{|\}\}")
 
 
+def statement_verse(target: str) -> str | None:
+  """The verse ("book:chapter:verse") a statement link names ("Luke 1:35"), or None if it is not a real verse."""
+  target = " ".join(target.split())
+  found = find_references(target)
+  return found[0][2] if found and found[0][0] == 0 and found[0][1] == len(target) else None
+
+
 def text_and_references(text: str) -> tuple[str, list]:
   """A text as the page shows it and its references [start, end, "book:chapter:verse"] over that text.
 
@@ -1618,9 +1625,9 @@ def text_and_references(text: str) -> tuple[str, list]:
     parts.append(text[last:match.start()])
     position += match.start() - last
     shown, target = match.group(1), " ".join(match.group(2).split())
-    found = find_references(target)
-    if found and found[0][0] == 0 and found[0][1] == len(target):
-      links.append([position, position + len(shown), found[0][2], target])
+    code = statement_verse(target)
+    if code:
+      links.append([position, position + len(shown), code, target])
     parts.append(shown)
     position += len(shown)
     last = match.end()

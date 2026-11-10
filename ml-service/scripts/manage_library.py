@@ -52,6 +52,8 @@ def parse_arguments():
     command.add_argument("--source-url", default="")
     command.add_argument("--license-url", default="")
     command.add_argument("--translator", default="")
+    # Its own credit line (devotionals and books); left out, it keeps the one it has; empty, the usual line.
+    command.add_argument("--credit", default=None)
   return parser.parse_args()
 
 
@@ -59,7 +61,7 @@ def details(arguments) -> dict:
   return {
     "id": arguments.id, "name": arguments.name, "short_name": arguments.short_name, "author": arguments.author,
     "kind": arguments.devotional_kind, "source_name": arguments.source_name, "source_url": arguments.source_url,
-    "license_url": arguments.license_url, "translator": arguments.translator,
+    "license_url": arguments.license_url, "translator": arguments.translator, "credit": arguments.credit,
   }
 
 
