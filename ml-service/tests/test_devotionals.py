@@ -368,7 +368,7 @@ def test_the_devotionals_are_listed_in_order_with_their_sources(loaded):
   assert listed[0] == {
     "id": "morning-and-evening", "name": "Morning and Evening", "author": "Charles H. Spurgeon", "kind": "daily",
     "source_name": "Christian Classics Ethereal Library", "source_url": "https://ccel.org/ccel/spurgeon/morneve",
-    "translator": None,
+    "translator": None, "credit": None,
   }
   assert listed[1]["translator"] == "translated by William Benham, 1886" and listed[1]["kind"] == "chapters"
 

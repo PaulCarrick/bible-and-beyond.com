@@ -23,8 +23,9 @@ const referenceLinkOptions: LinkOptions = {
 
 interface NoteTextProps {
   text: string
-  // Scripture references in the text: [start, end, "book:chapter:verse"] over the whole text.
-  references: [number, number, string][]
+  // Scripture references in the text: [start, end, "book:chapter:verse"] over the whole text, and for a linked
+  // statement (words that are not a reference) the verse as written, "Luke 1:35", for the tooltip.
+  references: [number, number, string, string?][]
   // Words searched for, shown in bold.
   terms: string[]
   // The Bible a reference opens in when it goes to a new tab (Shift, Ctrl or Cmd held); the BSB when not given.
@@ -35,8 +36,10 @@ interface NoteTextProps {
 
 // The text of a commentary note as paragraphs, with its scripture references as links.
 function NoteText({ text, references, terms, translation = 'BSB', onOpenReference }: NoteTextProps) {
+  const verseLabels = new Map(references.filter((reference) => reference[3]).map((reference) => [reference[2], reference[3]]))
   const linkOptions: LinkOptions = {
     ...referenceLinkOptions,
+    titleFor: (code, shownText) => `Show ${verseLabels.get(code) ?? shownText.trim()} in context`,
     newTabVerse: (code) => {
       const [book, chapter, verse] = code.split(':').map(Number)
       return { translation, book, chapter, verse }

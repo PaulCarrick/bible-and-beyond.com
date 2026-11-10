@@ -263,7 +263,9 @@ CREATE TABLE IF NOT EXISTS devotionals (
     -- Hidden ones are not shown on the site and send no emails (migration 016).
     is_published BOOLEAN NOT NULL DEFAULT true,
     -- 'devotionals', or 'books' for the Other books page (no daily emails; migration 017).
-    collection TEXT NOT NULL DEFAULT 'devotionals' CHECK (collection IN ('devotionals', 'books'))
+    collection TEXT NOT NULL DEFAULT 'devotionals' CHECK (collection IN ('devotionals', 'books')),
+    -- Its own credit line when the text is not an old public-domain edition; NULL for most (migration 022).
+    credit TEXT
 );
 
 CREATE TABLE IF NOT EXISTS devotional_sections (

@@ -327,6 +327,8 @@ export interface DevotionalInfo {
   source_name: string
   source_url: string
   translator: string | null
+  // Its own credit line, shown instead of "... is in the public domain"; null for the old public-domain texts.
+  credit: string | null
 }
 
 export interface DevotionalContents {
@@ -345,7 +347,8 @@ export interface DevotionalEntry {
   // "Morning" or "Evening" for a daily reading; empty for a chapter.
   heading: string
   text: string
-  references: [number, number, string][]
+  // A linked statement (the Apostles' Creed's) adds the verse as written, "Luke 1:35", for its tooltip.
+  references: [number, number, string, string?][]
 }
 
 // One day or chapter, as the server sends it.

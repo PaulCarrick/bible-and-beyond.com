@@ -1588,12 +1588,49 @@ def save_devotional(devotional_id, details, parsed, publish_if_new, position=Non
 
 # --- looking up -----------------------------------------------------------------------------------------------
 
-DESCRIBE_COLUMNS = "id, name, author, kind, source_name, source_url, translator"
+DESCRIBE_COLUMNS = "id, name, author, kind, source_name, source_url, translator, credit"
 
 
 def describe(row):
-  keys = ("id", "name", "author", "kind", "source_name", "source_url", "translator")
+  keys = ("id", "name", "author", "kind", "source_name", "source_url", "translator", "credit")
   return dict(zip(keys, row))
+
+
+# A statement linked to the verse it comes from, written in a text as {{the words|Luke 1:35}}: the page shows
+# the words as a link to the verse, without the reference (the Apostles' Creed is written this way).
+STATEMENT_LINK = re.compile(r"\{\{([^{}|]+)\|([^{}|]+)\}\}")
+# What is left of that markup in a search excerpt, which can cut a link in two: "|Luke 1:35}}", "|Luke" at the
+# end of the excerpt or of one of its parts (joined by "…"), "1:35}}" at the start of one, and the braces.
+STATEMENT_LINK_PIECES = re.compile(r"\|[^{}|\n…]*(?:\}\}|$|(?=…))|(?:^|(?<=…))[^{}|\n…]*\}\}|\{\{|\}\}")
+
+
+def text_and_references(text: str) -> tuple[str, list]:
+  """A text as the page shows it and its references [start, end, "book:chapter:verse"] over that text.
+
+  A linked statement ({{the words|Luke 1:35}}) becomes its words, with a reference over them that carries the
+  verse as a fourth item ("Luke 1:35", for the link's tooltip). A statement whose verse is not found is shown
+  as plain words. The other references are found in the text as usual.
+  """
+  if "{{" not in text:
+    return text, find_references(text)
+  parts, links, position, last = [], [], 0, 0
+  for match in STATEMENT_LINK.finditer(text):
+    parts.append(text[last:match.start()])
+    position += match.start() - last
+    shown, target = match.group(1), " ".join(match.group(2).split())
+    found = find_references(target)
+    if found and found[0][0] == 0 and found[0][1] == len(target):
+      links.append([position, position + len(shown), found[0][2], target])
+    parts.append(shown)
+    position += len(shown)
+    last = match.end()
+  parts.append(text[last:])
+  plain = "".join(parts)
+  others = [
+    reference for reference in find_references(plain)
+    if not any(reference[0] < link[1] and link[0] < reference[1] for link in links)
+  ]
+  return plain, sorted(others + links)
 
 
 def list_devotionals(collection="devotionals"):
@@ -1664,7 +1701,7 @@ def get_unit(devotional_id, section, unit):
     "unit": unit,
     "title": entries[0][0],
     "entries": [
-      {"heading": heading, "text": text, "references": find_references(text)}
+      {"heading": heading, **dict(zip(("text", "references"), text_and_references(text)))}
       for _title, heading, text in entries
     ],
     "previous": neighbour(position - 1),
@@ -1746,7 +1783,7 @@ def search_library(query, match_mode, collection, book_id, page, per_page, sort_
         "unit": unit,
         "unit_title": unit_title,
         "heading": heading,
-        "text": excerpt,
+        "text": STATEMENT_LINK_PIECES.sub("", excerpt),
       })
 
   return {

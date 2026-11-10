@@ -149,6 +149,20 @@ def set_published(kind: str, item_id: str, published: bool) -> dict:
   return {"id": item_id, "is_published": published}
 
 
+def set_credit(kind: str, item_id: str, credit: str) -> dict:
+  """A devotional's or Other book's own credit line, shown instead of "... is in the public domain" (for a
+  text that is not an old public-domain edition); an empty one goes back to that usual line."""
+  if kind not in ("devotional", "book"):
+    raise LibraryProblem("Only a devotional or an Other book has its own credit line.")
+  credit = " ".join(credit.split())
+  if len(credit) > 500:
+    raise LibraryProblem("The credit line can be at most 500 characters.")
+  with connect() as connection:
+    _existing_id(connection, kind, item_id)
+    connection.execute("UPDATE devotionals SET credit = %s WHERE id = %s", (credit or None, item_id))
+  return {"id": item_id, "credit": credit}
+
+
 def delete(kind: str, item_id: str) -> dict:
   """Deletes the text (its notes or readings go with it). Visitors' notes on it stay; a devotional's email
   subscriptions are removed, since there is nothing left to send."""

@@ -6,6 +6,7 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_library.py list --kind=commentary|devotional
     manage_library.py publish|unpublish|delete --kind=... --id=matthew-henry
     manage_library.py refresh --kind=... --id=matthew-henry     (starts reloading from the source, in the background)
+    manage_library.py set-credit --kind=book --id=apostles-creed --credit="..."   (its own credit line; empty for the usual one)
     manage_library.py preview|import FILE --kind=commentary --id=... --name=... --short-name=... \\
         --source-name=... [--source-url=...] [--license-url=...]
     manage_library.py preview|import FILE --kind=devotional --id=... --name=... --author=... \\
@@ -22,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from library_admin import LibraryProblem, delete, list_items, refresh, run_refresh, set_published  # noqa: E402
+from library_admin import LibraryProblem, delete, list_items, refresh, run_refresh, set_credit, set_published  # noqa: E402
 from library_upload import UploadProblem, import_file, preview  # noqa: E402
 
 
@@ -34,6 +35,10 @@ def parse_arguments():
     command.add_argument("--kind", required=True, choices=["commentary", "devotional", "book"])
     if name != "list":
       command.add_argument("--id", required=True)
+  credit = commands.add_parser("set-credit")
+  credit.add_argument("--kind", required=True, choices=["devotional", "book"])
+  credit.add_argument("--id", required=True)
+  credit.add_argument("--credit", required=True)
   for name in ("preview", "import"):
     command = commands.add_parser(name)
     command.add_argument("file")
@@ -66,6 +71,8 @@ def run(arguments) -> dict:
     return {"ok": True, **set_published(kind, arguments.id, command == "publish")}
   if command == "delete":
     return {"ok": True, **delete(kind, arguments.id)}
+  if command == "set-credit":
+    return {"ok": True, **set_credit(kind, arguments.id, arguments.credit)}
   if command == "refresh":
     return {"ok": True, **refresh(kind, arguments.id)}
   path = Path(arguments.file)

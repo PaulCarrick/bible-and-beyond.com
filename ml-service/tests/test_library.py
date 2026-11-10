@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import library_admin
 from commentaries import get_chapter_notes, get_commentaries, get_contents, list_commentaries, search_commentaries
+import devotionals
 from devotionals import get_unit, list_devotionals
 from library_upload import UploadProblem, check_details, import_file, preview, read_commentary_file
 from main import app
@@ -248,3 +249,36 @@ def test_the_known_books_can_be_loaded_from_the_admin():
   items = {item["id"]: item for item in library_admin.list_items("book")}
   assert {"orthodoxy", "confessions-of-augustine", "summa-theologica-part-1"} <= set(items)
   assert all(item["refreshable"] for item in items.values() if item["id"] in ("orthodoxy", "pursuit-of-god"))
+
+
+def test_a_book_can_link_statements_to_verses_and_have_its_own_credit(tmp_path):
+  creed = (
+    "section\tsection_title\tunit\tunit_title\theading\ttext\n"
+    "1\tA Creed\t1\tA Creed\t\t{{I believe in God,|1 Corinthians 8:6}} {{creator of heaven and earth.|Genesis 1:1}}"
+    " See John 3:16. {{Not a verse.|Nowhere 9:9}} Amen.\n"
+  )
+  details = {**CHAPTERS, "id": "test-upload-creed"}
+  import_file("book", write(tmp_path, creed), details)
+  library_admin.set_published("book", "test-upload-creed", True)
+
+  entry = get_unit("test-upload-creed", 1, 1)["entries"][0]
+  assert entry["text"] == "I believe in God, creator of heaven and earth. See John 3:16. Not a verse. Amen."
+  shown = [(entry["text"][start:end], code, *label) for start, end, code, *label in entry["references"]]
+  assert shown == [
+    ("I believe in God,", "46:8:6", "1 Corinthians 8:6"),
+    ("creator of heaven and earth.", "1:1:1", "Genesis 1:1"),
+    ("John 3:16", "43:3:16"),
+  ]
+
+  # The markup never shows in a search excerpt, even where the excerpt cuts a link in two.
+  result = client.get("/search-other-books", params={"query": "creator", "book": "test-upload-creed"}).json()
+  assert "{{" not in result["results"][0]["text"] and "|" not in result["results"][0]["text"]
+  assert devotionals.STATEMENT_LINK_PIECES.sub("", "earth.|Gen…1:1}} {{I believe and was buried;|Luke") == "earth.… I believe and was buried;"
+
+  assert get_unit("test-upload-creed", 1, 1)["devotional"]["credit"] is None
+  library_admin.set_credit("book", "test-upload-creed", "  A modern   wording. ")
+  assert get_unit("test-upload-creed", 1, 1)["devotional"]["credit"] == "A modern wording."
+  library_admin.set_credit("book", "test-upload-creed", "")
+  assert get_unit("test-upload-creed", 1, 1)["devotional"]["credit"] is None
+  with pytest.raises(library_admin.LibraryProblem):
+    library_admin.set_credit("commentary", "test-upload-creed", "x")
