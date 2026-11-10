@@ -46,6 +46,9 @@ class SiteUserForm extends FormBase {
 
   public function buildForm(array $form, FormStateInterface $form_state, ?int $user_id = NULL): array {
     $form['#cache'] = ['max-age' => 0];
+    // Shows the "Confirm password" box from the start (the admin theme hides it until the first box is typed in).
+    $form['#attributes']['class'][] = 'site-user-form';
+    $form['#attached']['library'][] = 'bible_admin/site_user_form';
     $user = NULL;
     if ($user_id !== NULL) {
       try {

@@ -1,0 +1,9 @@
+/*
+ * The Site users form (SiteUserForm.php). Drupal's admin theme hides the "Confirm password" box until
+ * something is typed in the first password box, which looked like a missing field. Here it is always shown.
+ */
+.js .site-user-form .is-initial.is-password-empty.is-confirm-empty:not(.form-item--error) .password-confirm__confirm {
+  display: block;
+  max-block-size: none;
+  margin-block-start: 1rem;
+}

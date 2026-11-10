@@ -1,0 +1,4 @@
+site_user_form:
+  css:
+    component:
+      css/site-user-form.css: {}
