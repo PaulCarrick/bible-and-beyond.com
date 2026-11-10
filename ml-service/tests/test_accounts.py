@@ -89,7 +89,7 @@ def test_the_session_token_is_stored_only_as_a_hash():
   "email, password, confirmation, fragment",
   [
     ("not an email", PASSWORD, PASSWORD, "valid email"),
-    ("a@accounts-test.example", "short", "short", "at least 10"),
+    ("a@accounts-test.example", "short", "short", "at least 8"),
     ("a@accounts-test.example", "x" * 129, "x" * 129, "at most 128"),
     ("a@accounts-test.example", PASSWORD, PASSWORD + "!", "not the same"),
   ],
@@ -134,6 +134,11 @@ def test_an_older_account_without_names_still_logs_in():
   assert response.status_code == 200
   user = response.json()["user"]
   assert (user["first_name"], user["last_name"], user["phone"]) == ("", "", "")
+
+
+def test_eight_characters_are_enough():
+  assert register("seven@accounts-test.example", "1234567", "1234567").status_code == 422
+  assert register("eight@accounts-test.example", "12345678", "12345678").status_code == 200
 
 
 def test_only_the_email_and_password_are_needed():

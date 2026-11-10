@@ -146,13 +146,13 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
               <input
                 type="password"
                 value={password}
-                minLength={needsTwoPasswords ? 10 : undefined}
+                minLength={needsTwoPasswords ? 8 : undefined}
                 maxLength={128}
                 required
                 autoComplete={needsTwoPasswords ? 'new-password' : 'current-password'}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              {needsTwoPasswords && <small>At least 10 characters.</small>}
+              {needsTwoPasswords && <small>At least 8 characters.</small>}
             </label>
           )}
           {needsTwoPasswords && (

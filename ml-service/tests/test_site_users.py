@@ -95,7 +95,7 @@ def test_bad_details_are_refused_and_nothing_is_saved():
   create_user(f"ann@{DOMAIN}", PASSWORD, False, False)
   for email, password, fragment in [
     ("not an address", PASSWORD, "valid email"),
-    (f"bob@{DOMAIN}", "short", "at least 10"),
+    (f"bob@{DOMAIN}", "short", "at least 8"),
     (f"bob@{DOMAIN}", "x" * 129, "at most 128"),
     (f"ANN@{DOMAIN}", PASSWORD, "already exists"),
   ]:
@@ -143,7 +143,7 @@ def test_an_address_used_by_another_account_is_refused():
 
   with pytest.raises(UserProblem, match="Another account"):
     update_user(bob["id"], email=f"ann@{DOMAIN}")
-  with pytest.raises(UserProblem, match="at least 10"):
+  with pytest.raises(UserProblem, match="at least 8"):
     update_user(bob["id"], password="short")
   assert get_user(bob["id"])["email"] == f"bob@{DOMAIN}"
 
@@ -206,7 +206,7 @@ def test_the_tool_reads_the_password_from_its_input_and_answers_in_json():
   assert status == 0 and answer["total"] == 1
 
   status, answer, _ = run_tool("create", f"--email=bob@{DOMAIN}", "--password-on-input", password="short\n")
-  assert status == 1 and answer == {"ok": False, "error": "The password must be at least 10 characters."}
+  assert status == 1 and answer == {"ok": False, "error": "The password must be at least 8 characters."}
 
   status, answer, _ = run_tool("delete", f"--id={user_id}")
   assert status == 0 and answer["user"]["email"] == f"ann@{DOMAIN}"

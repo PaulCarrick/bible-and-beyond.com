@@ -23,7 +23,7 @@ class SiteUserForm extends FormBase {
   /**
    * The same limits as setting up an account on the site (accounts.py).
    */
-  private const PASSWORD_MINIMUM = 10;
+  private const PASSWORD_MINIMUM = 8;
 
   private const PASSWORD_MAXIMUM = 128;
 
@@ -113,6 +113,9 @@ class SiteUserForm extends FormBase {
     $form['password'] = [
       '#type' => 'password_confirm',
       '#title' => $user === NULL ? $this->t('Password') : $this->t('New password'),
+      // The two boxes have their own labels (Password, Confirm password), so the heading above them is only
+      // for screen readers.
+      '#title_display' => 'invisible',
       '#required' => $user === NULL,
       '#size' => 30,
       '#description' => $user === NULL

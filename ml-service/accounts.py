@@ -20,7 +20,8 @@ from site_settings import get_public_settings
 
 logger = logging.getLogger("accounts")
 
-PASSWORD_MINIMUM = 10
+# Kept short on purpose: the owner does not want the site to be fussy about passwords.
+PASSWORD_MINIMUM = 8
 PASSWORD_MAXIMUM = 128
 NAME_LIMIT = 100
 PHONE_LIMIT = 40
