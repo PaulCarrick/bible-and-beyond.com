@@ -11,6 +11,9 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_music.py update --id=amazing-grace             the same details, without a new file
     manage_music.py publish|unpublish|delete --id=amazing-grace
 
+upload and update also take --words=FILE --words-name=words.pdf (the words as a PDF or picture, shown in place
+of the typed words), and update takes --remove-words.
+
 --name is the file's name as uploaded (its .mp3 or .mp4 says what it is). The details are sent on the
 standard input rather than as arguments, because the words can be long.
 """
@@ -30,13 +33,29 @@ def parse_arguments():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("list")
-  for name in ("get", "update", "publish", "unpublish", "delete"):
+  for name in ("get", "publish", "unpublish", "delete"):
     commands.add_parser(name).add_argument("--id", required=True)
+  updating = commands.add_parser("update")
+  updating.add_argument("--id", required=True)
+  updating.add_argument("--remove-words", action="store_true")
   uploading = commands.add_parser("upload")
   uploading.add_argument("file")
   uploading.add_argument("--name", required=True)
   uploading.add_argument("--id", required=True)
+  for command in (updating, uploading):
+    command.add_argument("--words", default=None)
+    command.add_argument("--words-name", default=None)
   return parser.parse_args()
+
+
+def words_file(arguments):
+  """(path, original name) of the words file given, or None."""
+  if not arguments.words:
+    return None
+  path = Path(arguments.words)
+  if not path.is_file():
+    raise MusicProblem("The uploaded words file was not found.")
+  return path, arguments.words_name or path.name
 
 
 def read_details() -> dict:
@@ -62,11 +81,11 @@ def run(arguments) -> dict:
   if arguments.command == "delete":
     return {"ok": True, "song": delete(arguments.id)}
   if arguments.command == "update":
-    return {"ok": True, "song": update_details(arguments.id, read_details())}
+    return {"ok": True, "song": update_details(arguments.id, read_details(), words_file(arguments), arguments.remove_words)}
   path = Path(arguments.file)
   if not path.is_file():
     raise MusicProblem("The uploaded file was not found.")
-  return {"ok": True, "song": upload(path, arguments.name, arguments.id, read_details())}
+  return {"ok": True, "song": upload(path, arguments.name, arguments.id, read_details(), words_file(arguments))}
 
 
 def main():

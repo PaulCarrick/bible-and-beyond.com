@@ -53,12 +53,20 @@ class MusicListController extends ControllerBase {
       if (!$song['file_present']) {
         $status = $this->t('@status. The file is missing from the music folder.', ['@status' => $status]);
       }
+      if ($song['words_kind'] !== NULL && !$song['words_file_present']) {
+        $status = $this->t('@status. The words file is missing from the music folder.', ['@status' => $status]);
+      }
       $rows[] = [
         ['data' => ['#markup' => $this->t('@title<br><small>Link: /music?song=@id</small>', ['@title' => $song['title'], '@id' => $song['id']])]],
         ['data' => ['#plain_text' => $song['author']]],
         ['data' => ['#plain_text' => $song['kind'] === 'video' ? $this->t('Video (MP4)') : $this->t('Sound (MP3)')]],
         ['data' => ['#plain_text' => number_format($song['file_size'] / 1048576, 1) . ' MB']],
-        ['data' => ['#plain_text' => $song['lyrics'] === '' ? $this->t('No') : $this->t('Yes')]],
+        ['data' => ['#plain_text' => match (TRUE) {
+          $song['words_kind'] === 'pdf' => $this->t('PDF'),
+          $song['words_kind'] === 'image' => $this->t('Picture'),
+          $song['lyrics'] !== '' => $this->t('Typed'),
+          default => $this->t('None'),
+        }]],
         ['data' => ['#plain_text' => (string) $status]],
         ['data' => ['#type' => 'operations', '#links' => $links]],
       ];

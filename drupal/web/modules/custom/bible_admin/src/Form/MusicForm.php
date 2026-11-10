@@ -87,10 +87,25 @@ class MusicForm extends FormBase {
     $form['lyrics'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Words'),
-      '#description' => $this->t('Shown under the player, line by line as typed; leave a blank line between verses. Searched by the search page. Optional (for example for music without words).'),
+      '#description' => $this->t('Shown under the player, line by line as typed; leave a blank line between verses. Searched by the search page, even when a words file below is shown instead. Optional (for example for music without words).'),
       '#default_value' => $song['lyrics'] ?? '',
       '#rows' => 16,
     ];
+    $hasWordsFile = !empty($song['words_kind']);
+    $form['words_file'] = [
+      '#type' => 'file',
+      '#title' => $hasWordsFile ? $this->t('A new words file (optional)') : $this->t('The words as a PDF or picture (optional)'),
+      '#description' => ($hasWordsFile
+        ? $this->t('This song shows its words from a @kind. Leave this empty to keep it, or choose another to replace it.', ['@kind' => $song['words_kind'] === 'pdf' ? 'PDF' : $this->t('picture')])
+        : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 20 MB. When there is one, the music page shows it in place of the words typed above.')),
+      '#attributes' => ['accept' => '.pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif'],
+    ];
+    if ($hasWordsFile) {
+      $form['remove_words'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Remove the words file (the typed words are shown again)'),
+      ];
+    }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $song === NULL ? $this->t('Upload the song') : $this->t('Save')];
@@ -121,6 +136,18 @@ class MusicForm extends FormBase {
     elseif ($file->getSize() > BibleManager::MAX_MUSIC_BYTES) {
       $form_state->setErrorByName('upload_file', $this->t('The file is larger than @size MB.', ['@size' => (int) (BibleManager::MAX_MUSIC_BYTES / 1048576)]));
     }
+    $words = $this->uploadedFile('words_file');
+    if ($words !== NULL) {
+      if (!$words->isValid()) {
+        $form_state->setErrorByName('words_file', $this->t('The words file could not be uploaded: @reason', ['@reason' => $words->getErrorMessage()]));
+      }
+      elseif (!in_array(strtolower($words->getClientOriginalExtension()), ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif'], TRUE)) {
+        $form_state->setErrorByName('words_file', $this->t('The words file must be a PDF or a picture (.png, .jpg, .webp or .gif).'));
+      }
+      elseif ($words->getSize() > 20 * 1048576) {
+        $form_state->setErrorByName('words_file', $this->t('The words file is larger than 20 MB.'));
+      }
+    }
     if ($isNew && !preg_match(self::ID_PATTERN, strtolower(trim((string) $form_state->getValue('id'))))) {
       $form_state->setErrorByName('id', $this->t('The id must be 3 to 50 lowercase letters, digits and hyphens.'));
     }
@@ -133,11 +160,14 @@ class MusicForm extends FormBase {
       'author' => trim((string) $form_state->getValue('author')),
       'lyrics' => (string) $form_state->getValue('lyrics'),
     ];
-    $file = $this->uploadedFile();
     try {
-      $song = $file !== NULL
-        ? $this->manager->uploadMusic($file, $songId, $details)
-        : $this->manager->updateMusic($songId, $details);
+      $song = $this->manager->saveMusic(
+        $songId,
+        $details,
+        $this->uploadedFile(),
+        $this->uploadedFile('words_file'),
+        (bool) $form_state->getValue('remove_words'),
+      );
     }
     catch (BibleManagerException $exception) {
       // Stay on the form, with what was typed, so it can be corrected (the file has to be chosen again).
@@ -151,9 +181,9 @@ class MusicForm extends FormBase {
     $form_state->setRedirect('bible_admin.music');
   }
 
-  private function uploadedFile(): ?UploadedFile {
+  private function uploadedFile(string $field = 'upload_file'): ?UploadedFile {
     $files = $this->getRequest()->files->get('files');
-    $file = is_array($files) ? ($files['upload_file'] ?? NULL) : NULL;
+    $file = is_array($files) ? ($files[$field] ?? NULL) : NULL;
     return $file instanceof UploadedFile ? $file : NULL;
   }
 

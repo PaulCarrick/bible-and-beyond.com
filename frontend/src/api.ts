@@ -304,8 +304,10 @@ export interface MusicSong {
   lyrics: string
   kind: 'audio' | 'video'
   media_type: string
-  // Changes when the file is replaced, so the address below asks for the new one.
+  // Changes when a file is replaced, so the addresses below ask for the new one.
   version: number
+  // The words as a file (a PDF or a picture), shown in place of the typed words; null when there is none.
+  words_kind: 'pdf' | 'image' | null
 }
 
 export interface MusicSearchResult {
@@ -332,6 +334,11 @@ export async function fetchMusic(): Promise<MusicSong[]> {
 // Where the player gets a song's file (the server sends it in parts, so the player can skip about).
 export function musicFileAddress(song: MusicSong): string {
   return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/file?v=${song.version}`
+}
+
+// Where the page gets a song's words file (a PDF or a picture).
+export function musicWordsAddress(song: MusicSong): string {
+  return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/words?v=${song.version}`
 }
 
 export async function searchMusic(

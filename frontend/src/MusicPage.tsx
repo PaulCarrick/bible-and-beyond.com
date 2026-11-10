@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { musicFileAddress } from './api'
+import { musicFileAddress, musicWordsAddress } from './api'
 import type { MusicSong } from './api'
 import MusicLicenceNote from './MusicLicenceNote'
 
@@ -11,7 +11,7 @@ interface MusicPageProps {
 }
 
 // The Christian music section: one closed section per published song (its title and author), which opens to
-// its player and its words, so a long list stays short. A link to a song opens its section. The players load
+// its player and its words (a PDF or picture of them when there is one, else the typed words), so a long list stays short. A link to a song opens its section. The players load
 // nothing until a visitor presses play (preload none), so a long list costs no requests. Starting one pauses
 // the others, and closing a section stops its song. The page stays mounted, so a song playing goes on while
 // another page is open, except a video, which is paused when the page is left (it could not be seen).
@@ -82,7 +82,20 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                   Your browser cannot play this recording.
                 </audio>
               )}
-              {song.lyrics && (
+              {/* The words file when there is one (it loads only once the song is opened), else the typed words. */}
+              {song.words_kind === 'image' && (
+                <img className="music-words-image" src={musicWordsAddress(song)} alt={`The words of ${song.title}`} loading="lazy" />
+              )}
+              {song.words_kind === 'pdf' && (
+                <div className="music-words-pdf">
+                  <iframe src={musicWordsAddress(song)} title={`The words of ${song.title} (PDF)`} loading="lazy" />
+                  {/* Some phones cannot show a PDF inside a page. */}
+                  <a href={musicWordsAddress(song)} target="_blank" rel="noopener">
+                    Open the words (PDF) in a new tab
+                  </a>
+                </div>
+              )}
+              {!song.words_kind && song.lyrics && (
                 <div className="music-lyrics">
                   {song.lyrics.split(/\n{2,}/).map((verse, index) => (
                     <p key={index}>{verse}</p>

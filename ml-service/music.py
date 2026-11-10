@@ -1,5 +1,9 @@
 """The Christian music section: songs with an MP3 or MP4 file, a title, an author and the words.
 
+The words can also be given as a PDF or a picture (a scan of the hymnal page, say), kept beside the song as
+"<id>-words.pdf" (or .png, .jpg, .webp, .gif); the music page then shows that file in place of the typed words,
+which stay for the search.
+
 The files are kept in the music folder set on the Drupal Site settings screen (service_settings
 "music_folder"; ml-service/data/music until it is set), named after the song's id ("amazing-grace.mp4"), and
 never in the database; the music_tracks table (migration 023) holds the rest. The site serves the files
@@ -26,6 +30,12 @@ AUTHOR_LIMIT = 200
 LYRICS_LIMIT = 20_000
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
 MEDIA_TYPES = {".mp3": "audio/mpeg", ".mp4": "video/mp4"}
+MAX_WORDS_BYTES = 20 * 1024 * 1024
+# The words file: a PDF or a picture (no SVG: it can carry scripts). .jpeg is kept as .jpg.
+WORDS_TYPES = {
+  ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".webp": "image/webp", ".gif": "image/gif",
+}
 CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -63,6 +73,45 @@ def check_file(path: Path, original_name: str) -> str:
   return MEDIA_TYPES[extension]
 
 
+def check_words_file(path: Path, original_name: str) -> tuple[str, str]:
+  """(media type, extension) of a words file, after checking it is a real PDF or picture of a size the site takes."""
+  extension = Path(original_name).suffix.lower()
+  if extension not in WORDS_TYPES:
+    raise MusicProblem("The words file must be a PDF (.pdf) or a picture (.png, .jpg, .webp or .gif).")
+  size = path.stat().st_size
+  if size == 0:
+    raise MusicProblem("The words file is empty.")
+  if size > MAX_WORDS_BYTES:
+    raise MusicProblem(f"The words file is larger than {MAX_WORDS_BYTES // (1024 * 1024)} MB.")
+  with open(path, "rb") as file:
+    start = file.read(12)
+  looks_right = {
+    ".pdf": start.startswith(b"%PDF-"),
+    ".png": start.startswith(b"\x89PNG\r\n\x1a\n"),
+    ".jpg": start.startswith(b"\xff\xd8\xff"),
+    ".jpeg": start.startswith(b"\xff\xd8\xff"),
+    ".webp": start[:4] == b"RIFF" and start[8:12] == b"WEBP",
+    ".gif": start[:6] in (b"GIF87a", b"GIF89a"),
+  }[extension]
+  if not looks_right:
+    raise MusicProblem(f"The words file is not a real {extension[1:].upper()} file (its contents do not match its name).")
+  return WORDS_TYPES[extension], ".jpg" if extension == ".jpeg" else extension
+
+
+def _store(path: Path, file_name: str) -> None:
+  """Copies a file into the music folder under a temporary name, then renames it, so a failed copy never
+  leaves half a file in place."""
+  folder = music_folder()
+  try:
+    folder.mkdir(parents=True, exist_ok=True)
+    temporary = folder / f".{file_name}.new"
+    shutil.copyfile(path, temporary)
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, folder / file_name)
+  except OSError as error:
+    raise MusicProblem(f"The file could not be saved in the music folder ({folder}): {error.strerror}.") from error
+
+
 def check_details(details: dict) -> dict:
   """The title, author and words as typed, cleaned; raises MusicProblem when one is wrong."""
   def one_line(value) -> str:
@@ -90,11 +139,15 @@ def check_id(song_id: str) -> str:
   return song_id
 
 
-COLUMNS = "id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at"
+COLUMNS = (
+  "id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at, "
+  "words_file_name, words_media_type"
+)
 
 
 def _describe(row, with_file_check: bool = False) -> dict:
-  song_id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at = row
+  (song_id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at,
+   words_file_name, words_media_type) = row
   song = {
     "id": song_id,
     "title": title,
@@ -106,12 +159,16 @@ def _describe(row, with_file_check: bool = False) -> dict:
     "is_published": is_published,
     "created_at": created_at.isoformat(),
     "updated_at": updated_at.isoformat(),
-    # Changes when the file is replaced, so the page can ask for the new one (the file is cached for a month).
+    # Changes when a file is replaced, so the page can ask for the new one (the files are cached for a month).
     "version": int(updated_at.timestamp()),
+    # The words as a file: "pdf" or "image", shown in place of the typed words; None when there is none.
+    "words_kind": None if words_media_type is None else ("pdf" if words_media_type == "application/pdf" else "image"),
   }
   if with_file_check:
     song["file_name"] = file_name
     song["file_present"] = file_path(file_name).is_file()
+    song["words_file_name"] = words_file_name
+    song["words_file_present"] = words_file_name is not None and file_path(words_file_name).is_file()
   return song
 
 
@@ -142,26 +199,53 @@ def song_file(song_id: str) -> tuple[Path, str] | None:
   return (path, row[1]) if path.is_file() else None
 
 
-def upload(path: Path, original_name: str, song_id: str, details: dict) -> dict:
+def song_words_file(song_id: str) -> tuple[Path, str] | None:
+  """The words file (PDF or picture) of a published song and its media type, or None."""
+  with connect() as connection:
+    row = connection.execute(
+      "SELECT words_file_name, words_media_type FROM music_tracks WHERE id = %s AND is_published AND words_file_name IS NOT NULL",
+      (song_id,),
+    ).fetchone()
+  if row is None:
+    return None
+  path = file_path(row[0])
+  return (path, row[1]) if path.is_file() else None
+
+
+def _change_words(song_id: str, words: tuple[Path, str] | None, remove_words: bool) -> None:
+  """Puts a new words file in place of the old one, or removes it. Does nothing when neither is asked."""
+  if words is None and not remove_words:
+    return
+  new_name, new_type = None, None
+  if words is not None:
+    new_type, extension = check_words_file(*words)
+    new_name = f"{song_id}-words{extension}"
+    _store(words[0], new_name)
+  with connect() as connection:
+    old = connection.execute("SELECT words_file_name FROM music_tracks WHERE id = %s", (song_id,)).fetchone()
+    connection.execute(
+      "UPDATE music_tracks SET words_file_name = %s, words_media_type = %s, updated_at = now() WHERE id = %s",
+      (new_name, new_type, song_id),
+    )
+  if old and old[0] and old[0] != new_name:
+    file_path(old[0]).unlink(missing_ok=True)
+
+
+def upload(path: Path, original_name: str, song_id: str, details: dict, words: tuple[Path, str] | None = None) -> dict:
   """Saves a song: its file into the music folder and its details into the table.
 
   A new song is hidden until published; one already there keeps its state and gets the new file and details.
-  The file is copied under a temporary name first, so a failed copy never leaves half a file in place.
+  words, when given, is (path, original name) of a PDF or picture of the words (see _change_words); a words
+  file already there is kept otherwise.
   """
   song_id = check_id(song_id)
   media_type = check_file(path, original_name)
   checked = check_details(details)
+  if words is not None:
+    check_words_file(*words)
   file_name = song_id + Path(original_name).suffix.lower()
-  folder = music_folder()
-  try:
-    folder.mkdir(parents=True, exist_ok=True)
-    temporary = folder / f".{file_name}.new"
-    shutil.copyfile(path, temporary)
-    os.chmod(temporary, 0o644)
-    os.replace(temporary, folder / file_name)
-  except OSError as error:
-    raise MusicProblem(f"The file could not be saved in the music folder ({folder}): {error.strerror}.") from error
-  size = (folder / file_name).stat().st_size
+  _store(path, file_name)
+  size = file_path(file_name).stat().st_size
   with connect() as connection:
     old = connection.execute("SELECT file_name FROM music_tracks WHERE id = %s", (song_id,)).fetchone()
     row = connection.execute(
@@ -178,12 +262,18 @@ def upload(path: Path, original_name: str, song_id: str, details: dict) -> dict:
   # An MP3 replaced by an MP4 (or the other way round) leaves the old file behind; remove it.
   if old and old[0] != file_name:
     file_path(old[0]).unlink(missing_ok=True)
+  if words is not None:
+    _change_words(song_id, words, False)
+    return get_song(song_id, published_only=False)
   return _describe(row, with_file_check=True)
 
 
-def update_details(song_id: str, details: dict) -> dict:
-  """Changes a song's title, author and words; the file stays."""
+def update_details(song_id: str, details: dict, words: tuple[Path, str] | None = None, remove_words: bool = False) -> dict:
+  """Changes a song's title, author and words, and its words file when one is given or removed; the song's
+  own file stays."""
   checked = check_details(details)
+  if words is not None:
+    check_words_file(*words)
   with connect() as connection:
     row = connection.execute(
       f"UPDATE music_tracks SET title = %s, author = %s, lyrics = %s, updated_at = now() WHERE id = %s RETURNING {COLUMNS}",
@@ -191,6 +281,9 @@ def update_details(song_id: str, details: dict) -> dict:
     ).fetchone()
   if row is None:
     raise MusicProblem("That song does not exist (it may have been deleted).")
+  if words is not None or remove_words:
+    _change_words(song_id, words, remove_words)
+    return get_song(song_id, published_only=False)
   return _describe(row, with_file_check=True)
 
 
@@ -205,13 +298,15 @@ def set_published(song_id: str, published: bool) -> dict:
 
 
 def delete(song_id: str) -> dict:
-  """Deletes a song and its file."""
+  """Deletes a song, its file and its words file."""
   with connect() as connection:
     row = connection.execute(f"DELETE FROM music_tracks WHERE id = %s RETURNING {COLUMNS}", (song_id,)).fetchone()
   if row is None:
     raise MusicProblem("That song does not exist (it may have been deleted).")
   song = _describe(row, with_file_check=True)
   file_path(song["file_name"]).unlink(missing_ok=True)
+  if song["words_file_name"]:
+    file_path(song["words_file_name"]).unlink(missing_ok=True)
   return song
 
 

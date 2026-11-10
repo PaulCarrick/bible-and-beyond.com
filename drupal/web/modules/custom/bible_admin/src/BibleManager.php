@@ -340,39 +340,45 @@ class BibleManager {
   }
 
   /**
-   * Saves a song's file into the music folder with its details. The file waits in the private upload
-   * folder only while the tool copies it, and is removed afterwards whatever happens.
+   * Saves a song: a new song or a new file for one ($file), else only its details, and its words file (a PDF
+   * or picture shown in place of the typed words) when one is given or removed. The uploaded files wait in
+   * the private upload folder only while the tool copies them, and are removed afterwards whatever happens.
    *
    * @param array $details
    *   title, author and lyrics, sent on the tool's input (the words can be long).
    */
-  public function uploadMusic(UploadedFile $file, string $songId, array $details): array {
-    $extension = strtolower($file->getClientOriginalExtension());
+  public function saveMusic(string $songId, array $details, ?UploadedFile $file, ?UploadedFile $wordsFile = NULL, bool $removeWords = FALSE): array {
     $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
     if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
       throw new BibleManagerException('The upload could not be saved.');
     }
     try {
-      $file->move($directory, 'upload.' . $extension);
-      $song = $this->run(
-        ['upload', $directory . '/upload.' . $extension, '--name=upload.' . $extension, '--id=' . $songId],
-        'manage_music.py',
-        json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
-      )['song'];
+      $arguments = $file !== NULL ? ['upload'] : ['update', '--id=' . $songId];
+      if ($file !== NULL) {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $file->move($directory, 'upload.' . $extension);
+        $arguments = ['upload', $directory . '/upload.' . $extension, '--name=upload.' . $extension, '--id=' . $songId];
+      }
+      if ($wordsFile !== NULL) {
+        $extension = strtolower($wordsFile->getClientOriginalExtension());
+        $wordsFile->move($directory, 'words.' . $extension);
+        $arguments[] = '--words=' . $directory . '/words.' . $extension;
+        $arguments[] = '--words-name=words.' . $extension;
+      }
+      elseif ($removeWords && $file === NULL) {
+        $arguments[] = '--remove-words';
+      }
+      $input = json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+      $song = $this->run($arguments, 'manage_music.py', $input)['song'];
+      // A new song file with its words file removed: upload keeps the words file, so remove it next.
+      if ($file !== NULL && $wordsFile === NULL && $removeWords) {
+        $song = $this->run(['update', '--id=' . $songId, '--remove-words'], 'manage_music.py', $input)['song'];
+      }
     }
     finally {
       $this->fileSystem->deleteRecursive($directory);
     }
-    $this->logMusic('uploaded', $song);
-    return $song;
-  }
-
-  /**
-   * Changes a song's title, author and words; the file stays.
-   */
-  public function updateMusic(string $songId, array $details): array {
-    $song = $this->run(['update', '--id=' . $songId], 'manage_music.py', json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE))['song'];
-    $this->logMusic('changed', $song);
+    $this->logMusic($file !== NULL ? 'uploaded' : 'changed', $song);
     return $song;
   }
 

@@ -48,7 +48,7 @@ from contact import (
 )
 from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
 from faq_notes import owner_note_or_nothing
-from music import list_songs, search_music, song_file
+from music import list_songs, search_music, song_file, song_words_file
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -475,6 +475,19 @@ def music_file(song_id: str):
     raise HTTPException(status_code=404, detail="That song was not found.")
   path, media_type = found
   return FileResponse(path, media_type=media_type, headers={"Cache-Control": "public, max-age=2592000"})
+
+
+@app.get("/music/{song_id}/words")
+def music_words_file(song_id: str):
+  """A published song's words as a PDF or picture, shown on the music page in place of the typed words."""
+  found = song_words_file(song_id)
+  if found is None:
+    raise HTTPException(status_code=404, detail="That song has no words file.")
+  path, media_type = found
+  return FileResponse(
+    path, media_type=media_type,
+    headers={"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"},
+  )
 
 
 @app.get("/search-music")

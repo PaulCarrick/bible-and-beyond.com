@@ -2184,3 +2184,28 @@ select:disabled {
 .music-licence {
   margin-top: 1.5rem;
 }
+
+/* A song's words as a picture or a PDF, in place of the typed words. */
+.music-words-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+}
+
+.music-words-pdf {
+  margin-top: 1rem;
+}
+
+.music-words-pdf iframe {
+  display: block;
+  width: 100%;
+  height: 75vh;
+  border: 1px solid var(--border);
+}
+
+.music-words-pdf a {
+  display: inline-block;
+  margin-top: 0.4rem;
+}

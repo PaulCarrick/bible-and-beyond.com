@@ -128,3 +128,44 @@ def test_the_music_folder_setting_must_be_a_full_path_it_can_write_to(tmp_path, 
   described = service_settings.save({"music_folder": str(new_folder) + "/"}, [])
   assert described["settings"]["music_folder"]["value"] == str(new_folder) and new_folder.is_dir()
   assert music.music_folder() == new_folder
+
+
+PDF = b"%PDF-1.4\n" + b"0" * 500
+PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 500
+JPEG = b"\xff\xd8\xff\xe0" + b"0" * 500
+
+
+def test_the_words_can_be_a_pdf_or_a_picture_shown_in_place_of_the_text(tmp_path, folder):
+  song = music.upload(write(tmp_path, "a", MP4), "a.mp4", "test-music-words", DETAILS, (write(tmp_path, "w", PDF), "Words.PDF"))
+  assert song["words_kind"] == "pdf" and song["words_file_present"] is True and song["lyrics"]
+  assert (folder / "test-music-words-words.pdf").read_bytes() == PDF
+  assert client.get("/music/test-music-words/words").status_code == 404  # hidden
+
+  music.set_published("test-music-words", True)
+  listed = [entry for entry in client.get("/music").json() if entry["id"] == "test-music-words"][0]
+  assert listed["words_kind"] == "pdf" and "words_file_name" not in listed
+  served = client.get("/music/test-music-words/words")
+  assert served.status_code == 200 and served.content == PDF and served.headers["content-type"] == "application/pdf"
+
+  # A picture replaces the PDF (the old file goes); a JPEG named .jpeg is kept as .jpg.
+  changed = music.update_details("test-music-words", DETAILS, (write(tmp_path, "j", JPEG), "scan.jpeg"))
+  assert changed["words_kind"] == "image" and changed["words_file_name"] == "test-music-words-words.jpg"
+  assert not (folder / "test-music-words-words.pdf").exists()
+  assert client.get("/music/test-music-words/words").headers["content-type"] == "image/jpeg"
+
+  # Uploading the song again without a words file keeps it; removing it brings back the typed words.
+  assert music.upload(write(tmp_path, "b", MP4), "b.mp4", "test-music-words", DETAILS)["words_kind"] == "image"
+  removed = music.update_details("test-music-words", DETAILS, remove_words=True)
+  assert removed["words_kind"] is None and not (folder / "test-music-words-words.jpg").exists()
+
+  music.update_details("test-music-words", DETAILS, (write(tmp_path, "p", PNG), "page.png"))
+  music.delete("test-music-words")
+  assert list(folder.iterdir()) == []
+
+
+def test_a_wrong_words_file_is_refused_and_nothing_is_saved(tmp_path, folder):
+  with pytest.raises(music.MusicProblem, match="PDF"):
+    music.upload(write(tmp_path, "a", MP4), "a.mp4", "test-music-bad", DETAILS, (write(tmp_path, "s", b"<svg/>"), "words.svg"))
+  with pytest.raises(music.MusicProblem, match="not a real PNG"):
+    music.upload(write(tmp_path, "b", MP4), "b.mp4", "test-music-bad", DETAILS, (write(tmp_path, "f", PDF), "words.png"))
+  assert music.get_song("test-music-bad", published_only=False) is None and not folder.exists() or list(folder.iterdir()) == []
