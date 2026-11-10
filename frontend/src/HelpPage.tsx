@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { fetchCopyrights } from './api'
+import MusicLicenceNote from './MusicLicenceNote'
 import type { Copyright, Translation } from './types'
 import type { View } from './views'
 
@@ -442,6 +443,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           <p>
             <PageLink onNavigate={onNavigate} view="searchMusic">Search the music</PageLink> finds a song by its title, its author or its
             words, and <em>Play this song</em> on a result takes you to it.
+          </p>
+          <p>
+            <MusicLicenceNote />
           </p>
         </section>
       )}

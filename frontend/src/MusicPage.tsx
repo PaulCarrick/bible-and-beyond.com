@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { musicFileAddress } from './api'
 import type { MusicSong } from './api'
+import MusicLicenceNote from './MusicLicenceNote'
 
 interface MusicPageProps {
   songs: MusicSong[]
@@ -92,6 +93,9 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </details>
         ))}
       </div>
+      <p className="related-note music-licence">
+        <MusicLicenceNote />
+      </p>
     </div>
   )
 }
