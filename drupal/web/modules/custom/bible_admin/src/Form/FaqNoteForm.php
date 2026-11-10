@@ -110,7 +110,13 @@ class FaqNoteForm extends FormBase {
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $note === NULL ? $this->t('Add the note') : $this->t('Save')];
-    $form['actions']['cancel'] = ['#type' => 'link', '#title' => $this->t('Cancel'), '#url' => Url::fromRoute('bible_admin.faq_notes')];
+    // A link drawn as a button (the admin theme's "button" class), so it sits beside Save and looks like it.
+    $form['actions']['cancel'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Cancel'),
+      '#url' => Url::fromRoute('bible_admin.faq_notes'),
+      '#attributes' => ['class' => ['button']],
+    ];
     return $form;
   }
 
