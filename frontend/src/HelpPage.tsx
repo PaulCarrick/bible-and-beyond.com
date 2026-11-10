@@ -435,8 +435,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <section id="help-music" tabIndex={-1} className="help-section">
           <h2>Christian music</h2>
           <p>
-            <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs, each with its player and its
-            words underneath. Press play on one; starting another pauses the first. A recording keeps playing while
+            <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs by title. Open one (click its
+            title) to see its player and its words; press play. Starting another pauses the first, and closing a song stops it. A recording keeps playing while
             you read another page of the site (a video pauses, since it could not be seen).
           </p>
           <p>

@@ -2097,32 +2097,62 @@ select:disabled {
   pointer-events: none;
 }
 
-/* The Christian music section (MusicPage.tsx): each song with its player and its words. */
-.music-contents {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 1.2rem;
-  margin: 1rem 0 0.5rem;
+/* The Christian music section (MusicPage.tsx): one closed section per song, which opens to its player and
+   its words. */
+.music-list {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
 }
 
 .music-song {
-  margin-top: 2rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   scroll-margin-top: 1rem;
 }
 
-.music-song:focus {
-  outline: none;
+.music-song summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+  padding: 0.85rem 0.25rem;
+  cursor: pointer;
 }
 
-.music-song h2 {
-  margin: 0 0 0.25rem;
+.music-song summary:hover .music-title {
+  text-decoration: underline;
+}
+
+/* The flex layout hides the browser's own marker, so the arrow is drawn here; it turns down when open. */
+.music-song summary::-webkit-details-marker {
+  display: none;
+}
+
+.music-song summary::before {
+  content: '▶';
+  display: inline-block;
+  width: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-h);
+  transition: transform 0.15s;
+}
+
+.music-song[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.music-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-h);
 }
 
 .music-author {
-  margin: 0 0 0.75rem;
   color: var(--text);
+  font-size: 0.95rem;
+}
+
+.music-body {
+  padding: 0 0.25rem 1.25rem;
 }
 
 .music-video {
