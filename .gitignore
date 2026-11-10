@@ -51,6 +51,7 @@ ml-service/data/stepbible/
 ml-service/data/bsb_tables.tsv
 ml-service/data/commentaries/
 ml-service/data/devotionals/
+ml-service/data/music/
 
 # The production snapshot for the containers (personal data: accounts, notes, the email password; never commit)
 docker/snapshot/

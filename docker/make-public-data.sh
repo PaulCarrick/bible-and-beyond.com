@@ -21,8 +21,9 @@ mkdir -p "$output_directory"
 personal_tables=(users user_sessions account_tokens notes devotional_subscriptions)
 # Fetched by each site from the owners (docker/web/fetch-owner-data.sh), never shipped.
 owner_tables=(original_words lexicon_entries devotionals devotional_sections devotional_entries)
-# This site's own stored FAQ answers from Gemini: each site makes its own with its own key.
-site_tables=(faq_answers)
+# This site's own stored FAQ answers from Gemini (each site makes its own with its own key), and its songs:
+# their files are in the music folder, not the database, and the recordings may not be ours to pass on.
+site_tables=(faq_answers music_tracks)
 # Commentaries whose owner (CCEL) asks not to be redistributed: their rows are taken out of the commentary
 # tables below, and each site fetches them itself.
 owner_commentaries=(wesley-notes)

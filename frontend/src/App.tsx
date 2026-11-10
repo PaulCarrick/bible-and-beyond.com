@@ -5,12 +5,14 @@ import {
   fetchCommentarySources,
   fetchCurrentUser,
   fetchDevotionals,
+  fetchMusic,
   fetchOtherBooks,
   fetchSiteSettings,
   fetchTranslations,
   logOut,
   resendVerification,
 } from './api'
+import type { MusicSong } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
@@ -22,6 +24,8 @@ import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
 import BookSearchPage from './BookSearchPage'
+import MusicPage from './MusicPage'
+import MusicSearchPage from './MusicSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import DevotionalsTab from './DevotionalsTab'
@@ -77,6 +81,14 @@ function App() {
     }
     return { id: Date.now(), kind: 'devotional', devotional: book, section: -1, unit: -1, onlyIfFound: true }
   })
+  // The song a /music?song=amazing-grace address names, shown when the music page opens (read here, before the
+  // address is tidied to /music). The search page's "Play this song" sets it too, with a new key each time.
+  const [musicFocus, setMusicFocus] = useState<{ id: string; key: number } | null>(() => {
+    const song = new URLSearchParams(window.location.search).get('song') ?? ''
+    return viewForAddress(window.location.pathname) === 'music' && /^[a-z0-9-]{3,50}$/.test(song) ? { id: song, key: Date.now() } : null
+  })
+  // The published songs of the Christian music section; its sidebar group shows only when there are some.
+  const [songs, setSongs] = useState<MusicSong[]>([])
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
@@ -133,6 +145,9 @@ function App() {
     fetchOtherBooks()
       .then(setOtherBooks)
       .catch(() => setOtherBooks([]))
+    fetchMusic()
+      .then(setSongs)
+      .catch(() => setSongs([]))
   }, [])
 
   // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
@@ -264,6 +279,17 @@ function App() {
           },
         ]
       : []),
+    ...(songs.length > 0
+      ? [
+          {
+            heading: 'Christian music',
+            entries: [
+              { view: 'music' as View, label: 'Listen to the music' },
+              { view: 'searchMusic' as View, label: 'Search the music' },
+            ],
+          },
+        ]
+      : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
     {
@@ -312,6 +338,7 @@ function App() {
                   commentaries={commentaries}
                   devotionals={devotionals}
                   otherBooks={otherBooks}
+                  songs={songs}
                   onNavigate={navigate}
                 />
               )}
@@ -360,7 +387,7 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
-              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} />}
+              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} />}
               {activeView === 'copyright' && (
                 <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />
               )}
@@ -419,6 +446,18 @@ function App() {
                     navigate('books')
                   }}
                 />
+              )}
+              {songs.length > 0 && (
+                <>
+                  <MusicPage songs={songs} isHidden={activeView !== 'music'} focus={musicFocus} />
+                  <MusicSearchPage
+                    isHidden={activeView !== 'searchMusic'}
+                    onOpen={(songId) => {
+                      setMusicFocus({ id: songId, key: Date.now() })
+                      navigate('music')
+                    }}
+                  />
+                </>
               )}
             </main>
 

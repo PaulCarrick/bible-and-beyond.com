@@ -4,7 +4,7 @@ from typing import Literal
 
 import psycopg
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -48,6 +48,7 @@ from contact import (
 )
 from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
 from faq_notes import owner_note_or_nothing
+from music import list_songs, search_music, song_file
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -457,6 +458,36 @@ def other_books():
   """The published Other books (read a chapter at a time). Their chapters come from /devotional-contents and
   /devotional-unit, like a devotional's."""
   return list_other_books()
+
+
+@app.get("/music")
+def music():
+  """The published songs of the Christian music section, by title, with their words."""
+  return list_songs()
+
+
+@app.get("/music/{song_id}/file")
+def music_file(song_id: str):
+  """A published song's MP3 or MP4. The player asks for parts of it (Range requests), so it can seek.
+  Cached for a month: the page adds ?v= with the song's version, which changes when the file is replaced."""
+  found = song_file(song_id)
+  if found is None:
+    raise HTTPException(status_code=404, detail="That song was not found.")
+  path, media_type = found
+  return FileResponse(path, media_type=media_type, headers={"Cache-Control": "public, max-age=2592000"})
+
+
+@app.get("/search-music")
+def search_the_music(
+  query: str = Query(min_length=1, max_length=500),
+  match_mode: Literal["all", "any", "phrase"] = "all",
+  page: int = Query(default=1, ge=1, le=1000),
+  per_page: int = Query(default=25, ge=1, le=100),
+):
+  try:
+    return search_music(query, match_mode, page, per_page)
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get("/devotional-contents")

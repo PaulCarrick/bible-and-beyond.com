@@ -163,3 +163,39 @@ bible_admin.faq_note_delete:
   requirements:
     _permission: 'administer faq notes'
     note_id: '\d+'
+
+# The Christian music section: songs with an MP3 or MP4 file, open to whoever may administer the Bibles.
+bible_admin.music:
+  path: '/admin/music'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\MusicListController::build'
+    _title: 'Christian music'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.music_upload:
+  path: '/admin/music/upload'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MusicForm'
+    _title: 'Upload a song'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.music_edit:
+  path: '/admin/music/{song_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MusicForm'
+    _title: 'Edit a song'
+  requirements:
+    _permission: 'administer bibles'
+    song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+bible_admin.music_change:
+  path: '/admin/music/{action}/{song_id}'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ChangeMusicForm'
+    _title: 'Change a song'
+  requirements:
+    _permission: 'administer bibles'
+    action: 'publish|unpublish|delete'
+    song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'

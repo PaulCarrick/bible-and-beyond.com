@@ -1,4 +1,5 @@
-"""The keys and options of the outside services the site uses (Gemini, API.Bible, reCAPTCHA).
+"""The keys and options of the outside services the site uses (Gemini, API.Bible, reCAPTCHA), and the
+folder the Christian music files are kept in.
 
 They are set on the Drupal "Site settings" screen and kept in a private file next to the code
 (data/service_settings.json, mode 600, git-ignored), never in a database, so they stay out of the
@@ -27,6 +28,9 @@ SETTINGS = {
   "recaptcha_site_key": ("RECAPTCHA_SITE_KEY", False, "text", ""),
   "recaptcha_secret_key": ("RECAPTCHA_SECRET_KEY", True, "text", ""),
   "recaptcha_minimum_score": ("RECAPTCHA_MINIMUM_SCORE", False, "score", "0.5"),
+  # Where the MP3 and MP4 files of the Christian music section are kept (music.py). It can be moved to a
+  # bigger volume: copy the files there, then change it.
+  "music_folder": ("MUSIC_FOLDER", False, "folder", str(Path(__file__).resolve().parent / "data" / "music")),
 }
 
 TEXT_LIMIT = 500
@@ -108,6 +112,17 @@ def _checked(name: str, value: str) -> str:
     raise ServiceSettingsProblem("The API.Bible address must start with https://, such as https://rest.api.bible.")
   if kind == "count" and (not value.isdigit() or int(value) > COUNT_LIMIT):
     raise ServiceSettingsProblem(f"The API.Bible monthly limit must be a whole number from 0 to {COUNT_LIMIT}.")
+  if kind == "folder":
+    value = value.rstrip("/") or "/"
+    if not value.startswith("/") or "\\" in value:
+      raise ServiceSettingsProblem("The music folder must be a full path on the server, starting with /, such as /mnt/music.")
+    folder = Path(value)
+    try:
+      folder.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+      raise ServiceSettingsProblem(f"The music folder {value} could not be made: {error.strerror}.") from error
+    if not folder.is_dir() or not os.access(folder, os.W_OK | os.X_OK):
+      raise ServiceSettingsProblem(f"The music folder {value} cannot be written to by the site.")
   if kind == "score":
     try:
       score = float(value)

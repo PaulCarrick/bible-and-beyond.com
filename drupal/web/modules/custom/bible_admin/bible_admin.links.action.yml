@@ -21,3 +21,9 @@ bible_admin.faq_note_add_action:
   title: 'Add a note'
   appears_on:
     - bible_admin.faq_notes
+
+bible_admin.music_upload_action:
+  route_name: bible_admin.music_upload
+  title: 'Upload a song'
+  appears_on:
+    - bible_admin.music

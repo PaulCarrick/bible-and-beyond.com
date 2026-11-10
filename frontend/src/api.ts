@@ -295,6 +295,58 @@ export interface BookSearchResponse {
   results: BookSearchResult[]
 }
 
+// A song of the Christian music section (published ones only).
+export interface MusicSong {
+  id: string
+  title: string
+  author: string
+  // The words as plain text: a line per line, a blank line between verses; '' when there are none.
+  lyrics: string
+  kind: 'audio' | 'video'
+  media_type: string
+  // Changes when the file is replaced, so the address below asks for the new one.
+  version: number
+}
+
+export interface MusicSearchResult {
+  id: string
+  title: string
+  author: string
+  kind: 'audio' | 'video'
+  // An excerpt of the words (or the title), each word found wrapped in \u0001 and \u0002.
+  text: string
+}
+
+export interface MusicSearchResponse {
+  query: string
+  total: number
+  page: number
+  per_page: number
+  results: MusicSearchResult[]
+}
+
+export async function fetchMusic(): Promise<MusicSong[]> {
+  return readJson(await fetch(`${mlServiceUrl}/music`))
+}
+
+// Where the player gets a song's file (the server sends it in parts, so the player can skip about).
+export function musicFileAddress(song: MusicSong): string {
+  return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/file?v=${song.version}`
+}
+
+export async function searchMusic(
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase'; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<MusicSearchResponse> {
+  const queryString = new URLSearchParams({
+    query: options.query,
+    match_mode: options.matchMode,
+    page: String(options.page),
+    per_page: String(options.perPage),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/search-music?${queryString}`, { signal }))
+}
+
 export async function searchOtherBooks(options: BookSearchOptions, signal: AbortSignal): Promise<BookSearchResponse> {
   const queryString = new URLSearchParams({
     query: options.query,

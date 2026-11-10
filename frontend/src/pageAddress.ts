@@ -13,6 +13,8 @@ const addresses: Record<View, string> = {
   devotionals: '/devotionals',
   books: '/books',
   searchBooks: '/search-books',
+  music: '/music',
+  searchMusic: '/search-music',
   searchAll: '/search-all',
   faq: '/faq',
   help: '/help',

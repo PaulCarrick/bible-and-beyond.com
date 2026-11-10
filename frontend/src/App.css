@@ -2096,3 +2096,56 @@ select:disabled {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   pointer-events: none;
 }
+
+/* The Christian music section (MusicPage.tsx): each song with its player and its words. */
+.music-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.music-song {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 1rem;
+}
+
+.music-song:focus {
+  outline: none;
+}
+
+.music-song h2 {
+  margin: 0 0 0.25rem;
+}
+
+.music-author {
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.music-video {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  border-radius: 6px;
+  background: #000;
+}
+
+.music-audio {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+}
+
+/* The words: each line as typed, a space between verses. */
+.music-lyrics {
+  margin-top: 1rem;
+}
+
+.music-lyrics p {
+  margin: 0 0 1rem;
+  white-space: pre-line;
+  line-height: 1.6;
+}

@@ -320,6 +320,88 @@ class BibleManager {
   }
 
   /**
+   * Largest song file, in bytes (music.MAX_FILE_BYTES). The server's own limits (PHP and nginx) must allow it.
+   */
+  public const MAX_MUSIC_BYTES = 200 * 1024 * 1024;
+
+  /**
+   * Every song of the Christian music section, hidden ones too, by title.
+   *
+   * @return array
+   *   Each song has id, title, author, lyrics, kind ("audio" or "video"), file_size, file_present,
+   *   is_published, created_at and updated_at.
+   */
+  public function listMusic(): array {
+    return $this->run(['list'], 'manage_music.py')['songs'];
+  }
+
+  public function getMusic(string $songId): array {
+    return $this->run(['get', '--id=' . $songId], 'manage_music.py')['song'];
+  }
+
+  /**
+   * Saves a song's file into the music folder with its details. The file waits in the private upload
+   * folder only while the tool copies it, and is removed afterwards whatever happens.
+   *
+   * @param array $details
+   *   title, author and lyrics, sent on the tool's input (the words can be long).
+   */
+  public function uploadMusic(UploadedFile $file, string $songId, array $details): array {
+    $extension = strtolower($file->getClientOriginalExtension());
+    $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+    if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+      throw new BibleManagerException('The upload could not be saved.');
+    }
+    try {
+      $file->move($directory, 'upload.' . $extension);
+      $song = $this->run(
+        ['upload', $directory . '/upload.' . $extension, '--name=upload.' . $extension, '--id=' . $songId],
+        'manage_music.py',
+        json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+      )['song'];
+    }
+    finally {
+      $this->fileSystem->deleteRecursive($directory);
+    }
+    $this->logMusic('uploaded', $song);
+    return $song;
+  }
+
+  /**
+   * Changes a song's title, author and words; the file stays.
+   */
+  public function updateMusic(string $songId, array $details): array {
+    $song = $this->run(['update', '--id=' . $songId], 'manage_music.py', json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE))['song'];
+    $this->logMusic('changed', $song);
+    return $song;
+  }
+
+  /**
+   * Publishes, hides or deletes a song (deleting removes its file).
+   */
+  public function changeMusic(string $action, string $songId): array {
+    if (!in_array($action, ['publish', 'unpublish', 'delete'], TRUE)) {
+      throw new BibleManagerException('Unknown action.');
+    }
+    $song = $this->run([$action, '--id=' . $songId], 'manage_music.py')['song'];
+    $this->logMusic(match ($action) {
+      'publish' => 'published',
+      'unpublish' => 'hid',
+      default => 'deleted',
+    }, $song);
+    return $song;
+  }
+
+  private function logMusic(string $change, array $song): void {
+    $this->logger->notice('@user @change the song “@title” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@title' => $song['title'],
+      '@id' => $song['id'],
+    ]);
+  }
+
+  /**
    * The FAQ questions, grouped as on the FAQ page: each group has heading and questions (number, question).
    */
   public function listFaqQuestions(): array {

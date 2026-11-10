@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { MusicSong } from './api'
 import type { CommentarySource, DevotionalInfo, Translation } from './types'
 import type { View } from './views'
 
@@ -50,12 +51,14 @@ interface WelcomePageProps {
   commentaries: CommentarySource[]
   devotionals: DevotionalInfo[]
   otherBooks?: DevotionalInfo[]
+  // The published songs of the Christian music section.
+  songs?: MusicSong[]
   onNavigate: (view: View) => void
 }
 
 // The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
 // the Help page.
-function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -135,6 +138,23 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
               </button>
               <button type="button" className="primary-button" onClick={() => onNavigate('searchBooks')}>
                 Search other books
+              </button>
+            </div>
+          </section>
+        )}
+        {songs.length > 0 && (
+          <section className="welcome-card">
+            <h3>Christian music</h3>
+            <p>
+              {songs.length === 1 ? 'A song' : `${songs.length} songs`} to listen to, with their words:{' '}
+              {titleList(songs.map((song) => song.title))}.
+            </p>
+            <div className="welcome-buttons">
+              <button type="button" className="primary-button" onClick={() => onNavigate('music')}>
+                Listen to the music
+              </button>
+              <button type="button" className="primary-button" onClick={() => onNavigate('searchMusic')}>
+                Search the music
               </button>
             </div>
           </section>

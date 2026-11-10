@@ -20,6 +20,7 @@ const sections = [
   { id: 'help-commentaries', title: 'Commentaries' },
   { id: 'help-devotionals', title: 'Devotionals and daily emails' },
   { id: 'help-other-books', title: 'Other books' },
+  { id: 'help-music', title: 'Christian music' },
   { id: 'help-faq', title: 'FAQ: questions about the faith' },
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-notes', title: 'Your notes' },
@@ -68,12 +69,14 @@ function PageLink({ view, onNavigate, children }: PageLinkProps) {
 interface HelpPageProps {
   translations: Translation[]
   onNavigate: (view: View) => void
+  // Whether a song of the Christian music section is published (its section is left out until one is).
+  hasMusic?: boolean
 }
 
 // The user guide: every feature of the site with a screenshot, then where the texts come from (with the notices
 // and credits that go with them). The screenshots are in public/help/; the owner's address in them is replaced
 // by you@example.com.
-function HelpPage({ translations, onNavigate }: HelpPageProps) {
+function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const localBibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
@@ -107,7 +110,7 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
       <nav className="help-contents" aria-label="Contents of this guide">
         <h2>Contents</h2>
         <ol>
-          {sections.map((section) => (
+          {sections.filter((section) => hasMusic || section.id !== 'help-music').map((section) => (
             <li key={section.id}>
               <button type="button" className="link-button" onClick={() => goToSection(section.id)}>
                 {section.title}
@@ -427,6 +430,21 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           caption="Searching the other books for “love”: 376 passages."
         />
       </section>
+
+      {hasMusic && (
+        <section id="help-music" tabIndex={-1} className="help-section">
+          <h2>Christian music</h2>
+          <p>
+            <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs, each with its player and its
+            words underneath. Press play on one; starting another pauses the first. A recording keeps playing while
+            you read another page of the site (a video pauses, since it could not be seen).
+          </p>
+          <p>
+            <PageLink onNavigate={onNavigate} view="searchMusic">Search the music</PageLink> finds a song by its title, its author or its
+            words, and <em>Play this song</em> on a result takes you to it.
+          </p>
+        </section>
+      )}
 
       <section id="help-faq" tabIndex={-1} className="help-section">
         <h2>FAQ: questions about the faith</h2>

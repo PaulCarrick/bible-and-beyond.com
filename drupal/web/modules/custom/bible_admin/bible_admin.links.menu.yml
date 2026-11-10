@@ -52,3 +52,10 @@ bible_admin.faq_notes:
   route_name: bible_admin.faq_notes
   parent: system.admin
   weight: -3
+
+bible_admin.music:
+  title: 'Christian music'
+  description: 'Upload, publish, hide and delete the songs (MP3 and MP4) of the Christian music section.'
+  route_name: bible_admin.music
+  parent: system.admin
+  weight: -5
