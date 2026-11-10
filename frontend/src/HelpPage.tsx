@@ -430,6 +430,23 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           alt="Search results for love in the other books, each with Read this chapter"
           caption="Searching the other books for “love”: 376 passages."
         />
+        <p>
+          Among them is <em>The Apostles’ Creed</em>, the ancient statement of the Christian faith. Each of its
+          statements is a link to a Bible verse it is drawn from, though it reads as ordinary text: rest the pointer on
+          a statement to see which verse, and click it to read the verse in context (with Shift, Ctrl or Cmd, in a new
+          tab).
+        </p>
+        <Screenshot
+          name="apostles-creed"
+          width={1152}
+          height={1010}
+          alt="The Apostles’ Creed in the book reader, with a tooltip reading Show Luke 1:35 in context over a statement"
+          caption="The Apostles’ Creed: the pointer on “who was conceived by the Holy Spirit” shows its verse."
+        />
+        <p>
+          Every book also has an address of its own that opens it directly, such as{' '}
+          <em>bible-and-beyond.com/books?book=apostles-creed</em>, for a bookmark or to share.
+        </p>
       </section>
 
       {hasMusic && (
@@ -438,12 +455,28 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           <p>
             <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs by title. Open one (click its
             title) to see its player and its words; press play. Starting another pauses the first, and closing a song stops it. A recording keeps playing while
-            you read another page of the site (a video pauses, since it could not be seen).
+            you read another page of the site (a video pauses, since it could not be seen). Some songs show their words
+            as a page of a hymnal (a picture or a PDF) rather than as text; a PDF also has a link to open it in a new
+            tab, for phones that cannot show it in the page.
           </p>
+          <Screenshot
+            name="music-open"
+            width={1152}
+            height={1250}
+            alt="The Christian music page with Amazing Grace closed and It Is Well with My Soul open, showing its video player and its words"
+            caption="Listen to the music: one song open, with its player and its words."
+          />
           <p>
             <PageLink onNavigate={onNavigate} view="searchMusic">Search the music</PageLink> finds a song by its title, its author or its
             words, and <em>Play this song</em> on a result takes you to it.
           </p>
+          <Screenshot
+            name="music-search"
+            width={1152}
+            height={1010}
+            alt="Search the music with the word grace, showing Amazing Grace with grace in bold and Play this song"
+            caption="Searching the music for “grace”."
+          />
           <p>
             <MusicLicenceNote />
           </p>
