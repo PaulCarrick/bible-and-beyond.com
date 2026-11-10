@@ -146,10 +146,14 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
     if (destination?.kind !== 'devotional' || devotionals.length === 0) {
       return
     }
+    const found = devotionals.find((entry) => entry.id === destination.devotional)
+    if (!found && destination.onlyIfFound) {
+      return
+    }
     // A link opens the reader at once, not the list.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowList(false)
-    const id = devotionals.find((entry) => entry.id === destination.devotional)?.id ?? devotionals[0].id
+    const id = found?.id ?? devotionals[0].id
     // Following a link is the reason to open the reader, so this is the place to do it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     go(id, { section: destination.section, unit: destination.unit })

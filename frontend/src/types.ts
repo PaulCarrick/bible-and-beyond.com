@@ -439,7 +439,9 @@ export type Destination =
   // strongCode (G0264, H7225): also open that word's lexicon entry over the verse.
   | { id: number; kind: 'bible'; translation: string; book: number; chapter: number; verse: number; strongCode?: string }
   | { id: number; kind: 'commentary'; commentary: string; book: number; chapter: number; verse: number }
-  | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number }
+  // onlyIfFound (an address such as /books?book=apostles-creed): when there is no such devotional or book, stay
+  // on the list rather than open the first one. A section and unit it does not have open its start.
+  | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number; onlyIfFound?: boolean }
 
 // A devotional the logged-in visitor gets by email each day.
 export interface DevotionalSubscription {

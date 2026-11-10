@@ -93,8 +93,13 @@ class LibraryListController extends ControllerBase {
           default => $this->t('@status. @message', ['@status' => $status, '@message' => $refresh['message']]),
         };
       }
+      // An Other book has its own address on the site, which opens its reader (for a link from an FAQ note,
+      // another site or a bookmark).
+      $name = $collection === 'books'
+        ? ['data' => ['#markup' => $this->t('@name<br><small>Link: /books?book=@id</small>', ['@name' => $item['name'], '@id' => $item['id']])]]
+        : ['data' => ['#plain_text' => $item['name']]];
       $rows[] = [
-        ['data' => ['#plain_text' => $item['name']]],
+        $name,
         ['data' => ['#plain_text' => $item['detail']]],
         ['data' => ['#plain_text' => $item['refreshable'] ? $item['source_name'] : $this->t('@source (uploaded)', ['@source' => $item['source_name']])]],
         ['data' => ['#plain_text' => number_format((int) $item['count'])]],
@@ -103,6 +108,13 @@ class LibraryListController extends ControllerBase {
       ];
     }
 
+    if ($collection === 'books') {
+      $build['links_help'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => $this->t('Under each book is its link: put it after the site\'s address, for example https://bible-and-beyond.com/books?book=apostles-creed, to open that book. In an FAQ note, such a link opens the book in a new tab.'),
+      ];
+    }
     $build['table'] = [
       '#type' => 'table',
       '#header' => [

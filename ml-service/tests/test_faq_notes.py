@@ -70,12 +70,14 @@ def test_links_to_this_site_stay_on_it_and_verse_links_open_a_new_tab():
   cleaned = clean_note_html(
     '<a href="https://www.bible-and-beyond.com/?read=BSB&amp;book=43&amp;chapter=3&amp;verse=16" target="_self">John 3:16</a>'
     '<a href="/search" target="_blank">Bible Search</a>'
+    '<a href="https://bible-and-beyond.com/books?book=apostles-creed">the Creed</a>'
     '<a href="/faq?question=Is%20a%20Christian%20saved%20by%20grace%20alone%3F">FAQ on grace</a>'
     '<a href="https://celebraterecovery.com/" aria-label="Celebrate Recovery (opens its website in a new tab)">CR</a>'
   )
   assert cleaned == (
     '<a href="/?read=BSB&amp;book=43&amp;chapter=3&amp;verse=16" target="_blank" rel="noopener">John 3:16</a>'
     '<a href="/search">Bible Search</a>'
+    '<a href="/books?book=apostles-creed" target="_blank" rel="noopener">the Creed</a>'
     '<a href="/faq?question=Is%20a%20Christian%20saved%20by%20grace%20alone%3F">FAQ on grace</a>'
     '<a href="https://celebraterecovery.com/" target="_blank" rel="noopener noreferrer"'
     ' aria-label="Celebrate Recovery (opens its website in a new tab)">CR</a>'

@@ -7,7 +7,8 @@ faq.py leaves its note unused until it is moved to the new wording on that page.
 A note is HTML from the editor, cleaned with an allowlist built on the contact form's (contact.py): it also
 keeps superscript verse numbers, citations, a quotation's footer, the lang of a Greek or Hebrew word, a
 link's description, and links to pages of this site (/?read=... for a verse, /faq?question=... for another
-answer, /search and the other page addresses). Links to a verse and to other websites open in a new tab.
+answer, /books?book=... for a book, /search and the other page addresses). Links to a verse, to a book and to
+other websites open in a new tab.
 """
 
 import logging
@@ -58,9 +59,12 @@ def safe_note_address(address: str) -> str | None:
   return address if SAFE_LINK.match(address) else None
 
 
-def is_verse_address(address: str) -> bool:
+def opens_in_new_tab(address: str) -> bool:
+  """Whether a link on this site opens in a new tab, so the FAQ stays open: a verse (/?read=...) or a book of
+  the Other books (/books?book=...)."""
   parts = urlsplit(address)
-  return address.startswith("/") and parts.path == "/" and "read" in parse_qs(parts.query)
+  query = parse_qs(parts.query)
+  return address.startswith("/") and ((parts.path == "/" and "read" in query) or (parts.path == "/books" and "book" in query))
 
 
 class _NoteCleaner(_Cleaner):
@@ -77,7 +81,7 @@ class _NoteCleaner(_Cleaner):
     opening = f'<a href="{escape(address, quote=True)}"'
     if not address.startswith("/"):
       opening += ' target="_blank" rel="noopener noreferrer"'
-    elif is_verse_address(address):
+    elif opens_in_new_tab(address):
       opening += ' target="_blank" rel="noopener"'
     label = " ".join((attributes.get("aria-label") or "").split())[:LABEL_LIMIT]
     if label:

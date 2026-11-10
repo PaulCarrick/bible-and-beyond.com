@@ -68,6 +68,15 @@ function App() {
   const [faqQuestionLink] = useState(() =>
     viewForAddress(window.location.pathname) === 'faq' ? new URLSearchParams(window.location.search).get('question') : null,
   )
+  // An address such as /books?book=apostles-creed: the Other books reader at the start of that book (a link from
+  // an FAQ note, another site or a bookmark). Read here, before the address is tidied to /books.
+  const [bookLink] = useState((): Destination | null => {
+    const book = new URLSearchParams(window.location.search).get('book') ?? ''
+    if (viewForAddress(window.location.pathname) !== 'books' || !/^[a-z0-9-]{3,50}$/.test(book)) {
+      return null
+    }
+    return { id: Date.now(), kind: 'devotional', devotional: book, section: -1, unit: -1, onlyIfFound: true }
+  })
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
@@ -78,7 +87,7 @@ function App() {
   const [user, setUser] = useState<AccountUser | null>(null)
   const [resendMessage, setResendMessage] = useState('')
   // Where a note's link asked a reader to open, with a new id each time.
-  const [destination, setDestination] = useState<Destination | null>(verseLink)
+  const [destination, setDestination] = useState<Destination | null>(verseLink ?? bookLink)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   // The page the visit opens on: an emailed link's page, the reader for a verse address, else the page the
   // address names (/help, /faq, ...).
