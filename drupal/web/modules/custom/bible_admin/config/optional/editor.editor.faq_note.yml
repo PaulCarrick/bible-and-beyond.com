@@ -1,0 +1,50 @@
+# The editor (CKEditor 5) for the FAQ notes. Optional: it is installed only where CKEditor 5 is enabled;
+# without it the notes page shows a plain box for HTML.
+langcode: en
+status: true
+dependencies:
+  config:
+    - filter.format.faq_note
+  module:
+    - ckeditor5
+  enforced:
+    module:
+      - bible_admin
+format: faq_note
+editor: ckeditor5
+settings:
+  toolbar:
+    items:
+      - heading
+      - '|'
+      - bold
+      - italic
+      - underline
+      - superscript
+      - removeFormat
+      - '|'
+      - link
+      - '|'
+      - bulletedList
+      - numberedList
+      - blockQuote
+      - '|'
+      - undo
+      - redo
+      - '|'
+      - sourceEditing
+  plugins:
+    ckeditor5_heading:
+      enabled_headings:
+        - heading3
+        - heading4
+    ckeditor5_list:
+      properties:
+        reversed: false
+        startIndex: false
+        styles: false
+      multiBlock: true
+    ckeditor5_sourceEditing:
+      allowed_tags: {  }
+image_upload:
+  status: false

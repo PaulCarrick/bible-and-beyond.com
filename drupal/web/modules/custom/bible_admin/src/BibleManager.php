@@ -316,6 +316,61 @@ class BibleManager {
   }
 
   /**
+   * The FAQ questions, grouped as on the FAQ page: each group has heading and questions (number, question).
+   */
+  public function listFaqQuestions(): array {
+    return $this->run(['questions'], 'manage_faq_notes.py')['groups'];
+  }
+
+  /**
+   * The site owner's notes on the FAQ answers, in the order of their questions.
+   *
+   * @return array
+   *   Each note has id, question, question_number (NULL when the question is no longer on the FAQ),
+   *   is_listed, html, preview (the start of its text), created_at and updated_at.
+   */
+  public function listFaqNotes(): array {
+    return $this->run(['list'], 'manage_faq_notes.py')['notes'];
+  }
+
+  public function getFaqNote(int $noteId): array {
+    return $this->run(['get', '--id=' . $noteId], 'manage_faq_notes.py')['note'];
+  }
+
+  /**
+   * Adds a note. It is sent on the tool's input (it can be long); the log names the question, not the text.
+   */
+  public function createFaqNote(string $question, string $html): array {
+    $note = $this->run(['create'], 'manage_faq_notes.py', $this->faqNoteInput($question, $html))['note'];
+    $this->logFaqNote('added', $note);
+    return $note;
+  }
+
+  public function updateFaqNote(int $noteId, string $question, string $html): array {
+    $note = $this->run(['update', '--id=' . $noteId], 'manage_faq_notes.py', $this->faqNoteInput($question, $html))['note'];
+    $this->logFaqNote('changed', $note);
+    return $note;
+  }
+
+  public function deleteFaqNote(int $noteId): array {
+    $note = $this->run(['delete', '--id=' . $noteId], 'manage_faq_notes.py')['note'];
+    $this->logFaqNote('deleted', $note);
+    return $note;
+  }
+
+  private function faqNoteInput(string $question, string $html): string {
+    return json_encode(['question' => $question, 'html' => $html], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+  }
+
+  private function logFaqNote(string $change, array $note): void {
+    $this->logger->notice('@user @change the FAQ note on “@question”.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@question' => $note['question'],
+    ]);
+  }
+
+  /**
    * Keeps an uploaded file, and what the administrator typed, until they confirm or cancel.
    *
    * @return string

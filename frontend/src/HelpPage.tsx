@@ -452,7 +452,7 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
         <p>
           Some questions also have <em>A note from the site owner</em>, in a box under the answer: the owner’s own
           words, not the AI’s. Their Bible quotations and the links in them open in a new tab, and some link to another
-          answer on the FAQ page.
+          answer on the FAQ page or to another page of this site.
         </p>
         <Screenshot
           name="faq-open"

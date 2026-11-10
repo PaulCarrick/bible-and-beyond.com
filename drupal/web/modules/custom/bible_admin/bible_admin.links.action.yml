@@ -15,3 +15,9 @@ bible_admin.site_user_add_action:
   title: 'Add a site user'
   appears_on:
     - bible_admin.site_users
+
+bible_admin.faq_note_add_action:
+  route_name: bible_admin.faq_note_add
+  title: 'Add a note'
+  appears_on:
+    - bible_admin.faq_notes

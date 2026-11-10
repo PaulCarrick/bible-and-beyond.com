@@ -12,3 +12,8 @@ administer site settings:
   title: 'Administer the site settings'
   description: 'On the Site settings screen: the site title and copyright line, the email server and the keys of the outside services (Gemini, API.Bible, reCAPTCHA). Without it, only the verse-window numbers (with Administer Bibles).'
   restrict access: true
+
+administer faq notes:
+  title: 'Administer the FAQ notes'
+  description: 'Add, change and delete the notes from the site owner shown under the FAQ answers on the public site.'
+  restrict access: true

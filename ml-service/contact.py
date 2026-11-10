@@ -101,6 +101,11 @@ SAFE_LINK = re.compile(r"^(https?://|mailto:)", re.IGNORECASE)
 
 
 class _Cleaner(HTMLParser):
+  """Keeps only the allowed tags, without their attributes (a link keeps a safe address). A subclass can
+  allow more tags (allowed_tags) and write its own opening tags (opening)."""
+
+  allowed_tags = ALLOWED_TAGS
+
   def __init__(self):
     super().__init__(convert_charrefs=True)
     self.parts: list[str] = []
@@ -112,26 +117,32 @@ class _Cleaner(HTMLParser):
     if tag in DROPPED_WITH_CONTENT:
       self.skip_depth += 1
       return
-    if self.skip_depth or tag not in ALLOWED_TAGS:
+    if self.skip_depth or tag not in self.allowed_tags:
       return
     if tag == "br":
       self.parts.append("<br>")
       return
-    if tag == "a":
-      address = (dict(attributes).get("href") or "").strip()
-      if not SAFE_LINK.match(address):
-        self.open_tags.append((tag, ""))  # keep the text, drop the link
-        return
-      self.parts.append(f'<a href="{escape(address, quote=True)}" rel="noopener noreferrer">')
-    else:
-      self.parts.append(f"<{tag}>")
+    opening = self.opening(tag, dict(attributes))
+    if opening is None:
+      self.open_tags.append((tag, ""))  # keep the text, drop the link
+      return
+    self.parts.append(opening)
     self.open_tags.append((tag, f"</{tag}>"))
+
+  def opening(self, tag: str, attributes: dict) -> str | None:
+    """The opening tag to write, or None for a link whose address is not safe (its text is kept)."""
+    if tag == "a":
+      address = (attributes.get("href") or "").strip()
+      if not SAFE_LINK.match(address):
+        return None
+      return f'<a href="{escape(address, quote=True)}" rel="noopener noreferrer">'
+    return f"<{tag}>"
 
   def handle_endtag(self, tag):
     if tag in DROPPED_WITH_CONTENT:
       self.skip_depth = max(0, self.skip_depth - 1)
       return
-    if self.skip_depth or tag not in ALLOWED_TAGS or tag == "br":
+    if self.skip_depth or tag not in self.allowed_tags or tag == "br":
       return
     if any(open_tag == tag for open_tag, _ in self.open_tags):
       while self.open_tags:
@@ -150,15 +161,15 @@ class _Cleaner(HTMLParser):
       self.parts.append(self.open_tags.pop()[1])
 
 
-def clean_message_html(html: str) -> str:
-  cleaner = _Cleaner()
+def clean_message_html(html: str, cleaner_class: type[_Cleaner] = _Cleaner) -> str:
+  cleaner = cleaner_class()
   cleaner.feed(html)
   cleaner.close()
   return "".join(cleaner.parts)
 
 
 class _TextExtractor(HTMLParser):
-  BLOCKS = {"p", "br", "blockquote", "pre", "ul", "ol", "li", "h1", "h2", "h3"}
+  BLOCKS = {"p", "br", "blockquote", "pre", "ul", "ol", "li", "h1", "h2", "h3", "h4", "footer"}
 
   def __init__(self):
     super().__init__(convert_charrefs=True)
@@ -224,11 +235,13 @@ def check_message(name: str, email: str, phone: str, message_html: str) -> dict:
   return {"name": name, "email": email, "phone": phone, "html": cleaned_html, "text": text}
 
 
-def check_rich_text(html: str, html_limit: int, text_limit: int, what: str) -> dict:
-  """Cleans text from the editor (Quill) and checks its size. Returns {"html", "text"} or raises ContactProblem."""
+def check_rich_text(html: str, html_limit: int, text_limit: int, what: str, cleaner_class: type[_Cleaner] = _Cleaner) -> dict:
+  """Cleans text from an editor and checks its size. Returns {"html", "text"} or raises ContactProblem.
+
+  cleaner_class allows more than the contact form's formatting (the site owner's FAQ notes use it)."""
   if len(html) > html_limit:
     raise ContactProblem(f"The {what} is too long.")
-  cleaned_html = clean_message_html(CONTROL_CHARACTERS.sub("", html))
+  cleaned_html = clean_message_html(CONTROL_CHARACTERS.sub("", html), cleaner_class)
   text = message_to_text(cleaned_html)
   if not text:
     raise ContactProblem(f"Please write something in the {what}.")

@@ -47,6 +47,7 @@ from contact import (
   verify_recaptcha,
 )
 from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
+from faq_notes import owner_note_or_nothing
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -111,9 +112,10 @@ def faq_questions():
 
 @app.post("/faq/answer")
 def faq_answer(request: FaqAnswerRequest):
-  """Gemini's answer to one of the listed questions (by number only, never free text); kept for a day."""
+  """Gemini's answer to one of the listed questions (by number only, never free text), kept for a month, with
+  the site owner's note on that question (cleaned HTML, '' when it has none)."""
   try:
-    return get_answer(request.question_id)
+    answer = get_answer(request.question_id)
   except UnknownQuestion as problem:
     raise HTTPException(status_code=404, detail=str(problem)) from problem
   except FaqUnavailable as problem:
@@ -121,6 +123,7 @@ def faq_answer(request: FaqAnswerRequest):
       status_code=503,
       detail="The FAQ answers are not available right now. Please try again later.",
     ) from problem
+  return {**answer, "owner_note": owner_note_or_nothing(answer["question"])}
 
 
 class OpenQuestionRequest(BaseModel):

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { AccountContext } from './AccountContext'
 import { fetchFaqAnswer, fetchFaqQuestions } from './api'
 import type { FaqAnswer, FaqListing } from './api'
@@ -8,11 +8,14 @@ import OpenQuestionBox from './OpenQuestionBox'
 
 interface FaqPageProps {
   isHidden: boolean
+  // A question to show when the page opens, from an address such as /faq?question=... (a link in a note
+  // from the site owner opened in a new tab).
+  initialQuestion?: string | null
 }
 
 // Common questions about the faith, answered by Google's Gemini. Only the listed questions can be asked; the
 // server keeps each answer for a day, and the page keeps the ones it has shown so going back is instant.
-function FaqPage({ isHidden }: FaqPageProps) {
+function FaqPage({ isHidden, initialQuestion = null }: FaqPageProps) {
   const { user } = useContext(AccountContext)
   const [listing, setListing] = useState<FaqListing | null>(null)
   const [listingErrorMessage, setListingErrorMessage] = useState('')
@@ -62,6 +65,18 @@ function FaqPage({ isHidden }: FaqPageProps) {
     ask(entry.id)
     window.scrollTo(0, 0)
   }
+
+  // The question an address asked for, shown once the list has arrived.
+  const initialQuestionShown = useRef(false)
+  useEffect(() => {
+    if (!listing?.available || !initialQuestion || initialQuestionShown.current) {
+      return
+    }
+    initialQuestionShown.current = true
+    showQuestion(initialQuestion)
+    // showQuestion is a new function on every render; this runs once, when the list arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listing, initialQuestion])
 
   const shownAnswer = shownQuestionId === null ? null : answers[shownQuestionId]
   const isAvailable = listing?.available ?? false
@@ -117,7 +132,7 @@ function FaqPage({ isHidden }: FaqPageProps) {
         {errorMessage && <p className="error">{errorMessage}</p>}
         {shownAnswer && !isAsking && (
           <FaqAnswerView question={shownAnswer.question} answer={shownAnswer.answer} references={shownAnswer.references}>
-            <FaqOwnerNote question={shownAnswer.question} onShowQuestion={showQuestion} />
+            {shownAnswer.owner_note && <FaqOwnerNote html={shownAnswer.owner_note} onShowQuestion={showQuestion} />}
           </FaqAnswerView>
         )}
       </div>

@@ -7,6 +7,9 @@
 
 declare(strict_types=1);
 
+use Drupal\Component\Serialization\Yaml;
+use Drupal\editor\Entity\Editor;
+use Drupal\filter\Entity\FilterFormat;
 use Drupal\user\Entity\Role;
 
 /**
@@ -37,4 +40,33 @@ function bible_admin_update_11001(): string {
   }
   $role->save();
   return 'Added the Website administrator role.';
+}
+
+/**
+ * Adds the FAQ notes page's text format and editor, and lets Website administrators use the page.
+ *
+ * New sites get them from config/install and config/optional when the module is installed; this adds them
+ * to sites that had the module already. The editor needs CKEditor 5; without it the page shows a plain box.
+ */
+function bible_admin_update_11002(): string {
+  $done = [];
+  $directory = \Drupal::service('extension.list.module')->getPath('bible_admin') . '/config';
+  if (!FilterFormat::load('faq_note')) {
+    FilterFormat::create(Yaml::decode(file_get_contents($directory . '/install/filter.format.faq_note.yml')))->save();
+    $done[] = 'added the FAQ note text format';
+  }
+  if (\Drupal::moduleHandler()->moduleExists('ckeditor5') && !Editor::load('faq_note')) {
+    Editor::create(Yaml::decode(file_get_contents($directory . '/optional/editor.editor.faq_note.yml')))->save();
+    $done[] = 'added its editor';
+  }
+  $role = Role::load('website_administrator');
+  $missing = $role ? array_filter(['administer faq notes', 'use text format faq_note'], fn ($permission) => !$role->hasPermission($permission)) : [];
+  if ($missing) {
+    foreach ($missing as $permission) {
+      $role->grantPermission($permission);
+    }
+    $role->save();
+    $done[] = 'let Website administrators use the FAQ notes page';
+  }
+  return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
 }

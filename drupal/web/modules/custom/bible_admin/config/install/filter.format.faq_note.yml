@@ -1,0 +1,12 @@
+# The text format of the FAQ notes page's editor. It has no filters because Drupal never displays these notes:
+# the Bible database keeps them and the ML service cleans them with its own allowlist (ml-service/faq_notes.py).
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - bible_admin
+name: 'FAQ note'
+format: faq_note
+weight: 20
+filters: {  }

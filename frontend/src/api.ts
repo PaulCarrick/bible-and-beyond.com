@@ -586,6 +586,8 @@ export interface FaqAnswer {
   answer: string
   // The Scripture references found in it (each once), with the verse each begins at.
   references: FaqReference[]
+  // The site owner's note on the question, as HTML cleaned by the server; '' when it has none.
+  owner_note: string
 }
 
 export interface FaqReference {

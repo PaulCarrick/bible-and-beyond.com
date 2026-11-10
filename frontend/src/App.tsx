@@ -63,6 +63,11 @@ function App() {
   const [emailLink] = useState(readEmailLink)
   // An address such as /?read=BSB&book=62&chapter=4&verse=1 (the FAQ's verse links, opened in a new tab).
   const [verseLink] = useState(() => readVerseAddress(window.location.search))
+  // An address such as /faq?question=... (a link to another answer in a note from the site owner, opened in a
+  // new tab). It is read here because the address is tidied to /faq before the FAQ page first draws.
+  const [faqQuestionLink] = useState(() =>
+    viewForAddress(window.location.pathname) === 'faq' ? new URLSearchParams(window.location.search).get('question') : null,
+  )
   const [translations, setTranslations] = useState<Translation[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [commentaries, setCommentaries] = useState<CommentarySource[]>([])
@@ -354,7 +359,7 @@ function App() {
               {/* The form stays mounted too, so a half-written message is not lost. */}
               <ContactPage isHidden={activeView !== 'contact'} />
               {/* The FAQ stays mounted too, so the answers it has shown are kept. */}
-              <FaqPage isHidden={activeView !== 'faq'} />
+              <FaqPage isHidden={activeView !== 'faq'} initialQuestion={faqQuestionLink} />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
               <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />

@@ -45,3 +45,10 @@ bible_admin.books:
     collection: books
   parent: system.admin
   weight: -5
+
+bible_admin.faq_notes:
+  title: 'FAQ notes'
+  description: 'The notes from the site owner shown under the FAQ answers: add, change and delete them.'
+  route_name: bible_admin.faq_notes
+  parent: system.admin
+  weight: -3

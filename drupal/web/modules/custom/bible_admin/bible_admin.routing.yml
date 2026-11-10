@@ -128,3 +128,38 @@ bible_admin.library_change:
     collection: 'commentaries|devotionals|books'
     action: 'publish|unpublish|delete|refresh'
     item_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+# The site owner's notes under the FAQ answers ("A note from the site owner"), kept in the Bible database.
+bible_admin.faq_notes:
+  path: '/admin/faq-notes'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\FaqNoteListController::build'
+    _title: 'FAQ notes'
+  requirements:
+    _permission: 'administer faq notes'
+
+bible_admin.faq_note_add:
+  path: '/admin/faq-notes/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqNoteForm'
+    _title: 'Add a FAQ note'
+  requirements:
+    _permission: 'administer faq notes'
+
+bible_admin.faq_note_edit:
+  path: '/admin/faq-notes/{note_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqNoteForm'
+    _title: 'Edit a FAQ note'
+  requirements:
+    _permission: 'administer faq notes'
+    note_id: '\d+'
+
+bible_admin.faq_note_delete:
+  path: '/admin/faq-notes/{note_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteFaqNoteForm'
+    _title: 'Delete a FAQ note'
+  requirements:
+    _permission: 'administer faq notes'
+    note_id: '\d+'

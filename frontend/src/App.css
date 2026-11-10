@@ -1851,40 +1851,48 @@ select:disabled {
   margin: 0.6rem 0;
 }
 
-/* Words the owner asked to be bold and underlined in a quotation. */
-.faq-owner-emphasis {
-  text-decoration: underline;
+/* The notes are stored HTML (written on the Drupal FAQ notes page), so they are styled by element, not class. */
+/* Underlined words (Matthew 22:40 is bold and underlined at the owner's request). */
+.faq-owner-note u {
   text-underline-offset: 0.15em;
 }
 
-/* A list in an owner's note: each point is a bold line with its explanation under it. */
-.faq-owner-list {
-  margin: 0.6rem 0;
+/* A list in an owner's note; a point made of paragraphs (a bold line with its explanation) gets more room. */
+.faq-owner-note ul,
+.faq-owner-note ol {
   padding-left: 1.4rem;
 }
 
-.faq-owner-list li {
+.faq-owner-note li:has(> p) {
   margin-bottom: 0.9rem;
 }
 
-.faq-owner-list li p {
-  margin: 0.3rem 0;
-}
-
-.faq-owner-passage {
+/* A quotation from the Bible, with the reference in its footer. */
+.faq-owner-note blockquote {
   margin: 0.75rem 0 0.75rem 1rem;
   padding-left: 0.75rem;
   border-left: 3px solid var(--border);
 }
 
-.faq-owner-passage p {
+.faq-owner-note blockquote p {
   margin: 0;
   font-style: italic;
 }
 
-.faq-owner-passage footer {
+.faq-owner-note blockquote footer {
   margin-top: 0.25rem;
   font-size: 0.9rem;
+}
+
+/* The editor (CKEditor) puts the footer's line in a paragraph; it stays upright like the footer. */
+.faq-owner-note blockquote footer p {
+  margin: 0;
+  font-style: normal;
+}
+
+/* After the quotation's rule, so a paragraph in a list point (even inside a quotation there) keeps this spacing. */
+.faq-owner-note li p {
+  margin: 0.3rem 0;
 }
 
 .welcome-faq {

@@ -1,8 +1,11 @@
 langcode: en
 status: true
 dependencies:
+  config:
+    - filter.format.faq_note
   module:
     - bible_admin
+    - filter
     - navigation
     - system
 id: website_administrator
@@ -13,6 +16,8 @@ permissions:
   - 'access administration pages'
   - 'access navigation'
   - 'administer bibles'
+  - 'administer faq notes'
   - 'administer site settings'
   - 'administer site users'
+  - 'use text format faq_note'
   - 'view the administration theme'

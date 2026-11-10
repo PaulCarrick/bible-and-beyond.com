@@ -95,6 +95,8 @@ def test_an_answer_is_asked_once_and_kept(fake_gemini):
     "question": "What evidence is there that Jesus rose from the dead?",
     "answer": "Answer to: What evidence is there that Jesus rose from the dead?",
     "references": [],
+    # Question 7 has no note from the site owner (tests/test_faq_notes.py covers the notes).
+    "owner_note": "",
   }
   assert second.json() == first.json()
   assert fake_gemini == ["What evidence is there that Jesus rose from the dead?"]
