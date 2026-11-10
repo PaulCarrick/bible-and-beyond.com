@@ -195,8 +195,8 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
       <section id="help-verse-menu" tabIndex={-1} className="help-section">
         <h2>The verse menu</h2>
         <p>
-          Right-click a verse, or click (or tap) its small verse number, to open its menu. From the keyboard, Tab to the
-          verse number and press Enter. If you have selected some text, right-clicking gives the browser&rsquo;s usual
+          Right-click a verse, or click (or tap) its small verse number, to open its menu. Resting the mouse pointer on
+          a verse number shows a reminder of this. From the keyboard, Tab to the verse number and press Enter. If you have selected some text, right-clicking gives the browser&rsquo;s usual
           menu instead, so you can still copy. The menu has:
         </p>
         <ul className="welcome-tips">
@@ -432,8 +432,9 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
         <h2>FAQ: questions about the faith</h2>
         <p>
           The <PageLink onNavigate={onNavigate} view="faq">FAQ</PageLink> answers common questions about God, Jesus, the Bible and the Christian
-          life. Choose a question from the list (they are in groups) and press <em>Show the answer</em>; the first time
-          it can take up to half a minute.
+          life. Choose a question from the list (they are in groups) and press <em>Show the answer</em>. The answers
+          are kept for a month, so one usually appears at once; when an answer is being written afresh it can take up
+          to half a minute.
         </p>
         <Screenshot
           name="faq"
@@ -447,6 +448,11 @@ function HelpPage({ translations, onNavigate }: HelpPageProps) {
           Scripture reference in an answer is a link that opens the verse in a new tab, so the answer stays open. An AI
           can make mistakes, so check what it says against the Bible and talk over important questions with a pastor
           or a trusted Christian friend.
+        </p>
+        <p>
+          Some questions also have <em>A note from the site owner</em>, in a box under the answer: the owner’s own
+          words, not the AI’s. Their Bible quotations and the links in them open in a new tab, and some link to another
+          answer on the FAQ page.
         </p>
         <Screenshot
           name="faq-open"
