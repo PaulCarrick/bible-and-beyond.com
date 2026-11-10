@@ -351,6 +351,10 @@ function App() {
                   setDestination(found)
                   navigate(view)
                 }}
+                onOpenSong={(songId) => {
+                  setMusicFocus({ id: songId, key: Date.now() })
+                  navigate('music')
+                }}
               />
               {user && !user.email_verified && activeView !== 'verify' && (
                 <p className="contact-sent" role="status">

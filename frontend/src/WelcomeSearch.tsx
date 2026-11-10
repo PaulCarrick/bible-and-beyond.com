@@ -13,6 +13,8 @@ interface WelcomeSearchProps {
   isPage: boolean
   // Open a reader at a place: the Bible, the commentaries, the devotionals or the other books.
   onOpen: (destination: Destination, view: View) => void
+  // Show a song on the music page.
+  onOpenSong: (songId: string) => void
 }
 
 const perGroup = 5
@@ -22,9 +24,10 @@ const groupTitles: Record<SiteSearchKind, string> = {
   commentary: 'Commentaries',
   devotional: 'Devotionals',
   book: 'Other books',
+  music: 'Christian music',
 }
 
-const hitWords: Record<SiteSearchKind, string> = { bible: 'verse', commentary: 'note', devotional: 'reading', book: 'passage' }
+const hitWords: Record<SiteSearchKind, string> = { bible: 'verse', commentary: 'note', devotional: 'reading', book: 'passage', music: 'song' }
 
 function countLabel(kind: SiteSearchKind, total: number) {
   return `${total.toLocaleString()} ${hitWords[kind]}${total === 1 ? '' : 's'}`
@@ -33,7 +36,7 @@ function countLabel(kind: SiteSearchKind, total: number) {
 // The search form under the welcome cards: one search over the Bible (one Bible, so a verse is listed once), the
 // commentaries, the devotionals and the other books. The hits come in groups, a few of each with "Show more",
 // and each opens its reader at that place. It stays mounted, so the hits are still there after going Back.
-function WelcomeSearch({ isHidden, isPage, onOpen }: WelcomeSearchProps) {
+function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
   const [matchMode, setMatchMode] = useState<'all' | 'any' | 'phrase'>('all')
@@ -133,6 +136,22 @@ function WelcomeSearch({ isHidden, isPage, onOpen }: WelcomeSearchProps) {
             }
           >
             Read the note
+          </button>
+        ),
+      }
+    }
+    if (result.kind === 'music') {
+      return {
+        place: (
+          <>
+            <strong>{result.title}</strong>
+            {result.author ? ` · ${result.author}` : ''}
+          </>
+        ),
+        text: renderExcerpt(result.text),
+        link: (
+          <button type="button" className="link-button" onClick={() => onOpenSong(result.id)}>
+            Play this song
           </button>
         ),
       }

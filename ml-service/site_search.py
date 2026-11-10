@@ -2,17 +2,18 @@
 
 It runs the searches that already exist, a few results from each, and returns them in groups: the Bible
 (one Bible, the BSB when it is published, so a verse appears once rather than once per translation), the
-commentaries, the devotionals and the other books. In the Bible it matches whole words. A group with nothing found is left out. With kind, it
+commentaries, the devotionals, the other books and the Christian music. In the Bible it matches whole words. A group with nothing found is left out. With kind, it
 returns one group only, for "Show more" (the next page of that group).
 """
 
 from commentaries import search_commentaries
 from devotionals import search_library
+from music import search_music
 from search import connect, search_verses
 
 FIRST_BOOK = 1
 LAST_BOOK = 66
-KINDS = ("bible", "commentary", "devotional", "book")
+KINDS = ("bible", "commentary", "devotional", "book", "music")
 PREFERRED_BIBLE = "BSB"
 
 
@@ -38,7 +39,9 @@ def search_group(kind, query, match_mode, page, per_page):
       "kind": kind, "translation": bible, "total": found["total"], "page": page, "per_page": per_page,
       "results": found["results"], "terms": found["terms"],
     }
-  if kind == "commentary":
+  if kind == "music":
+    found = search_music(query, match_mode, page, per_page)
+  elif kind == "commentary":
     found = search_commentaries(query, match_mode, None, FIRST_BOOK, LAST_BOOK, None, page, per_page, None, "asc")
   else:
     found = search_library(query, match_mode, "devotionals" if kind == "devotional" else "books", None, page, per_page, None)

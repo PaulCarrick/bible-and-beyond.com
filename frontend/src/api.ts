@@ -371,7 +371,7 @@ export async function searchOtherBooks(options: BookSearchOptions, signal: Abort
 }
 
 // The search on the welcome page (GET /search-everything): a few hits of each kind, in groups.
-export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book'
+export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book' | 'music'
 
 export type SiteSearchResult =
   | { kind: 'bible'; translation: string; book_number: number; chapter: number; verse: number; reference: string; text: string }
@@ -386,6 +386,8 @@ export type SiteSearchResult =
       text: string
     }
   | ({ kind: 'devotional' | 'book' } & BookSearchResult)
+  // A song of the Christian music: its id, title and author, and an excerpt of its words.
+  | { kind: 'music'; id: string; title: string; author: string; text: string }
 
 export interface SiteSearchGroup {
   kind: SiteSearchKind

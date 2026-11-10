@@ -28,6 +28,11 @@ def fake_searches(monkeypatch):
     calls.append((collection, match_mode, page, per_page))
     return {"total": 3 if collection == "books" else 1, "results": [{"book": collection}]}
 
+  def music(query, match_mode, page, per_page):
+    calls.append(("music", match_mode, page, per_page))
+    return {"total": 1, "results": [{"id": "amazing-grace", "title": "Amazing Grace"}]}
+
+  monkeypatch.setattr(site_search, "search_music", music)
   monkeypatch.setattr(site_search, "search_verses", verses)
   monkeypatch.setattr(site_search, "search_commentaries", commentaries)
   monkeypatch.setattr(site_search, "search_library", library)
@@ -38,11 +43,19 @@ def fake_searches(monkeypatch):
 def test_every_kind_is_searched_and_empty_groups_are_left_out(fake_searches):
   body = client.get("/search-everything", params={"query": "grace", "match_mode": "phrase"}).json()
 
-  assert [(group["kind"], group["total"]) for group in body["groups"]] == [("bible", 2), ("devotional", 1), ("book", 3)]
+  assert [(group["kind"], group["total"]) for group in body["groups"]] == [("bible", 2), ("devotional", 1), ("book", 3), ("music", 1)]
   assert body["groups"][0]["translation"] == "BSB" and body["groups"][0]["terms"] == ["grace"]
   # The Bible is one Bible, searched for whole words; five of each by default.
   assert fake_searches[0] == ("bible", "phrase", True, ["BSB"], 1, 5)
   assert ("devotionals", "phrase", 1, 5) in fake_searches and ("books", "phrase", 1, 5) in fake_searches
+  assert ("music", "phrase", 1, 5) in fake_searches
+
+
+def test_show_more_songs_asks_for_the_music_only(fake_searches):
+  body = client.get("/search-everything", params={"query": "grace", "kind": "music", "page": 2}).json()
+
+  assert [group["kind"] for group in body["groups"]] == ["music"] and body["groups"][0]["results"][0]["id"] == "amazing-grace"
+  assert fake_searches == [("music", "all", 2, 5)]
 
 
 def test_show_more_asks_for_one_group_only(fake_searches):
