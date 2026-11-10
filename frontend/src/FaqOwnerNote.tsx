@@ -14,6 +14,7 @@ const COMMANDS_TODAY_QUESTION = 'How do I know which biblical commands still app
 const DIVORCE_QUESTION = 'What does Christianity teach about divorce and remarriage?'
 const CHURCH_HURT_QUESTION = 'How can I recover from church hurt or spiritual abuse?'
 const SCIENCE_AND_RELIGIONS_QUESTION = 'How does Christianity relate to science, evolution, and other religions?'
+const END_TIMES_QUESTION = 'What does the Bible actually say about the end times and Jesus’ return?'
 
 // The question the note points to ("see the FAQ on grace").
 const GRACE_QUESTION = 'Is a Christian saved by grace alone?'
@@ -465,6 +466,44 @@ function ScienceAndReligionsNote() {
   )
 }
 
+// The note under the AI's answer to the question about the end times.
+function EndTimesNote() {
+  return (
+    <OwnerNoteBox>
+      <p>This is a popular but very misunderstood topic.</p>
+      <p>
+        Where I am coming from: I accepted Christ at 14 after reading Hal Lindsey’s <cite>The Late Great Planet
+        Earth</cite>. As an early Christian, I loved end times stories and discussions. I even created a scrapbook
+        titled “Signs Pointing to the End Times.” Like other things, as I have grown, my views have changed. I think
+        this is the clearest passage on Jesus’ return:
+      </p>
+      <Passage book={40} chapter={24} verse={36} reference="Matthew 24:36–39">
+        <sup>36</sup> No one knows about that day or hour, not even the angels in heaven, nor the Son, but only the
+        Father. <sup>37</sup> As it was in the days of Noah, so will it be at the coming of the Son of Man.{' '}
+        <sup>38</sup> For in the days before the flood, people were eating and drinking, marrying and giving in
+        marriage, up to the day Noah entered the ark. <sup>39</sup> And they were oblivious until the flood came and
+        swept them all away. So will it be at the coming of the Son of Man.
+      </Passage>
+      <p>These are Jesus’ direct words. No one but God the Father knows.</p>
+      <p>And 2 Peter 3:8–9, written about 2,000 years ago:</p>
+      <Passage book={61} chapter={3} verse={8} reference="2 Peter 3:8–9">
+        <sup>8</sup> Beloved, do not let this one thing escape your notice: With the Lord a day is like a thousand
+        years, and a thousand years are like a day. <sup>9</sup> The Lord is not slow in keeping His promise as some
+        understand slowness, but is patient with you, not wanting anyone to perish but everyone to come to repentance.
+      </Passage>
+      <p>
+        My personal opinion is that I know that Jesus is coming back, but I don’t know when, so I don’t worry about it.
+        I don’t know if He will return before I die (I’m 68 years old) or if I will be resurrected when He comes back
+        long in the future.
+      </p>
+      <p>
+        I think too much speculation on this is not a beneficial use of our time. He’s coming back; that’s what’s
+        important.
+      </p>
+    </OwnerNoteBox>
+  )
+}
+
 // The site owner's own note for the question shown, in a box between the AI's answer and its AI note, or
 // nothing when that question has none.
 function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
@@ -488,6 +527,9 @@ function FaqOwnerNote({ question, onShowQuestion }: FaqOwnerNoteProps) {
   }
   if (question === SCIENCE_AND_RELIGIONS_QUESTION) {
     return <ScienceAndReligionsNote />
+  }
+  if (question === END_TIMES_QUESTION) {
+    return <EndTimesNote />
   }
   return null
 }
