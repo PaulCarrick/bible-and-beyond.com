@@ -1,6 +1,19 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Google tag (Google Ads, container GTM-PSTDLCSW), as Google gives it, but loaded only on the live site,
+         so local testing and other people's installs of the containers do not report to this account. -->
+    <script>
+      if (/^(www\.)?bible-and-beyond\.com$/.test(location.hostname)) {
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function(){dataLayer.push(arguments);};
+        gtag('js', new Date());
+        var googleTagScript = document.createElement('script');
+        googleTagScript.async = true;
+        googleTagScript.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-PSTDLCSW';
+        document.head.appendChild(googleTagScript);
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
