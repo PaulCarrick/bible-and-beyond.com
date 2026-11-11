@@ -47,7 +47,7 @@ The Apache License covers this project's code. The texts and data it shows have 
 - The NIV, NASB and The Message are fetched from [API.Bible](https://api.bible) for display only, under its terms, and are never stored.
 - Drupal keeps its own licence, the GNU GPL (see [`drupal/LICENSE.txt`](drupal/LICENSE.txt)).
 
-# Tutorial
+## Tutorial
 You can see the tutorial on YouTube at https://youtu.be/P_u4u_6Y1rE?si=fOB3T7RgZ5gSo94i
 
 ## Help and contributions
