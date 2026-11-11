@@ -18,6 +18,7 @@ const addresses: Record<View, string> = {
   searchAll: '/search-all',
   faq: '/faq',
   help: '/help',
+  tutorial: '/tutorial',
   contact: '/contact',
   copyright: '/copyright',
   notes: '/notes',

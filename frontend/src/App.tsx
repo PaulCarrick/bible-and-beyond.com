@@ -28,6 +28,7 @@ import MusicPage from './MusicPage'
 import MusicSearchPage from './MusicSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
+import TutorialPage from './TutorialPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
 import SideNav from './SideNav'
@@ -296,6 +297,7 @@ function App() {
       heading: 'About',
       entries: [
         { view: 'help' as View, label: 'Help' },
+        { view: 'tutorial' as View, label: 'Tutorial video' },
         { view: 'contact' as View, label: 'Contact' },
       ],
     },
@@ -392,6 +394,7 @@ function App() {
                 />
               )}
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} />}
+              {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
               {activeView === 'copyright' && (
                 <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />
               )}

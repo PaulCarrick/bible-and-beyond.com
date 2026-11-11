@@ -2209,3 +2209,14 @@ select:disabled {
   display: inline-block;
   margin-top: 0.4rem;
 }
+
+/* The tutorial video: as wide as the page content, keeping its shape. */
+.tutorial-video {
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 6px;
+  background: #0b1a33;
+}

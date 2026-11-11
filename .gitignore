@@ -58,3 +58,6 @@ docker/snapshot/
 
 # The public data built into the database image (made by docker/make-public-data.sh; too large for git)
 docker/public-data/
+
+# The tutorial video (about 50 MB): kept out of git and copied to the server by hand (see CLAUDE.md)
+frontend/public/tutorial/*.mp4

@@ -107,6 +107,11 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         day, and ask to be allowed to put your own questions to the FAQ. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
+      <p>
+        Prefer to watch? The{' '}
+        <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
+        is a seven-minute narrated tour of the whole site.
+      </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
         <h2>Contents</h2>
