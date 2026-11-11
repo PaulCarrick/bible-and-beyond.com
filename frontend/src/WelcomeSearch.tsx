@@ -191,7 +191,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
       aria-labelledby={`${queryId}-heading`}
     >
       {isPage ? <h1 id={`${queryId}-heading`}>Search everything</h1> : <h2 id={`${queryId}-heading`}>Search everything</h2>}
-      <p>Search the Bible, the commentaries, the devotionals and the other books at once.</p>
+      <p>Search the Bible, the commentaries, the devotionals, the other books and the Christian music at once.</p>
       <form className="book-search-form" onSubmit={handleSubmit}>
         <label htmlFor={queryId} className="visually-hidden">
           Words to search for
