@@ -324,6 +324,25 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           alt="Search results for love in the BSB and KJV, with an NIV section below and the search options open"
           caption="“love” searched in the BSB and the KJV together, with the NIV in its own section below, and the Search Options open."
         />
+        <p>
+          <strong>Searching with AI.</strong> If your account may ask its own FAQ questions, choose <em>Use AI to find
+          related verses</em> in Search Options, describe what you are looking for in your own words, and press{' '}
+          <em>Find verses with AI</em>. The verses it suggests are listed like any search, with all the same links.
+        </p>
+        <Screenshot
+          name="ai-search-results"
+          width={1152}
+          height={860}
+          alt="AI search results for forgiving someone who hurt me, starting with Genesis 50:20 and verses from Proverbs"
+          caption="An AI search for “forgiving someone who hurt me”: 30 verses suggested by Gemini, listed in Bible order with their links."
+        />
+        <Screenshot
+          name="ai-search-options"
+          width={1152}
+          height={860}
+          alt="Search Options with Use AI to find related verses chosen, its explanation, and the filters by book"
+          caption="Use AI to find related verses, chosen in Search Options (shown only to accounts it has been turned on for)."
+        />
       </section>
 
       <section id="help-commentaries" tabIndex={-1} className="help-section">
