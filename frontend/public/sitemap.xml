@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The public pages of the site. Keep in step with frontend/src/pageAddress.ts (account and My notes pages are left out). -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://bible-and-beyond.com/</loc></url>
+  <url><loc>https://bible-and-beyond.com/read</loc></url>
+  <url><loc>https://bible-and-beyond.com/search</loc></url>
+  <url><loc>https://bible-and-beyond.com/search-all</loc></url>
+  <url><loc>https://bible-and-beyond.com/search-commentaries</loc></url>
+  <url><loc>https://bible-and-beyond.com/browse-commentaries</loc></url>
+  <url><loc>https://bible-and-beyond.com/devotionals</loc></url>
+  <url><loc>https://bible-and-beyond.com/books</loc></url>
+  <url><loc>https://bible-and-beyond.com/search-books</loc></url>
+  <url><loc>https://bible-and-beyond.com/music</loc></url>
+  <url><loc>https://bible-and-beyond.com/search-music</loc></url>
+  <url><loc>https://bible-and-beyond.com/faq</loc></url>
+  <url><loc>https://bible-and-beyond.com/help</loc></url>
+  <url><loc>https://bible-and-beyond.com/contact</loc></url>
+  <url><loc>https://bible-and-beyond.com/copyright</loc></url>
+</urlset>

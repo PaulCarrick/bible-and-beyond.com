@@ -1,0 +1,5 @@
+# Every robot may crawl the whole site.
+User-agent: *
+Allow: /
+
+Sitemap: https://bible-and-beyond.com/sitemap.xml
