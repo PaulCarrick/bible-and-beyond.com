@@ -145,9 +145,9 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
         {songs.length > 0 && (
           <section className="welcome-card">
             <h3>Christian music</h3>
+            {/* Only the count: the list of titles grew too long for the card. */}
             <p>
-              {songs.length === 1 ? 'A song' : `${songs.length} songs`} to listen to, with their words:{' '}
-              {titleList(songs.map((song) => song.title))}.
+              {songs.length === 1 ? 'A song' : `${songs.length} songs`} to listen to, with their words.
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('music')}>
