@@ -45,6 +45,10 @@ function splitTranslations(searchParameters: SearchParameters, translations: Tra
   const local = searchParameters.translations.filter((code) => !isLicensed(code))
   const licensed = searchParameters.translations.filter(isLicensed)
   const main = local.length > 0 ? local : licensed.slice(0, 1)
+  // An AI search lists verses from the Bibles on this site only (the server refuses the licensed ones).
+  if (searchParameters.matchMode === 'ai') {
+    return { mainParameters: { ...searchParameters, translations: main }, sectionCodes: [] }
+  }
   return {
     mainParameters: { ...searchParameters, translations: main },
     sectionCodes: local.length > 0 ? licensed : licensed.slice(1),

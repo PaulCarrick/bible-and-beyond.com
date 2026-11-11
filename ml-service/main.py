@@ -47,6 +47,7 @@ from contact import (
   verify_recaptcha,
 )
 from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
+from ai_search import AiSearchProblem, find_verses
 from faq_notes import owner_note_or_nothing
 from music import list_songs, search_music, song_file, song_words_file
 from context import get_chapter, get_context, get_parallel, get_related
@@ -175,8 +176,10 @@ def books():
 
 @app.get("/search")
 def search(
+  request: Request,
   query: str = Query(min_length=1),
-  match_mode: Literal["all", "any", "phrase"] = "all",
+  # "ai": Gemini suggests the verses (only for an account an administrator allowed, as for the FAQ's own questions).
+  match_mode: Literal["all", "any", "phrase", "ai"] = "all",
   whole_words: bool = False,
   translations: list[str] = Query(default=["BSB"]),
   book_start: int = Query(default=FIRST_BOOK_NUMBER, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
@@ -190,6 +193,10 @@ def search(
   if book_start > book_end:
     raise HTTPException(status_code=422, detail="book_start must not come after book_end.")
   api_codes = [code for code in translations if code in API_BIBLES]
+  if match_mode == "ai":
+    return search_with_ai(
+      request, query, translations, api_codes, book_start, book_end, book, page, per_page, sort_by, sort_direction,
+    )
   if api_codes and parse_strong_query(query):
     raise HTTPException(
       status_code=422,
@@ -348,6 +355,61 @@ def commentaries(
 @app.get("/commentary-list")
 def commentary_list():
   return list_commentaries()
+
+
+def search_with_ai(
+  request: Request,
+  query: str,
+  translations: list[str],
+  api_codes: list[str],
+  book_start: int,
+  book_end: int,
+  book: int | None,
+  page: int,
+  per_page: int,
+  sort_by: str,
+  sort_direction: str,
+) -> dict:
+  """The verses Gemini suggests for the query, listed from the chosen Bibles on this site like any search."""
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  if user is None:
+    raise HTTPException(status_code=401, detail="Please log in to search with AI.")
+  if not user["open_ai_queries"]:
+    raise HTTPException(status_code=403, detail="Your account cannot search with AI.")
+  if api_codes:
+    # Their text may never go near an AI, and they cannot be listed by verse anyway.
+    raise HTTPException(
+      status_code=422,
+      detail=f"AI search uses only the Bibles on this site, not {', '.join(api_codes)}.",
+    )
+  try:
+    references = find_verses(user["id"], query)
+  except AiSearchProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem)) from problem
+  except FaqUnavailable as problem:
+    raise HTTPException(
+      status_code=503,
+      detail="The AI search is not available just now. Please try again in a minute.",
+    ) from problem
+  try:
+    response = search_verses(
+      query=query,
+      match_mode="all",
+      whole_words=False,
+      translation_codes=translations,
+      book_start=book_start,
+      book_end=book_end,
+      book=book,
+      page=page,
+      per_page=per_page,
+      sort_by=sort_by,
+      sort_direction=sort_direction,
+      references=references,
+    )
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
+  # How many verses the AI named (some may be outside the books chosen).
+  return {**response, "ai": True, "ai_verse_count": len(references)}
 
 
 @app.get("/search-commentaries")

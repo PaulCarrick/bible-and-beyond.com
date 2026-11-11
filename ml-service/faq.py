@@ -184,8 +184,11 @@ def list_questions() -> dict:
   return {"available": is_configured(), "groups": groups}
 
 
-def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
-  """Sends one question to Gemini with the site's instructions and returns its answer (Markdown text)."""
+def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT, total_seconds: int = TOTAL_SECONDS) -> str:
+  """Sends one question to Gemini with the site's instructions and returns its answer (Markdown text).
+
+  total_seconds is how long all the tries together may take (less for a request nginx waits less for).
+  """
   # Set on the Drupal Site settings screen (service_settings.py), else in ml-service/.env.
   api_key = get_setting("gemini_api_key").strip()
   if not api_key:
@@ -198,7 +201,7 @@ def ask_gemini(question: str, system_prompt: str = SYSTEM_PROMPT) -> str:
   # Gemini's models are sometimes too busy to answer ("high demand", or the time runs out). A busy model is
   # tried once more after a short wait, then the next model in the list.
   models = [name.strip() for name in get_setting("gemini_models").split(",") if name.strip()] or DEFAULT_MODELS
-  deadline = time.monotonic() + TOTAL_SECONDS
+  deadline = time.monotonic() + total_seconds
   problems = []
   for model in models:
     for attempt in (1, 2):

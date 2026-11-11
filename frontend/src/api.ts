@@ -193,7 +193,9 @@ export async function searchBible(
     queryString.set('sort_by', searchParameters.sortBy)
     queryString.set('sort_direction', searchParameters.sortDirection)
   }
-  return readJson(await fetch(`${mlServiceUrl}/search?${queryString}`, { signal }))
+  // An AI search needs the login cookie (locally the page and the API are on different addresses).
+  const credentials = searchParameters.matchMode === 'ai' ? 'include' : 'same-origin'
+  return readJson(await fetch(`${mlServiceUrl}/search?${queryString}`, { signal, credentials }))
 }
 
 export async function fetchCommentarySources(): Promise<CommentarySource[]> {

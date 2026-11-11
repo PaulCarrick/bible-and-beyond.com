@@ -1,4 +1,6 @@
 export type MatchMode = 'all' | 'any' | 'phrase'
+// The Bible search also offers 'ai': Google's Gemini suggests the verses (accounts with open_ai_queries only).
+export type SearchMatchMode = MatchMode | 'ai'
 export type SortField = 'verse' | 'text'
 export type SortDirection = 'asc' | 'desc'
 export type PerPage = number | 'automatic'
@@ -29,7 +31,7 @@ export interface Book {
 
 export interface SearchParameters {
   query: string
-  matchMode: MatchMode
+  matchMode: SearchMatchMode
   wholeWords: boolean
   translations: string[]
   // Only for a commentary search: which commentary (null for all of them).
@@ -162,6 +164,9 @@ export interface SearchResponse {
   results: SearchResult[]
   // Only when the query was a Strong's number such as G0025: the word it stands for.
   strong?: StrongWord
+  // Only for an AI search: the verses are the ones Gemini suggested, and how many it named.
+  ai?: boolean
+  ai_verse_count?: number
 }
 
 export interface StrongWord {

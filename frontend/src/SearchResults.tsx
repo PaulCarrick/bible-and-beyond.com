@@ -224,7 +224,7 @@ function SearchResults({
       <div className={hasHeaderRow ? 'results-main panel has-header-row' : 'results-main panel'}>
         {/* The count line is also in the header row of the list (at its right end) when there is one. This one
             is for the other times: while searching, with no results, or on a phone, where that row is not shown. */}
-        <div className={hasHeaderRow && !response?.strong ? 'results-heading is-folded' : 'results-heading'}>
+        <div className={hasHeaderRow && !response?.strong && !response?.ai ? 'results-heading is-folded' : 'results-heading'}>
           <p className="results-summary-standalone">
             <strong>
               {response ? response.total.toLocaleString() : '…'}{' '}
@@ -240,6 +240,12 @@ function SearchResults({
               </>
             )}
           </p>
+          {response?.ai && (
+            <p className="strong-note">
+              Verses an AI (Google&rsquo;s Gemini) suggested for &ldquo;{response.query}&rdquo;, in Bible order. The AI
+              can be wrong, so read each verse in context.
+            </p>
+          )}
           {response?.strong && (
             <p className="strong-note">
               Verses with the {response.strong.language === 'hebrew' ? 'Hebrew' : 'Greek'} word{' '}
@@ -265,7 +271,13 @@ function SearchResults({
         {errorMessage && <p className="error">{errorMessage}</p>}
         {isLoading && !response && <p>Searching…</p>}
         {response && response.total === 0 && (
-          <p>{mode === 'commentary' ? 'No commentary notes matched your search.' : 'No verses matched your search.'}</p>
+          <p>
+            {mode === 'commentary'
+              ? 'No commentary notes matched your search.'
+              : response.ai
+                ? 'The AI did not suggest any verses for this. Try describing it in other words.'
+                : 'No verses matched your search.'}
+          </p>
         )}
 
         <div hidden={showContext}>

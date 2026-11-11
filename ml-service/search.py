@@ -106,9 +106,22 @@ def search_verses(
   per_page: int,
   sort_by: str = "verse",
   sort_direction: str = "asc",
+  references: list[tuple[int, int, int]] | None = None,
 ) -> dict:
-  strong = parse_strong_query(query)
-  if strong:
+  """The verses matching a query in the chosen Bibles, one page of them, with a count for each book.
+
+  With references (the verses an AI search found, as (book, chapter, verse)), those verses are listed
+  instead of searching for words; nothing is highlighted.
+  """
+  strong = None if references is not None else parse_strong_query(query)
+  if references is not None:
+    terms = []
+    text_condition = (
+      "(v.book_number, v.chapter, v.verse) IN "
+      "(SELECT * FROM unnest(%s::int[], %s::int[], %s::int[]))"
+    )
+    patterns = [[verse[index] for verse in references] for index in range(3)]
+  elif strong:
     # Verses that contain a Hebrew or Greek word with this number; nothing to highlight.
     terms = []
     text_condition = (

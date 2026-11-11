@@ -290,6 +290,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             &ldquo;loved&rdquo;.
           </li>
           <li>
+            <strong>Use AI to find related verses.</strong> For accounts that may ask their own FAQ questions (see the
+            FAQ section below for how to ask for it), this extra choice has an AI (Google&rsquo;s Gemini) suggest up to
+            30 verses about what you describe, such as &ldquo;comfort when someone has died&rdquo;, and lists them from
+            the Bibles on this site in Bible order. The AI can be wrong, so read each verse in context. Up to 50 new AI
+            searches a day; the licensed Bibles are not searched this way.
+          </li>
+          <li>
             <strong>Select Bibles to search.</strong> Choose one Bible, or press <em>Search in multiple versions</em> to
             tick several. The Bibles on this site are listed together, verse by verse.
             {licensed.length > 0
