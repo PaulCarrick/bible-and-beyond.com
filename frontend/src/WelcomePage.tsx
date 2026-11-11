@@ -128,9 +128,9 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
         {otherBooks.length > 0 && (
           <section className="welcome-card">
             <h3>Other books</h3>
+            {/* Only the count: the list of titles grew too long for the card. */}
             <p>
-              {otherBooks.length === 1 ? 'A book' : `${otherBooks.length} books`} to read a chapter at a time:{' '}
-              {titleList(otherBooks.map((entry) => entry.name))}.
+              {otherBooks.length === 1 ? 'A book' : `${otherBooks.length} books`} to read a chapter at a time.
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('books')}>
