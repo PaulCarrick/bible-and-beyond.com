@@ -707,7 +707,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="conversations"
           width={920}
-          height={936}
+          height={917}
           alt="The Conversations page with two posts by two members, each with a reply, and Edit and Delete on the member's own post and reply"
           caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
         />

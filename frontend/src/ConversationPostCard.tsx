@@ -70,29 +70,39 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
           {/* The server cleans the post (a short list of tags, safe links) before it keeps it; the search words are
               only wrapped in <mark> in its text. */}
           <div className="note-body" dangerouslySetInnerHTML={{ __html: shownBody }} />
-          {post.is_mine &&
-            (mode === 'confirming' ? (
-              <div className="note-actions" role="alert">
-                <span>Delete this post?</span>
-                <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
-                  {isBusy ? 'Deleting…' : 'Yes, delete it'}
+          {mode === 'confirming' ? (
+            <div className="note-actions" role="alert">
+              <span>Delete this post?</span>
+              <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
+                {isBusy ? 'Deleting…' : 'Yes, delete it'}
+              </button>
+              <button type="button" className="link-button" disabled={isBusy} onClick={() => setMode('reading')}>
+                No, keep it
+              </button>
+            </div>
+          ) : (
+            // One line under the post: Edit and Delete for its author, and Reply for every member.
+            <div className="note-actions">
+              {post.is_mine && (
+                <>
+                  <button type="button" className="link-button" onClick={() => setMode('editing')}>
+                    Edit
+                    <span className="visually-hidden"> the post {post.title}</span>
+                  </button>
+                  <button type="button" className="link-button" onClick={() => setMode('confirming')}>
+                    Delete
+                    <span className="visually-hidden"> the post {post.title}</span>
+                  </button>
+                </>
+              )}
+              {!isReplying && (
+                <button type="button" className="link-button" onClick={() => setIsReplying(true)}>
+                  Reply
+                  <span className="visually-hidden"> to {post.title}</span>
                 </button>
-                <button type="button" className="link-button" disabled={isBusy} onClick={() => setMode('reading')}>
-                  No, keep it
-                </button>
-              </div>
-            ) : (
-              <div className="note-actions">
-                <button type="button" className="link-button" onClick={() => setMode('editing')}>
-                  Edit
-                  <span className="visually-hidden"> the post {post.title}</span>
-                </button>
-                <button type="button" className="link-button" onClick={() => setMode('confirming')}>
-                  Delete
-                  <span className="visually-hidden"> the post {post.title}</span>
-                </button>
-              </div>
-            ))}
+              )}
+            </div>
+          )}
         </>
       )}
       {errorMessage && (
@@ -101,45 +111,43 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
         </p>
       )}
 
-      <section className="conversation-replies" aria-label={`Replies to ${post.title}`}>
-        {post.replies.length > 0 && (
-          <>
-            <h3 className="conversation-replies-heading">
-              {post.replies.length === 1 ? '1 reply' : `${post.replies.length} replies`}
-            </h3>
-            <ul className="conversation-reply-list">
-              {post.replies.map((reply) => (
-                <ConversationReplyItem
-                  key={reply.id}
-                  reply={reply}
-                  postTitle={post.title}
-                  highlightTerms={highlightTerms}
-                  onChanged={(changed) =>
-                    onChanged({ ...post, replies: post.replies.map((entry) => (entry.id === changed.id ? changed : entry)) })
-                  }
-                  onDeleted={(id) => onChanged({ ...post, replies: post.replies.filter((entry) => entry.id !== id) })}
-                />
-              ))}
-            </ul>
-          </>
-        )}
-        {isReplying ? (
-          <ConversationReplyForm
-            postId={post.id}
-            postTitle={post.title}
-            onSaved={(reply) => {
-              onChanged({ ...post, replies: [...post.replies, reply] })
-              setIsReplying(false)
-            }}
-            onCancel={() => setIsReplying(false)}
-          />
-        ) : (
-          <button type="button" className="link-button conversation-reply-button" onClick={() => setIsReplying(true)}>
-            Reply
-            <span className="visually-hidden"> to {post.title}</span>
-          </button>
-        )}
-      </section>
+      {/* The indented replies, shown only when there are some or one is being written. */}
+      {(post.replies.length > 0 || isReplying) && (
+        <section className="conversation-replies" aria-label={`Replies to ${post.title}`}>
+          {post.replies.length > 0 && (
+            <>
+              <h3 className="conversation-replies-heading">
+                {post.replies.length === 1 ? '1 reply' : `${post.replies.length} replies`}
+              </h3>
+              <ul className="conversation-reply-list">
+                {post.replies.map((reply) => (
+                  <ConversationReplyItem
+                    key={reply.id}
+                    reply={reply}
+                    postTitle={post.title}
+                    highlightTerms={highlightTerms}
+                    onChanged={(changed) =>
+                      onChanged({ ...post, replies: post.replies.map((entry) => (entry.id === changed.id ? changed : entry)) })
+                    }
+                    onDeleted={(id) => onChanged({ ...post, replies: post.replies.filter((entry) => entry.id !== id) })}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+          {isReplying && (
+            <ConversationReplyForm
+              postId={post.id}
+              postTitle={post.title}
+              onSaved={(reply) => {
+                onChanged({ ...post, replies: [...post.replies, reply] })
+                setIsReplying(false)
+              }}
+              onCancel={() => setIsReplying(false)}
+            />
+          )}
+        </section>
+      )}
     </li>
   )
 }
