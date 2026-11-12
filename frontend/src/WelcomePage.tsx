@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { MusicSong } from './api'
+import ConversationsWelcomeCard from './ConversationsWelcomeCard'
 import type { CommentarySource, DevotionalInfo, Translation } from './types'
 import type { View } from './views'
 
@@ -172,17 +173,7 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
       </p>
 
       {/* Only for members an administrator allowed; nobody else sees it. */}
-      {canUseConversations && (
-        <section className="welcome-card welcome-conversations">
-          <h3>Conversations</h3>
-          <p>Read what other members have written, search their posts, and write your own.</p>
-          <div className="welcome-buttons">
-            <button type="button" className="primary-button" onClick={() => onNavigate('conversations')}>
-              Conversations
-            </button>
-          </div>
-        </section>
-      )}
+      {canUseConversations && <ConversationsWelcomeCard onNavigate={onNavigate} />}
     </div>
   )
 }

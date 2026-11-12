@@ -2373,6 +2373,34 @@ select:disabled {
   margin: 0.6rem 0;
 }
 
+/* The start of the latest post, under the card's line about Conversations. */
+.welcome-conversations {
+  max-width: 34rem;
+}
+
+.welcome-latest-post {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--border);
+  background: var(--code-bg);
+  border-radius: 0 6px 6px 0;
+}
+
+.welcome-conversations .welcome-latest-post p {
+  margin: 0.2rem 0;
+}
+
+.welcome-conversations .welcome-latest-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.welcome-conversations .welcome-latest-title {
+  font-weight: 600;
+}
+
 /* Replies under a Conversations post: indented with a line on the left, as in the Jump Start blog. */
 .conversation-replies {
   margin-top: 0.75rem;
