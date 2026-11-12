@@ -108,11 +108,14 @@ def test_the_public_answer_has_the_title_and_the_copyright_line_and_nothing_else
   save_settings({"site_title": "Shown", "copyright_text": "Mine", "context_verses_before": 9})
 
   assert get_public_settings() == {"title": "Shown", "copyright": "Mine"}
-  assert client.get("/site-settings").json() == {"title": "Shown", "copyright": "Mine"}
+  # The API adds only the addresses of the uploaded icons (none here).
+  assert client.get("/site-settings").json() == {"title": "Shown", "copyright": "Mine", "header_icon": None, "tab_icon": None}
 
 
 def test_the_api_serves_the_current_values_when_nothing_has_been_saved():
-  assert client.get("/site-settings").json() == {"title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT}
+  assert client.get("/site-settings").json() == {
+    "title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT, "header_icon": None, "tab_icon": None,
+  }
 
 
 def test_the_settings_tool_sets_and_reads_the_texts():

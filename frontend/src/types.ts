@@ -373,6 +373,10 @@ export interface DevotionalUnit {
 export interface SiteSettings {
   title: string
   copyright: string
+  // The icons an administrator uploaded on the Site settings screen, as addresses on the ML service
+  // ("/site-icon/header?v=..."); null (or missing) means the site's own icon.
+  header_icon?: string | null
+  tab_icon?: string | null
 }
 
 // A visitor who has set up an account and is logged in.

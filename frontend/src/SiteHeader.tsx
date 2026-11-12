@@ -3,6 +3,9 @@ import type { AccountUser } from './types'
 interface SiteHeaderProps {
   // The name of the site, as the administrator has set it.
   title: string
+  // The emblem beside the name: the site's own (/logo-icon.svg) or one uploaded on the Site settings screen;
+  // null while the settings are loading (its place is kept empty, so a replaced emblem never flashes the old one).
+  iconAddress: string | null
   // On a phone the sidebar is a menu that the button opens and closes.
   isMenuOpen: boolean
   onToggleMenu: () => void
@@ -16,7 +19,7 @@ interface SiteHeaderProps {
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -30,7 +33,17 @@ function SiteHeader({ title, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAc
         <span className="visually-hidden">{isMenuOpen ? 'Close the menu' : 'Open the menu'}</span>
       </button>
       <button type="button" className="site-title" onClick={onGoHome}>
-        <img className="site-icon" src="/logo-icon.svg" alt="" width="44" height="44" />
+        {iconAddress ? (
+          <img
+            className={iconAddress === '/logo-icon.svg' ? 'site-icon' : 'site-icon is-uploaded'}
+            src={iconAddress}
+            alt=""
+            width="44"
+            height="44"
+          />
+        ) : (
+          <span className="site-icon" aria-hidden="true" />
+        )}
         <span className="site-name">{title}</span>
       </button>
       <span className="site-tagline">Read, search and study the Bible</span>

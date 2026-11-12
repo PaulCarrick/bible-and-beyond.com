@@ -6,6 +6,8 @@
 docker/snapshot/
 ml-service/data/service_settings.json*
 ml-service/data/api_bible_usage.json
+# The owner's uploaded site icons: each install starts with the site's own.
+ml-service/data/site-icons/
 drupal/web/sites/*/settings.local.php
 drupal/web/sites/*/files/
 # Built or downloaded on this machine, rebuilt inside the image:

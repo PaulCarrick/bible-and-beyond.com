@@ -40,6 +40,12 @@
   border-radius: 50%;
 }
 
+/* An emblem uploaded on the Site settings screen keeps its own shape, fitted into the same square. */
+.site-icon.is-uploaded {
+  border-radius: 0;
+  object-fit: contain;
+}
+
 .site-name {
   color: var(--text-h);
   font-family: Georgia, 'Times New Roman', serif;

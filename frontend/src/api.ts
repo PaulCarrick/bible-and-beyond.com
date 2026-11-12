@@ -492,6 +492,11 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
   return readJson(await fetch(`${mlServiceUrl}/site-settings`))
 }
 
+// The full address of an icon uploaded on the Site settings screen (header_icon or tab_icon).
+export function siteIconAddress(path: string): string {
+  return `${mlServiceUrl}${path}`
+}
+
 // The contact form needs the public reCAPTCHA key (empty when the site has none set up).
 export async function fetchContactSettings(): Promise<{ recaptcha_site_key: string }> {
   return readJson(await fetch(`${mlServiceUrl}/contact-settings`))

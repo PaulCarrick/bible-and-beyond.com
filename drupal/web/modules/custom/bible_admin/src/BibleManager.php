@@ -126,6 +126,57 @@ class BibleManager {
   }
 
   /**
+   * Largest icon file, in bytes (site_icons.MAX_BYTES).
+   */
+  public const MAX_ICON_BYTES = 1024 * 1024;
+
+  /**
+   * The file types an icon may be (site_icons.TYPES).
+   */
+  public const ICON_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico', 'svg'];
+
+  /**
+   * The site's two icons: header (the emblem beside the name) and tab (the browser-tab icon). Each is NULL
+   * while the site's own is used, else its media_type, size, version and data_uri (for a preview).
+   */
+  public function getSiteIcons(): array {
+    return $this->run(['get'], 'manage_site_icons.py')['icons'];
+  }
+
+  /**
+   * Replaces one icon with an uploaded file. The file waits in the private upload folder only while the tool
+   * copies it, and is removed afterwards whatever happens.
+   */
+  public function saveSiteIcon(string $kind, UploadedFile $file): array {
+    $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+    if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+      throw new BibleManagerException('The upload could not be saved.');
+    }
+    try {
+      $extension = strtolower($file->getClientOriginalExtension());
+      $file->move($directory, 'icon.' . $extension);
+      $icons = $this->run(
+        ['upload', '--kind=' . $kind, '--file=' . $directory . '/icon.' . $extension, '--name=icon.' . $extension],
+        'manage_site_icons.py',
+      )['icons'];
+    }
+    finally {
+      $this->fileSystem->deleteRecursive($directory);
+    }
+    $this->logger->notice('@user replaced the @kind icon.', ['@user' => $this->currentUser->getAccountName(), '@kind' => $kind]);
+    return $icons;
+  }
+
+  /**
+   * Goes back to the site's own icon of that kind.
+   */
+  public function removeSiteIcon(string $kind): array {
+    $icons = $this->run(['remove', '--kind=' . $kind], 'manage_site_icons.py')['icons'];
+    $this->logger->notice('@user removed the uploaded @kind icon.', ['@user' => $this->currentUser->getAccountName(), '@kind' => $kind]);
+    return $icons;
+  }
+
+  /**
    * The commentaries or devotionals: those in the database, then the known ones not loaded.
    *
    * @param string $kind

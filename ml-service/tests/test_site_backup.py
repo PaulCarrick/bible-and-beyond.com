@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 import site_backup
+import site_icons
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "manage_backup.py"
 
@@ -99,6 +100,8 @@ def upload(path: Path) -> Path:
 
 def test_a_backup_is_one_zip_with_both_parts(site):
   save_settings({"gemini_api_key": "the-key", "music_folder": str(site["music"])})
+  site_icons.icons_folder().mkdir(parents=True)
+  (site_icons.icons_folder() / "tab.png").write_bytes(b"\x89PNG\r\n\x1a\n")
   path = site_backup.take_backup(EVERYTHING, "Before the move")
 
   assert site_backup.NAME_PATTERN.match(path.name)
@@ -113,10 +116,11 @@ def test_a_backup_is_one_zip_with_both_parts(site):
     "manifest.json", "database/bible-database.dump", "database/drupal-database.sql.gz",
     "database/settings/service_settings.json", "database/settings/api_bible_usage.json",
     "files/music/amazing-grace.mp4", "files/music/amazing-grace-words.pdf", "files/drupal/pictures/logo.png",
+    "files/icons/tab.png",
   }
   assert manifest["parts"] == EVERYTHING
   assert manifest["note"] == "Before the move"
-  assert manifest["counts"] == {"Site users": 3, "Music files": 2, "Drupal files": 1}
+  assert manifest["counts"] == {"Site users": 3, "Music files": 2, "Drupal files": 1, "Site icons": 1}
   # The database password went to pg_dump in its environment, not on its command line.
   assert (site["log"] / "pg_dump.password").read_text().strip() == "secret-word"
   assert site_backup.describe()["waiting"] == {"name": path.name, "size": path.stat().st_size}
@@ -177,10 +181,16 @@ def test_restore_replaces_everything_but_keeps_the_music_folder(site, tmp_path):
 
 
 def test_restore_only_the_files(site, tmp_path):
+  site_icons.icons_folder().mkdir(parents=True)
+  (site_icons.icons_folder() / "header.png").write_bytes(b"\x89PNG\r\n\x1a\n")
   backup = site_backup.take_backup(EVERYTHING)
   (site["music"] / "amazing-grace.mp4").unlink()
+  # An icon changed after the backup is put back as it was in the backup.
+  (site_icons.icons_folder() / "header.png").unlink()
+  (site_icons.icons_folder() / "header.svg").write_text("<svg></svg>")
   site_backup.restore_backup(upload(backup), {"database": False, "files": True})
   assert (site["music"] / "amazing-grace.mp4").is_file()
+  assert sorted(path.name for path in site_icons.icons_folder().iterdir()) == ["header.png"]
   assert not (site["log"] / "psql.input").exists()
   assert "sql:drop" not in (site["log"] / "drush.calls").read_text()
 

@@ -83,6 +83,7 @@ from search import (
   parse_strong_query,
   search_verses,
 )
+import site_icons
 from site_settings import get_public_settings, get_settings
 
 # Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
@@ -649,8 +650,30 @@ def devotional_unit(
 
 @app.get("/site-settings")
 def site_settings():
-  """The site title and copyright line that the pages show. Nothing private is ever in this answer."""
-  return get_public_settings()
+  """The site title and copyright line that the pages show, and the address of each icon an administrator
+  replaced (header_icon, tab_icon; null for the site's own). Nothing private is ever in this answer."""
+  return {**get_public_settings(), **site_icons.public_paths()}
+
+
+@app.get("/site-icon/{kind}")
+def site_icon(kind: str):
+  """An icon uploaded on the Site settings screen. Cached for a month: the page adds ?v= with its version,
+  which changes when it is replaced. An SVG opened on its own cannot run anything (the sandbox policy)."""
+  if kind not in site_icons.KINDS:
+    raise HTTPException(status_code=404, detail="There is no such icon.")
+  found = site_icons.current(kind)
+  if found is None:
+    raise HTTPException(status_code=404, detail="That icon has not been replaced.")
+  path, media_type = found
+  return FileResponse(
+    path,
+    media_type=media_type,
+    headers={
+      "Cache-Control": "public, max-age=2592000",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    },
+  )
 
 
 @app.get("/contact-settings")

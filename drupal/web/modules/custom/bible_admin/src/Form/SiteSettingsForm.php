@@ -12,6 +12,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * The one screen where the options of the public site are set.
@@ -30,6 +31,14 @@ class SiteSettingsForm extends FormBase {
     'context_verses_before' => 'Verses before',
     'context_verses_after' => 'Verses after',
     'related_verses_limit' => 'Related verses to show',
+  ];
+
+  /**
+   * The two icons that can be uploaded: field name prefix => what it is.
+   */
+  private const ICONS = [
+    'header' => 'Header emblem',
+    'tab' => 'Browser-tab icon',
   ];
 
   private const HOST_PATTERN = '/^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/';
@@ -120,6 +129,7 @@ class SiteSettingsForm extends FormBase {
         '#maxlength' => $textLimits['copyright_text']['max'],
         '#size' => 80,
       ];
+      $this->buildIcons($form);
     }
 
     if ($this->canEditSearch()) {
@@ -271,6 +281,21 @@ class SiteSettingsForm extends FormBase {
     elseif ($this->hasControlCharacters($title)) {
       $form_state->setErrorByName('site_title', $this->t('The title must be one line of plain text.'));
     }
+    foreach (self::ICONS as $kind => $label) {
+      $file = $this->uploadedIcon($kind);
+      if ($file === NULL) {
+        continue;
+      }
+      if (!$file->isValid()) {
+        $form_state->setErrorByName($kind . '_icon', $this->t('The @label could not be uploaded: @reason', ['@label' => mb_strtolower($label), '@reason' => $file->getErrorMessage()]));
+      }
+      elseif (!in_array(strtolower($file->getClientOriginalExtension()), BibleManager::ICON_EXTENSIONS, TRUE)) {
+        $form_state->setErrorByName($kind . '_icon', $this->t('The @label must be a PNG, JPEG, WebP, GIF, ICO or SVG file.', ['@label' => mb_strtolower($label)]));
+      }
+      elseif ($file->getSize() > BibleManager::MAX_ICON_BYTES) {
+        $form_state->setErrorByName($kind . '_icon', $this->t('The @label is larger than @size KB.', ['@label' => mb_strtolower($label), '@size' => (int) (BibleManager::MAX_ICON_BYTES / 1024)]));
+      }
+    }
     $copyright = trim((string) $form_state->getValue('copyright_text'));
     if (mb_strlen($copyright) > (int) $textLimits['copyright_text']['max']) {
       $form_state->setErrorByName('copyright_text', $this->t('The copyright line can be at most @max characters.', ['@max' => $textLimits['copyright_text']['max']]));
@@ -420,6 +445,76 @@ class SiteSettingsForm extends FormBase {
     }
   }
 
+  /**
+   * The two icons, in The site section: each with a preview of the one in use, an upload field and, when one
+   * was uploaded, a box to go back to the site's own.
+   */
+  private function buildIcons(array &$form): void {
+    try {
+      $icons = $this->manager->getSiteIcons();
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($this->t('The icons could not be read: @message', ['@message' => $exception->getMessage()]));
+      return;
+    }
+    $descriptions = [
+      'header' => $this->t('The emblem at the top of every page, beside the title. It is shown 44 pixels square (38 on a phone), so a square picture of at least 88 by 88 pixels looks best. The site\'s own is the round navy emblem with the gold "&".'),
+      'tab' => $this->t('The small picture on the browser tab (the favicon). A square picture, at least 32 by 32 pixels (64 or more for sharp screens). The site\'s own is the open book.'),
+    ];
+    foreach (self::ICONS as $kind => $label) {
+      $icon = $icons[$kind] ?? NULL;
+      $form['site'][$kind . '_icon_group'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t($label),
+      ];
+      $form['site'][$kind . '_icon_group']['current'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => $icon === NULL
+          ? $this->t("The site's own icon is in use.")
+          : $this->t('An uploaded icon is in use (@type, @size KB):', [
+            '@type' => strtoupper(preg_replace('#^image/(x-)?|\+xml$#', '', $icon['media_type'])),
+            '@size' => max(1, (int) round($icon['size'] / 1024)),
+          ]),
+      ];
+      if ($icon !== NULL) {
+        // A data: address made by the tool from the stored file; an SVG drawn by <img> cannot run anything.
+        $form['site'][$kind . '_icon_group']['preview'] = [
+          '#type' => 'html_tag',
+          '#tag' => 'img',
+          '#attributes' => [
+            'src' => $icon['data_uri'],
+            'alt' => $this->t('The @label in use', ['@label' => mb_strtolower($label)]),
+            'width' => 64,
+            'height' => 64,
+            'style' => 'object-fit: contain; border: 1px solid #ccc; padding: 4px; background: #fff;',
+          ],
+        ];
+      }
+      $form['site'][$kind . '_icon_group'][$kind . '_icon'] = [
+        '#type' => 'file',
+        '#title' => $icon === NULL ? $this->t('Upload a new icon') : $this->t('Upload a different icon'),
+        '#description' => $descriptions[$kind] . ' ' . $this->t('PNG, JPEG, WebP, GIF, ICO or SVG, up to @size KB. Leave empty to keep the one in use.', ['@size' => (int) (BibleManager::MAX_ICON_BYTES / 1024)]),
+        '#attributes' => ['accept' => '.png,.jpg,.jpeg,.webp,.gif,.ico,.svg'],
+      ];
+      if ($icon !== NULL) {
+        $form['site'][$kind . '_icon_group'][$kind . '_icon_remove'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t("Go back to the site's own icon"),
+        ];
+      }
+    }
+  }
+
+  /**
+   * The file uploaded in one of the icon fields, or NULL when none was chosen.
+   */
+  private function uploadedIcon(string $kind): ?UploadedFile {
+    $files = $this->getRequest()->files->get('files');
+    $file = is_array($files) ? ($files[$kind . '_icon'] ?? NULL) : NULL;
+    return $file instanceof UploadedFile ? $file : NULL;
+  }
+
   private function hasControlCharacters(string $text): bool {
     return (bool) preg_match('/[\x00-\x1f\x7f]/', $text);
   }
@@ -446,6 +541,22 @@ class SiteSettingsForm extends FormBase {
     }
 
     if ($this->canEditSite()) {
+      // The icons: a new upload replaces the one in use; "Go back" removes an uploaded one.
+      foreach (array_keys(self::ICONS) as $kind) {
+        try {
+          $file = $this->uploadedIcon($kind);
+          if ($file !== NULL) {
+            $this->manager->saveSiteIcon($kind, $file);
+          }
+          elseif ($form_state->getValue($kind . '_icon_remove')) {
+            $this->manager->removeSiteIcon($kind);
+          }
+        }
+        catch (BibleManagerException $exception) {
+          $this->messenger()->addError($this->t('The @label was not changed: @message', ['@label' => mb_strtolower(self::ICONS[$kind]), '@message' => $exception->getMessage()]));
+        }
+      }
+
       $mail = [];
       foreach (['smtp_host', 'smtp_username', 'smtp_authentication', 'default_domain', 'from_address', 'to_address', 'subject'] as $key) {
         $mail[$key] = trim((string) $form_state->getValue($key));

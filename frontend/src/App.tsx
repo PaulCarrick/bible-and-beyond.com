@@ -8,6 +8,7 @@ import {
   fetchMusic,
   fetchOtherBooks,
   fetchSiteSettings,
+  siteIconAddress,
   fetchTranslations,
   logOut,
   resendVerification,
@@ -98,6 +99,9 @@ function App() {
   // The Other books: read by chapter like a devotional, on their own page.
   const [otherBooks, setOtherBooks] = useState<DevotionalInfo[]>([])
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
+  // Until the settings arrive the header leaves the emblem's place empty, so a replaced emblem never flashes
+  // the site's own first.
+  const [areSettingsLoaded, setAreSettingsLoaded] = useState(false)
   const [user, setUser] = useState<AccountUser | null>(null)
   const [resendMessage, setResendMessage] = useState('')
   // Where a note's link asked a reader to open, with a new id each time.
@@ -158,7 +162,23 @@ function App() {
     fetchSiteSettings()
       .then(setSiteSettings)
       .catch(() => setSiteSettings(defaultSiteSettings))
+      .finally(() => setAreSettingsLoaded(true))
   }, [])
+
+  // The browser-tab icon: an uploaded one replaces the site's own (index.html links /favicon.svg).
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (!link) {
+      return
+    }
+    if (siteSettings.tab_icon) {
+      link.removeAttribute('type')
+      link.href = siteIconAddress(siteSettings.tab_icon)
+    } else {
+      link.type = 'image/svg+xml'
+      link.href = '/favicon.svg'
+    }
+  }, [siteSettings.tab_icon])
 
   // On Back or Forward, show that entry's page at the place it was scrolled to when it was left. The pages stay
   // mounted, so their contents (search results, the chapter being read) are as they were.
@@ -311,6 +331,7 @@ function App() {
       <div className="app-shell">
         <SiteHeader
           title={siteSettings.title}
+          iconAddress={!areSettingsLoaded ? null : siteSettings.header_icon ? siteIconAddress(siteSettings.header_icon) : '/logo-icon.svg'}
           isMenuOpen={isMenuOpen}
           onToggleMenu={() => setIsMenuOpen(!isMenuOpen)}
           onGoHome={() => navigate('welcome')}
