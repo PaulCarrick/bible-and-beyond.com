@@ -2104,9 +2104,99 @@ select:disabled {
   border-top: 1px solid var(--border);
 }
 
-.music-song {
+/* A song's row: its section and, for a logged-in visitor, a checkbox at the right edge, in one column. */
+.music-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
   border-bottom: 1px solid var(--border);
+}
+
+.music-song {
+  flex: 1 1 auto;
+  min-width: 0;
   scroll-margin-top: 1rem;
+}
+
+/* The song a playlist is playing. */
+.music-song.playing .music-title {
+  color: #1a6ebd;
+}
+
+.music-tick {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 1rem 0.25rem 0 0;
+  cursor: pointer;
+}
+
+.music-tick-heading {
+  margin: 1.25rem 0 -1rem;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* The visitor's playlists, under the list of songs. */
+.music-playlists {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 2px solid var(--border);
+}
+
+.music-playlist-save,
+.music-playlist-play {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem 0.9rem;
+  margin: 1rem 0;
+}
+
+.music-playlist-save p {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.music-playlist-save label,
+.music-playlist-play label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.music-playlist-save input[type='text'] {
+  width: 18rem;
+  max-width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.music-playlist-play select {
+  max-width: 100%;
+  min-width: 12rem;
+  font: inherit;
+}
+
+.music-playlists .primary-button {
+  margin-top: 0;
+}
+
+.music-playlist-save .music-playlist-hint {
+  font-size: 0.9rem;
+}
+
+.music-now-playing {
+  margin: 0.5rem 0;
+}
+
+.music-playlist-songs ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
 }
 
 .music-song summary {

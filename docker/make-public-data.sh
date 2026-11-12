@@ -18,7 +18,7 @@ output_directory="$(cd "$(dirname "$0")" && pwd)/public-data"
 mkdir -p "$output_directory"
 
 # The tables that hold anything about a visitor: their structure is kept, their rows never.
-personal_tables=(users user_sessions account_tokens notes devotional_subscriptions)
+personal_tables=(users user_sessions account_tokens notes devotional_subscriptions playlists playlist_songs)
 # Fetched by each site from the owners (docker/web/fetch-owner-data.sh), never shipped.
 owner_tables=(original_words lexicon_entries devotionals devotional_sections devotional_entries)
 # This site's own stored FAQ answers from Gemini (each site makes its own with its own key), and its songs:

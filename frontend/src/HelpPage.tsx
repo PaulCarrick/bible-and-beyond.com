@@ -498,6 +498,14 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             caption="Listen to the music: one song open, with its player and its words."
           />
           <p>
+            <strong>Playlists</strong> (when you are logged in): each song has a checkbox at the right. Tick the songs you
+            want, then at the foot of the page give the playlist a name and press <em>Save as a playlist</em>; the songs
+            play in the order of the page. Choose a playlist in the list there and press <em>Play</em>: each song opens and
+            plays in turn, and the next starts when one ends (on some phones you may need to press play on each song).{' '}
+            <em>Change this playlist</em> ticks its songs so you can change them and save under the same name, which
+            replaces it; <em>Delete this playlist</em> removes it. Your playlists are yours alone.
+          </p>
+          <p>
             <PageLink onNavigate={onNavigate} view="searchMusic">Search the music</PageLink> finds a song by its title, its author or its
             words, and <em>Play this song</em> on a result takes you to it.
           </p>

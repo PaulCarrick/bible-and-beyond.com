@@ -338,6 +338,36 @@ export function musicFileAddress(song: MusicSong): string {
   return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/file?v=${song.version}`
 }
 
+// A logged-in visitor's playlist: a name and its songs in the order they play (published songs only).
+export interface Playlist {
+  id: number
+  name: string
+  song_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+// Playlists. Each call needs a logged-in visitor (the session cookie says who).
+export async function fetchPlaylists(signal?: AbortSignal): Promise<Playlist[]> {
+  const response = await fetch(`${mlServiceUrl}/playlists`, { credentials: 'include', signal })
+  return (await readJson<{ playlists: Playlist[] }>(response)).playlists
+}
+
+// Saves the songs as a playlist; a name the visitor already uses (in any case) replaces that playlist.
+export async function savePlaylist(name: string, songIds: string[]): Promise<{ playlist: Playlist; replaced: boolean }> {
+  const response = await fetch(`${mlServiceUrl}/playlists`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, song_ids: songIds }),
+  })
+  return readJson(response)
+}
+
+export async function deletePlaylist(id: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/playlists/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
 // Where the page gets a song's words file (a PDF or a picture).
 export function musicWordsAddress(song: MusicSong): string {
   return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/words?v=${song.version}`

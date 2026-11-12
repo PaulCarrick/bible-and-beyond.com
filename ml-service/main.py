@@ -6,7 +6,7 @@ import psycopg
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from accounts import (
   AccountProblem,
@@ -59,6 +59,7 @@ from subscriptions import (
   unsubscribe_with_token,
 )
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
+from playlists import PlaylistProblem, delete_playlist, list_playlists, save_playlist
 from original_words import get_lexicon_entry, get_original_words
 import search
 from search import (
@@ -765,10 +766,10 @@ class NoteRequest(BaseModel):
   body: str
 
 
-def require_user(request: Request) -> dict:
+def require_user(request: Request, detail: str = "Please log in to use notes.") -> dict:
   user = user_for_token(request.cookies.get(SESSION_COOKIE))
   if user is None:
-    raise HTTPException(status_code=401, detail="Please log in to use notes.")
+    raise HTTPException(status_code=401, detail=detail)
   return user
 
 
@@ -825,6 +826,40 @@ def notes_delete(note_id: int, request: Request):
   try:
     delete_note(user["id"], note_id)
   except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+class PlaylistRequest(BaseModel):
+  name: str = Field(max_length=1000)
+  # The songs in the order they play, by id.
+  song_ids: list[str] = Field(max_length=1000)
+
+
+@app.get("/playlists")
+def playlists_list(request: Request):
+  """The logged-in visitor's own playlists by name, each with its published songs in order."""
+  user = require_user(request, "Please log in to use playlists.")
+  return {"playlists": list_playlists(user["id"])}
+
+
+@app.post("/playlists")
+def playlists_save(body: PlaylistRequest, request: Request):
+  """Saves songs as a playlist of the logged-in visitor; a name already used (in any case) is replaced."""
+  user = require_user(request, "Please log in to use playlists.")
+  try:
+    playlist, replaced = save_playlist(user["id"], body.name, body.song_ids)
+  except PlaylistProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"playlist": playlist, "replaced": replaced}
+
+
+@app.delete("/playlists/{playlist_id}")
+def playlists_delete(playlist_id: int, request: Request):
+  user = require_user(request, "Please log in to use playlists.")
+  try:
+    delete_playlist(user["id"], playlist_id)
+  except PlaylistProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}
 
