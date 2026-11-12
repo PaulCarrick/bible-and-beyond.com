@@ -228,7 +228,7 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
       />
       <div className="browse-tab" hidden={isHidden || showList}>
         <div className="browse-controls" hidden={windowIsOpen}>
-          <button type="button" className="link-button browse-list-link" onClick={backToList}>
+          <button type="button" className="secondary-button browse-list-link" onClick={backToList}>
             {isBooks ? '← All books' : '← All devotionals'}
           </button>
           <label className="inline-label">
@@ -281,7 +281,7 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
               Today
             </button>
           )}
-          <button type="button" className="browse-top-link" onClick={scrollToTop}>
+          <button type="button" className="secondary-button browse-top-link" onClick={scrollToTop}>
             ↑ Back to top
           </button>
         </div>

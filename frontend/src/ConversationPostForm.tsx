@@ -79,7 +79,7 @@ function ConversationPostForm({ post, onSaved, onCancel }: ConversationPostFormP
         <button type="submit" className="primary-button" disabled={isSaving}>
           {isSaving ? 'Saving…' : post ? 'Save changes' : 'Post it'}
         </button>
-        <button type="button" className="link-button" disabled={isSaving} onClick={onCancel}>
+        <button type="button" className="secondary-button" disabled={isSaving} onClick={onCancel}>
           Cancel
         </button>
       </div>

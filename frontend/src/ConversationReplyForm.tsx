@@ -68,7 +68,7 @@ function ConversationReplyForm({ postId, postTitle, reply, onSaved, onCancel }: 
         <button type="button" className="primary-button" disabled={isSaving} onClick={handleSave}>
           {isSaving ? 'Saving…' : reply ? 'Save changes' : 'Post reply'}
         </button>
-        <button type="button" className="link-button" disabled={isSaving} onClick={onCancel}>
+        <button type="button" className="secondary-button" disabled={isSaving} onClick={onCancel}>
           Cancel
         </button>
       </div>

@@ -198,7 +198,7 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
           Search
         </button>
         {(query !== '' || searchText !== '') && (
-          <button type="button" className="link-button" onClick={clearSearch}>
+          <button type="button" className="secondary-button" onClick={clearSearch}>
             Clear search
           </button>
         )}
@@ -294,7 +294,7 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
           <button type="submit" className="primary-button" disabled={isSaving}>
             {isSaving ? 'Saving…' : 'Save note'}
           </button>
-          <button type="button" className="link-button" disabled={isSaving} onClick={() => setIsAdding(false)}>
+          <button type="button" className="secondary-button" disabled={isSaving} onClick={() => setIsAdding(false)}>
             Cancel
           </button>
         </div>

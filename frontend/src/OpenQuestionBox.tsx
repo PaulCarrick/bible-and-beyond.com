@@ -47,7 +47,7 @@ function OpenQuestionBox() {
         {answer && !isAsking && (
           <button
             type="button"
-            className="link-button"
+            className="secondary-button"
             onClick={() => {
               editorReference.current?.clear()
               setAnswer(null)

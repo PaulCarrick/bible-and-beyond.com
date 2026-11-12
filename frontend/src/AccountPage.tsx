@@ -181,27 +181,30 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
         </form>
       )}
 
-      {mode === 'login' && (
-        <p>
-          <button type="button" className="link-button" onClick={() => onNavigate('forgot')}>
-            Forgot your password?
-          </button>
-        </p>
-      )}
-      {(mode === 'register' || mode === 'login') && (
-        <p>
-          {mode === 'register' ? 'Already have an account? ' : 'No account yet? '}
-          <button type="button" className="link-button" onClick={() => onNavigate(mode === 'register' ? 'login' : 'register')}>
-            {mode === 'register' ? 'Log in' : 'Set up account'}
-          </button>
-        </p>
-      )}
-      {mode === 'forgot' && (
-        <p>
-          <button type="button" className="link-button" onClick={() => onNavigate('login')}>
-            Back to log in
-          </button>
-        </p>
+      {/* The other account pages, as buttons under the form (the site's rule: no links beside buttons). */}
+      {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
+        <div className="account-other-actions">
+          {mode === 'login' && (
+            <>
+              <button type="button" className="secondary-button" onClick={() => onNavigate('forgot')}>
+                Forgot your password?
+              </button>
+              <button type="button" className="secondary-button" onClick={() => onNavigate('register')}>
+                No account yet? Set one up
+              </button>
+            </>
+          )}
+          {mode === 'register' && (
+            <button type="button" className="secondary-button" onClick={() => onNavigate('login')}>
+              Already have an account? Log in
+            </button>
+          )}
+          {mode === 'forgot' && (
+            <button type="button" className="secondary-button" onClick={() => onNavigate('login')}>
+              Back to log in
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

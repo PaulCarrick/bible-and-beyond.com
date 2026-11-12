@@ -326,7 +326,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
             Go
           </button>
         </form>
-        <button type="button" className="browse-top-link" onClick={scrollToTop}>
+        <button type="button" className="secondary-button browse-top-link" onClick={scrollToTop}>
           ↑ Back to top
         </button>
       </div>

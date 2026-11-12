@@ -187,7 +187,7 @@ function DevotionalEmailPanel({ devotional, sections, currentSection, currentUni
                   {isBusy ? 'Saving…' : subscription ? 'Save the change' : 'Email it to me each day'}
                 </button>
                 {subscription && (
-                  <button type="button" className="link-button" disabled={isBusy} onClick={() => setIsChanging(false)}>
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={() => setIsChanging(false)}>
                     Cancel
                   </button>
                 )}

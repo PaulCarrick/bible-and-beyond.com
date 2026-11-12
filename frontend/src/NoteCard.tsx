@@ -97,7 +97,7 @@ function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem, highlight
             <button type="button" className="primary-button" disabled={isBusy} onClick={handleSave}>
               {isBusy ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="link-button" disabled={isBusy} onClick={() => setMode('reading')}>
+            <button type="button" className="secondary-button" disabled={isBusy} onClick={() => setMode('reading')}>
               Cancel
             </button>
           </div>

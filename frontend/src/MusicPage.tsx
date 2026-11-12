@@ -339,10 +339,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           {tickedSongs.length > 0 && (
             <div className="music-playlist-save">
               <p>
-                {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.{' '}
-                <button type="button" className="link-button" onClick={() => setTickedIds(new Set())}>
-                  Clear the ticks
-                </button>
+                {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
               </p>
               <label>
                 Playlist name
@@ -360,6 +357,9 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
               </label>
               <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
                 {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
+              </button>
+              <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
+                Clear the ticks
               </button>
               {nameInUse && <p className="music-playlist-hint">You already have a playlist called “{trimmedName}”; saving replaces its songs.</p>}
             </div>
@@ -389,7 +389,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                 Play
               </button>
               {playing && (
-                <button type="button" className="link-button" onClick={handleStop}>
+                <button type="button" className="secondary-button" onClick={handleStop}>
                   Stop
                 </button>
               )}

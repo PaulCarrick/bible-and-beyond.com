@@ -245,7 +245,8 @@
   min-width: 0;
 }
 
-.search-row .primary-button {
+.search-row .primary-button,
+.search-row .secondary-button {
   margin-top: 0;
 }
 
@@ -300,20 +301,60 @@ select:disabled {
   gap: 0.5rem;
 }
 
-.primary-button {
+/* Buttons are outlined boxes with rounded corners and no fill (the owner's choice, 2026-11-12). The main action of
+   a row (primary-button) has a blue outline and bold text; the lesser ones (secondary-button: Cancel, Clear
+   search, Stop, and the links at the foot of a form) a grey outline. Both are the same size and fill lightly on
+   hover. Where buttons and links would sit together, they are all buttons; lists of actions (Edit, Delete,
+   Reply...) stay links, which take less room. */
+.primary-button,
+.secondary-button {
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 0;
-  border-radius: 4px;
-  background: #1a6ebd;
-  color: #fff;
+  padding: calc(0.5rem - 1px) calc(1rem - 1px);
+  border: 1px solid #1a6ebd;
+  border-radius: 8px;
+  background: transparent;
+  color: #1a6ebd;
   font: inherit;
   cursor: pointer;
 }
 
-.primary-button:disabled {
+.primary-button {
+  font-weight: 600;
+}
+
+.secondary-button {
+  border-color: #b9c0ca;
+}
+
+.primary-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled) {
+  background: rgba(26, 110, 189, 0.08);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .primary-button,
+  .secondary-button {
+    color: #7ab8f0;
+  }
+
+  .primary-button {
+    border-color: #7ab8f0;
+  }
+
+  .secondary-button {
+    border-color: #4b5563;
+  }
+
+  .primary-button:hover:not(:disabled),
+  .secondary-button:hover:not(:disabled) {
+    background: rgba(122, 184, 240, 0.12);
+  }
 }
 
 .link-button {
@@ -1281,20 +1322,22 @@ select:disabled {
   font-weight: 600;
 }
 
+/* It floats over the text, so unlike the other buttons it stays filled. */
+.back-to-top,
+.back-to-top:hover:not(:disabled) {
+  border-color: #1a6ebd;
+  background: #1a6ebd;
+  color: #fff;
+}
+
 .back-to-top[hidden] {
   display: none;
 }
 
+/* Back to top, at the right of the choosers: a secondary button beside the Go button. */
 .browse-top-link {
   margin-left: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #1a6ebd;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
+  white-space: nowrap;
 }
 
 .browse-to-top {
@@ -1557,7 +1600,8 @@ select:disabled {
   margin-bottom: 1rem;
 }
 
-.notes-toolbar .primary-button {
+.notes-toolbar .primary-button,
+.notes-toolbar .secondary-button {
   margin-top: 0;
 }
 
@@ -1605,7 +1649,8 @@ select:disabled {
   font-size: 0.9rem;
 }
 
-.note-actions .primary-button {
+.note-actions .primary-button,
+.note-actions .secondary-button {
   margin-top: 0;
 }
 
@@ -1700,7 +1745,8 @@ select:disabled {
   font: inherit;
 }
 
-.notes-search .primary-button {
+.notes-search .primary-button,
+.notes-search .secondary-button {
   margin-top: 0;
 }
 
@@ -2182,7 +2228,8 @@ select:disabled {
   font: inherit;
 }
 
-.music-playlists .primary-button {
+.music-playlists .primary-button,
+.music-playlists .secondary-button {
   margin-top: 0;
 }
 
@@ -2318,10 +2365,10 @@ select:disabled {
 }
 
 .archive-link.is-borrow {
-  padding: 0.3rem 0.8rem;
-  border-radius: 4px;
-  background: #1a6ebd;
-  color: #fff;
+  padding: calc(0.3rem - 1px) calc(0.8rem - 1px);
+  border: 1px solid #1a6ebd;
+  border-radius: 8px;
+  color: #1a6ebd;
   font-weight: 600;
   text-decoration: none;
 }
@@ -2435,4 +2482,21 @@ select:disabled {
 
 .conversation-reply-form {
   margin-top: 0.5rem;
+}
+
+.browse-controls .primary-button,
+.browse-controls .secondary-button {
+  margin-top: 0;
+}
+
+/* The buttons to the other account pages, under the Log in, Set up account and Forgot password forms. */
+.account-other-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.account-other-actions .secondary-button {
+  margin-top: 0;
 }

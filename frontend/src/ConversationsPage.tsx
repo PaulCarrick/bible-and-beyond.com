@@ -151,7 +151,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
           Search
         </button>
         {(query !== '' || searchText !== '') && (
-          <button type="button" className="link-button" onClick={clearSearch}>
+          <button type="button" className="secondary-button" onClick={clearSearch}>
             Clear search
           </button>
         )}
