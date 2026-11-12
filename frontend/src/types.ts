@@ -1,6 +1,7 @@
 export type MatchMode = 'all' | 'any' | 'phrase'
 // The Bible search also offers 'ai': Google's Gemini suggests the verses (accounts with open_ai_queries only).
-export type SearchMatchMode = MatchMode | 'ai'
+// 'ai': search by meaning (accounts with open_ai_queries); 'archive': the Internet Archive (anyone).
+export type SearchMatchMode = MatchMode | 'ai' | 'archive'
 export type SortField = 'verse' | 'text'
 export type SortDirection = 'asc' | 'desc'
 export type PerPage = number | 'automatic'

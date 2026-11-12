@@ -51,6 +51,7 @@ from ai_search import AiSearchProblem, find_verses
 import passage_embeddings
 from passage_embeddings import PassageSearchProblem
 from faq_notes import owner_note_or_nothing
+from internet_archive import ArchiveProblem, search_archive
 from music import list_songs, search_music, song_file, song_words_file
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
@@ -474,6 +475,20 @@ def search_other_books(
     return search_books(query, match_mode, book, page, per_page, sort_by)
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/search-internet-archive")
+def search_the_internet_archive(
+  query: str = Query(min_length=1, max_length=500),
+  # "texts": books, found inside their text (lending books too); "audio": recordings.
+  kind: Literal["texts", "audio"] = "texts",
+  page: int = Query(default=1, ge=1, le=1000),
+  per_page: int = Query(default=10, ge=1, le=50),
+):
+  try:
+    return search_archive(query, kind, page, per_page)
+  except ArchiveProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem)) from problem
 
 
 @app.get("/search-everything")

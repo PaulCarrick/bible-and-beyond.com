@@ -2310,3 +2310,23 @@ select:disabled {
   border-radius: 6px;
   background: #0b1a33;
 }
+
+/* The Internet Archive results (ArchiveResults.tsx): each item's link to archive.org; a lending book's is a button. */
+.archive-link {
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.archive-link.is-borrow {
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  background: #1a6ebd;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.archive-link.is-borrow:hover,
+.archive-link.is-borrow:focus-visible {
+  filter: brightness(1.1);
+}

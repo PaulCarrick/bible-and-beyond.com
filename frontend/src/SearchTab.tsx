@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { searchBible, searchCommentaries } from './api'
 import { chooseContextTranslation } from './contextTranslation'
+import ArchiveResults from './ArchiveResults'
 import LicensedResults from './LicensedResults'
 import ResultFilters from './ResultFilters'
 import SearchForm from './SearchForm'
@@ -64,6 +65,7 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
   const [searchErrorMessage, setSearchErrorMessage] = useState('')
   const [fittedPerPage, setFittedPerPage] = useState(estimateFitCount)
   const activeRequest = useRef<AbortController | null>(null)
+  const [archiveSearchId, setArchiveSearchId] = useState(0)
 
   function runSearch(
     newSearchParameters: SearchParameters,
@@ -77,8 +79,15 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
 
     setSearchParameters(newSearchParameters)
     setSelectedBook(newBook)
-    setIsLoading(true)
     setSearchErrorMessage('')
+    if (newSearchParameters.matchMode === 'archive') {
+      // Shown by ArchiveResults, which does its own searching.
+      setResponse(null)
+      setIsLoading(false)
+      setArchiveSearchId((number) => number + 1)
+      return
+    }
+    setIsLoading(true)
 
     const rowsPerPage = newSearchParameters.perPage === 'automatic' ? fitCount : newSearchParameters.perPage
     const search = mode === 'commentary' ? searchCommentaries : searchBible
@@ -177,7 +186,10 @@ function SearchTab({ mode, translations, books, commentaries, isHidden, onShowCo
             ) : null
           }
         >
-          {searchParameters !== null && (
+          {searchParameters?.matchMode === 'archive' && (
+            <ArchiveResults query={searchParameters.query} kind="texts" searchId={archiveSearchId} />
+          )}
+          {searchParameters !== null && searchParameters.matchMode !== 'archive' && (
             <SearchResults
               mode={mode}
               contextTranslation={contextTranslation}

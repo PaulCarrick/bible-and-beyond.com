@@ -1,6 +1,7 @@
 import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { AccountContext } from './AccountContext'
+import ArchiveResults from './ArchiveResults'
 import { searchEverything } from './api'
 import type { SiteSearchGroup, SiteSearchKind, SiteSearchResult } from './api'
 import { highlight, renderExcerpt } from './highlight'
@@ -20,7 +21,7 @@ interface WelcomeSearchProps {
 
 const perGroup = 5
 
-type MatchMode = 'all' | 'any' | 'phrase' | 'ai'
+type MatchMode = 'all' | 'any' | 'phrase' | 'ai' | 'archive'
 
 const groupTitles: Record<SiteSearchKind, string> = {
   bible: 'The Bible',
@@ -50,6 +51,8 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
   const [errorMessage, setErrorMessage] = useState('')
   // An AI search whose Bible verses could not be suggested (Gemini was busy); the other groups still show.
   const [bibleUnavailable, setBibleUnavailable] = useState(false)
+  // A new number for each Internet Archive search (ArchiveResults does the searching).
+  const [archiveSearchId, setArchiveSearchId] = useState(0)
   const controller = useRef<AbortController | null>(null)
   const { user } = useContext(AccountContext)
   // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
@@ -63,6 +66,15 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
       return
     }
     controller.current?.abort()
+    if (wanted.matchMode === 'archive') {
+      setGroups([])
+      setBibleUnavailable(false)
+      setErrorMessage('')
+      setIsSearching(false)
+      setSearched(wanted)
+      setArchiveSearchId((number) => number + 1)
+      return
+    }
     const request = new AbortController()
     controller.current = request
     setIsSearching(true)
@@ -215,7 +227,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
             placeholder={effectiveMatchMode === 'ai' ? 'Example: the beatitudes' : 'Example "born again" or forgiveness'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            {effectiveMatchMode === 'ai' ? 'Search with AI' : 'Search'}
+            {effectiveMatchMode === 'ai' ? 'Search with AI' : effectiveMatchMode === 'archive' ? 'Search the Internet Archive' : 'Search'}
           </button>
         </div>
         <div className="book-search-options">
@@ -226,9 +238,17 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
               {canUseAi && <option value="ai">Use AI to find related passages</option>}
+              <option value="archive">Search the Internet Archive</option>
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'archive' && (
+          <p className="option-note">
+            Searches inside the books and documents of the Internet Archive (archive.org), including its lending library
+            of books still under copyright, which anyone can borrow free for an hour with an Archive account. The
+            results open on archive.org.
+          </p>
+        )}
         {effectiveMatchMode === 'ai' && (
           <p className="option-note">
             AI finds what is closest in meaning to what you type, even in other words: an AI (Google&rsquo;s Gemini)
@@ -245,7 +265,8 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
           The AI could not suggest Bible verses just now (it was too busy); try the search again in a minute for them.
         </p>
       )}
-      {searched && !isSearching && groups.length === 0 && !errorMessage && <p>Nothing was found.</p>}
+      {searched?.matchMode === 'archive' && <ArchiveResults query={searched.query} kind="texts" searchId={archiveSearchId} />}
+      {searched && searched.matchMode !== 'archive' && !isSearching && groups.length === 0 && !errorMessage && <p>Nothing was found.</p>}
       {groups.map((group) => (
         <div key={group.kind} className={`welcome-search-group${isSearching ? ' is-loading' : ''}`}>
           <h3>

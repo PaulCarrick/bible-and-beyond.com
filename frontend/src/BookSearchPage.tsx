@@ -1,6 +1,7 @@
 import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
+import ArchiveResults from './ArchiveResults'
 import { searchOtherBooks } from './api'
 import type { BookSearchOptions, BookSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
@@ -31,6 +32,8 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const controller = useRef<AbortController | null>(null)
   const resultsReference = useRef<HTMLDivElement>(null)
+  // The Internet Archive search shown (ArchiveResults does the searching), with a new number for each search.
+  const [archiveSearch, setArchiveSearch] = useState<{ query: string; id: number } | null>(null)
   const { user } = useContext(AccountContext)
   // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
   const canUseAi = user?.open_ai_queries === true
@@ -63,9 +66,18 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (query.trim() !== '') {
-      run({ query: query.trim(), matchMode: effectiveMatchMode, book, sortBy, page: 1, perPage })
+    if (query.trim() === '') {
+      return
     }
+    if (effectiveMatchMode === 'archive') {
+      controller.current?.abort()
+      setResponse(null)
+      setShown(null)
+      setArchiveSearch((last) => ({ query: query.trim(), id: (last?.id ?? 0) + 1 }))
+      return
+    }
+    setArchiveSearch(null)
+    run({ query: query.trim(), matchMode: effectiveMatchMode, book, sortBy, page: 1, perPage })
   }
 
   // The book and the order apply at once to the search shown; the match choice waits for Search.
@@ -108,7 +120,7 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
             placeholder={effectiveMatchMode === 'ai' ? 'Example: pride and humility' : 'Example "grace of God" or humility'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            {effectiveMatchMode === 'ai' ? 'Find passages with AI' : 'Search the other books'}
+            {effectiveMatchMode === 'ai' ? 'Find passages with AI' : effectiveMatchMode === 'archive' ? 'Search the Internet Archive' : 'Search the other books'}
           </button>
         </div>
         <div className="book-search-options">
@@ -119,9 +131,10 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
               {canUseAi && <option value="ai">Use AI to find related passages</option>}
+              <option value="archive">Search the Internet Archive</option>
             </select>
           </label>
-          <label>
+          <label hidden={effectiveMatchMode === 'archive'}>
             In{' '}
             <select value={book} onChange={(event) => chooseBook(event.target.value)}>
               <option value="">All books{response ? ` (${allCount})` : ''}</option>
@@ -133,7 +146,7 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
               ))}
             </select>
           </label>
-          <label hidden={shown?.matchMode === 'ai'}>
+          <label hidden={shown?.matchMode === 'ai' || effectiveMatchMode === 'archive'}>
             Order{' '}
             <select value={sortBy} onChange={(event) => chooseSort(event.target.value as '' | 'order')}>
               <option value="">Best match first</option>
@@ -141,6 +154,13 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'archive' && (
+          <p className="option-note">
+            Searches inside the books and documents of the Internet Archive (archive.org), including its lending library
+            of books still under copyright, which anyone can borrow free for an hour with an Archive account. The
+            results open on archive.org.
+          </p>
+        )}
         {effectiveMatchMode === 'ai' && (
           <p className="option-note">
             AI finds the passages closest in meaning to what you type, even when they use other words. Up to 50,
@@ -149,6 +169,7 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
         )}
       </form>
 
+      {archiveSearch && <ArchiveResults query={archiveSearch.query} kind="texts" searchId={archiveSearch.id} />}
       <div ref={resultsReference}>
         {errorMessage && <p className="error">{errorMessage}</p>}
         {isSearching && !response && <p>Searching…</p>}

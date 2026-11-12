@@ -1,6 +1,7 @@
 import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
+import ArchiveResults from './ArchiveResults'
 import { searchMusic } from './api'
 import type { MusicSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
@@ -11,7 +12,7 @@ interface MusicSearchPageProps {
   onOpen: (songId: string) => void
 }
 
-type MatchMode = 'all' | 'any' | 'phrase' | 'ai'
+type MatchMode = 'all' | 'any' | 'phrase' | 'ai' | 'archive'
 
 interface Search {
   query: string
@@ -39,6 +40,8 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
   const canUseAi = user?.open_ai_queries === true
   const effectiveMatchMode = matchMode === 'ai' && !canUseAi ? 'all' : matchMode
+  // The Internet Archive search shown (ArchiveResults does the searching), with a new number for each search.
+  const [archiveSearch, setArchiveSearch] = useState<{ query: string; id: number } | null>(null)
 
   async function run(search: Search) {
     controller.current?.abort()
@@ -65,9 +68,18 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (query.trim() !== '') {
-      run({ query: query.trim(), matchMode: effectiveMatchMode, page: 1, perPage })
+    if (query.trim() === '') {
+      return
     }
+    if (effectiveMatchMode === 'archive') {
+      controller.current?.abort()
+      setResponse(null)
+      setShown(null)
+      setArchiveSearch((last) => ({ query: query.trim(), id: (last?.id ?? 0) + 1 }))
+      return
+    }
+    setArchiveSearch(null)
+    run({ query: query.trim(), matchMode: effectiveMatchMode, page: 1, perPage })
   }
 
   const pageCount = response ? Math.max(1, Math.ceil(response.total / response.per_page)) : 1
@@ -93,7 +105,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
             placeholder={effectiveMatchMode === 'ai' ? 'Example: songs about heaven' : 'Example "amazing grace" or soul'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            {effectiveMatchMode === 'ai' ? 'Find songs with AI' : 'Search the music'}
+            {effectiveMatchMode === 'ai' ? 'Find songs with AI' : effectiveMatchMode === 'archive' ? 'Search the Internet Archive' : 'Search the music'}
           </button>
         </div>
         <div className="book-search-options">
@@ -104,9 +116,16 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
               {canUseAi && <option value="ai">Use AI to find related songs</option>}
+              <option value="archive">Search the Internet Archive</option>
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'archive' && (
+          <p className="option-note">
+            Searches the recordings of the Internet Archive (archive.org): hymns, sermons and music. The results open on
+            archive.org; check each recording's licence there before using it elsewhere.
+          </p>
+        )}
         {effectiveMatchMode === 'ai' && (
           <p className="option-note">
             AI finds the songs whose words are closest in meaning to what you type, closest first. It can be wrong.
@@ -114,6 +133,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
         )}
       </form>
 
+      {archiveSearch && <ArchiveResults query={archiveSearch.query} kind="audio" searchId={archiveSearch.id} />}
       <div>
         {errorMessage && <p className="error">{errorMessage}</p>}
         {isSearching && !response && <p>Searching…</p>}

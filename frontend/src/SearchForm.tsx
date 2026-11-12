@@ -82,7 +82,7 @@ function SearchForm({
     onSearch({
       query: query.trim(),
       matchMode: effectiveMatchMode,
-      wholeWords: onlyLicensed || isCommentarySearch || isAiSearch ? false : wholeWords,
+      wholeWords: onlyLicensed || isCommentarySearch || isAiSearch || isArchiveSearch ? false : wholeWords,
       translations: isCommentarySearch ? [] : selectedCodes,
       commentary: isCommentarySearch && commentary !== '' ? commentary : null,
       bookStart,
@@ -110,6 +110,7 @@ function SearchForm({
   const effectiveMatchMode: SearchMatchMode =
     onlyLicensed && !isCommentarySearch ? 'all' : matchMode === 'ai' && !canUseAi ? 'all' : matchMode
   const isAiSearch = effectiveMatchMode === 'ai'
+  const isArchiveSearch = effectiveMatchMode === 'archive'
 
   return (
     <form className="search-form" onSubmit={handleSubmit}>
@@ -133,13 +134,15 @@ function SearchForm({
           }
         />
         <button type="submit" className="primary-button" disabled={!canSearch}>
-          {isCommentarySearch
-            ? isAiSearch
-              ? 'Find notes with AI'
-              : 'Search the commentaries'
-            : isAiSearch
-              ? 'Find verses with AI'
-              : 'Search for keyword or phrase'}
+          {isArchiveSearch
+            ? 'Search the Internet Archive'
+            : isCommentarySearch
+              ? isAiSearch
+                ? 'Find notes with AI'
+                : 'Search the commentaries'
+              : isAiSearch
+                ? 'Find verses with AI'
+                : 'Search for keyword or phrase'}
         </button>
       </div>
 
@@ -161,19 +164,27 @@ function SearchForm({
               {canUseAi && (
                 <option value="ai">{isCommentarySearch ? 'Use AI to find related notes' : 'Use AI to find related verses'}</option>
               )}
+              <option value="archive">Search the Internet Archive</option>
             </select>
             {!isCommentarySearch && (
               <label className="inline-label">
                 <input
                   type="checkbox"
-                  checked={wholeWords && !onlyLicensed && !isAiSearch}
-                  disabled={onlyLicensed || isAiSearch}
+                  checked={wholeWords && !onlyLicensed && !isAiSearch && !isArchiveSearch}
+                  disabled={onlyLicensed || isAiSearch || isArchiveSearch}
                   onChange={(event) => setWholeWords(event.target.checked)}
                 />
                 Match whole words only
               </label>
             )}
           </div>
+          {isArchiveSearch && (
+            <p className="option-note">
+              Searches inside the books and documents of the Internet Archive (archive.org), including its lending library
+              of books still under copyright, which anyone can borrow free for an hour with an Archive account. The
+              results open on archive.org; the other options here do not apply.
+            </p>
+          )}
           {isAiSearch && isCommentarySearch && (
             <p className="option-note">
               AI finds the notes closest in meaning to what you type, even when they use other words (the

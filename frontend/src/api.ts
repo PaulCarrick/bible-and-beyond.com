@@ -270,7 +270,7 @@ export async function fetchDevotionals(): Promise<DevotionalInfo[]> {
 // A search inside the Other books (GET /search-other-books).
 export interface BookSearchOptions {
   query: string
-  matchMode: 'all' | 'any' | 'phrase' | 'ai'
+  matchMode: 'all' | 'any' | 'phrase' | 'ai' | 'archive'
   // Empty for every book.
   book: string
   sortBy: '' | 'order'
@@ -381,7 +381,7 @@ function aiCredentials(matchMode: string): RequestCredentials {
 }
 
 export async function searchMusic(
-  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai'; page: number; perPage: number },
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai' | 'archive'; page: number; perPage: number },
   signal: AbortSignal,
 ): Promise<MusicSearchResponse> {
   const queryString = new URLSearchParams({
@@ -440,7 +440,7 @@ export interface SiteSearchGroup {
 }
 
 export async function searchEverything(
-  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai'; kind?: SiteSearchKind; page: number; perPage: number },
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai' | 'archive'; kind?: SiteSearchKind; page: number; perPage: number },
   signal: AbortSignal,
 ): Promise<{ query: string; groups: SiteSearchGroup[]; bible_unavailable?: boolean }> {
   const queryString = new URLSearchParams({
@@ -749,4 +749,44 @@ export async function fetchFaqAnswer(questionId: number): Promise<FaqAnswer> {
     throw new Error('The FAQ answers are not available right now. Please try again later.')
   }
   return readJson(response)
+}
+
+// The Internet Archive (archive.org), searched by the ML service: books found inside their text, lending books too,
+// or recordings. Open to everyone.
+export type ArchiveKind = 'texts' | 'audio'
+
+export interface ArchiveItem {
+  identifier: string
+  title: string
+  creator: string
+  year: number | null
+  // "borrow": a lending book (an hour at a time, with a free Archive account); "print_disabled": only for readers
+  // with print disabilities; "free": open to anyone.
+  access: 'borrow' | 'print_disabled' | 'free'
+  // Lines of the text around the words found, marked like the site's own excerpts.
+  snippets: string[]
+  url: string
+}
+
+export interface ArchiveResponse {
+  kind: ArchiveKind
+  query: string
+  total: number
+  page: number
+  per_page: number
+  last_page: number
+  results: ArchiveItem[]
+}
+
+export async function searchInternetArchive(
+  options: { query: string; kind: ArchiveKind; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<ArchiveResponse> {
+  const queryString = new URLSearchParams({
+    query: options.query,
+    kind: options.kind,
+    page: String(options.page),
+    per_page: String(options.perPage),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/search-internet-archive?${queryString}`, { signal }))
 }

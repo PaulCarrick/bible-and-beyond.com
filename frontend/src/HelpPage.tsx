@@ -175,6 +175,18 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           choice is on <em>Search the commentaries</em>, <em>Search other books</em> and <em>Search the music</em>. The
           AI can be wrong, so read each result where it was found.
         </p>
+        <p>
+          <strong>Searching the Internet Archive.</strong> Every search page also offers <em>Search the Internet Archive</em>{' '}
+          in its Match list, with no account needed. It searches inside the books and documents of the{' '}
+          <a href="https://archive.org" target="_blank" rel="noopener noreferrer">
+            Internet Archive
+          </a>{' '}
+          (or its recordings, on <em>Search the music</em>) and shows a few lines around your words. Older books open with{' '}
+          <em>Read on archive.org</em>. Books still under copyright show <em>Borrow for an hour on archive.org</em>: the
+          Internet Archive lends them free, an hour at a time, to anyone signed in on archive.org with a free Archive
+          account (set one up there once). The loan is between you and the Internet Archive; this site only finds the
+          book.
+        </p>
         <Screenshot
           name="search-all"
           width={1152}
