@@ -30,6 +30,8 @@ def setup(monkeypatch):
   def clear():
     with connect() as connection:
       connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%@{DOMAIN}",))
+      # The kept answers (ai_cache.py) outlive a test; only the local database is ever tested.
+      connection.execute("DELETE FROM ai_search_cache")
 
   clear()
   ai_search.clear_cache()
@@ -137,3 +139,29 @@ def test_each_account_has_a_daily_limit_of_new_searches(setup):
   # Another account, or the next day, may search again.
   find_verses(8, "one more topic", today)
   find_verses(7, "another topic", date(2026, 11, 12))
+
+
+def test_a_search_is_kept_in_the_database_for_everyone(setup):
+  log_in_as(True)
+  assert ai_search_request().status_code == 200
+  # A restart forgets what is in memory, not what is in the database; nor does it count towards the allowance.
+  ai_search.clear_cache()
+  ai_search._counts[(0, date.today())] = AI_SEARCHES_PER_DAY
+  assert find_verses(0, "The love of  GOD") == [(45, 5, 8), (43, 3, 16), (62, 4, 9)]
+  assert len(setup) == 1
+
+  # Answers made with other instructions, or more than 30 days old, are not used.
+  with connect() as connection:
+    connection.execute("UPDATE ai_search_cache SET version = 'older instructions'")
+  ai_search.clear_cache()
+  find_verses(0, "the love of God", date(2000, 1, 1))
+  assert len(setup) == 2
+  with connect() as connection:
+    connection.execute("UPDATE ai_search_cache SET created_at = now() - interval '31 days'")
+  ai_search.clear_cache()
+  find_verses(0, "the love of God", date(2000, 1, 2))
+  assert len(setup) == 3
+  with connect() as connection:
+    stored = connection.execute("SELECT query_hash FROM ai_search_cache WHERE kind = 'verses'").fetchall()
+  # Only a hash of the words is kept, not what was typed.
+  assert stored and all("love" not in row[0] for row in stored)

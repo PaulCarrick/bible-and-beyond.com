@@ -47,6 +47,8 @@ def remove_test_rows():
     connection.execute("DELETE FROM commentaries WHERE id = %s", (COMMENTARY,))
     connection.execute("DELETE FROM devotionals WHERE id = %s", (DEVOTIONAL,))
     connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%@{DOMAIN}",))
+    # The kept answers (ai_cache.py) outlive a test; only the local database is ever tested.
+    connection.execute("DELETE FROM ai_search_cache")
 
 
 @pytest.fixture(autouse=True)
@@ -168,6 +170,9 @@ def test_a_query_is_embedded_once_a_day_within_the_limit(setup):
   first = query_vector(1, "  The   Beatitudes ")
   assert query_vector(1, "the beatitudes") == first
   assert setup == [("RETRIEVAL_QUERY", ["The Beatitudes"])]
+  # Kept in the database too: after a restart (memory cleared) it costs nothing.
+  passage_embeddings._kept.clear()
+  assert query_vector(2, "THE BEATITUDES") == first and len(setup) == 1
   for number in range(passage_embeddings.SEARCHES_PER_DAY - 1):
     query_vector(1, f"query {number}", date(2026, 11, 12))
   with pytest.raises(PassageSearchProblem, match="AI searches today") as problem:

@@ -6,14 +6,17 @@ never the licensed Bibles. The references in its answer are read with the same c
 references, so a verse that does not exist is left out. The verses themselves come from our own database.
 
 Each query's verses are kept in memory for a day, so paging, sorting and the book filter (which ask again)
-cost no Gemini call. Each account may make AI_SEARCHES_PER_DAY new Gemini calls a day.
+cost no Gemini call, and in the database for 30 days (ai_cache.py), so the same search by anyone later is quick and
+free too. Each account may make AI_SEARCHES_PER_DAY new Gemini calls a day; a kept answer does not count.
 """
 
+import hashlib
 import logging
 import threading
 import time
 from datetime import date
 
+import ai_cache
 import faq
 from scripture_references import find_references, verse_limits
 
@@ -45,6 +48,10 @@ KEEP_SECONDS = 24 * 60 * 60
 KEEP_QUERIES = 1000
 # nginx waits 40 seconds for a search (deploy/nginx), so all of Gemini's tries stop well before that.
 GEMINI_SECONDS = 35
+
+
+# The instructions the verses were found with: a kept answer made with others is not used.
+VERSION = hashlib.sha256((SYSTEM_PROMPT + REQUEST_PREFIX).encode("utf-8")).hexdigest()
 
 
 class AiSearchProblem(Exception):
@@ -96,6 +103,13 @@ def find_verses(user_id: int, query: str, today: date | None = None) -> list[tup
     kept = _kept.get(key)
     if kept is not None and now - kept[0] < KEEP_SECONDS:
       return kept[1]
+  stored = ai_cache.load("verses", text, VERSION)
+  if stored is not None:
+    verses = [tuple(verse) for verse in stored]
+    with _lock:
+      _kept[key] = (now, verses)
+    return verses
+  with _lock:
     count_key = (user_id, today or date.today())
     if _counts.get(count_key, 0) >= AI_SEARCHES_PER_DAY:
       raise AiSearchProblem(
@@ -119,6 +133,7 @@ def find_verses(user_id: int, query: str, today: date | None = None) -> list[tup
       for old_key in sorted(_kept, key=lambda entry: _kept[entry][0])[: len(_kept) - KEEP_QUERIES + 1]:
         del _kept[old_key]
     _kept[key] = (now, verses)
+  ai_cache.store("verses", text, VERSION, [list(verse) for verse in verses])
   return verses
 
 

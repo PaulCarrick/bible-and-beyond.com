@@ -18,6 +18,7 @@ import threading
 import time
 from datetime import date
 
+import ai_cache
 from commentaries import label_range
 from devotionals import STATEMENT_LINK_PIECES
 from search import connect
@@ -277,10 +278,18 @@ def query_vector(user_id: int, query: str, today: date | None = None, embed=None
     raise PassageSearchProblem(f"Please keep an AI search under {QUERY_LIMIT} characters.")
   key = text.lower()
   now = time.monotonic()
+  version = f"{MODEL}:{DIMENSIONS}"
   with _lock:
     kept = _kept.get(key)
     if kept is not None and now - kept[0] < KEEP_SECONDS:
       return kept[1]
+  # Kept in the database for 30 days (ai_cache.py): free, quick, and not counted.
+  stored = ai_cache.load("embedding", text, version)
+  if stored is not None:
+    with _lock:
+      _kept[key] = (now, stored)
+    return stored
+  with _lock:
     count_key = (user_id, today or date.today())
     if _counts.get(count_key, 0) >= SEARCHES_PER_DAY:
       raise PassageSearchProblem(
@@ -303,6 +312,7 @@ def query_vector(user_id: int, query: str, today: date | None = None, embed=None
       for old_key in sorted(_kept, key=lambda entry: _kept[entry][0])[: len(_kept) - KEEP_QUERIES + 1]:
         del _kept[old_key]
     _kept[key] = (now, values)
+  ai_cache.store("embedding", text, version, list(values))
   return values
 
 
