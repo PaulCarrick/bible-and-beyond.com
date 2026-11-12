@@ -231,6 +231,8 @@ CREATE TABLE IF NOT EXISTS commentary_entries (
     verse INTEGER NOT NULL,
     end_verse INTEGER,
     text TEXT NOT NULL,
+    -- The note with its formatting, from a PDF or Word upload (migration 031); NULL for plain text.
+    html TEXT,
     search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', text)) STORED
 );
 
@@ -242,6 +244,7 @@ CREATE TABLE IF NOT EXISTS commentary_introductions (
     book_number SMALLINT NOT NULL REFERENCES books (number),
     chapter INTEGER NOT NULL,
     text TEXT NOT NULL,
+    html TEXT,
     PRIMARY KEY (commentary_id, book_number, chapter)
 );
 
@@ -283,6 +286,8 @@ CREATE TABLE IF NOT EXISTS devotional_entries (
     unit_title TEXT NOT NULL,
     heading TEXT NOT NULL,
     text TEXT NOT NULL,
+    -- The reading with its formatting, from a PDF or Word upload (migration 031); NULL for plain text.
+    html TEXT,
     -- Search inside the Other books (migration 018).
     search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', unit_title || ' ' || text)) STORED,
     PRIMARY KEY (devotional_id, section, unit, part)

@@ -14,3 +14,9 @@ def no_saved_service_settings(tmp_path, monkeypatch):
 def no_real_site_icons(tmp_path, monkeypatch):
   """Tests never read, replace or remove the real site icons (data/site-icons)."""
   monkeypatch.setenv("SITE_ICONS_FOLDER", str(tmp_path / "site-icons"))
+
+
+@pytest.fixture(autouse=True)
+def no_real_library_images(tmp_path, monkeypatch):
+  """Tests never write pictures of uploaded documents into the real data/library-images."""
+  monkeypatch.setenv("LIBRARY_IMAGES_FOLDER", str(tmp_path / "library-images"))

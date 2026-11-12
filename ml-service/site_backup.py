@@ -21,6 +21,7 @@ Two parts, chosen with the page's two checkboxes (for a backup, and again for a 
                                              generated css, js and php
             files/icons/...                  the header emblem and browser-tab icon uploaded on the Site
                                              settings screen (site_icons.py), if any
+            files/library-images/...         the pictures of PDF and Word uploads (document_import.py)
 
 and manifest.json (when it was taken, the note, which parts it holds, a few counts). The zip holds personal
 data (accounts, password hashes) and the service keys: keep it private.
@@ -57,6 +58,7 @@ from pathlib import Path, PurePosixPath
 
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
+import document_import
 import site_icons
 from search import connect
 from service_settings import get_setting, settings_path
@@ -73,6 +75,7 @@ SETTINGS = "database/settings/"
 MUSIC = "files/music/"
 DRUPAL_FILES = "files/drupal/"
 ICONS = "files/icons/"
+LIBRARY_IMAGES = "files/library-images/"
 # Small files of ml-service/data that are part of the site (the service settings file itself can live
 # elsewhere, see settings_path()).
 DATA_FILES = ["api_bible_usage.json"]
@@ -363,6 +366,7 @@ def take_backup(parts: dict, note: str = "", report=lambda message: None) -> Pat
         report("Adding Drupal's files ...")
         manifest["counts"]["Drupal files"] = _add_folder(archive, _drupal_files_directory(), DRUPAL_FILES, DRUPAL_GENERATED)
         manifest["counts"]["Site icons"] = _add_folder(archive, site_icons.icons_folder(), ICONS)
+        manifest["counts"]["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
       archive.writestr("manifest.json", json.dumps(manifest, indent=2))
     partial.rename(target)
   except BaseException:
@@ -510,6 +514,8 @@ def restore_backup(path: Path, wanted: dict, report=lambda message: None) -> str
       for kind in site_icons.KINDS:
         site_icons.remove(kind)
       _extract_folder(archive, ICONS, site_icons.icons_folder())
+      # Pictures are named by their contents, so those of the backup are added to any already here.
+      _extract_folder(archive, LIBRARY_IMAGES, document_import.images_folder())
 
     if database:
       report("Restoring Drupal's database ...")

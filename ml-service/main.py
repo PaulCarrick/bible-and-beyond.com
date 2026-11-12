@@ -83,6 +83,7 @@ from search import (
   parse_strong_query,
   search_verses,
 )
+import document_import
 import site_icons
 from site_settings import get_public_settings, get_settings
 
@@ -653,6 +654,20 @@ def site_settings():
   """The site title and copyright line that the pages show, and the address of each icon an administrator
   replaced (header_icon, tab_icon; null for the site's own). Nothing private is ever in this answer."""
   return {**get_public_settings(), **site_icons.public_paths()}
+
+
+@app.get("/library-image/{name}")
+def library_image(name: str):
+  """A picture from a PDF or Word upload (document_import.py). Its name comes from its contents, so it never
+  changes and can be cached for a year."""
+  found = document_import.image_file(name)
+  if found is None:
+    raise HTTPException(status_code=404, detail="There is no such picture.")
+  path, media_type = found
+  return FileResponse(
+    path, media_type=media_type,
+    headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
+  )
 
 
 @app.get("/site-icon/{kind}")

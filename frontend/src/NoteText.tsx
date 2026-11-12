@@ -1,3 +1,4 @@
+import FormattedText from './FormattedText'
 import { highlightLinked } from './highlight'
 import type { LinkOptions } from './highlight'
 
@@ -32,10 +33,15 @@ interface NoteTextProps {
   translation?: string
   // A reference was chosen: its verse, the words as written, and the link that was used.
   onOpenReference: (book: number, chapter: number, verse: number, shownText: string, element: HTMLElement) => void
+  // The text with its formatting (a PDF or Word upload); when given, it is shown instead of the plain text.
+  html?: string
 }
 
 // The text of a commentary note as paragraphs, with its scripture references as links.
-function NoteText({ text, references, terms, translation = 'BSB', onOpenReference }: NoteTextProps) {
+function NoteText({ text, references, terms, translation = 'BSB', onOpenReference, html }: NoteTextProps) {
+  if (html) {
+    return <FormattedText html={html} terms={terms} translation={translation} onOpenReference={onOpenReference} />
+  }
   const verseLabels = new Map(references.filter((reference) => reference[3]).map((reference) => [reference[2], reference[3]]))
   const linkOptions: LinkOptions = {
     ...referenceLinkOptions,

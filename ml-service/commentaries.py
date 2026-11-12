@@ -24,7 +24,7 @@ from pathlib import Path
 import httpx
 from defusedxml import ElementTree
 
-from scripture_references import find_references, verse_limits
+from scripture_references import find_references, formatted_html, verse_limits
 from search import connect, parse_terms
 
 BASE_URL = "https://bible.helloao.org/api"
@@ -587,15 +587,16 @@ def save_commentary(
       cursor.execute("DELETE FROM commentary_entries WHERE commentary_id = %s", (commentary_id,))
       cursor.execute("DELETE FROM commentary_introductions WHERE commentary_id = %s", (commentary_id,))
       with cursor.copy(
-        "COPY commentary_entries (commentary_id, book_number, chapter, verse, end_verse, text) FROM STDIN"
+        "COPY commentary_entries (commentary_id, book_number, chapter, verse, end_verse, text, html) FROM STDIN"
       ) as copy:
-        for book, chapter, verse, end_verse, text in entries:
-          copy.write_row((commentary_id, book, chapter, verse, end_verse, text))
+        # An entry may carry its formatted HTML as a sixth item (a PDF or Word upload).
+        for book, chapter, verse, end_verse, text, *html in entries:
+          copy.write_row((commentary_id, book, chapter, verse, end_verse, text, html[0] if html else None))
       with cursor.copy(
-        "COPY commentary_introductions (commentary_id, book_number, chapter, text) FROM STDIN"
+        "COPY commentary_introductions (commentary_id, book_number, chapter, text, html) FROM STDIN"
       ) as copy:
-        for book, chapter, text in introductions:
-          copy.write_row((commentary_id, book, chapter, text))
+        for book, chapter, text, *html in introductions:
+          copy.write_row((commentary_id, book, chapter, text, html[0] if html else None))
       cursor.execute("SELECT COUNT(*) FROM commentary_entries WHERE commentary_id = %s", (commentary_id,))
       return cursor.fetchone()[0]
 
@@ -651,19 +652,20 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
     chosen = next((entry for entry in available if entry["id"] == commentary_id or commentary_id is None), None)
     if chosen is None:
       return None
-    text, = connection.execute(
-      "SELECT text FROM commentary_entries WHERE commentary_id = %s AND book_number = %s AND chapter = %s "
+    text, html = connection.execute(
+      "SELECT text, html FROM commentary_entries WHERE commentary_id = %s AND book_number = %s AND chapter = %s "
       "AND verse <= %s AND COALESCE(end_verse, 2147483647) >= %s ORDER BY verse DESC LIMIT 1",
       (chosen["id"], book_number, chapter, verse, verse),
     ).fetchone()
-    introductions = {
-      chapter_number: introduction
-      for chapter_number, introduction in connection.execute(
-        "SELECT chapter, text FROM commentary_introductions WHERE commentary_id = %s AND book_number = %s "
-        "AND chapter IN (0, %s)",
-        (chosen["id"], book_number, chapter),
-      ).fetchall()
-    }
+    introductions, introduction_html = {}, {}
+    for chapter_number, introduction, formatted in connection.execute(
+      "SELECT chapter, text, html FROM commentary_introductions WHERE commentary_id = %s AND book_number = %s "
+      "AND chapter IN (0, %s)",
+      (chosen["id"], book_number, chapter),
+    ).fetchall():
+      introductions[chapter_number] = introduction
+      if formatted:
+        introduction_html[chapter_number] = formatted
   return {
     "book_number": book_number,
     "book_name": book[0],
@@ -680,6 +682,10 @@ def get_commentaries(book_number, chapter, verse, commentary_id=None):
     "references": find_references(text),
     "chapter_introduction_references": find_references(introductions.get(chapter) or ""),
     "book_introduction_references": find_references(introductions.get(0) or ""),
+    # The formatted texts (a PDF or Word upload), with their references as links; absent for plain text.
+    **({"html": formatted_html(html)} if html else {}),
+    **({"chapter_introduction_html": formatted_html(introduction_html[chapter])} if chapter in introduction_html else {}),
+    **({"book_introduction_html": formatted_html(introduction_html[0])} if 0 in introduction_html else {}),
   }
 
 
@@ -734,19 +740,21 @@ def get_chapter_notes(commentary_id, book_number, chapter):
     if commentary is None or book is None:
       return None
     entries = connection.execute(
-      "SELECT verse, end_verse, text FROM commentary_entries "
+      "SELECT verse, end_verse, text, html FROM commentary_entries "
       "WHERE commentary_id = %s AND book_number = %s AND chapter = %s ORDER BY verse",
       (commentary_id, book_number, chapter),
     ).fetchall()
     if not entries:
       return None
-    introductions = dict(
-      connection.execute(
-        "SELECT chapter, text FROM commentary_introductions WHERE commentary_id = %s AND book_number = %s "
-        "AND chapter IN (0, %s)",
-        (commentary_id, book_number, chapter),
-      ).fetchall()
-    )
+    introductions, introduction_html = {}, {}
+    for chapter_number, introduction, formatted in connection.execute(
+      "SELECT chapter, text, html FROM commentary_introductions WHERE commentary_id = %s AND book_number = %s "
+      "AND chapter IN (0, %s)",
+      (commentary_id, book_number, chapter),
+    ).fetchall():
+      introductions[chapter_number] = introduction
+      if formatted:
+        introduction_html[chapter_number] = formatted
     chapters = connection.execute(
       "SELECT DISTINCT e.book_number, b.name, e.chapter FROM commentary_entries e JOIN books b ON b.number = e.book_number "
       "WHERE e.commentary_id = %s ORDER BY e.book_number, e.chapter",
@@ -772,6 +780,8 @@ def get_chapter_notes(commentary_id, book_number, chapter):
     "chapter_introduction_references": find_references(chapter_introduction or ""),
     "book_introduction": book_introduction,
     "book_introduction_references": find_references(book_introduction or ""),
+    **({"chapter_introduction_html": formatted_html(introduction_html[chapter])} if chapter in introduction_html else {}),
+    **({"book_introduction_html": formatted_html(introduction_html[0])} if 0 in introduction_html else {}),
     "entries": [
       {
         "verse": verse,
@@ -779,8 +789,9 @@ def get_chapter_notes(commentary_id, book_number, chapter):
         "covers": label_range(book[0], chapter, verse, end_verse),
         "text": text,
         "references": find_references(text),
+        **({"html": formatted_html(html)} if html else {}),
       }
-      for verse, end_verse, text in entries
+      for verse, end_verse, text, html in entries
     ],
     "previous": neighbour(position - 1),
     "next": neighbour(position + 1),

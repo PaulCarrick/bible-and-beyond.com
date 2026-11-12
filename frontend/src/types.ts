@@ -248,6 +248,10 @@ export interface CommentaryResponse {
   references: [number, number, string][]
   chapter_introduction_references: [number, number, string][]
   book_introduction_references: [number, number, string][]
+  // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
+  html?: string
+  chapter_introduction_html?: string
+  book_introduction_html?: string
 }
 
 // One commentary, as listed for choosing which to search.
@@ -283,6 +287,8 @@ export interface CommentaryNote {
   covers: string
   text: string
   references: [number, number, string][]
+  // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
+  html?: string
 }
 
 export interface CommentaryChapter {
@@ -294,6 +300,9 @@ export interface CommentaryChapter {
   chapter_introduction_references: [number, number, string][]
   book_introduction: string | null
   book_introduction_references: [number, number, string][]
+  // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
+  chapter_introduction_html?: string
+  book_introduction_html?: string
   entries: CommentaryNote[]
   previous: ChapterNeighbour | null
   next: ChapterNeighbour | null
@@ -355,6 +364,8 @@ export interface DevotionalEntry {
   text: string
   // A linked statement (the Apostles' Creed's) adds the verse as written, "Luke 1:35", for its tooltip.
   references: [number, number, string, string?][]
+  // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
+  html?: string
 }
 
 // One day or chapter, as the server sends it.

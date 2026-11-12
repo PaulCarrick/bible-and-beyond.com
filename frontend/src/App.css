@@ -2548,3 +2548,72 @@ select:disabled {
     color: #f08a6c;
   }
 }
+
+/* Texts kept with their formatting from a PDF or Word upload (FormattedText.tsx): commentary notes, readings of
+   the devotionals and Other books, and song words. Tables and pictures fit the column. */
+.formatted-text > :first-child {
+  margin-top: 0;
+}
+
+.formatted-text p,
+.formatted-text ul,
+.formatted-text ol,
+.formatted-text blockquote,
+.formatted-text table {
+  margin: 0 0 0.75em;
+}
+
+.formatted-text h1,
+.formatted-text h2,
+.formatted-text h3,
+.formatted-text h4 {
+  margin: 1.2em 0 0.5em;
+  font-size: 1.1em;
+  line-height: 1.3;
+}
+
+.formatted-text h1,
+.formatted-text h2 {
+  font-size: 1.2em;
+}
+
+.formatted-text blockquote {
+  padding-left: 1em;
+  border-left: 3px solid var(--border);
+}
+
+.formatted-text table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.formatted-text th,
+.formatted-text td {
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.formatted-text th {
+  font-weight: 600;
+}
+
+.formatted-text td > p:last-child,
+.formatted-text th > p:last-child {
+  margin-bottom: 0;
+}
+
+.formatted-text img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.formatted-text hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}

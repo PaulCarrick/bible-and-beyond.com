@@ -21,7 +21,7 @@ from pathlib import Path
 import httpx
 from defusedxml import ElementTree
 
-from scripture_references import find_references
+from scripture_references import find_references, formatted_html
 from commentaries import HEADLINE_OPTIONS
 from search import connect, parse_terms
 
@@ -49,6 +49,7 @@ class Entry:
   unit_title: str
   heading: str  # "Morning" or "Evening"; empty for a chapter
   text: str  # paragraphs separated by a blank line
+  html: str | None = None  # the formatted reading, from a PDF or Word upload (document_import.py)
 
 
 @dataclass(frozen=True)
@@ -1578,10 +1579,10 @@ def save_devotional(devotional_id, details, parsed, publish_if_new, position=Non
         for number, title in parsed.sections:
           copy.write_row((devotional_id, number, title))
       with cursor.copy(
-        "COPY devotional_entries (devotional_id, section, unit, part, unit_title, heading, text) FROM STDIN"
+        "COPY devotional_entries (devotional_id, section, unit, part, unit_title, heading, text, html) FROM STDIN"
       ) as copy:
         for entry in parsed.entries:
-          copy.write_row((devotional_id, entry.section, entry.unit, entry.part, entry.unit_title, entry.heading, entry.text))
+          copy.write_row((devotional_id, entry.section, entry.unit, entry.part, entry.unit_title, entry.heading, entry.text, entry.html))
       cursor.execute("SELECT COUNT(*) FROM devotional_entries WHERE devotional_id = %s", (devotional_id,))
       return cursor.fetchone()[0]
 
@@ -1677,7 +1678,7 @@ def get_unit(devotional_id, section, unit):
   with connect() as connection:
     row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s AND is_published", (devotional_id,)).fetchone()
     entries = connection.execute(
-      "SELECT unit_title, heading, text FROM devotional_entries "
+      "SELECT unit_title, heading, text, html FROM devotional_entries "
       "WHERE devotional_id = %s AND section = %s AND unit = %s ORDER BY part",
       (devotional_id, section, unit),
     ).fetchall()
@@ -1708,8 +1709,13 @@ def get_unit(devotional_id, section, unit):
     "unit": unit,
     "title": entries[0][0],
     "entries": [
-      {"heading": heading, **dict(zip(("text", "references"), text_and_references(text)))}
-      for _title, heading, text in entries
+      {
+        "heading": heading,
+        **dict(zip(("text", "references"), text_and_references(text))),
+        # The formatted reading, with its references as links (formatted_html), when it was uploaded so.
+        **({"html": formatted_html(html)} if html else {}),
+      }
+      for _title, heading, text, html in entries
     ],
     "previous": neighbour(position - 1),
     "next": neighbour(position + 1),

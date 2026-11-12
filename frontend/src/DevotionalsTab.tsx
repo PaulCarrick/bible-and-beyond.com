@@ -352,7 +352,7 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
                   <article key={index} className="devotional-entry">
                     {entry.heading && <h3>{entry.heading}</h3>}
                     <div className="commentary-text">
-                      <NoteText text={entry.text} references={entry.references} terms={[]} translation={contextTranslation} onOpenReference={openReference} />
+                      <NoteText text={entry.text} html={entry.html} references={entry.references} terms={[]} translation={contextTranslation} onOpenReference={openReference} />
                     </div>
                   </article>
                 ))}

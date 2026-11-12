@@ -141,18 +141,20 @@ def check_id(song_id: str) -> str:
 
 COLUMNS = (
   "id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at, "
-  "words_file_name, words_media_type"
+  "words_file_name, words_media_type, lyrics_html"
 )
 
 
 def _describe(row, with_file_check: bool = False) -> dict:
   (song_id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at,
-   words_file_name, words_media_type) = row
+   words_file_name, words_media_type, lyrics_html) = row
   song = {
     "id": song_id,
     "title": title,
     "author": author,
     "lyrics": lyrics,
+    # The words with their formatting, from a PDF or Word document (set_words_from_document); None otherwise.
+    "lyrics_html": lyrics_html,
     "media_type": media_type,
     "kind": "video" if media_type == "video/mp4" else "audio",
     "file_size": file_size,
@@ -276,14 +278,44 @@ def update_details(song_id: str, details: dict, words: tuple[Path, str] | None =
     check_words_file(*words)
   with connect() as connection:
     row = connection.execute(
-      f"UPDATE music_tracks SET title = %s, author = %s, lyrics = %s, updated_at = now() WHERE id = %s RETURNING {COLUMNS}",
-      (checked["title"], checked["author"], checked["lyrics"], song_id),
+      f"""
+      UPDATE music_tracks SET title = %s, author = %s, lyrics = %s, updated_at = now(),
+        lyrics_html = CASE WHEN lyrics = %s THEN lyrics_html END
+      WHERE id = %s RETURNING {COLUMNS}
+      """,
+      (checked["title"], checked["author"], checked["lyrics"], checked["lyrics"], song_id),
     ).fetchone()
   if row is None:
     raise MusicProblem("That song does not exist (it may have been deleted).")
   if words is not None or remove_words:
     _change_words(song_id, words, remove_words)
     return get_song(song_id, published_only=False)
+  return _describe(row, with_file_check=True)
+
+
+def set_words_from_document(song_id: str, path: Path, original_name: str) -> dict:
+  """Sets a song's words from a PDF or Word document, keeping their formatting (document_import.py); the plain
+  text replaces the typed words, so the music search finds them."""
+  from document_import import DocumentProblem, convert, save_images
+  from document_split import whole_document
+
+  try:
+    document = convert(path, original_name)
+  except DocumentProblem as problem:
+    raise MusicProblem(str(problem)) from problem
+  piece = whole_document(document)
+  if piece is None:
+    raise MusicProblem("No words were found in the document.")
+  if len(piece.text) > LYRICS_LIMIT:
+    raise MusicProblem(f"The words can be at most {LYRICS_LIMIT:,} characters.")
+  save_images(document.images)
+  with connect() as connection:
+    row = connection.execute(
+      f"UPDATE music_tracks SET lyrics = %s, lyrics_html = %s, updated_at = now() WHERE id = %s RETURNING {COLUMNS}",
+      (piece.text, piece.html, song_id),
+    ).fetchone()
+  if row is None:
+    raise MusicProblem("That song does not exist (it may have been deleted).")
   return _describe(row, with_file_check=True)
 
 

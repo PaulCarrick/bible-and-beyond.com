@@ -337,6 +337,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     <summary>Introduction to {chapter.book_name}</summary>
                     <NoteText
                       text={chapter.book_introduction}
+                      html={chapter.book_introduction_html}
                       translation={contextTranslation}
                       references={chapter.book_introduction_references}
                       terms={[]}
@@ -353,6 +354,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     </summary>
                     <NoteText
                       text={chapter.chapter_introduction}
+                      html={chapter.chapter_introduction_html}
                       translation={contextTranslation}
                       references={chapter.chapter_introduction_references}
                       terms={[]}
@@ -423,6 +425,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     <div className="commentary-text">
                       <NoteText
                         text={note.text}
+                        html={note.html}
                         translation={contextTranslation}
                         references={note.references}
                         terms={[]}

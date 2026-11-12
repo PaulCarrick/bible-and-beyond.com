@@ -309,6 +309,8 @@ export interface MusicSong {
   author: string
   // The words as plain text: a line per line, a blank line between verses; '' when there are none.
   lyrics: string
+  // The words with their formatting, from a PDF or Word document; null when they were typed.
+  lyrics_html?: string | null
   kind: 'audio' | 'video'
   media_type: string
   // Changes when a file is replaced, so the addresses below ask for the new one.
@@ -490,6 +492,11 @@ export async function fetchDevotionalUnit(
 
 export async function fetchSiteSettings(): Promise<SiteSettings> {
   return readJson(await fetch(`${mlServiceUrl}/site-settings`))
+}
+
+// A formatted text's pictures (/library-image/<name> on the ML service) with the service's full address.
+export function formattedHtmlForPage(html: string): string {
+  return html.replaceAll('src="/library-image/', `src="${mlServiceUrl}/library-image/`)
 }
 
 // The full address of an icon uploaded on the Site settings screen (header_icon or tab_icon).

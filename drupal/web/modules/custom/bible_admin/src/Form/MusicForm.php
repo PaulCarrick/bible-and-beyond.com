@@ -91,6 +91,14 @@ class MusicForm extends FormBase {
       '#default_value' => $song['lyrics'] ?? '',
       '#rows' => 16,
     ];
+    $form['words_document'] = [
+      '#type' => 'file',
+      '#title' => $this->t('Words from a PDF or Word document (optional)'),
+      '#description' => !empty($song['lyrics_html'])
+        ? $this->t('The words above came from a document, and the music page shows them with its formatting. Choose another document to replace them; changing the words in the box above shows the typed words instead.')
+        : $this->t('A PDF (.pdf) or Word document (.docx) of up to @size MB: its text replaces the words above, and the music page shows it with its formatting (headings, bold, italic, lists, pictures). A scanned PDF is read by text recognition.', ['@size' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576)]),
+      '#attributes' => ['accept' => '.pdf,.docx'],
+    ];
     $hasWordsFile = !empty($song['words_kind']);
     $form['words_file'] = [
       '#type' => 'file',
@@ -148,6 +156,18 @@ class MusicForm extends FormBase {
         $form_state->setErrorByName('words_file', $this->t('The words file is larger than 20 MB.'));
       }
     }
+    $document = $this->uploadedFile('words_document');
+    if ($document !== NULL) {
+      if (!$document->isValid()) {
+        $form_state->setErrorByName('words_document', $this->t('The document could not be uploaded: @reason', ['@reason' => $document->getErrorMessage()]));
+      }
+      elseif (!in_array(strtolower($document->getClientOriginalExtension()), ['pdf', 'docx'], TRUE)) {
+        $form_state->setErrorByName('words_document', $this->t('The document must be a PDF (.pdf) or a Word document (.docx).'));
+      }
+      elseif ($document->getSize() > BibleManager::MAX_DOCUMENT_BYTES) {
+        $form_state->setErrorByName('words_document', $this->t('The document is larger than @size MB.', ['@size' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576)]));
+      }
+    }
     if ($isNew && !preg_match(self::ID_PATTERN, strtolower(trim((string) $form_state->getValue('id'))))) {
       $form_state->setErrorByName('id', $this->t('The id must be 3 to 50 lowercase letters, digits and hyphens.'));
     }
@@ -167,6 +187,7 @@ class MusicForm extends FormBase {
         $this->uploadedFile(),
         $this->uploadedFile('words_file'),
         (bool) $form_state->getValue('remove_words'),
+        $this->uploadedFile('words_document'),
       );
     }
     catch (BibleManagerException $exception) {

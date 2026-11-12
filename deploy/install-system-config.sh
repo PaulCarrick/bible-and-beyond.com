@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the nginx and PHP-FPM config files from this repository. Run ON the server with sudo:
+# Install the system packages, and the nginx and PHP-FPM config files, from this repository. Run ON the server with sudo:
 #
 #   ssh -t bible-and-beyond sudo ~/bible-and-beyond.com/deploy/install-system-config.sh
 #
@@ -16,6 +16,19 @@ fi
 REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BACKUP="$(mktemp -d)"
 trap 'rm -rf "$BACKUP"' EXIT
+
+# System packages the site needs: Tesseract reads scanned PDFs uploaded as commentaries, devotionals, books
+# or song words (ml-service/document_import.py). Installed only when missing.
+PACKAGES=(tesseract-ocr tesseract-ocr-eng)
+missing=()
+for package in "${PACKAGES[@]}"; do
+  dpkg -s "$package" >/dev/null 2>&1 || missing+=("$package")
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+  echo "installing: ${missing[*]}"
+  apt-get update -qq
+  apt-get install -y -qq --no-install-recommends "${missing[@]}"
+fi
 
 # repo file : installed file
 FILES=(

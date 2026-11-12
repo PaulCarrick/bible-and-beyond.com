@@ -24,6 +24,13 @@ lines are left out).
 In any of them a statement can be linked to the verse it comes from, without the reference showing:
 {{the words|Luke 1:35}} (devotionals.text_and_references).
 
+A PDF (.pdf) or Word document (.docx) of any of them keeps its formatting (document_import.py) and is cut
+into notes, days or chapters by its headings (document_split.py): a commentary by headings naming passages
+("John 3", "John 3:16", "Verses 16-18"; without them, the whole document is one note on the passage typed in
+the form), a daily devotional by date headings ("January 1", with "Morning" or "Evening"), and a book or a
+devotional by chapter by its headings (two levels: parts and chapters; one level: chapters; none: one
+chapter). A scanned PDF is read by text recognition.
+
 Nothing is saved until the import; the preview says what would be.
 """
 
@@ -37,6 +44,7 @@ from commentaries import KNOWN_COMMENTARIES
 from devotionals import MONTHS, SOURCES, Entry, Parsed
 from scripture_references import verse_limits
 from search import connect
+from document_import import DOCUMENT_TYPES, DocumentProblem, convert, save_images
 
 MAX_FILE_BYTES = 200 * 1024 * 1024
 MAX_TEXT_CHARACTERS = 1_000_000
@@ -58,6 +66,21 @@ class UploadProblem(ValueError):
 class ReadResult:
   problems: list = field(default_factory=list)  # each stops the import
   warnings: list = field(default_factory=list)  # worth knowing, the import can go ahead
+  images: dict = field(default_factory=dict)  # a PDF or Word document's pictures, saved on import
+  formatted: bool = False  # read from a PDF or Word document, with its formatting
+  ocr_pages: int = 0
+
+
+def is_document(path: Path) -> bool:
+  return path.suffix.lower() in DOCUMENT_TYPES
+
+
+def read_document(path: Path):
+  """The converted document, or raises UploadProblem with the reason."""
+  try:
+    return convert(path, path.name)
+  except DocumentProblem as problem:
+    raise UploadProblem(str(problem)) from problem
 
 
 def unescape(text: str) -> str:
@@ -104,12 +127,14 @@ def note(result: ReadResult, kind: str, message: str):
 # --- commentaries --------------------------------------------------------------------------------------
 
 
-def read_commentary_file(path: Path):
+def read_commentary_file(path: Path, passage: str = ""):
   """(entries, introductions, result, book names). Entries and introductions are as save_commentary takes them."""
   with connect() as connection:
     with connection.cursor() as cursor:
       book_names, book_lookup = load_books(cursor)
   limits = verse_limits()
+  if is_document(path):
+    return read_commentary_document(path, passage, book_names, book_lookup, limits)
   entries, introductions = [], []
   seen_entries, seen_introductions = set(), set()
   result = ReadResult()
@@ -171,6 +196,24 @@ def read_commentary_file(path: Path):
   return entries, introductions, result, book_names
 
 
+def read_commentary_document(path: Path, passage: str, book_names: dict, book_lookup: dict, limits: dict):
+  from document_split import split_commentary
+
+  document = read_document(path)
+  entries, introductions, split = split_commentary(document, book_lookup, passage)
+  result = ReadResult(list(split.problems), [], document.images, True, document.ocr_pages)
+  for warning in split.warnings:
+    note(result, "warning", warning)
+  for book, chapter, verse, end_verse, text, _html in entries:
+    if len(text) > MAX_TEXT_CHARACTERS:
+      note(result, "problem", f"{book_names[book]} {chapter}:{verse}: the note is longer than {MAX_TEXT_CHARACTERS:,} characters.")
+    if verse > limits.get((book, chapter), 0):
+      note(result, "warning", f"{book_names[book]} {chapter}:{verse} is not in the Bibles here; it will never be shown.")
+    if end_verse is not None and end_verse < verse:
+      note(result, "problem", f"{book_names[book]} {chapter}:{verse}-{end_verse}: the last verse is before the first.")
+  return entries, introductions, result, book_names
+
+
 # --- devotionals ---------------------------------------------------------------------------------------
 
 
@@ -209,10 +252,31 @@ def read_plain_text(path: Path):
   return Parsed([(1, title)], [Entry(1, 1, 1, title, "", text)]), result
 
 
-def read_devotional_file(path: Path, kind: str):
-  """(Parsed, result) for a daily or a by-chapter devotional, or a plain text of one chapter."""
+def read_devotional_document(path: Path, kind: str, title: str):
+  """(Parsed, result) for a PDF or Word document: by date headings (daily) or by headings (by chapter)."""
+  from document_split import split_chapters, split_daily
+
+  document = read_document(path)
+  if kind == "daily":
+    sections, entries, split = split_daily(document)
+  else:
+    sections, entries, split = split_chapters(document, title or "Text")
+  result = ReadResult(list(split.problems), [], document.images, True, document.ocr_pages)
+  for warning in split.warnings:
+    note(result, "warning", warning)
+  for entry in entries:
+    if len(entry.text) > MAX_TEXT_CHARACTERS:
+      note(result, "problem", f"{entry.unit_title}: the text is longer than {MAX_TEXT_CHARACTERS:,} characters.")
+  return Parsed(sections, entries), result
+
+
+def read_devotional_file(path: Path, kind: str, title: str = ""):
+  """(Parsed, result) for a daily or a by-chapter devotional, or a plain text of one chapter, or a PDF or Word
+  document (title names its one chapter when it has no headings)."""
   if kind not in ("daily", "chapters"):
     raise UploadProblem("The kind must be daily or chapters.")
+  if is_document(path):
+    return read_devotional_document(path, kind, title)
   if is_plain_text(path):
     if kind == "daily":
       raise UploadProblem("A daily devotional must be a tab-separated file (a plain text is one chapter).")
@@ -339,6 +403,7 @@ def check_details(kind: str, details: dict) -> dict:
       raise UploadProblem(f"The {key.replace('_', ' ')} must start with https:// or http://.")
   if kind == "commentary":
     cleaned["license_url"] = cleaned.get("license_url") or PUBLIC_DOMAIN_MARK
+    cleaned["passage"] = cleaned.get("passage") or ""
   else:
     if kind == "book":
       cleaned["kind"] = "chapters"  # an Other book is always read by chapter
@@ -364,7 +429,7 @@ def preview(kind: str, path: Path, details: dict) -> dict:
   """What importing the file would do. Saves nothing."""
   cleaned = check_details(kind, details)
   if kind == "commentary":
-    entries, introductions, result, book_names = read_commentary_file(path)
+    entries, introductions, result, book_names = read_commentary_file(path, cleaned.get("passage", ""))
     covered = sorted({book for book, *_ in entries})
     summary = {
       "notes": len(entries),
@@ -372,11 +437,11 @@ def preview(kind: str, path: Path, details: dict) -> dict:
       "books": [book_names[book] for book in covered],
       "samples": [
         {"place": f"{book_names[book]} {chapter}:{verse}" + ("" if end == verse else f"–{end}" if end else " to the end of the chapter"), "text": text[:300]}
-        for book, chapter, verse, end, text in entries[:3]
+        for book, chapter, verse, end, text, *_ in entries[:3]
       ],
     }
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"])
     units = sorted({(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries})
     linked = check_statement_links(parsed, result)
     summary = {
@@ -389,6 +454,9 @@ def preview(kind: str, path: Path, details: dict) -> dict:
         for entry in parsed.entries[:3]
       ],
     }
+  summary["formatted"] = result.formatted
+  summary["pictures"] = len(result.images)
+  summary["ocr_pages"] = result.ocr_pages
   return {
     "kind": kind,
     "details": cleaned,
@@ -407,17 +475,19 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
 
   cleaned = check_details(kind, details)
   if kind == "commentary":
-    entries, introductions, result, _ = read_commentary_file(path)
+    entries, introductions, result, _ = read_commentary_file(path, cleaned.get("passage", ""))
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
+    save_images(result.images)
     count = save_commentary(
       cleaned["id"], cleaned["name"], cleaned["short_name"], cleaned["source_name"], cleaned["source_url"],
       cleaned["license_url"], entries, introductions, publish_if_new=False,
     )
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"])
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
+    save_images(result.images)
     count = save_devotional(cleaned["id"], cleaned, parsed, publish_if_new=False)
     if cleaned["credit"] is not None:
       with connect() as connection:

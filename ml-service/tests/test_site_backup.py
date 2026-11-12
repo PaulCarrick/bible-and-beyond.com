@@ -120,7 +120,7 @@ def test_a_backup_is_one_zip_with_both_parts(site):
   }
   assert manifest["parts"] == EVERYTHING
   assert manifest["note"] == "Before the move"
-  assert manifest["counts"] == {"Site users": 3, "Music files": 2, "Drupal files": 1, "Site icons": 1}
+  assert manifest["counts"] == {"Site users": 3, "Music files": 2, "Drupal files": 1, "Site icons": 1, "Pictures of uploaded documents": 0}
   # The database password went to pg_dump in its environment, not on its command line.
   assert (site["log"] / "pg_dump.password").read_text().strip() == "secret-word"
   assert site_backup.describe()["waiting"] == {"name": path.name, "size": path.stat().st_size}

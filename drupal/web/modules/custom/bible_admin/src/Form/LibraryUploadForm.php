@@ -81,11 +81,39 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
       ],
     ];
 
+    $form['documents'] = [
+      '#type' => 'details',
+      '#title' => $this->t('A PDF or Word document'),
+      '#open' => TRUE,
+      'text' => [
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#value' => '<p>' . $this->t('A PDF (.pdf) or Word document (.docx) can be uploaded as it is. Its formatting is kept: headings, bold, italic, underline, lists, quotations, superscript, tables, pictures and footnotes (not its fonts, colours or page layout). A scanned PDF (pictures of pages) is read by text recognition; check its text in the preview, as recognition can make mistakes.') . '</p><p>'
+          . ($isCommentary
+            ? $this->t('It is cut into notes by its headings: a heading naming a book ("John"), a chapter ("John 3" or "Chapter 3") or verses ("John 3:16", "3:16-18", "Verse 16", "Verses 16–18"). The text under a chapter heading, before its first verse, is the chapter\'s introduction; under a book heading, the book\'s. Other headings stay inside the note. A document without such headings is one note on the passage typed below.')
+            : ($isBook
+              ? $this->t('It is cut into chapters by its headings (Heading 1, Heading 2 in Word; the bookmarks or the larger headings in a PDF): with two levels, the first starts a part and the second a chapter; with one level, each heading starts a chapter; with none, the whole document is one chapter, named after the book. A short title page before the first heading is left out.')
+              : $this->t('Daily: each day starts with a heading that is a date, such as "January 1" or "1 January", and a day with two readings has headings "Morning" and "Evening" (or "January 1, Morning"). By chapter: cut by its headings as for Other books (two levels: parts and chapters; one: chapters; none: one chapter).')))
+          . '</p>',
+      ],
+    ];
     $form['upload_file'] = [
       '#type' => 'file',
       '#title' => $this->t('The @one file', ['@one' => $one]),
-      '#description' => $this->t('A .txt or .tsv file of up to @size MB.', ['@size' => (int) (BibleManager::MAX_UPLOAD_BYTES / 1048576)]),
+      '#description' => $this->t('A .txt or .tsv file of up to @size MB, or a PDF (.pdf) or Word document (.docx) of up to @document MB.', [
+        '@size' => (int) (BibleManager::MAX_UPLOAD_BYTES / 1048576),
+        '@document' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576),
+      ]),
+      '#attributes' => ['accept' => '.txt,.tsv,.pdf,.docx'],
     ];
+    if ($isCommentary) {
+      $form['passage'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Passage (for a document without passage headings)'),
+        '#description' => $this->t('Only for a PDF or Word document that is one note with no headings naming a passage: the verses it is about, such as John 3:16-21.'),
+        '#maxlength' => 60,
+      ];
+    }
     $form['id'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Id'),
@@ -184,13 +212,13 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
     elseif (!$file->isValid()) {
       $form_state->setErrorByName('upload_file', $this->t('The file could not be uploaded: @reason', ['@reason' => $file->getErrorMessage()]));
     }
-    elseif (!in_array(strtolower($file->getClientOriginalExtension()), ['txt', 'tsv'], TRUE)) {
-      $form_state->setErrorByName('upload_file', $this->t('The file must be a .txt or .tsv file.'));
+    elseif (!in_array(strtolower($file->getClientOriginalExtension()), ['txt', 'tsv', 'pdf', 'docx'], TRUE)) {
+      $form_state->setErrorByName('upload_file', $this->t('The file must be a .txt or .tsv file, a PDF (.pdf) or a Word document (.docx). An old .doc file must be saved again as .docx.'));
     }
     elseif ($file->getSize() === 0) {
       $form_state->setErrorByName('upload_file', $this->t('The file is empty.'));
     }
-    elseif ($file->getSize() > BibleManager::MAX_UPLOAD_BYTES) {
+    elseif ($file->getSize() > (in_array(strtolower($file->getClientOriginalExtension()), ['pdf', 'docx'], TRUE) ? BibleManager::MAX_DOCUMENT_BYTES : BibleManager::MAX_UPLOAD_BYTES)) {
       $form_state->setErrorByName('upload_file', $this->t('The file is too large.'));
     }
     if (!preg_match(self::ID_PATTERN, strtolower(trim((string) $form_state->getValue('id'))))) {
@@ -207,7 +235,7 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $collection = (string) $form_state->get('collection');
     $parameters = ['collection' => $collection, 'kind' => LibraryListController::COLLECTIONS[$collection]['kind']];
-    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit'] as $key) {
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit', 'passage'] as $key) {
       $parameters[$key] = trim((string) $form_state->getValue($key));
     }
     $parameters['id'] = strtolower($parameters['id']);

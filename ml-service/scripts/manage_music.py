@@ -12,7 +12,9 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_music.py publish|unpublish|delete --id=amazing-grace
 
 upload and update also take --words=FILE --words-name=words.pdf (the words as a PDF or picture, shown in place
-of the typed words), and update takes --remove-words.
+of the typed words), and update takes --remove-words. Both also take --words-document=FILE
+--words-document-name=hymn.docx: a PDF or Word document whose text becomes the song's words, with its formatting
+(the typed words are replaced).
 
 --name is the file's name as uploaded (its .mp3 or .mp4 says what it is). The details are sent on the
 standard input rather than as arguments, because the words can be long.
@@ -26,7 +28,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from music import MusicProblem, delete, get_song, list_songs, set_published, update_details, upload  # noqa: E402
+from music import (  # noqa: E402
+  MusicProblem,
+  delete,
+  get_song,
+  list_songs,
+  set_published,
+  set_words_from_document,
+  update_details,
+  upload,
+)
 
 
 def parse_arguments():
@@ -45,6 +56,8 @@ def parse_arguments():
   for command in (updating, uploading):
     command.add_argument("--words", default=None)
     command.add_argument("--words-name", default=None)
+    command.add_argument("--words-document", default=None)
+    command.add_argument("--words-document-name", default=None)
   return parser.parse_args()
 
 
@@ -81,11 +94,18 @@ def run(arguments) -> dict:
   if arguments.command == "delete":
     return {"ok": True, "song": delete(arguments.id)}
   if arguments.command == "update":
-    return {"ok": True, "song": update_details(arguments.id, read_details(), words_file(arguments), arguments.remove_words)}
-  path = Path(arguments.file)
-  if not path.is_file():
-    raise MusicProblem("The uploaded file was not found.")
-  return {"ok": True, "song": upload(path, arguments.name, arguments.id, read_details(), words_file(arguments))}
+    song = update_details(arguments.id, read_details(), words_file(arguments), arguments.remove_words)
+  else:
+    path = Path(arguments.file)
+    if not path.is_file():
+      raise MusicProblem("The uploaded file was not found.")
+    song = upload(path, arguments.name, arguments.id, read_details(), words_file(arguments))
+  if arguments.words_document:
+    document = Path(arguments.words_document)
+    if not document.is_file():
+      raise MusicProblem("The uploaded words document was not found.")
+    song = set_words_from_document(song["id"], document, arguments.words_document_name or document.name)
+  return {"ok": True, "song": song}
 
 
 def main():

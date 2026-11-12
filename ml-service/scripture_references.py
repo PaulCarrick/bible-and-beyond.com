@@ -172,3 +172,34 @@ def find_references(text, limits=None):
       continue
     references.append([match.start(), match.end(), f"{book}:{chapter}:{verse}"])
   return references
+
+
+def formatted_html(html, limits=None):
+  """Cleaned HTML of a formatted text (document_import.py) with each Scripture reference in its words made a
+  button the page opens the verse with: <button class="reference-link" data-verse="book:chapter:verse">. Text
+  inside a link is left alone. The HTML was cleaned when it was saved, and only buttons are added here."""
+  from html import escape
+
+  from bs4 import BeautifulSoup, NavigableString
+
+  if limits is None:
+    limits = verse_limits()
+  soup = BeautifulSoup(html, "html.parser")
+  for node in list(soup.find_all(string=True)):
+    if not isinstance(node, NavigableString) or node.find_parent(["a", "button"]):
+      continue
+    text = str(node)
+    found = find_references(text, limits)
+    if not found:
+      continue
+    pieces, last = [], 0
+    for start, end, code in found:
+      pieces.append(escape(text[last:start], quote=False))
+      shown = escape(text[start:end], quote=False)
+      pieces.append(
+        f'<button type="button" class="reference-link" data-verse="{code}" title="Show {escape(text[start:end].strip())} in context">{shown}</button>'
+      )
+      last = end
+    pieces.append(escape(text[last:], quote=False))
+    node.replace_with(BeautifulSoup("".join(pieces), "html.parser"))
+  return str(soup)

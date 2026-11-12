@@ -27,9 +27,25 @@ class BibleManager {
    */
   public const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
+  /**
+   * Largest PDF or Word document for a commentary, devotional or book (document_import.MAX_DOCUMENT_BYTES).
+   */
+  public const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+
+  /**
+   * The kinds of upload file kept, by extension: text (.txt, .tsv), PDF and Word.
+   */
+  private const UPLOAD_EXTENSIONS = ['txt', 'tsv', 'pdf', 'docx'];
+
   private const UPLOAD_FOLDER = 'bible-uploads';
 
   private const COMMAND_TIMEOUT_SECONDS = 180;
+
+  /**
+   * How long a PDF or Word document may take to read: a long scan is read by text recognition, a page or two a
+   * second (nginx's fastcgi_read_timeout for the admin site allows as long).
+   */
+  private const DOCUMENT_TIMEOUT_SECONDS = 600;
 
   private const STALE_UPLOAD_SECONDS = 86400;
 
@@ -230,7 +246,7 @@ class BibleManager {
    */
   private function libraryArguments(string $path, array $parameters): array {
     $arguments = [$path, '--kind=' . $parameters['kind']];
-    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'source_name', 'source_url', 'license_url', 'translator'] as $key) {
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'source_name', 'source_url', 'license_url', 'translator', 'passage'] as $key) {
       if (($parameters[$key] ?? '') !== '') {
         $arguments[] = '--' . str_replace('_', '-', $key) . '=' . $parameters[$key];
       }
@@ -519,7 +535,7 @@ class BibleManager {
    * @param array $details
    *   title, author and lyrics, sent on the tool's input (the words can be long).
    */
-  public function saveMusic(string $songId, array $details, ?UploadedFile $file, ?UploadedFile $wordsFile = NULL, bool $removeWords = FALSE): array {
+  public function saveMusic(string $songId, array $details, ?UploadedFile $file, ?UploadedFile $wordsFile = NULL, bool $removeWords = FALSE, ?UploadedFile $wordsDocument = NULL): array {
     $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
     if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
       throw new BibleManagerException('The upload could not be saved.');
@@ -539,6 +555,13 @@ class BibleManager {
       }
       elseif ($removeWords && $file === NULL) {
         $arguments[] = '--remove-words';
+      }
+      // A PDF or Word document whose text becomes the words, with its formatting.
+      if ($wordsDocument !== NULL) {
+        $extension = strtolower($wordsDocument->getClientOriginalExtension());
+        $wordsDocument->move($directory, 'words-document.' . $extension);
+        $arguments[] = '--words-document=' . $directory . '/words-document.' . $extension;
+        $arguments[] = '--words-document-name=words-document.' . $extension;
       }
       $input = json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
       $song = $this->run($arguments, 'manage_music.py', $input)['song'];
@@ -646,7 +669,9 @@ class BibleManager {
     if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
       throw new BibleManagerException('The upload could not be saved.');
     }
-    $file->move($directory, 'upload.txt');
+    // The tool tells a PDF or Word document from text by the extension, so it is kept.
+    $extension = strtolower($file->getClientOriginalExtension());
+    $file->move($directory, 'upload.' . (in_array($extension, self::UPLOAD_EXTENSIONS, TRUE) ? $extension : 'txt'));
     $this->writeJson($directory . '/meta.json', [
       'uid' => (int) $this->currentUser->id(),
       'created' => time(),
@@ -663,7 +688,14 @@ class BibleManager {
    */
   public function loadUpload(string $token): ?array {
     $directory = $this->uploadDirectory($token);
-    if ($directory === NULL || !is_file($directory . '/upload.txt') || !is_file($directory . '/meta.json')) {
+    $path = NULL;
+    foreach ($directory === NULL ? [] : self::UPLOAD_EXTENSIONS as $extension) {
+      if (is_file($directory . '/upload.' . $extension)) {
+        $path = $directory . '/upload.' . $extension;
+        break;
+      }
+    }
+    if ($path === NULL || !is_file($directory . '/meta.json')) {
       return NULL;
     }
     $meta = json_decode((string) file_get_contents($directory . '/meta.json'), TRUE);
@@ -674,7 +706,7 @@ class BibleManager {
       ? json_decode((string) file_get_contents($directory . '/preview.json'), TRUE)
       : NULL;
     return [
-      'path' => $directory . '/upload.txt',
+      'path' => $path,
       'meta' => $meta,
       'preview' => is_array($preview) ? $preview : NULL,
     ];
@@ -741,7 +773,7 @@ class BibleManager {
    * @param string|null $input
    *   Sent to the tool's standard input (a password, so it never shows in the process list).
    */
-  private function run(array $arguments, string $tool = 'manage_bibles.py', ?string $input = NULL): array {
+  private function run(array $arguments, string $tool = 'manage_bibles.py', ?string $input = NULL, ?int $timeout = NULL): array {
     $directory = $this->mlDirectory();
     $python = $directory . '/.venv/bin/python';
     $script = $directory . '/scripts/' . $tool;
@@ -751,7 +783,9 @@ class BibleManager {
       }
     }
 
-    $process = new Process([$python, $script, ...$arguments], $directory, NULL, $input, self::COMMAND_TIMEOUT_SECONDS);
+    // A PDF or Word document (an upload or a song's words document) may take longer to read.
+    $timeout ??= preg_grep('/\.(pdf|docx)$/i', $arguments) ? self::DOCUMENT_TIMEOUT_SECONDS : self::COMMAND_TIMEOUT_SECONDS;
+    $process = new Process([$python, $script, ...$arguments], $directory, NULL, $input, $timeout);
     try {
       $process->run();
     }
