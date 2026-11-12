@@ -1584,6 +1584,24 @@ select:disabled {
   white-space: pre-wrap;
 }
 
+/* Space between the paragraphs (and lists, quotations, headings) of a note, a Conversations post or reply: the
+   site sets every paragraph's margin to 0 (index.css), which ran the editor's paragraphs together. An empty
+   paragraph (a blank line typed in the editor) adds no extra gap, as its margins collapse into these. */
+.note-body p,
+.note-body ul,
+.note-body ol,
+.note-body blockquote,
+.note-body pre,
+.note-body h2,
+.note-body h3,
+.note-body h4 {
+  margin: 0 0 0.75em;
+}
+
+.note-body li > p {
+  margin-bottom: 0.25em;
+}
+
 .note-body > :first-child {
   margin-top: 0.25rem;
 }
