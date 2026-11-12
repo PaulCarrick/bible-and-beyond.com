@@ -2506,3 +2506,27 @@ select:disabled {
 .account-other-actions .secondary-button {
   margin-top: 0;
 }
+
+/* Edit, Delete and Reply under Conversations posts and replies: small outlined buttons (the owner's choice,
+   2026-11-12), rather than the links used in other lists. */
+.small-button {
+  margin-top: 0;
+  padding: calc(0.25rem - 1px) calc(0.75rem - 1px);
+  font-size: 0.9rem;
+}
+
+.conversation-actions {
+  gap: 0.5rem;
+}
+
+.danger-button {
+  border-color: #b5300f;
+  color: #b5300f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .danger-button {
+    border-color: #f08a6c;
+    color: #f08a6c;
+  }
+}

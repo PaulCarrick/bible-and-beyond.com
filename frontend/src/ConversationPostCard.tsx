@@ -71,32 +71,32 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
               only wrapped in <mark> in its text. */}
           <div className="note-body" dangerouslySetInnerHTML={{ __html: shownBody }} />
           {mode === 'confirming' ? (
-            <div className="note-actions" role="alert">
+            <div className="note-actions conversation-actions" role="alert">
               <span>Delete this post?</span>
-              <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
+              <button type="button" className="secondary-button small-button danger-button" disabled={isBusy} onClick={handleDelete}>
                 {isBusy ? 'Deleting…' : 'Yes, delete it'}
               </button>
-              <button type="button" className="link-button" disabled={isBusy} onClick={() => setMode('reading')}>
+              <button type="button" className="secondary-button small-button" disabled={isBusy} onClick={() => setMode('reading')}>
                 No, keep it
               </button>
             </div>
           ) : (
             // One line under the post: Edit and Delete for its author, and Reply for every member.
-            <div className="note-actions">
+            <div className="note-actions conversation-actions">
               {post.is_mine && (
                 <>
-                  <button type="button" className="link-button" onClick={() => setMode('editing')}>
+                  <button type="button" className="secondary-button small-button" onClick={() => setMode('editing')}>
                     Edit
                     <span className="visually-hidden"> the post {post.title}</span>
                   </button>
-                  <button type="button" className="link-button" onClick={() => setMode('confirming')}>
+                  <button type="button" className="secondary-button small-button" onClick={() => setMode('confirming')}>
                     Delete
                     <span className="visually-hidden"> the post {post.title}</span>
                   </button>
                 </>
               )}
               {!isReplying && (
-                <button type="button" className="link-button" onClick={() => setIsReplying(true)}>
+                <button type="button" className="secondary-button small-button" onClick={() => setIsReplying(true)}>
                   Reply
                   <span className="visually-hidden"> to {post.title}</span>
                 </button>

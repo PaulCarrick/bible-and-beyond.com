@@ -68,22 +68,22 @@ function ConversationReplyItem({ reply, postTitle, onChanged, onDeleted, highlig
           <div className="note-body" dangerouslySetInnerHTML={{ __html: shownBody }} />
           {reply.is_mine &&
             (mode === 'confirming' ? (
-              <div className="note-actions" role="alert">
+              <div className="note-actions conversation-actions" role="alert">
                 <span>Delete this reply?</span>
-                <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
+                <button type="button" className="secondary-button small-button danger-button" disabled={isBusy} onClick={handleDelete}>
                   {isBusy ? 'Deleting…' : 'Yes, delete it'}
                 </button>
-                <button type="button" className="link-button" disabled={isBusy} onClick={() => setMode('reading')}>
+                <button type="button" className="secondary-button small-button" disabled={isBusy} onClick={() => setMode('reading')}>
                   No, keep it
                 </button>
               </div>
             ) : (
-              <div className="note-actions">
-                <button type="button" className="link-button" onClick={() => setMode('editing')}>
+              <div className="note-actions conversation-actions">
+                <button type="button" className="secondary-button small-button" onClick={() => setMode('editing')}>
                   Edit
                   <span className="visually-hidden"> your reply</span>
                 </button>
-                <button type="button" className="link-button" onClick={() => setMode('confirming')}>
+                <button type="button" className="secondary-button small-button" onClick={() => setMode('confirming')}>
                   Delete
                   <span className="visually-hidden"> your reply</span>
                 </button>

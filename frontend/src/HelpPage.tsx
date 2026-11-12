@@ -267,7 +267,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="verse-menu"
-          width={1139}
+          width={1152}
           height={876}
           alt="The verse menu open on Genesis 1:1 with its seven choices"
           caption="The menu of Genesis 1:1, opened by right-clicking the verse."
@@ -428,9 +428,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="devotionals-open"
-          width={1400}
+          width={1152}
           height={984}
-          alt="The devotional reader showing the November 8 reading of Daily Light on the Daily Path"
+          alt="The devotional reader showing today’s reading of Daily Light on the Daily Path"
           caption="Reading today’s Daily Light, with its references as links."
         />
         <p>
@@ -442,8 +442,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="devotional-email"
-          width={1400}
-          height={527}
+          width={907}
+          height={409}
           alt="The Email me this devotional each day panel with a time of day, a time zone and a button"
           caption="Choosing a time to receive the daily reading by email."
         />
@@ -596,7 +596,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </ol>
         <Screenshot
           name="faq-own-question"
-          width={1400}
+          width={1152}
           height={984}
           alt="The FAQ page with the Ask your own question box under the list of questions"
           caption="Ask your own question, shown to accounts it has been turned on for."
@@ -648,7 +648,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="note"
-          width={1280}
+          width={1152}
           height={953}
           alt="The notes window for John 1:1 with a note being written"
           caption="Writing a note on John 1:1."
@@ -662,7 +662,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="my-notes"
-          width={1400}
+          width={1152}
           height={1746}
           alt="The My notes page with four notes and the form to add a note on a Bible verse"
           caption="My notes, with a note on a verse, a reading and a commentary note, and the form to add one."
@@ -707,7 +707,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="conversations"
           width={920}
-          height={917}
+          height={957}
           alt="The Conversations page with two posts by two members, each with a reply, and Edit and Delete on the member's own post and reply"
           caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
         />
