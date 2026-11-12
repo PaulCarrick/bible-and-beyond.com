@@ -19,6 +19,13 @@ bible_admin.site_users:
   parent: system.admin
   weight: -3
 
+bible_admin.conversations:
+  title: 'Conversations'
+  description: 'The posts members write on the public site''s Conversations page: read and remove them.'
+  route_name: bible_admin.conversations
+  parent: system.admin
+  weight: -3
+
 bible_admin.commentaries:
   title: 'Commentaries'
   description: 'Publish, hide, delete, refresh and upload the commentaries.'

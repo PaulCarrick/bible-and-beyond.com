@@ -25,6 +25,7 @@ const sections = [
   { id: 'help-faq', title: 'FAQ: questions about the faith' },
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-notes', title: 'Your notes' },
+  { id: 'help-conversations', title: 'Conversations' },
   { id: 'help-contact', title: 'Contact' },
   { id: 'help-tips', title: 'Handy shortcuts' },
   { id: 'help-texts', title: 'About the texts and credits' },
@@ -104,7 +105,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
       <p>
         Bible and Beyond is free. You can read and search everything on it without an account and without logging in.
         If you set up an account and log in, you can also write your own notes, have a devotional emailed to you each
-        day, and ask to be allowed to put your own questions to the FAQ. This guide shows each part of the site.
+        day, and ask to be allowed to put your own questions to the FAQ or to join Conversations. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
       <p>
@@ -665,6 +666,45 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           height={1746}
           alt="The My notes page with four notes and the form to add a note on a Bible verse"
           caption="My notes, with a note on a verse, a reading and a commentary note, and the form to add one."
+        />
+      </section>
+
+      <section id="help-conversations" tabIndex={-1} className="help-section">
+        <h2>Conversations</h2>
+        <p>
+          Conversations is a place where members of the site write posts for one another. It is turned on for each
+          account by hand, so set up an account, then use the{' '}
+          <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form to ask to join, giving the email address of
+          your account. Once it is turned on, log in: <em>Conversations</em> appears in the sidebar (under Members) and at
+          the foot of the welcome page.
+        </p>
+        <ul className="welcome-tips">
+          <li>
+            <strong>Reading.</strong> The posts are listed newest first, ten to a page, each with its title, its
+            author&rsquo;s name and when it was written. Every member of Conversations can read every post; nobody
+            else can.
+          </li>
+          <li>
+            <strong>Writing.</strong> Press <em>Write a post</em>, give it a title, write in the box (with bold,
+            italic, headings, lists, quotations and links; up to 20,000 characters) and press <em>Post it</em>. Your
+            name is shown with it, never your email address.
+          </li>
+          <li>
+            <strong>Changing or deleting.</strong> Your own posts have <em>Edit</em> and <em>Delete</em> (you are
+            asked before one is deleted). Only you can change or delete them.
+          </li>
+          <li>
+            <strong>Searching.</strong> Type words in the search box to find the posts that have all of them in the
+            title, the text or the author&rsquo;s name (the words are highlighted). Tick <em>Only my posts</em> to see
+            just yours.
+          </li>
+        </ul>
+        <Screenshot
+          name="conversations"
+          width={920}
+          height={821}
+          alt="The Conversations page with three posts by two members, the member's own post with Edit and Delete"
+          caption="Conversations: posts by members, newest first, with Edit and Delete on your own."
         />
       </section>
 

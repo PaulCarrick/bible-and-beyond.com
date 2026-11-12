@@ -88,6 +88,25 @@ bible_admin.site_user_delete:
     _permission: 'administer site users'
     user_id: '\d+'
 
+# The members' posts of Conversations (on the public site): read and remove them. Whoever may manage the site
+# users may moderate their posts.
+bible_admin.conversations:
+  path: '/admin/conversations'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\ConversationListController::build'
+    _title: 'Conversations'
+  requirements:
+    _permission: 'administer site users'
+
+bible_admin.conversation_delete:
+  path: '/admin/conversations/{post_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteConversationPostForm'
+    _title: 'Delete a Conversations post'
+  requirements:
+    _permission: 'administer site users'
+    post_id: '\d+'
+
 # The commentaries, the devotionals and the Other books: one set of pages for each ({collection}), open to
 # whoever may administer the Bibles.
 bible_admin.library:

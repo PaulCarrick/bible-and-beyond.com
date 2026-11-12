@@ -53,12 +53,14 @@ interface WelcomePageProps {
   otherBooks?: DevotionalInfo[]
   // The published songs of the Christian music section.
   songs?: MusicSong[]
+  // A logged-in account an administrator allowed Conversations (members' posts).
+  canUseConversations?: boolean
   onNavigate: (view: View) => void
 }
 
 // The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
 // the Help page.
-function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], canUseConversations = false, onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -168,6 +170,19 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
         </button>{' '}
         page, where an AI answers common questions from the Bible.
       </p>
+
+      {/* Only for members an administrator allowed; nobody else sees it. */}
+      {canUseConversations && (
+        <section className="welcome-card welcome-conversations">
+          <h3>Conversations</h3>
+          <p>Read what other members have written, search their posts, and write your own.</p>
+          <div className="welcome-buttons">
+            <button type="button" className="primary-button" onClick={() => onNavigate('conversations')}>
+              Conversations
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

@@ -110,6 +110,12 @@ class SiteUserForm extends FormBase {
       '#default_value' => $user['open_ai_queries'] ?? FALSE,
       '#description' => $this->t('Lets this visitor ask their own questions of the AI on the FAQ page (when logged in). Off unless turned on here.'),
     ];
+    $form['use_conversations'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Conversations'),
+      '#default_value' => $user['use_conversations'] ?? FALSE,
+      '#description' => $this->t('Lets this visitor read, write and search the members\' posts on the Conversations page (when logged in). Off unless turned on here.'),
+    ];
     $form['password'] = [
       '#type' => 'password_confirm',
       '#title' => $user === NULL ? $this->t('Password') : $this->t('New password'),
@@ -163,6 +169,7 @@ class SiteUserForm extends FormBase {
     $password = (string) $form_state->getValue('password');
     $emailVerified = (bool) $form_state->getValue('email_verified');
     $openAiQueries = (bool) $form_state->getValue('open_ai_queries');
+    $useConversations = (bool) $form_state->getValue('use_conversations');
     $profile = [
       'first_name' => trim((string) $form_state->getValue('first_name')),
       'last_name' => trim((string) $form_state->getValue('last_name')),
@@ -170,11 +177,11 @@ class SiteUserForm extends FormBase {
     ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $profile);
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $profile);
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $profile);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $profile);
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email']]));

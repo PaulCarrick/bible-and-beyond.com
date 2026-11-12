@@ -61,6 +61,7 @@ from subscriptions import (
   save_subscription,
   unsubscribe_with_token,
 )
+from conversations import ConversationProblem, create_post, delete_post, list_posts, update_post
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
 from playlists import PlaylistProblem, delete_playlist, list_playlists, save_playlist
 from original_words import get_lexicon_entry, get_original_words
@@ -876,6 +877,66 @@ def notes_delete(note_id: int, request: Request):
   try:
     delete_note(user["id"], note_id)
   except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+class ConversationPostRequest(BaseModel):
+  title: str = Field(max_length=1000)
+  # What the member wrote, as the editor (Quill) makes it: a little HTML, cleaned before it is kept.
+  body: str
+
+
+def conversations_account(request: Request) -> dict:
+  """The logged-in account, if an administrator allowed it Conversations (use_conversations); else 401 or 403."""
+  user = require_user(request, "Please log in to use Conversations.")
+  if not user["use_conversations"]:
+    raise HTTPException(status_code=403, detail="Your account cannot use Conversations.")
+  return user
+
+
+@app.get("/conversations")
+def conversations_list(
+  request: Request,
+  query: str | None = Query(default=None, max_length=200),
+  mine: bool = False,
+  page: int = 1,
+  per_page: int = 10,
+):
+  """One page of every member's posts, newest first, with the total that match. query keeps the posts with
+  every word in the title, the text or the author's name; mine keeps the member's own."""
+  user = conversations_account(request)
+  try:
+    return list_posts(user["id"], query, mine, page, per_page)
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.post("/conversations")
+def conversations_create(body: ConversationPostRequest, request: Request):
+  user = conversations_account(request)
+  try:
+    return {"post": create_post(user["id"], body.title, body.body)}
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.put("/conversations/{post_id}")
+def conversations_update(post_id: int, body: ConversationPostRequest, request: Request):
+  """Changes one of the member's own posts; anyone else's is "not found"."""
+  user = conversations_account(request)
+  try:
+    return {"post": update_post(user["id"], post_id, body.title, body.body)}
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/conversations/{post_id}")
+def conversations_delete(post_id: int, request: Request):
+  user = conversations_account(request)
+  try:
+    delete_post(user["id"], post_id)
+  except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}
 

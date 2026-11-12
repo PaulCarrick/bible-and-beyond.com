@@ -388,6 +388,8 @@ export interface AccountUser {
   last_name: string
   // Optional; '' when none was given.
   phone: string
+  // An administrator allowed this account to read and write Conversations; off unless set in Drupal.
+  use_conversations: boolean
 }
 
 // What the Set up account form sends.
@@ -434,6 +436,27 @@ export interface NoteSubject {
 // One page of a visitor's notes, with how many match in all.
 export interface NotePage {
   notes: Note[]
+  total: number
+  page: number
+  per_page: number
+}
+
+// A post in Conversations (members' posts, seen by every member allowed them).
+export interface ConversationPost {
+  id: number
+  title: string
+  // A little HTML from the editor, cleaned by the server.
+  body: string
+  created_at: string
+  updated_at: string
+  // The author's name, or "A member" when the account has none (never the address).
+  author: string
+  // Whether the member reading it wrote it (only then can it be changed or deleted).
+  is_mine: boolean
+}
+
+export interface ConversationPage {
+  posts: ConversationPost[]
   total: number
   page: number
   per_page: number

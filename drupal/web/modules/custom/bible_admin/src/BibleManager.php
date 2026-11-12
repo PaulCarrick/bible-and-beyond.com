@@ -299,7 +299,7 @@ class BibleManager {
    *
    * @return array
    *   Keys: users (each with id, email, first_name, last_name, phone, created_at, last_login_at,
-   *   email_verified, open_ai_queries, note_count and subscription_count; the names and phone are '' when
+   *   email_verified, open_ai_queries, use_conversations, note_count and subscription_count; the names and phone are '' when
    *   the account has none), total, page and per_page.
    */
   public function listSiteUsers(string $query, int $page): array {
@@ -316,13 +316,16 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, array $profile): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, array $profile): array {
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($emailVerified) {
       $arguments[] = '--email-verified';
     }
     if ($openAiQueries) {
       $arguments[] = '--open-ai-queries';
+    }
+    if ($useConversations) {
+      $arguments[] = '--use-conversations';
     }
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
@@ -338,7 +341,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, array $profile): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, array $profile): array {
     $arguments = [
       'update',
       '--id=' . $userId,
@@ -346,6 +349,7 @@ class BibleManager {
       ...$this->profileArguments($profile),
       '--email-verified=' . ($emailVerified ? 'yes' : 'no'),
       '--open-ai-queries=' . ($openAiQueries ? 'yes' : 'no'),
+      '--use-conversations=' . ($useConversations ? 'yes' : 'no'),
     ];
     $input = NULL;
     if ($password !== '') {
@@ -383,6 +387,34 @@ class BibleManager {
       '@notes' => $user['note_count'],
     ]);
     return $user;
+  }
+
+  /**
+   * The members' posts of Conversations, newest first, for the admin page.
+   *
+   * @return array
+   *   Keys: posts (each with id, title, body, excerpt, created_at, updated_at, author and author_email), total,
+   *   page and per_page.
+   */
+  public function listConversationPosts(string $query, int $page): array {
+    return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_conversations.py');
+  }
+
+  public function getConversationPost(int $postId): array {
+    return $this->run(['get', '--id=' . $postId], 'manage_conversations.py')['post'];
+  }
+
+  /**
+   * Removes any member's post. The log says who removed which post and whose it was, never its text.
+   */
+  public function deleteConversationPost(int $postId): array {
+    $post = $this->run(['delete', '--id=' . $postId], 'manage_conversations.py')['post'];
+    $this->logger->notice('@user deleted the Conversations post "@title" by @email.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@title' => $post['title'],
+      '@email' => $post['author_email'],
+    ]);
+    return $post;
   }
 
   /**

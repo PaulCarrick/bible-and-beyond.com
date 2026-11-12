@@ -17,7 +17,8 @@ _COLUMNS = """
   users.id, users.email, users.created_at, users.last_login_at, users.email_verified_at IS NOT NULL,
   users.open_ai_queries, COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''),
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
-  (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id)
+  (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
+  users.use_conversations
 """
 
 
@@ -38,6 +39,7 @@ def _describe(row) -> dict:
     "phone": row[8],
     "note_count": row[9],
     "subscription_count": row[10],
+    "use_conversations": row[11],
   }
 
 
@@ -96,6 +98,7 @@ def create_user(
   first_name: str = "",
   last_name: str = "",
   phone: str = "",
+  use_conversations: bool = False,
 ) -> dict:
   email = _checked_email(email)
   first_name, last_name, phone = _checked_profile(first_name, last_name, phone)
@@ -105,11 +108,11 @@ def create_user(
     with connect() as connection:
       user_id = connection.execute(
         """
-        INSERT INTO users (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone)
-        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''))
+        INSERT INTO users (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone, use_conversations)
+        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s)
         RETURNING id
         """,
-        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone),
+        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone, use_conversations),
       ).fetchone()[0]
   except psycopg.errors.UniqueViolation as error:
     raise UserProblem("An account with that email address already exists.") from error
@@ -125,6 +128,7 @@ def update_user(
   first_name: str | None = None,
   last_name: str | None = None,
   phone: str | None = None,
+  use_conversations: bool | None = None,
 ) -> dict:
   """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
   name or phone ("") clears it."""
@@ -151,6 +155,9 @@ def update_user(
   if open_ai_queries is not None:
     changes.append("open_ai_queries = %s")
     values.append(open_ai_queries)
+  if use_conversations is not None:
+    changes.append("use_conversations = %s")
+    values.append(use_conversations)
   if changes:
     try:
       with connect() as connection:
@@ -165,7 +172,8 @@ def update_user(
 
 
 def delete_user(user_id: int) -> dict:
-  """Deletes the account with its notes, email subscriptions, sessions and links (ON DELETE CASCADE)."""
+  """Deletes the account with its notes, conversation posts, email subscriptions, sessions and links (ON DELETE
+  CASCADE)."""
   user = get_user(user_id)
   with connect() as connection:
     connection.execute("DELETE FROM users WHERE id = %s", (user_id,))

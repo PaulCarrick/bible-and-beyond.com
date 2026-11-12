@@ -24,6 +24,8 @@ import type {
   NewAccount,
   Note,
   NotePage,
+  ConversationPage,
+  ConversationPost,
   NoteSubject,
   Translation,
   VerseContext,
@@ -625,6 +627,38 @@ export async function updateNote(id: number, body: string): Promise<Note> {
 
 export async function deleteNote(id: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/notes/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// Conversations. Every call needs a logged-in visitor whose account an administrator allowed them.
+// One page of every member's posts, newest first; query keeps those with every word, mine the visitor's own.
+export async function fetchConversationPage(
+  options: { query: string; onlyMine: boolean; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<ConversationPage> {
+  const queryString = new URLSearchParams({ page: String(options.page), per_page: String(options.perPage) })
+  if (options.query.trim() !== '') {
+    queryString.set('query', options.query.trim())
+  }
+  if (options.onlyMine) {
+    queryString.set('mine', 'true')
+  }
+  const response = await fetch(`${mlServiceUrl}/conversations?${queryString}`, { credentials: 'include', signal })
+  return readJson<ConversationPage>(response)
+}
+
+// Adds a post (no id) or changes one of the visitor's own.
+export async function saveConversationPost(id: number | null, title: string, body: string): Promise<ConversationPost> {
+  const response = await fetch(`${mlServiceUrl}/conversations${id === null ? '' : `/${id}`}`, {
+    method: id === null ? 'POST' : 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, body }),
+  })
+  return (await readJson<{ post: ConversationPost }>(response)).post
+}
+
+export async function deleteConversationPost(id: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/conversations/${id}`, { method: 'DELETE', credentials: 'include' }))
 }
 
 // Daily devotional emails. The first three need a logged-in visitor with a confirmed email address.

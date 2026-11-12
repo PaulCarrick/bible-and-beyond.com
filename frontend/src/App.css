@@ -2330,3 +2330,45 @@ select:disabled {
 .archive-link.is-borrow:focus-visible {
   filter: brightness(1.1);
 }
+
+/* Conversations (ConversationsPage.tsx): members' posts. The list, cards, search and paging reuse the My notes
+   styles. */
+.conversation-new {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.conversation-new h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.conversation-post .note-title {
+  font-size: 1.15rem;
+}
+
+.conversation-byline {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.conversation-form input[type='text'] {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  font: inherit;
+}
+
+/* At the foot of the welcome page, under the FAQ line: one card, not in the grid of cards above. */
+.welcome-conversations {
+  display: block;
+  max-width: 24rem;
+  margin-top: 1.5rem;
+}
+
+.welcome-conversations p {
+  margin: 0.6rem 0;
+}

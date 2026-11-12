@@ -84,9 +84,18 @@ def test_links_to_this_site_stay_on_it_and_verse_links_open_a_new_tab():
   )
 
 
-def test_the_owners_notes_are_unchanged_by_cleaning_again(empty_notes_table):
-  assert empty_notes_table, "the migration should have stored the owner's notes"
-  for _, question, body, _, _ in empty_notes_table:
+def owners_notes_in_the_migration() -> list[tuple[str, str]]:
+  """The (question, note) pairs migration 021 copies in, read from the file itself, so the test does not
+  depend on what the local table holds (the owner may change or delete notes there)."""
+  migration = (Path(__file__).resolve().parent.parent / "database" / "migrations" / "021_add_faq_notes.sql").read_text()
+  pieces = migration.split("$note$")[1::2]
+  return list(zip(pieces[0::2], pieces[1::2]))
+
+
+def test_the_owners_notes_are_unchanged_by_cleaning_again():
+  notes = owners_notes_in_the_migration()
+  assert len(notes) == 8, "migration 021 should hold the owner's eight notes"
+  for question, body in notes:
     assert clean_note_html(body) == body, question
 
 

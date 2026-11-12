@@ -113,12 +113,13 @@ def check_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str
 # What the site is told about a logged-in account. The columns are read in this order.
 _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
-  COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, '')
+  COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations
 """
 
 
 def _describe_user(row) -> dict:
   # open_ai_queries: an administrator allowed this account to ask the AI its own questions (FAQ page).
+  # use_conversations: an administrator allowed this account to read and write Conversations (conversations.py).
   # The names and phone are "" when the account has none (accounts set up before they were asked for).
   return {
     "id": row[0],
@@ -128,6 +129,7 @@ def _describe_user(row) -> dict:
     "first_name": row[4],
     "last_name": row[5],
     "phone": row[6],
+    "use_conversations": row[7],
   }
 
 
