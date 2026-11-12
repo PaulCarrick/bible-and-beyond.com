@@ -228,7 +228,9 @@ export async function searchCommentaries(
     queryString.set('sort_by', 'verse')
     queryString.set('sort_direction', searchParameters.sortDirection)
   }
-  return readJson(await fetch(`${mlServiceUrl}/search-commentaries?${queryString}`, { signal }))
+  // An AI search needs the login cookie (locally the page and the API are on different addresses).
+  const credentials = searchParameters.matchMode === 'ai' ? 'include' : 'same-origin'
+  return readJson(await fetch(`${mlServiceUrl}/search-commentaries?${queryString}`, { signal, credentials }))
 }
 
 export async function fetchCommentaryContents(commentary: string, signal: AbortSignal): Promise<CommentaryContents> {
@@ -268,7 +270,7 @@ export async function fetchDevotionals(): Promise<DevotionalInfo[]> {
 // A search inside the Other books (GET /search-other-books).
 export interface BookSearchOptions {
   query: string
-  matchMode: 'all' | 'any' | 'phrase'
+  matchMode: 'all' | 'any' | 'phrase' | 'ai'
   // Empty for every book.
   book: string
   sortBy: '' | 'order'
@@ -373,8 +375,13 @@ export function musicWordsAddress(song: MusicSong): string {
   return `${mlServiceUrl}/music/${encodeURIComponent(song.id)}/words?v=${song.version}`
 }
 
+// An AI search needs the login cookie (locally the page and the API are on different addresses).
+function aiCredentials(matchMode: string): RequestCredentials {
+  return matchMode === 'ai' ? 'include' : 'same-origin'
+}
+
 export async function searchMusic(
-  options: { query: string; matchMode: 'all' | 'any' | 'phrase'; page: number; perPage: number },
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai'; page: number; perPage: number },
   signal: AbortSignal,
 ): Promise<MusicSearchResponse> {
   const queryString = new URLSearchParams({
@@ -383,7 +390,7 @@ export async function searchMusic(
     page: String(options.page),
     per_page: String(options.perPage),
   })
-  return readJson(await fetch(`${mlServiceUrl}/search-music?${queryString}`, { signal }))
+  return readJson(await fetch(`${mlServiceUrl}/search-music?${queryString}`, { signal, credentials: aiCredentials(options.matchMode) }))
 }
 
 export async function searchOtherBooks(options: BookSearchOptions, signal: AbortSignal): Promise<BookSearchResponse> {
@@ -399,7 +406,7 @@ export async function searchOtherBooks(options: BookSearchOptions, signal: Abort
   if (options.sortBy !== '') {
     queryString.set('sort_by', options.sortBy)
   }
-  return readJson(await fetch(`${mlServiceUrl}/search-other-books?${queryString}`, { signal }))
+  return readJson(await fetch(`${mlServiceUrl}/search-other-books?${queryString}`, { signal, credentials: aiCredentials(options.matchMode) }))
 }
 
 // The search on the welcome page (GET /search-everything): a few hits of each kind, in groups.
@@ -433,9 +440,9 @@ export interface SiteSearchGroup {
 }
 
 export async function searchEverything(
-  options: { query: string; matchMode: 'all' | 'any' | 'phrase'; kind?: SiteSearchKind; page: number; perPage: number },
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase' | 'ai'; kind?: SiteSearchKind; page: number; perPage: number },
   signal: AbortSignal,
-): Promise<{ query: string; groups: SiteSearchGroup[] }> {
+): Promise<{ query: string; groups: SiteSearchGroup[]; bible_unavailable?: boolean }> {
   const queryString = new URLSearchParams({
     query: options.query,
     match_mode: options.matchMode,
@@ -445,8 +452,8 @@ export async function searchEverything(
   if (options.kind) {
     queryString.set('kind', options.kind)
   }
-  const found: { query: string; groups: SiteSearchGroup[] } = await readJson(
-    await fetch(`${mlServiceUrl}/search-everything?${queryString}`, { signal }),
+  const found: { query: string; groups: SiteSearchGroup[]; bible_unavailable?: boolean } = await readJson(
+    await fetch(`${mlServiceUrl}/search-everything?${queryString}`, { signal, credentials: aiCredentials(options.matchMode) }),
   )
   // Each hit says what kind it is, so it can be drawn and opened without looking at its group.
   return {

@@ -29,7 +29,7 @@ from devotionals import get_contents as get_devotional_contents
 from devotionals import get_unit as get_devotional_unit
 from devotionals import list_books as list_other_books
 from devotionals import search_books
-from site_search import search_everything
+from site_search import search_everything, search_everything_with_ai
 from devotionals import list_devotionals
 from commentaries import (
   get_chapter_notes,
@@ -48,6 +48,8 @@ from contact import (
 )
 from faq import FaqProblem, FaqUnavailable, UnknownQuestion, ask_open_question, get_answer, list_questions
 from ai_search import AiSearchProblem, find_verses
+import passage_embeddings
+from passage_embeddings import PassageSearchProblem
 from faq_notes import owner_note_or_nothing
 from music import list_songs, search_music, song_file, song_words_file
 from context import get_chapter, get_context, get_parallel, get_related
@@ -358,6 +360,25 @@ def commentary_list():
   return list_commentaries()
 
 
+def ai_search_account(request: Request) -> dict:
+  """The logged-in account, if an administrator allowed it AI searches (open_ai_queries); else 401 or 403."""
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  if user is None:
+    raise HTTPException(status_code=401, detail="Please log in to search with AI.")
+  if not user["open_ai_queries"]:
+    raise HTTPException(status_code=403, detail="Your account cannot search with AI.")
+  return user
+
+
+def ai_query_vector(request: Request, query: str) -> list[float]:
+  """The embedding of the query for a search by meaning (passage_embeddings.py), for an allowed account."""
+  user = ai_search_account(request)
+  try:
+    return passage_embeddings.query_vector(user["id"], query)
+  except PassageSearchProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem)) from problem
+
+
 def search_with_ai(
   request: Request,
   query: str,
@@ -372,11 +393,7 @@ def search_with_ai(
   sort_direction: str,
 ) -> dict:
   """The verses Gemini suggests for the query, listed from the chosen Bibles on this site like any search."""
-  user = user_for_token(request.cookies.get(SESSION_COOKIE))
-  if user is None:
-    raise HTTPException(status_code=401, detail="Please log in to search with AI.")
-  if not user["open_ai_queries"]:
-    raise HTTPException(status_code=403, detail="Your account cannot search with AI.")
+  user = ai_search_account(request)
   if api_codes:
     # Their text may never go near an AI, and they cannot be listed by verse anyway.
     raise HTTPException(
@@ -415,8 +432,10 @@ def search_with_ai(
 
 @app.get("/search-commentaries")
 def search_commentary_text(
+  request: Request,
   query: str = Query(min_length=1),
-  match_mode: Literal["all", "any", "phrase"] = "all",
+  # "ai": the notes nearest in meaning (only for an account allowed AI searches).
+  match_mode: Literal["all", "any", "phrase", "ai"] = "all",
   commentary: str | None = Query(default=None, max_length=60),
   book_start: int = Query(default=FIRST_BOOK_NUMBER, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
   book_end: int = Query(default=LAST_BOOK_NUMBER, ge=FIRST_BOOK_NUMBER, le=LAST_BOOK_NUMBER),
@@ -428,6 +447,9 @@ def search_commentary_text(
 ):
   if book_start > book_end:
     raise HTTPException(status_code=422, detail="book_start must not come after book_end.")
+  if match_mode == "ai":
+    vector = ai_query_vector(request, query)
+    return passage_embeddings.search_commentaries(vector, commentary, book, page, per_page, sort_by, sort_direction)
   try:
     return search_commentaries(
       query, match_mode, commentary, book_start, book_end, book, page, per_page, sort_by, sort_direction
@@ -438,13 +460,16 @@ def search_commentary_text(
 
 @app.get("/search-other-books")
 def search_other_books(
+  request: Request,
   query: str = Query(min_length=1, max_length=500),
-  match_mode: Literal["all", "any", "phrase"] = "all",
+  match_mode: Literal["all", "any", "phrase", "ai"] = "all",
   book: str | None = Query(default=None, max_length=60),
   page: int = Query(default=1, ge=1, le=1000),
   per_page: int = Query(default=25, ge=1, le=100),
   sort_by: Literal["order"] | None = None,
 ):
+  if match_mode == "ai":
+    return passage_embeddings.search_library(ai_query_vector(request, query), "books", book, page, per_page)
   try:
     return search_books(query, match_mode, book, page, per_page, sort_by)
   except ValueError as error:
@@ -453,12 +478,19 @@ def search_other_books(
 
 @app.get("/search-everything")
 def search_everything_on_the_site(
+  request: Request,
   query: str = Query(min_length=1, max_length=500),
-  match_mode: Literal["all", "any", "phrase"] = "all",
+  match_mode: Literal["all", "any", "phrase", "ai"] = "all",
   kind: Literal["bible", "commentary", "devotional", "book", "music"] | None = None,
   page: int = Query(default=1, ge=1, le=1000),
   per_page: int = Query(default=5, ge=1, le=25),
 ):
+  if match_mode == "ai":
+    user = ai_search_account(request)
+    try:
+      return search_everything_with_ai(user["id"], query, kind, page, per_page)
+    except (AiSearchProblem, PassageSearchProblem) as problem:
+      raise HTTPException(status_code=problem.status_code, detail=str(problem)) from problem
   try:
     return search_everything(query, match_mode, kind, page, per_page)
   except ValueError as error:
@@ -555,11 +587,14 @@ def music_words_file(song_id: str):
 
 @app.get("/search-music")
 def search_the_music(
+  request: Request,
   query: str = Query(min_length=1, max_length=500),
-  match_mode: Literal["all", "any", "phrase"] = "all",
+  match_mode: Literal["all", "any", "phrase", "ai"] = "all",
   page: int = Query(default=1, ge=1, le=1000),
   per_page: int = Query(default=25, ge=1, le=100),
 ):
+  if match_mode == "ai":
+    return passage_embeddings.search_music(ai_query_vector(request, query), page, per_page)
   try:
     return search_music(query, match_mode, page, per_page)
   except ValueError as error:

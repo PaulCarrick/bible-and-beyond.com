@@ -166,6 +166,15 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           was found: <em>Read in the Bible</em>, <em>Read the note</em>, <em>Read this reading</em> or{' '}
           <em>Read this chapter</em>. Press Back to return to your results.
         </p>
+        <p>
+          <strong>Searching with AI.</strong> If your account may ask its own FAQ questions, the Match list also offers{' '}
+          <em>Use AI to find related passages</em>. It finds what is closest in <em>meaning</em> to your words, even
+          when the words differ: a search for &ldquo;the beatitudes&rdquo; finds commentary notes and readings on
+          &ldquo;Blessed are the poor in spirit&rdquo;, which never use the word. An AI suggests the Bible verses; the
+          commentaries, devotionals, other books and songs are those nearest in meaning, closest first. The same
+          choice is on <em>Search the commentaries</em>, <em>Search other books</em> and <em>Search the music</em>. The
+          AI can be wrong, so read each result where it was found.
+        </p>
         <Screenshot
           name="search-all"
           width={1152}

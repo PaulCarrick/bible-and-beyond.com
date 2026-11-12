@@ -1,5 +1,6 @@
-import { useId, useRef, useState } from 'react'
+import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { AccountContext } from './AccountContext'
 import { searchMusic } from './api'
 import type { MusicSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
@@ -10,7 +11,7 @@ interface MusicSearchPageProps {
   onOpen: (songId: string) => void
 }
 
-type MatchMode = 'all' | 'any' | 'phrase'
+type MatchMode = 'all' | 'any' | 'phrase' | 'ai'
 
 interface Search {
   query: string
@@ -34,6 +35,10 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const controller = useRef<AbortController | null>(null)
+  const { user } = useContext(AccountContext)
+  // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
+  const canUseAi = user?.open_ai_queries === true
+  const effectiveMatchMode = matchMode === 'ai' && !canUseAi ? 'all' : matchMode
 
   async function run(search: Search) {
     controller.current?.abort()
@@ -61,7 +66,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (query.trim() !== '') {
-      run({ query: query.trim(), matchMode, page: 1, perPage })
+      run({ query: query.trim(), matchMode: effectiveMatchMode, page: 1, perPage })
     }
   }
 
@@ -85,22 +90,28 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder='Example "amazing grace" or soul'
+            placeholder={effectiveMatchMode === 'ai' ? 'Example: songs about heaven' : 'Example "amazing grace" or soul'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            Search the music
+            {effectiveMatchMode === 'ai' ? 'Find songs with AI' : 'Search the music'}
           </button>
         </div>
         <div className="book-search-options">
           <label>
             Match{' '}
-            <select value={matchMode} onChange={(event) => setMatchMode(event.target.value as MatchMode)}>
+            <select value={effectiveMatchMode} onChange={(event) => setMatchMode(event.target.value as MatchMode)}>
               <option value="all">All the words</option>
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
+              {canUseAi && <option value="ai">Use AI to find related songs</option>}
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'ai' && (
+          <p className="option-note">
+            AI finds the songs whose words are closest in meaning to what you type, closest first. It can be wrong.
+          </p>
+        )}
       </form>
 
       <div>

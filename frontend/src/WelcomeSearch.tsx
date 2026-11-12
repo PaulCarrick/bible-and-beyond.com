@@ -1,5 +1,6 @@
-import { useId, useRef, useState } from 'react'
+import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { AccountContext } from './AccountContext'
 import { searchEverything } from './api'
 import type { SiteSearchGroup, SiteSearchKind, SiteSearchResult } from './api'
 import { highlight, renderExcerpt } from './highlight'
@@ -18,6 +19,8 @@ interface WelcomeSearchProps {
 }
 
 const perGroup = 5
+
+type MatchMode = 'all' | 'any' | 'phrase' | 'ai'
 
 const groupTitles: Record<SiteSearchKind, string> = {
   bible: 'The Bible',
@@ -39,17 +42,23 @@ function countLabel(kind: SiteSearchKind, total: number) {
 function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
-  const [matchMode, setMatchMode] = useState<'all' | 'any' | 'phrase'>('all')
-  const [searched, setSearched] = useState<{ query: string; matchMode: 'all' | 'any' | 'phrase' } | null>(null)
+  const [matchMode, setMatchMode] = useState<MatchMode>('all')
+  const [searched, setSearched] = useState<{ query: string; matchMode: MatchMode } | null>(null)
   const [groups, setGroups] = useState<SiteSearchGroup[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [loadingMore, setLoadingMore] = useState<SiteSearchKind | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
+  // An AI search whose Bible verses could not be suggested (Gemini was busy); the other groups still show.
+  const [bibleUnavailable, setBibleUnavailable] = useState(false)
   const controller = useRef<AbortController | null>(null)
+  const { user } = useContext(AccountContext)
+  // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
+  const canUseAi = user?.open_ai_queries === true
+  const effectiveMatchMode = matchMode === 'ai' && !canUseAi ? 'all' : matchMode
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const wanted = { query: query.trim(), matchMode }
+    const wanted = { query: query.trim(), matchMode: effectiveMatchMode }
     if (wanted.query === '') {
       return
     }
@@ -62,6 +71,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
       const found = await searchEverything({ ...wanted, page: 1, perPage: perGroup }, request.signal)
       if (!request.signal.aborted) {
         setGroups(found.groups)
+        setBibleUnavailable(found.bible_unavailable === true)
         setSearched(wanted)
       }
     } catch (error) {
@@ -202,26 +212,39 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong }: WelcomeSearchPr
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder='Example "born again" or forgiveness'
+            placeholder={effectiveMatchMode === 'ai' ? 'Example: the beatitudes' : 'Example "born again" or forgiveness'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            Search
+            {effectiveMatchMode === 'ai' ? 'Search with AI' : 'Search'}
           </button>
         </div>
         <div className="book-search-options">
           <label>
             Match{' '}
-            <select value={matchMode} onChange={(event) => setMatchMode(event.target.value as 'all' | 'any' | 'phrase')}>
+            <select value={effectiveMatchMode} onChange={(event) => setMatchMode(event.target.value as MatchMode)}>
               <option value="all">All the words</option>
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
+              {canUseAi && <option value="ai">Use AI to find related passages</option>}
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'ai' && (
+          <p className="option-note">
+            AI finds what is closest in meaning to what you type, even in other words: an AI (Google&rsquo;s Gemini)
+            suggests the Bible verses, and the commentaries, devotionals, other books and songs are those nearest in
+            meaning, closest first. It can be wrong, so read each one in its place.
+          </p>
+        )}
       </form>
 
       {errorMessage && <p className="error">{errorMessage}</p>}
       {isSearching && <p>Searching…</p>}
+      {bibleUnavailable && !isSearching && (
+        <p className="option-note">
+          The AI could not suggest Bible verses just now (it was too busy); try the search again in a minute for them.
+        </p>
+      )}
       {searched && !isSearching && groups.length === 0 && !errorMessage && <p>Nothing was found.</p>}
       {groups.map((group) => (
         <div key={group.kind} className={`welcome-search-group${isSearching ? ' is-loading' : ''}`}>

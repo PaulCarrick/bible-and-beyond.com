@@ -1,5 +1,6 @@
-import { useId, useRef, useState } from 'react'
+import { useContext, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { AccountContext } from './AccountContext'
 import { searchOtherBooks } from './api'
 import type { BookSearchOptions, BookSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
@@ -30,6 +31,10 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const controller = useRef<AbortController | null>(null)
   const resultsReference = useRef<HTMLDivElement>(null)
+  const { user } = useContext(AccountContext)
+  // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
+  const canUseAi = user?.open_ai_queries === true
+  const effectiveMatchMode = matchMode === 'ai' && !canUseAi ? 'all' : matchMode
 
   async function run(options: BookSearchOptions) {
     controller.current?.abort()
@@ -59,7 +64,7 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (query.trim() !== '') {
-      run({ query: query.trim(), matchMode, book, sortBy, page: 1, perPage })
+      run({ query: query.trim(), matchMode: effectiveMatchMode, book, sortBy, page: 1, perPage })
     }
   }
 
@@ -100,19 +105,20 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder='Example "grace of God" or humility'
+            placeholder={effectiveMatchMode === 'ai' ? 'Example: pride and humility' : 'Example "grace of God" or humility'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            Search the other books
+            {effectiveMatchMode === 'ai' ? 'Find passages with AI' : 'Search the other books'}
           </button>
         </div>
         <div className="book-search-options">
           <label>
             Match{' '}
-            <select value={matchMode} onChange={(event) => setMatchMode(event.target.value as BookSearchOptions['matchMode'])}>
+            <select value={effectiveMatchMode} onChange={(event) => setMatchMode(event.target.value as BookSearchOptions['matchMode'])}>
               <option value="all">All the words</option>
               <option value="any">Any of the words</option>
               <option value="phrase">The exact phrase</option>
+              {canUseAi && <option value="ai">Use AI to find related passages</option>}
             </select>
           </label>
           <label>
@@ -127,7 +133,7 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
               ))}
             </select>
           </label>
-          <label>
+          <label hidden={shown?.matchMode === 'ai'}>
             Order{' '}
             <select value={sortBy} onChange={(event) => chooseSort(event.target.value as '' | 'order')}>
               <option value="">Best match first</option>
@@ -135,6 +141,12 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
             </select>
           </label>
         </div>
+        {effectiveMatchMode === 'ai' && (
+          <p className="option-note">
+            AI finds the passages closest in meaning to what you type, even when they use other words. Up to 50,
+            closest first. It can be wrong, so read each one in its chapter.
+          </p>
+        )}
       </form>
 
       <div ref={resultsReference}>

@@ -240,7 +240,13 @@ function SearchResults({
               </>
             )}
           </p>
-          {response?.ai && (
+          {response?.ai && mode === 'commentary' && (
+            <p className="strong-note">
+              Notes an AI found closest in meaning to &ldquo;{searchParameters.query}&rdquo;, closest first. The AI can be
+              wrong, so read each note.
+            </p>
+          )}
+          {response?.ai && mode !== 'commentary' && (
             <p className="strong-note">
               Verses an AI (Google&rsquo;s Gemini) suggested for &ldquo;{response.query}&rdquo;, in Bible order. The AI
               can be wrong, so read each verse in context.
@@ -273,7 +279,9 @@ function SearchResults({
         {response && response.total === 0 && (
           <p>
             {mode === 'commentary'
-              ? 'No commentary notes matched your search.'
+              ? response.ai
+                ? 'No commentary notes were found for this. Try describing it in other words.'
+                : 'No commentary notes matched your search.'
               : response.ai
                 ? 'The AI did not suggest any verses for this. Try describing it in other words.'
                 : 'No verses matched your search.'}

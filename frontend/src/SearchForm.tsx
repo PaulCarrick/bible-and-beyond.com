@@ -104,8 +104,8 @@ function SearchForm({
   const isCommentarySearch = mode === 'commentary'
   const queryId = isCommentarySearch ? 'search-query-commentary' : 'search-query'
   const canSearch = query.trim() !== '' && (isCommentarySearch || selectedCodes.length > 0)
-  // "Use AI" is only for the Bible search and a logged-in account an administrator allowed (the server checks too).
-  const canUseAi = !isCommentarySearch && user?.open_ai_queries === true
+  // "Use AI" is only for a logged-in account an administrator allowed (the server checks too).
+  const canUseAi = user?.open_ai_queries === true
   // The licensed Bibles always match all of the words; AI goes back to it if the visitor logs out.
   const effectiveMatchMode: SearchMatchMode =
     onlyLicensed && !isCommentarySearch ? 'all' : matchMode === 'ai' && !canUseAi ? 'all' : matchMode
@@ -124,14 +124,22 @@ function SearchForm({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={
             isCommentarySearch
-              ? 'Example "born again" or charity'
+              ? isAiSearch
+                ? 'Example: the beatitudes'
+                : 'Example "born again" or charity'
               : isAiSearch
                 ? 'Example: comfort when someone has died'
                 : 'Example "Jesus love" or G0025'
           }
         />
         <button type="submit" className="primary-button" disabled={!canSearch}>
-          {isCommentarySearch ? 'Search the commentaries' : isAiSearch ? 'Find verses with AI' : 'Search for keyword or phrase'}
+          {isCommentarySearch
+            ? isAiSearch
+              ? 'Find notes with AI'
+              : 'Search the commentaries'
+            : isAiSearch
+              ? 'Find verses with AI'
+              : 'Search for keyword or phrase'}
         </button>
       </div>
 
@@ -150,7 +158,9 @@ function SearchForm({
               <option value="all">Match ALL words</option>
               <option value="any">Match ANY word</option>
               <option value="phrase">Match exact phrase</option>
-              {canUseAi && <option value="ai">Use AI to find related verses</option>}
+              {canUseAi && (
+                <option value="ai">{isCommentarySearch ? 'Use AI to find related notes' : 'Use AI to find related verses'}</option>
+              )}
             </select>
             {!isCommentarySearch && (
               <label className="inline-label">
@@ -164,14 +174,21 @@ function SearchForm({
               </label>
             )}
           </div>
-          {isAiSearch && (
+          {isAiSearch && isCommentarySearch && (
+            <p className="option-note">
+              AI finds the notes closest in meaning to what you type, even when they use other words (the
+              beatitudes finds notes on &ldquo;Blessed are the poor in spirit&rdquo;). Up to 50 notes, closest
+              first. It can be wrong, so read each note.
+            </p>
+          )}
+          {isAiSearch && !isCommentarySearch && (
             <p className="option-note">
               An AI (Google's Gemini) suggests up to 30 verses related to what you type, and they are listed from
               the Bibles on this site, in Bible order. The AI can be wrong, so read each verse in context. The
               licensed Bibles (NIV, NASB, The Message) are not searched this way.
             </p>
           )}
-          {isCommentarySearch && (
+          {isCommentarySearch && !isAiSearch && (
             <p className="option-note">
               Words match in any form, so love also finds loved and loving. Every word counts, even small
               ones such as the and of, so an exact phrase finds just that wording. Notes are listed best
