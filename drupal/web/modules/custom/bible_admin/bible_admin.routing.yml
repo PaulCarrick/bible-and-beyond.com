@@ -199,3 +199,42 @@ bible_admin.music_change:
     _permission: 'administer bibles'
     action: 'publish|unpublish|delete'
     song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+# Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
+# (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page
+# is driven by js/backup.js through the JSON routes below; the ones that change anything are POST only and
+# need the X-CSRF-Token header.
+bible_admin.backup:
+  path: '/admin/backup-restore'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\BackupController::page'
+    _title: 'Backup and restore'
+  requirements:
+    _permission: 'administer backups'
+
+bible_admin.backup_status:
+  path: '/admin/backup-restore/status'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\BackupController::status'
+  methods: [GET]
+  requirements:
+    _permission: 'administer backups'
+
+bible_admin.backup_download:
+  path: '/admin/backup-restore/download/{name}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\BackupController::download'
+  methods: [GET]
+  requirements:
+    _permission: 'administer backups'
+    name: 'bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6}\.zip'
+
+bible_admin.backup_action:
+  path: '/admin/backup-restore/{action}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\BackupController::act'
+  methods: [POST]
+  requirements:
+    _permission: 'administer backups'
+    _csrf_request_header_token: 'TRUE'
+    action: 'start|discard|upload|restore|dismiss'

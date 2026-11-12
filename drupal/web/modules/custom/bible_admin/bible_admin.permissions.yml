@@ -17,3 +17,8 @@ administer faq notes:
   title: 'Administer the FAQ notes'
   description: 'Add, change and delete the notes from the site owner shown under the FAQ answers on the public site.'
   restrict access: true
+
+administer backups:
+  title: 'Back up and restore the whole site'
+  description: 'Save a backup zip of the databases (with the service keys) and the files (the music and Drupal''s files) to a folder on one''s own computer, and restore one. Restoring the database replaces Drupal''s too, its administrators included.'
+  restrict access: true

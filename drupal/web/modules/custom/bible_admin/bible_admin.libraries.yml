@@ -2,3 +2,14 @@ site_user_form:
   css:
     component:
       css/site-user-form.css: {}
+
+backup:
+  js:
+    js/backup.js: {}
+  css:
+    component:
+      css/backup.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once

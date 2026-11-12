@@ -59,3 +59,10 @@ bible_admin.music:
   route_name: bible_admin.music
   parent: system.admin
   weight: -5
+
+bible_admin.backup:
+  title: 'Backup and restore'
+  description: 'Save the databases and the files of the site as a zip in a folder on your computer, or restore them from one.'
+  route_name: bible_admin.backup
+  parent: system.admin
+  weight: -2

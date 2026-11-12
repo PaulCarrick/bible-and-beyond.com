@@ -1,0 +1,35 @@
+/* The Backup and restore page (BackupController, js/backup.js). */
+.bible-backup {
+  max-width: 50rem;
+}
+
+.bible-backup__parts {
+  margin-block: 1.5rem;
+}
+
+.bible-backup__parts .form-item {
+  margin-block: 0.5rem;
+}
+
+.bible-backup__status .messages {
+  margin-block: 1rem;
+}
+
+.bible-backup__status .messages p {
+  margin-block: 0 0.5rem;
+}
+
+.bible-backup__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.bible-backup__progress progress {
+  flex: 0 1 20rem;
+}
+
+.bible-backup__progress[hidden] {
+  display: none;
+}

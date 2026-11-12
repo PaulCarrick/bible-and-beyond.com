@@ -29,3 +29,5 @@ ml-service/data/devotionals/
 ml-service/data/*.zip
 ml-service/data/*.txt
 **/.DS_Store
+# The music files (the songs may not be ours to pass on; see CLAUDE.md "Christian music"):
+ml-service/data/music/

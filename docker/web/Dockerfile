@@ -27,6 +27,7 @@ RUN apt-get update \
     php8.4-fpm php8.4-cli php8.4-mysql php8.4-gd php8.4-intl php8.4-mbstring php8.4-xml php8.4-curl \
     php8.4-zip php8.4-apcu php8.4-opcache \
     python3 python3-venv \
+    postgresql-client-17 mariadb-client \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /etc/nginx/sites-enabled/default /etc/php/8.4/fpm/pool.d/www.conf \
   && useradd --uid 1000 --create-home --shell /bin/bash site

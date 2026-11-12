@@ -224,6 +224,72 @@ class BibleManager {
   }
 
   /**
+   * The last backup or restore started from the Backup and restore page, and the backup zip waiting to be
+   * saved by the browser.
+   *
+   * @return array
+   *   Keys: status (action, state, message, started_at, updated_at, and for a finished backup name and size;
+   *   or NULL) and waiting (name and size, or NULL).
+   */
+  public function backupStatus(): array {
+    return $this->run(['status'], 'manage_backup.py');
+  }
+
+  /**
+   * Starts building a backup zip in the background, of the database, the files or both.
+   */
+  public function startBackup(bool $database, bool $files, string $note): array {
+    $result = $this->run(['backup', ...$this->backupParts($database, $files), '--note=' . $note], 'manage_backup.py');
+    $this->logger->notice('@user started a backup (@parts).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@parts' => $this->describeParts($database, $files),
+    ]);
+    return $result;
+  }
+
+  /**
+   * Deletes the backup zip waiting on the server (once the browser has saved it).
+   */
+  public function discardBackup(): array {
+    return $this->run(['discard'], 'manage_backup.py');
+  }
+
+  /**
+   * Starts restoring the uploaded backup zip in the background.
+   */
+  public function startRestore(bool $database, bool $files): array {
+    // Logged before it starts: restoring the database replaces Drupal's, this log included.
+    $this->logger->warning('@user started restoring a backup (@parts).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@parts' => $this->describeParts($database, $files),
+    ]);
+    return $this->run(['restore', ...$this->backupParts($database, $files)], 'manage_backup.py');
+  }
+
+  /**
+   * Forgets the last finished backup or restore, so the page stops showing it.
+   */
+  public function clearBackupStatus(): void {
+    $this->run(['clear-status'], 'manage_backup.py');
+  }
+
+  /**
+   * The folder the backup tool works in (ml-service/data/backup): outgoing/ holds the zip waiting to be
+   * saved, incoming/upload.zip the zip being uploaded to restore.
+   */
+  public function backupWorkDirectory(): string {
+    return $this->mlDirectory() . '/data/backup';
+  }
+
+  private function backupParts(bool $database, bool $files): array {
+    return array_merge($database ? ['--database'] : [], $files ? ['--files'] : []);
+  }
+
+  private function describeParts(bool $database, bool $files): string {
+    return implode(' and ', array_merge($database ? ['database'] : [], $files ? ['files'] : []));
+  }
+
+  /**
    * The main site's accounts (its visitors, not Drupal users), newest first, 50 at a time.
    *
    * @param string $query

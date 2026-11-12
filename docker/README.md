@@ -137,6 +137,14 @@ docker compose -f docker/compose.yml exec database pg_dump -U bibleandbeyond bib
 docker compose -f docker/compose.yml exec database mariadb-dump --socket=/run/mysqld/mysqld.sock bibleandbeyond_drupal | gzip > drupal.sql.gz
 ```
 
+## Moving a site to a new container (Backup and restore)
+
+In the admin, **Backup and restore** (administrators only) saves the site as one zip in a folder on your own
+computer: tick **Database** (both databases and the service keys), **Files** (the music and Drupal's files) or
+both. On the new install, log in with its own administrator, open the same page, choose the zip and restore it;
+then log in again with an account from the backup. Chrome and Edge save straight into the folder you pick;
+other browsers download the zip. The zip holds the site's accounts and keys: keep it private.
+
 ## For the maintainer: publishing the images
 
 `docker/make-public-data.sh` makes `docker/public-data/bible-data.sql.gz` from the live database, on
