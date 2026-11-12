@@ -186,3 +186,7 @@ def test_the_drupal_tool_reads_the_note_on_its_input():
 
   status, deleted = run_tool("delete", f"--id={note_id}")
   assert status == 0 and run_tool("list")[1]["notes"] == []
+
+
+def test_the_owners_notes_keep_their_non_breaking_spaces():
+  assert clean_note_html("<p>Romans 3:23</p>") == "<p>Romans 3:23</p>"

@@ -313,3 +313,31 @@ def test_an_administrator_reads_and_deletes_any_reply_with_the_tool():
   assert status == 0 and deleted["reply"]["post_title"] == "Grace"
   status, missing = run_tool("get-reply", f"--id={reply['id']}")
   assert status == 1 and "no such reply" in missing["error"]
+
+
+def test_the_editors_non_breaking_spaces_are_kept_as_plain_spaces():
+  sign_up()
+  post = client.post("/conversations", json={"title": "Spaces", "body": "<p>a&nbsp;good&nbsp;friend who&nbsp;wrote</p>"}).json()["post"]
+  assert post["body"] == "<p>a good friend who wrote</p>"
+  reply = client.post(f"/conversations/{post['id']}/replies", json={"body": "<p>thank&nbsp;you</p>"}).json()["reply"]
+  assert reply["body"] == "<p>thank you</p>"
+
+
+def test_migration_030_turns_saved_non_breaking_spaces_into_plain_spaces():
+  from pathlib import Path
+
+  user_id = sign_up()
+  migration = (Path(__file__).resolve().parent.parent / "database" / "migrations" / "030_replace_non_breaking_spaces.sql").read_text()
+  with connect() as connection:
+    post_id = connection.execute(
+      "INSERT INTO conversation_posts (user_id, title, body, body_text) VALUES (%s, 'Old', %s, %s) RETURNING id",
+      (user_id, "<p>who wrote&nbsp;early</p>", "who wrote early"),
+    ).fetchone()[0]
+    before = connection.execute("SELECT updated_at FROM conversation_posts WHERE id = %s", (post_id,)).fetchone()[0]
+    connection.execute(migration)
+    connection.execute(migration)
+    body, body_text, after = connection.execute(
+      "SELECT body, body_text, updated_at FROM conversation_posts WHERE id = %s", (post_id,)
+    ).fetchone()
+  assert (body, body_text) == ("<p>who wrote early</p>", "who wrote early")
+  assert after == before

@@ -39,7 +39,9 @@ function RichTextEditor({ ref, placeholder, labelledBy }: RichTextEditorProps) {
   }, [placeholder])
 
   useImperativeHandle(ref, () => ({
-    getHtml: () => quillReference.current?.getSemanticHTML() ?? '',
+    // Quill 2 writes every space as &nbsp;, which turns each paragraph into one long word that the browser can
+    // only break mid-word. Plain spaces wrap normally (the server makes the same change when it cleans the text).
+    getHtml: () => (quillReference.current?.getSemanticHTML() ?? '').replaceAll('&nbsp;', ' '),
     isEmpty: () => (quillReference.current?.getText().trim() ?? '') === '',
     clear: () => quillReference.current?.setText(''),
     setHtml: (html: string) => {

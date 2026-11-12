@@ -69,6 +69,7 @@ def opens_in_new_tab(address: str) -> bool:
 
 class _NoteCleaner(_Cleaner):
   allowed_tags = NOTE_TAGS
+  keeps_non_breaking_spaces = True
 
   def opening(self, tag: str, attributes: dict) -> str | None:
     language = (attributes.get("lang") or "").strip()

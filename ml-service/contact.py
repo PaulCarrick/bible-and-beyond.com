@@ -105,6 +105,10 @@ class _Cleaner(HTMLParser):
   allow more tags (allowed_tags) and write its own opening tags (opening)."""
 
   allowed_tags = ALLOWED_TAGS
+  # The site's editor (Quill 2) writes every space as a non-breaking space (&nbsp;), which makes a whole paragraph
+  # one long "word" that the browser can only break in the middle of a word. They are kept as plain spaces. The
+  # site owner's FAQ notes (written in CKEditor, where one may be meant) keep theirs.
+  keeps_non_breaking_spaces = False
 
   def __init__(self):
     super().__init__(convert_charrefs=True)
@@ -153,6 +157,8 @@ class _Cleaner(HTMLParser):
 
   def handle_data(self, data):
     if not self.skip_depth:
+      if not self.keeps_non_breaking_spaces:
+        data = data.replace("\u00a0", " ")
       self.parts.append(escape(data, quote=False))
 
   def close(self):
