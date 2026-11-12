@@ -22,7 +22,7 @@ class ConversationSearchForm extends FormBase {
     $form['#attributes']['class'][] = 'container-inline';
     $form['query'] = [
       '#type' => 'search',
-      '#title' => $this->t('Title, text, author or address contains'),
+      '#title' => $this->t('Title, text, author, address or reply contains'),
       '#default_value' => $query,
       '#size' => 30,
       '#maxlength' => 200,

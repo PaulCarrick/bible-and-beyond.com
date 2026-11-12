@@ -216,3 +216,100 @@ def test_an_administrator_lists_and_deletes_any_post_with_the_tool():
   assert client.get("/conversations").json()["total"] == 0
   status, missing = run_tool("get", f"--id={post['id']}")
   assert status == 1 and missing["ok"] is False and "no such post" in missing["error"]
+
+
+REPLY = {"body": "<p>Amen to <em>that</em></p>"}
+
+
+def test_replies_need_a_login_and_the_flag():
+  assert client.post("/conversations/1/replies", json=REPLY).status_code == 401
+  assert client.put("/conversations/replies/1", json=REPLY).status_code == 401
+  assert client.delete("/conversations/replies/1").status_code == 401
+  sign_up("ann", allowed=False)
+  assert client.post("/conversations/1/replies", json=REPLY).status_code == 403
+  assert client.put("/conversations/replies/1", json=REPLY).status_code == 403
+  assert client.delete("/conversations/replies/1").status_code == 403
+
+
+def test_any_member_replies_and_the_replies_come_with_the_post_oldest_first():
+  sign_up("ann")
+  post = client.post("/conversations", json=POST).json()["post"]
+  assert post["replies"] == []
+  sign_up("bob")
+  first = client.post(f"/conversations/{post['id']}/replies", json=REPLY)
+  assert first.status_code == 200
+  reply = first.json()["reply"]
+  assert reply["author"] == "Bob Test" and reply["is_mine"] is True and reply["post_id"] == post["id"]
+  assert reply["body"] == "<p>Amen to <em>that</em></p>"
+  log_in("ann")
+  second = client.post(f"/conversations/{post['id']}/replies", json={"body": "<p>Thank you</p>"}).json()["reply"]
+
+  listed = client.get("/conversations").json()["posts"][0]
+  assert [entry["id"] for entry in listed["replies"]] == [reply["id"], second["id"]]
+  assert [entry["is_mine"] for entry in listed["replies"]] == [False, True]
+
+
+def test_a_reply_is_cleaned_and_kept_within_its_limit():
+  sign_up()
+  post = client.post("/conversations", json=POST).json()["post"]
+  cleaned = client.post(f"/conversations/{post['id']}/replies", json={"body": "<p onclick='x()'>Hi<script>alert(1)</script></p>"})
+  assert "script" not in cleaned.json()["reply"]["body"] and "onclick" not in cleaned.json()["reply"]["body"]
+  assert client.post(f"/conversations/{post['id']}/replies", json={"body": "<p> </p>"}).status_code == 422
+  too_long = "<p>" + "a" * (conversations.REPLY_TEXT_LIMIT + 1) + "</p>"
+  assert client.post(f"/conversations/{post['id']}/replies", json={"body": too_long}).status_code == 422
+  assert client.post("/conversations/999999999/replies", json=REPLY).status_code == 404
+
+
+def test_only_the_author_changes_or_deletes_a_reply_and_deleting_the_post_deletes_its_replies():
+  sign_up("ann")
+  post = client.post("/conversations", json=POST).json()["post"]
+  sign_up("bob")
+  reply = client.post(f"/conversations/{post['id']}/replies", json=REPLY).json()["reply"]
+  log_in("ann")
+  assert client.put(f"/conversations/replies/{reply['id']}", json={"body": "<p>Mine</p>"}).status_code == 404
+  assert client.delete(f"/conversations/replies/{reply['id']}").status_code == 404
+
+  log_in("bob")
+  changed = client.put(f"/conversations/replies/{reply['id']}", json={"body": "<p>Changed</p>"})
+  assert changed.status_code == 200 and changed.json()["reply"]["body"] == "<p>Changed</p>"
+  second = client.post(f"/conversations/{post['id']}/replies", json=REPLY).json()["reply"]
+  assert client.delete(f"/conversations/replies/{second['id']}").status_code == 200
+
+  log_in("ann")
+  assert client.delete(f"/conversations/{post['id']}").status_code == 200
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM conversation_replies WHERE post_id = %s", (post["id"],)).fetchone()[0] == 0
+
+
+def test_search_finds_a_post_by_the_words_of_a_reply():
+  sign_up("ann")
+  post = client.post("/conversations", json=POST).json()["post"]
+  client.post("/conversations", json={"title": "Other", "body": "<p>Other</p>"})
+  client.post(f"/conversations/{post['id']}/replies", json={"body": "<p>Lamentations three</p>"})
+
+  found = client.get("/conversations", params={"query": "lament grace"}).json()["posts"]
+  assert [entry["id"] for entry in found] == [post["id"]]
+
+
+def test_an_account_has_a_limit_of_replies(monkeypatch):
+  sign_up()
+  post = client.post("/conversations", json=POST).json()["post"]
+  monkeypatch.setattr(conversations, "MAX_REPLIES_PER_USER", 1)
+  assert client.post(f"/conversations/{post['id']}/replies", json=REPLY).status_code == 200
+  assert client.post(f"/conversations/{post['id']}/replies", json=REPLY).status_code == 422
+
+
+def test_an_administrator_reads_and_deletes_any_reply_with_the_tool():
+  sign_up("ann")
+  post = client.post("/conversations", json=POST).json()["post"]
+  sign_up("bob")
+  reply = client.post(f"/conversations/{post['id']}/replies", json=REPLY).json()["reply"]
+
+  status, listing = run_tool("list", "--query=amen")
+  assert status == 0 and listing["posts"][0]["id"] == post["id"] and listing["posts"][0]["reply_count"] == 1
+  status, shown = run_tool("get", f"--id={post['id']}")
+  assert shown["post"]["replies"][0]["author_email"] == "bob@conversations-test.example"
+  status, deleted = run_tool("delete-reply", f"--id={reply['id']}")
+  assert status == 0 and deleted["reply"]["post_title"] == "Grace"
+  status, missing = run_tool("get-reply", f"--id={reply['id']}")
+  assert status == 1 and "no such reply" in missing["error"]

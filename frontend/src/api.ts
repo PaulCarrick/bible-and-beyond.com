@@ -26,6 +26,7 @@ import type {
   NotePage,
   ConversationPage,
   ConversationPost,
+  ConversationReply,
   NoteSubject,
   Translation,
   VerseContext,
@@ -659,6 +660,22 @@ export async function saveConversationPost(id: number | null, title: string, bod
 
 export async function deleteConversationPost(id: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/conversations/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// Adds a reply to a post (replyId null) or changes one of the visitor's own replies.
+export async function saveConversationReply(postId: number, replyId: number | null, body: string): Promise<ConversationReply> {
+  const address = replyId === null ? `${mlServiceUrl}/conversations/${postId}/replies` : `${mlServiceUrl}/conversations/replies/${replyId}`
+  const response = await fetch(address, {
+    method: replyId === null ? 'POST' : 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+  return (await readJson<{ reply: ConversationReply }>(response)).reply
+}
+
+export async function deleteConversationReply(id: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/conversations/replies/${id}`, { method: 'DELETE', credentials: 'include' }))
 }
 
 // Daily devotional emails. The first three need a logged-in visitor with a confirmed email address.

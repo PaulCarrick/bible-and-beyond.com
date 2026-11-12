@@ -6,6 +6,10 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_conversations.py list [--query=words] [--page=1]
     manage_conversations.py get --id=7
     manage_conversations.py delete --id=7
+    manage_conversations.py get-reply --id=12
+    manage_conversations.py delete-reply --id=12
+
+get answers with the post's replies; deleting a post deletes its replies.
 """
 
 import argparse
@@ -16,7 +20,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from conversations import ConversationProblem, admin_delete_post, admin_get_post, admin_list_posts  # noqa: E402
+from conversations import (  # noqa: E402
+  ConversationProblem,
+  admin_delete_post,
+  admin_delete_reply,
+  admin_get_post,
+  admin_get_reply,
+  admin_list_posts,
+)
 
 
 def parse_arguments():
@@ -25,7 +36,7 @@ def parse_arguments():
   listing = commands.add_parser("list")
   listing.add_argument("--query", default="")
   listing.add_argument("--page", type=int, default=1)
-  for name in ("get", "delete"):
+  for name in ("get", "delete", "get-reply", "delete-reply"):
     commands.add_parser(name).add_argument("--id", type=int, required=True)
   return parser.parse_args()
 
@@ -35,6 +46,10 @@ def run(arguments) -> dict:
     return {"ok": True, **admin_list_posts(arguments.query, arguments.page)}
   if arguments.command == "get":
     return {"ok": True, "post": admin_get_post(arguments.id)}
+  if arguments.command == "get-reply":
+    return {"ok": True, "reply": admin_get_reply(arguments.id)}
+  if arguments.command == "delete-reply":
+    return {"ok": True, "reply": admin_delete_reply(arguments.id)}
   return {"ok": True, "post": admin_delete_post(arguments.id)}
 
 

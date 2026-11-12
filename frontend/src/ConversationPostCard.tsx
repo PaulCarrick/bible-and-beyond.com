@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { deleteConversationPost } from './api'
 import ConversationPostForm from './ConversationPostForm'
+import ConversationReplyForm from './ConversationReplyForm'
+import ConversationReplyItem from './ConversationReplyItem'
 import { highlightHtml } from './highlightHtml'
 import type { ConversationPost } from './types'
 
@@ -16,12 +18,13 @@ function formatTime(isoTime: string) {
   return new Date(isoTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-// One post: its title, author, time and text, with Edit and Delete for its author. Editing happens in place;
-// deleting asks first.
+// One post: its title, author, time and text, with Edit and Delete for its author, then its replies and a Reply
+// button for any member. Editing happens in place; deleting asks first.
 function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: ConversationPostCardProps) {
   const [mode, setMode] = useState<'reading' | 'editing' | 'confirming'>('reading')
   const [isBusy, setIsBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isReplying, setIsReplying] = useState(false)
   const termsKey = highlightTerms.join('\u0000')
   const shownBody = useMemo(
     () => highlightHtml(post.body, termsKey === '' ? [] : termsKey.split('\u0000')),
@@ -97,6 +100,46 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
           {errorMessage}
         </p>
       )}
+
+      <section className="conversation-replies" aria-label={`Replies to ${post.title}`}>
+        {post.replies.length > 0 && (
+          <>
+            <h3 className="conversation-replies-heading">
+              {post.replies.length === 1 ? '1 reply' : `${post.replies.length} replies`}
+            </h3>
+            <ul className="conversation-reply-list">
+              {post.replies.map((reply) => (
+                <ConversationReplyItem
+                  key={reply.id}
+                  reply={reply}
+                  postTitle={post.title}
+                  highlightTerms={highlightTerms}
+                  onChanged={(changed) =>
+                    onChanged({ ...post, replies: post.replies.map((entry) => (entry.id === changed.id ? changed : entry)) })
+                  }
+                  onDeleted={(id) => onChanged({ ...post, replies: post.replies.filter((entry) => entry.id !== id) })}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+        {isReplying ? (
+          <ConversationReplyForm
+            postId={post.id}
+            postTitle={post.title}
+            onSaved={(reply) => {
+              onChanged({ ...post, replies: [...post.replies, reply] })
+              setIsReplying(false)
+            }}
+            onCancel={() => setIsReplying(false)}
+          />
+        ) : (
+          <button type="button" className="link-button conversation-reply-button" onClick={() => setIsReplying(true)}>
+            Reply
+            <span className="visually-hidden"> to {post.title}</span>
+          </button>
+        )}
+      </section>
     </li>
   )
 }

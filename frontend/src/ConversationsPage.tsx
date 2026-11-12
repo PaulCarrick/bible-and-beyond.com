@@ -13,9 +13,9 @@ interface ConversationsPageProps {
 
 const postsPerPage = 10
 
-// Conversations: posts by the site's members, newest first, for accounts an administrator allowed them
-// (use_conversations; the server checks too). Every allowed member reads every post; a member can add posts and
-// change or delete their own, and search them all.
+// Conversations: posts by the site's members, newest first, each with its replies, for accounts an administrator
+// allowed them (use_conversations; the server checks too). Every allowed member reads every post and may reply to
+// it; a member can add posts and change or delete their own posts and replies, and search them all.
 function ConversationsPage({ isHidden }: ConversationsPageProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const [result, setResult] = useState<ConversationPage | null>(null)
@@ -99,8 +99,8 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
     <div className="notes-page conversations-page" hidden={isHidden}>
       <h1>Conversations</h1>
       <p>
-        Posts by members of this site, newest first. Every member who can use Conversations can read every post; only
-        you can change or delete yours.
+        Posts by members of this site, newest first. Every member who can use Conversations can read every post and
+        reply to it; only you can change or delete your own posts and replies.
       </p>
 
       <div className="notes-toolbar">
@@ -144,7 +144,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
           value={searchText}
           maxLength={200}
           placeholder="Search the posts"
-          aria-label="Search the posts by title, text or author"
+          aria-label="Search the posts by title, text, author or replies"
           onChange={(event) => setSearchText(event.target.value)}
         />
         <button type="submit" className="primary-button">

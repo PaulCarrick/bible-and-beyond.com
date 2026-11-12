@@ -2372,3 +2372,43 @@ select:disabled {
 .welcome-conversations p {
   margin: 0.6rem 0;
 }
+
+/* Replies under a Conversations post: indented with a line on the left, as in the Jump Start blog. */
+.conversation-replies {
+  margin-top: 0.75rem;
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border);
+}
+
+.conversation-replies-heading {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.conversation-reply-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conversation-reply {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.conversation-reply:last-child {
+  border-bottom: none;
+}
+
+.conversation-reply .conversation-byline {
+  margin-bottom: 0.25rem;
+}
+
+.conversation-reply-button {
+  font-size: 0.9rem;
+}
+
+.conversation-reply-form {
+  margin-top: 0.5rem;
+}

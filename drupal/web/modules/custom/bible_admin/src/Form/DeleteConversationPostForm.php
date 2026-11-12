@@ -8,11 +8,13 @@ use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Shows a member's Conversations post in full and asks before deleting it.
+ * Shows a member's Conversations post in full with its replies (each with a link to delete it alone), and asks
+ * before deleting the post with its replies.
  */
 class DeleteConversationPostForm extends ConfirmFormBase {
 
@@ -47,6 +49,33 @@ class DeleteConversationPostForm extends ConfirmFormBase {
       // The text was cleaned with the site's allowlist when it was saved; #markup filters it again here.
       'body' => ['#markup' => $this->post['body']],
     ];
+    $form['replies'] = [
+      '#type' => 'details',
+      '#title' => $this->formatPlural(count($this->post['replies']), 'One reply', '@count replies'),
+      '#open' => TRUE,
+      '#weight' => -9,
+    ];
+    foreach ($this->post['replies'] as $reply) {
+      $form['replies']['reply_' . $reply['id']] = [
+        '#type' => 'container',
+        'byline' => [
+          '#type' => 'html_tag',
+          '#tag' => 'p',
+          '#value' => $this->t('<strong>@author</strong> (@email), @time', [
+            '@author' => $reply['author'],
+            '@email' => $reply['author_email'],
+            '@time' => date('j M Y H:i', strtotime($reply['created_at']) ?: 0),
+          ]),
+        ],
+        // Cleaned when saved; #markup filters it again here.
+        'body' => ['#markup' => $reply['body']],
+        'delete' => Link::fromTextAndUrl($this->t('Delete this reply'), Url::fromRoute('bible_admin.conversation_reply_delete', ['reply_id' => $reply['id']]))->toRenderable(),
+        'rule' => ['#markup' => '<hr>'],
+      ];
+    }
+    if ($this->post['replies'] === []) {
+      $form['replies']['none'] = ['#markup' => $this->t('No one has replied.')];
+    }
     return $form;
   }
 
@@ -55,7 +84,9 @@ class DeleteConversationPostForm extends ConfirmFormBase {
   }
 
   public function getDescription() {
-    return $this->t('This permanently deletes the post for every member. It cannot be undone. The author is not told.');
+    return $this->t('Delete removes the post and its @replies for every member. It cannot be undone. The authors are not told.', [
+      '@replies' => $this->formatPlural(count($this->post['replies'] ?? []), 'one reply', '@count replies'),
+    ]);
   }
 
   public function getConfirmText() {
@@ -69,7 +100,7 @@ class DeleteConversationPostForm extends ConfirmFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     try {
       $post = $this->manager->deleteConversationPost((int) $form_state->get('post_id'));
-      $this->messenger()->addStatus($this->t('Deleted the post "@title".', ['@title' => $post['title']]));
+      $this->messenger()->addStatus($this->t('Deleted the post "@title" and its replies.', ['@title' => $post['title']]));
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

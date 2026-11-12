@@ -61,7 +61,16 @@ from subscriptions import (
   save_subscription,
   unsubscribe_with_token,
 )
-from conversations import ConversationProblem, create_post, delete_post, list_posts, update_post
+from conversations import (
+  ConversationProblem,
+  create_post,
+  create_reply,
+  delete_post,
+  delete_reply,
+  list_posts,
+  update_post,
+  update_reply,
+)
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
 from playlists import PlaylistProblem, delete_playlist, list_playlists, save_playlist
 from original_words import get_lexicon_entry, get_original_words
@@ -936,6 +945,41 @@ def conversations_delete(post_id: int, request: Request):
   user = conversations_account(request)
   try:
     delete_post(user["id"], post_id)
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+class ConversationReplyRequest(BaseModel):
+  # What the member wrote, as the editor (Quill) makes it: a little HTML, cleaned before it is kept.
+  body: str
+
+
+@app.post("/conversations/{post_id}/replies")
+def conversations_reply(post_id: int, body: ConversationReplyRequest, request: Request):
+  """Adds the member's reply to any post."""
+  user = conversations_account(request)
+  try:
+    return {"reply": create_reply(user["id"], post_id, body.body)}
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.put("/conversations/replies/{reply_id}")
+def conversations_update_reply(reply_id: int, body: ConversationReplyRequest, request: Request):
+  """Changes one of the member's own replies; anyone else's is "not found"."""
+  user = conversations_account(request)
+  try:
+    return {"reply": update_reply(user["id"], reply_id, body.body)}
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/conversations/replies/{reply_id}")
+def conversations_delete_reply(reply_id: int, request: Request):
+  user = conversations_account(request)
+  try:
+    delete_reply(user["id"], reply_id)
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}

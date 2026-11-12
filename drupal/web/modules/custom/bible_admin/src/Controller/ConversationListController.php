@@ -43,7 +43,7 @@ class ConversationListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('These are the posts that members write on the Conversations page of the public site. Only accounts with Conversations turned on (on the Site users page) can read and write them. Delete removes a post for good; to stop a member posting, turn Conversations off on their account.'),
+        '#value' => $this->t('These are the posts that members write on the Conversations page of the public site, with their replies. Only accounts with Conversations turned on (on the Site users page) can read and write them. "Read and delete" shows a post with its replies, where you can delete the post (with its replies) or any one reply; it is gone for good. To stop a member posting, turn Conversations off on their account.'),
       ],
       'search' => $this->formBuilder()->getForm(ConversationSearchForm::class, $query),
     ];
@@ -76,6 +76,7 @@ class ConversationListController extends ControllerBase {
         ['data' => ['#plain_text' => $post['excerpt']]],
         ['data' => ['#plain_text' => $post['author'] . ' (' . $post['author_email'] . ')']],
         ['data' => ['#plain_text' => $written]],
+        ['data' => ['#plain_text' => number_format((int) ($post['reply_count'] ?? 0))]],
         [
           'data' => [
             '#type' => 'operations',
@@ -94,6 +95,7 @@ class ConversationListController extends ControllerBase {
         $this->t('Beginning'),
         $this->t('Author'),
         $this->t('Written'),
+        $this->t('Replies'),
         $this->t('Operations'),
       ],
       '#rows' => $rows,

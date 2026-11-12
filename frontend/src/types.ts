@@ -453,6 +453,19 @@ export interface ConversationPost {
   author: string
   // Whether the member reading it wrote it (only then can it be changed or deleted).
   is_mine: boolean
+  // Members' replies to it, oldest first.
+  replies: ConversationReply[]
+}
+
+// A reply to a Conversations post: any allowed member may reply; only its author can change or delete it.
+export interface ConversationReply {
+  id: number
+  post_id: number
+  body: string
+  created_at: string
+  updated_at: string
+  author: string
+  is_mine: boolean
 }
 
 export interface ConversationPage {

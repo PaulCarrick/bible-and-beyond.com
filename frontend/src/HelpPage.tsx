@@ -672,7 +672,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
       <section id="help-conversations" tabIndex={-1} className="help-section">
         <h2>Conversations</h2>
         <p>
-          Conversations is a place where members of the site write posts for one another. It is turned on for each
+          Conversations is a place where members of the site write posts for one another and reply to them. It is turned on for each
           account by hand, so set up an account, then use the{' '}
           <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form to ask to join, giving the email address of
           your account. Once it is turned on, log in: <em>Conversations</em> appears in the sidebar (under Members) and at
@@ -691,20 +691,25 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           </li>
           <li>
             <strong>Changing or deleting.</strong> Your own posts have <em>Edit</em> and <em>Delete</em> (you are
-            asked before one is deleted). Only you can change or delete them.
+            asked before one is deleted). Only you can change or delete them. Deleting a post also deletes its replies.
+          </li>
+          <li>
+            <strong>Replying.</strong> Press <em>Reply</em> under any post, write in the box (up to 5,000 characters)
+            and press <em>Post reply</em>. Replies are shown under the post, oldest first, with each author&rsquo;s
+            name and the time. Your own replies have <em>Edit</em> and <em>Delete</em>.
           </li>
           <li>
             <strong>Searching.</strong> Type words in the search box to find the posts that have all of them in the
-            title, the text or the author&rsquo;s name (the words are highlighted). Tick <em>Only my posts</em> to see
+            title, the text, the author&rsquo;s name or a reply (the words are highlighted). Tick <em>Only my posts</em> to see
             just yours.
           </li>
         </ul>
         <Screenshot
           name="conversations"
           width={920}
-          height={821}
-          alt="The Conversations page with three posts by two members, the member's own post with Edit and Delete"
-          caption="Conversations: posts by members, newest first, with Edit and Delete on your own."
+          height={936}
+          alt="The Conversations page with two posts by two members, each with a reply, and Edit and Delete on the member's own post and reply"
+          caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
         />
       </section>
 

@@ -102,10 +102,19 @@ bible_admin.conversation_delete:
   path: '/admin/conversations/{post_id}/delete'
   defaults:
     _form: '\Drupal\bible_admin\Form\DeleteConversationPostForm'
-    _title: 'Delete a Conversations post'
+    _title: 'A Conversations post'
   requirements:
     _permission: 'administer site users'
     post_id: '\d+'
+
+bible_admin.conversation_reply_delete:
+  path: '/admin/conversations/replies/{reply_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteConversationReplyForm'
+    _title: 'Delete a Conversations reply'
+  requirements:
+    _permission: 'administer site users'
+    reply_id: '\d+'
 
 # The commentaries, the devotionals and the Other books: one set of pages for each ({collection}), open to
 # whoever may administer the Bibles.

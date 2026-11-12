@@ -393,26 +393,49 @@ class BibleManager {
    * The members' posts of Conversations, newest first, for the admin page.
    *
    * @return array
-   *   Keys: posts (each with id, title, body, excerpt, created_at, updated_at, author and author_email), total,
+   *   Keys: posts (each with id, title, body, excerpt, created_at, updated_at, author, author_email and
+   *   reply_count), total,
    *   page and per_page.
    */
   public function listConversationPosts(string $query, int $page): array {
     return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_conversations.py');
   }
 
+  /**
+   * One post with its replies (each with id, body, excerpt, created_at, updated_at, author and author_email).
+   */
   public function getConversationPost(int $postId): array {
     return $this->run(['get', '--id=' . $postId], 'manage_conversations.py')['post'];
   }
 
+  public function getConversationReply(int $replyId): array {
+    return $this->run(['get-reply', '--id=' . $replyId], 'manage_conversations.py')['reply'];
+  }
+
   /**
-   * Removes any member's post. The log says who removed which post and whose it was, never its text.
+   * Removes any member's reply. The log says who removed it, on which post and whose it was, never its text.
+   */
+  public function deleteConversationReply(int $replyId): array {
+    $reply = $this->run(['delete-reply', '--id=' . $replyId], 'manage_conversations.py')['reply'];
+    $this->logger->notice('@user deleted a reply by @email to the Conversations post "@title".', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@email' => $reply['author_email'],
+      '@title' => $reply['post_title'],
+    ]);
+    return $reply;
+  }
+
+  /**
+   * Removes any member's post with its replies. The log says who removed which post and whose it was, never its
+   * text.
    */
   public function deleteConversationPost(int $postId): array {
     $post = $this->run(['delete', '--id=' . $postId], 'manage_conversations.py')['post'];
-    $this->logger->notice('@user deleted the Conversations post "@title" by @email.', [
+    $this->logger->notice('@user deleted the Conversations post "@title" by @email (@replies replies).', [
       '@user' => $this->currentUser->getAccountName(),
       '@title' => $post['title'],
       '@email' => $post['author_email'],
+      '@replies' => count($post['replies'] ?? []),
     ]);
     return $post;
   }
