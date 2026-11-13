@@ -119,6 +119,13 @@ class LibraryEditForm extends FormBase {
         '#default_value' => $item['credit'],
         '#maxlength' => 500,
       ];
+      $form['keywords'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Keywords'),
+        '#description' => $this->t('Words or phrases, separated by commas, that a visitor might search for and that are not in the text itself, for example "recovery, addiction, step 4". The search pages find it by them. A match lists it by its first chapter or reading. Empty for none.'),
+        '#default_value' => $item['keywords'] ?? '',
+        '#maxlength' => 500,
+      ];
     }
     $form['actions'] = [
       '#type' => 'actions',
@@ -138,7 +145,7 @@ class LibraryEditForm extends FormBase {
     $about = LibraryListController::COLLECTIONS[$collection];
     $fields = $about['kind'] === 'commentary'
       ? ['name', 'short_name', 'source_name', 'source_url', 'license_url']
-      : ['name', 'author', 'translator', 'source_name', 'source_url', 'credit'];
+      : ['name', 'author', 'translator', 'source_name', 'source_url', 'credit', 'keywords'];
     $details = [];
     foreach ($fields as $field) {
       $details[$field] = trim((string) $form_state->getValue($field));

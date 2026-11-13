@@ -370,9 +370,12 @@ def check_details(kind: str, details: dict) -> dict:
   """The details typed in the form, cleaned; raises UploadProblem when one is wrong.
 
   credit (devotionals and books only) is the text's own credit line; None (not given) keeps the one it has,
-  and "" goes back to the usual "... is in the public domain".
+  and "" goes back to the usual "... is in the public domain". keywords (devotionals and books only) are
+  words the searches also find it by; None or empty keeps the ones it has (uploading again never clears
+  them; the Edit page changes them).
   """
   credit = details.get("credit")
+  keywords = details.get("keywords")
   whole = bool(details.get("whole"))
   cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items() if key != "whole"}
   # A PDF or Word document kept whole as one chapter (a book or a devotional by chapter; not daily).
@@ -380,6 +383,9 @@ def check_details(kind: str, details: dict) -> dict:
   cleaned["credit"] = None if credit is None or kind == "commentary" else cleaned["credit"]
   if cleaned["credit"] and len(cleaned["credit"]) > 500:
     raise UploadProblem("The credit line can be at most 500 characters.")
+  cleaned["keywords"] = cleaned.get("keywords") or None if keywords is not None and kind != "commentary" else None
+  if cleaned["keywords"] and len(cleaned["keywords"]) > 500:
+    raise UploadProblem("The keywords can be at most 500 characters.")
   item_id = cleaned.get("id", "").lower()
   if not ID_PATTERN.match(item_id):
     raise UploadProblem("The id must be 3 to 50 lowercase letters, digits and hyphens, such as matthew-poole.")
@@ -498,5 +504,9 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
     if cleaned["credit"] is not None:
       with connect() as connection:
         connection.execute("UPDATE devotionals SET credit = %s WHERE id = %s", (cleaned["credit"] or None, cleaned["id"]))
+    # Keywords typed on the Upload form replace the ones it had; an empty box keeps them.
+    if cleaned["keywords"]:
+      with connect() as connection:
+        connection.execute("UPDATE devotionals SET keywords = %s WHERE id = %s", (cleaned["keywords"], cleaned["id"]))
   state = existing(kind, cleaned["id"])
   return {"id": cleaned["id"], "name": cleaned["name"], "count": count, "is_published": state["is_published"]}

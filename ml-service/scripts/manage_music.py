@@ -7,7 +7,8 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_music.py list                                  every song, hidden ones too
     manage_music.py get --id=amazing-grace
     manage_music.py upload FILE --name=Amazing.mp4 --id=amazing-grace
-                                                          reads {"title", "author", "lyrics"} as JSON on the input
+                                                          reads {"title", "author", "lyrics", "keywords"} as JSON on the input
+                                                          (keywords left out: the song's are kept)
     manage_music.py update --id=amazing-grace             the same details, without a new file
     manage_music.py publish|unpublish|delete --id=amazing-grace
 

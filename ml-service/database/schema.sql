@@ -268,7 +268,9 @@ CREATE TABLE IF NOT EXISTS devotionals (
     -- 'devotionals', or 'books' for the Other books page (no daily emails; migration 017).
     collection TEXT NOT NULL DEFAULT 'devotionals' CHECK (collection IN ('devotionals', 'books')),
     -- Its own credit line when the text is not an old public-domain edition; NULL for most (migration 022).
-    credit TEXT
+    credit TEXT,
+    -- Words the searches also find it by, typed on the Drupal forms; empty for none (migration 032).
+    keywords TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS devotional_sections (

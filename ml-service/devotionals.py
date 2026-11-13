@@ -1728,7 +1728,8 @@ def search_books(query, match_mode, book_id, page, per_page, sort_by):
 
 
 def search_library(query, match_mode, collection, book_id, page, per_page, sort_by):
-  """Search the text of the published devotionals or Other books (collection "devotionals" or "books").
+  """Search the text and the keywords of the published devotionals or Other books (collection "devotionals"
+  or "books"). A book or devotional whose keywords match is listed by its first passage, above the text matches.
 
   Matching is the commentary search's (see search_commentaries): words in any form, no word ignored for
   being common; all words, any word, or an exact phrase. Results are the best matches first, or in the
@@ -1749,13 +1750,35 @@ def search_library(query, match_mode, collection, book_id, page, per_page, sort_
     if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
       raise ValueError("Enter at least one word or phrase to search for.")
 
-    conditions = f"e.search_vector @@ ({tsquery}) AND d.is_published AND d.collection = %s"
+    # The passages found: those whose text matches (through the text index, as before), and, for a book or
+    # devotional whose keywords match, its first passage, so it is listed even when its text has none of the
+    # words. A keyword match ranks above any text match (rank 1 + the text's own); keywords are on the
+    # devotionals table, which is small, so they need no index.
+    found = f"""
+      WITH found AS (
+        SELECT devotional_id, section, unit, part, max(rank) AS rank FROM (
+          SELECT e.devotional_id, e.section, e.unit, e.part, ts_rank_cd(e.search_vector, ({tsquery}), 1) AS rank
+          FROM devotional_entries e
+          WHERE e.search_vector @@ ({tsquery})
+          UNION ALL
+          SELECT first.devotional_id, first.section, first.unit, first.part, 1.0 AS rank
+          FROM devotionals k
+          CROSS JOIN LATERAL (
+            SELECT f.devotional_id, f.section, f.unit, f.part FROM devotional_entries f
+            WHERE f.devotional_id = k.id ORDER BY f.section, f.unit, f.part LIMIT 1
+          ) first
+          WHERE k.keywords <> '' AND to_tsvector('commentary_english', k.keywords) @@ ({tsquery})
+        ) matches
+        GROUP BY devotional_id, section, unit, part
+      )
+    """
+    found_terms = [*terms, *terms, *terms]
     book_counts = [
       {"book": found_id, "name": name, "count": count}
       for found_id, name, count in connection.execute(
-        f"SELECT d.id, d.name, count(*) FROM devotional_entries e JOIN devotionals d ON d.id = e.devotional_id "
-        f"WHERE {conditions} GROUP BY d.id, d.name, d.position ORDER BY d.position",
-        [*terms, collection],
+        found + "SELECT d.id, d.name, count(*) FROM found e JOIN devotionals d ON d.id = e.devotional_id "
+        "WHERE d.is_published AND d.collection = %s GROUP BY d.id, d.name, d.position ORDER BY d.position",
+        [*found_terms, collection],
       ).fetchall()
     ]
     total = sum(entry["count"] for entry in book_counts if book_id is None or entry["book"] == book_id)
@@ -1763,18 +1786,18 @@ def search_library(query, match_mode, collection, book_id, page, per_page, sort_
     if sort_by == "order":
       order = "d.position, e.section, e.unit, e.part"
     else:
-      order = "rank DESC, d.position, e.section, e.unit, e.part"
+      order = "e.rank DESC, d.position, e.section, e.unit, e.part"
     # Choose the page first, then build excerpts for just those passages (an excerpt reads the whole text).
     page_rows = connection.execute(
-      f"""
-      SELECT e.devotional_id, e.section, e.unit, e.part, ts_rank_cd(e.search_vector, ({tsquery}), 1) AS rank
-      FROM devotional_entries e
+      found + f"""
+      SELECT e.devotional_id, e.section, e.unit, e.part, e.rank
+      FROM found e
       JOIN devotionals d ON d.id = e.devotional_id
-      WHERE {conditions} AND (%s::text IS NULL OR e.devotional_id = %s)
+      WHERE d.is_published AND d.collection = %s AND (%s::text IS NULL OR e.devotional_id = %s)
       ORDER BY {order}
       LIMIT %s OFFSET %s
       """,
-      [*terms, *terms, collection, book_id, book_id, per_page, (page - 1) * per_page],
+      [*found_terms, collection, book_id, book_id, per_page, (page - 1) * per_page],
     ).fetchall()
     results = []
     for found_id, section, unit, part, _rank in page_rows:

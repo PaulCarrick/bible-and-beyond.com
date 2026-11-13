@@ -167,8 +167,8 @@ def set_credit(kind: str, item_id: str, credit: str) -> dict:
 # notes, and not whether a devotional is daily or by chapter, which its readings are laid out for).
 EDITABLE = {
   "commentary": ("name", "short_name", "source_name", "source_url", "license_url"),
-  "devotional": ("name", "author", "translator", "source_name", "source_url", "credit"),
-  "book": ("name", "author", "translator", "source_name", "source_url", "credit"),
+  "devotional": ("name", "author", "translator", "source_name", "source_url", "credit", "keywords"),
+  "book": ("name", "author", "translator", "source_name", "source_url", "credit", "keywords"),
 }
 
 
@@ -186,7 +186,7 @@ def get_details(kind: str, item_id: str) -> dict:
 
 
 def update_details(kind: str, item_id: str, details: dict) -> dict:
-  """Changes the name, author or short name, translator, source and credit line of one item; its text and
+  """Changes the name, author or short name, translator, source, credit line and keywords of one item; its text and
   its published state stay as they are. Checked as on the Upload form."""
   from library_upload import PUBLIC_DOMAIN_MARK, URL_PATTERN
 
@@ -210,6 +210,9 @@ def update_details(kind: str, item_id: str, details: dict) -> dict:
   else:
     if len(cleaned["credit"]) > 500:
       raise LibraryProblem("The credit line can be at most 500 characters.")
+    # Keywords: words the searches also find it by (migration 032); empty for none (the column is never NULL).
+    if len(cleaned["keywords"]) > 500:
+      raise LibraryProblem("The keywords can be at most 500 characters.")
     # Empty: no translator named, and the usual "... is in the public domain" line.
     cleaned["translator"] = cleaned["translator"] or None
     cleaned["credit"] = cleaned["credit"] or None

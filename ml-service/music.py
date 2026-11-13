@@ -27,6 +27,8 @@ from service_settings import get_setting
 MAX_FILE_BYTES = 1024 * 1024 * 1024  # 1 GB: a recorded talk on video runs to 600 MB
 TITLE_LIMIT = 200
 AUTHOR_LIMIT = 200
+# Keywords: words the search also finds a song by, typed on the Drupal song form (migration 032).
+KEYWORDS_LIMIT = 500
 # Characters of words: a song's, or a sermon's transcript (the owner's Road to Recovery sermons run to 34,000).
 LYRICS_LIMIT = 100_000
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
@@ -114,7 +116,8 @@ def _store(path: Path, file_name: str) -> None:
 
 
 def check_details(details: dict) -> dict:
-  """The title, author and words as typed, cleaned; raises MusicProblem when one is wrong."""
+  """The title, author, words and keywords as typed, cleaned; raises MusicProblem when one is wrong. keywords
+  is None when not given, which keeps the song's keywords as they are."""
   def one_line(value) -> str:
     return " ".join(str(value or "").split())
 
@@ -130,7 +133,10 @@ def check_details(details: dict) -> dict:
     raise MusicProblem(f"The author can be at most {AUTHOR_LIMIT} characters.")
   if len(lyrics) > LYRICS_LIMIT:
     raise MusicProblem(f"The words can be at most {LYRICS_LIMIT:,} characters.")
-  return {"title": title, "author": author, "lyrics": lyrics}
+  keywords = None if details.get("keywords") is None else one_line(details.get("keywords"))
+  if keywords is not None and len(keywords) > KEYWORDS_LIMIT:
+    raise MusicProblem(f"The keywords can be at most {KEYWORDS_LIMIT} characters.")
+  return {"title": title, "author": author, "lyrics": lyrics, "keywords": keywords}
 
 
 def check_id(song_id: str) -> str:
@@ -142,13 +148,13 @@ def check_id(song_id: str) -> str:
 
 COLUMNS = (
   "id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at, "
-  "words_file_name, words_media_type, lyrics_html"
+  "words_file_name, words_media_type, lyrics_html, keywords"
 )
 
 
 def _describe(row, with_file_check: bool = False) -> dict:
   (song_id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at,
-   words_file_name, words_media_type, lyrics_html) = row
+   words_file_name, words_media_type, lyrics_html, keywords) = row
   song = {
     "id": song_id,
     "title": title,
@@ -156,6 +162,7 @@ def _describe(row, with_file_check: bool = False) -> dict:
     "lyrics": lyrics,
     # The words with their formatting, from a PDF or Word document (set_words_from_document); None otherwise.
     "lyrics_html": lyrics_html,
+    "keywords": keywords,
     "media_type": media_type,
     "kind": "video" if media_type == "video/mp4" else "audio",
     "file_size": file_size,
@@ -253,14 +260,15 @@ def upload(path: Path, original_name: str, song_id: str, details: dict, words: t
     old = connection.execute("SELECT file_name FROM music_tracks WHERE id = %s", (song_id,)).fetchone()
     row = connection.execute(
       f"""
-      INSERT INTO music_tracks (id, title, author, lyrics, file_name, media_type, file_size)
-      VALUES (%s, %s, %s, %s, %s, %s, %s)
+      INSERT INTO music_tracks (id, title, author, lyrics, file_name, media_type, file_size, keywords)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s, ''))
       ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, author = EXCLUDED.author, lyrics = EXCLUDED.lyrics,
         file_name = EXCLUDED.file_name, media_type = EXCLUDED.media_type, file_size = EXCLUDED.file_size,
-        updated_at = now()
+        keywords = COALESCE(%s, music_tracks.keywords), updated_at = now()
       RETURNING {COLUMNS}
       """,
-      (song_id, checked["title"], checked["author"], checked["lyrics"], file_name, media_type, size),
+      (song_id, checked["title"], checked["author"], checked["lyrics"], file_name, media_type, size,
+       checked["keywords"], checked["keywords"]),
     ).fetchone()
   # An MP3 replaced by an MP4 (or the other way round) leaves the old file behind; remove it.
   if old and old[0] != file_name:
@@ -281,10 +289,10 @@ def update_details(song_id: str, details: dict, words: tuple[Path, str] | None =
     row = connection.execute(
       f"""
       UPDATE music_tracks SET title = %s, author = %s, lyrics = %s, updated_at = now(),
-        lyrics_html = CASE WHEN lyrics = %s THEN lyrics_html END
+        lyrics_html = CASE WHEN lyrics = %s THEN lyrics_html END, keywords = COALESCE(%s, keywords)
       WHERE id = %s RETURNING {COLUMNS}
       """,
-      (checked["title"], checked["author"], checked["lyrics"], checked["lyrics"], song_id),
+      (checked["title"], checked["author"], checked["lyrics"], checked["lyrics"], checked["keywords"], song_id),
     ).fetchone()
   if row is None:
     raise MusicProblem("That song does not exist (it may have been deleted).")
@@ -344,7 +352,8 @@ def delete(song_id: str) -> dict:
 
 
 def search_music(query: str, match_mode: str, page: int, per_page: int) -> dict:
-  """Search the published songs' titles, authors and words, best match first.
+  """Search the published songs' titles, authors, words and keywords, best match first (a song whose keywords
+  match comes before one found only in its words).
 
   The same matching as the Other books (words in any form, all words, any word or an exact phrase). Each
   result has an excerpt of the words (or the title, for a song without words), with the words found
@@ -358,18 +367,20 @@ def search_music(query: str, match_mode: str, page: int, per_page: int) -> dict:
   with connect() as connection:
     if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
       raise ValueError("Enter at least one word or phrase to search for.")
-    condition = f"is_published AND search_vector @@ ({tsquery})"
-    total = connection.execute(f"SELECT count(*) FROM music_tracks WHERE {condition}", terms).fetchone()[0]
+    # The keywords are matched on their own (a small table, so no index is needed for them).
+    keyword_match = f"(keywords <> '' AND to_tsvector('commentary_english', keywords) @@ ({tsquery}))"
+    condition = f"is_published AND (search_vector @@ ({tsquery}) OR {keyword_match})"
+    total = connection.execute(f"SELECT count(*) FROM music_tracks WHERE {condition}", [*terms, *terms]).fetchone()[0]
     rows = connection.execute(
       f"""
       SELECT id, title, author, media_type,
         ts_headline('commentary_english', CASE WHEN lyrics = '' THEN title ELSE lyrics END, ({tsquery}), %s)
       FROM music_tracks
       WHERE {condition}
-      ORDER BY ts_rank_cd(search_vector, ({tsquery}), 1) DESC, lower(title)
+      ORDER BY {keyword_match} DESC, ts_rank_cd(search_vector, ({tsquery}), 1) DESC, lower(title)
       LIMIT %s OFFSET %s
       """,
-      [*terms, HEADLINE_OPTIONS, *terms, *terms, per_page, (page - 1) * per_page],
+      [*terms, HEADLINE_OPTIONS, *terms, *terms, *terms, *terms, per_page, (page - 1) * per_page],
     ).fetchall()
   return {
     "query": query,

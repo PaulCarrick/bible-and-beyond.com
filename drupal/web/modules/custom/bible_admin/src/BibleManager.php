@@ -274,7 +274,8 @@ class BibleManager {
    */
   private function libraryArguments(string $path, array $parameters): array {
     $arguments = [$path, '--kind=' . $parameters['kind']];
-    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'source_name', 'source_url', 'license_url', 'translator', 'passage'] as $key) {
+    // Keywords are sent only when typed, so uploading again with the box empty keeps the ones it has.
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'source_name', 'source_url', 'license_url', 'translator', 'passage', 'keywords'] as $key) {
       if (($parameters[$key] ?? '') !== '') {
         $arguments[] = '--' . str_replace('_', '-', $key) . '=' . $parameters[$key];
       }

@@ -178,6 +178,12 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
         '#rows' => 2,
         '#maxlength' => 500,
       ];
+      $form['keywords'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Keywords'),
+        '#description' => $this->t('Words or phrases, separated by commas, that a visitor might search for and that are not in the text itself, for example "recovery, addiction, step 4". The search pages find it by them. Optional; left empty, uploading again keeps the ones it has (change them on its Edit page).'),
+        '#maxlength' => 500,
+      ];
     }
     $form['source_name'] = [
       '#type' => 'textfield',
@@ -247,7 +253,7 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $collection = (string) $form_state->get('collection');
     $parameters = ['collection' => $collection, 'kind' => LibraryListController::COLLECTIONS[$collection]['kind']];
-    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit', 'passage'] as $key) {
+    foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit', 'keywords', 'passage'] as $key) {
       $parameters[$key] = trim((string) $form_state->getValue($key));
     }
     $parameters['whole'] = (bool) $form_state->getValue('whole');

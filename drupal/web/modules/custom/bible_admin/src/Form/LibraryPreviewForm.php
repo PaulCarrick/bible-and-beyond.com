@@ -81,6 +81,7 @@ class LibraryPreviewForm extends FormBase {
         $rows[] = [$this->t('Words linked to a verse'), number_format((int) $summary['statement_links'])];
       }
       $rows[] = [$this->t('Credit line'), ['data' => ['#plain_text' => ($preview['details']['credit'] ?? '') !== '' ? $preview['details']['credit'] : $this->t('The usual line (public domain)')]]];
+      $rows[] = [$this->t('Keywords'), ['data' => ['#plain_text' => ($preview['details']['keywords'] ?? '') !== '' ? $preview['details']['keywords'] : $this->t('None typed (one already there is kept)')]]];
     }
     if (!empty($summary['formatted'])) {
       $rows[] = [$this->t('Formatting'), $this->t('Kept from the document (headings, bold, italic, lists, quotations, tables, footnotes)')];

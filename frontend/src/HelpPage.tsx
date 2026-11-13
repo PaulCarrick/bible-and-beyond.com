@@ -531,8 +531,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             <em>Delete this playlist</em> removes it. Your playlists are yours alone.
           </p>
           <p>
-            <PageLink onNavigate={onNavigate} view="searchMusic">Search the media</PageLink> finds a song by its title, its author or its
-            words, and <em>Play this song</em> on a result takes you to it. When you are logged in, each result also has
+            <PageLink onNavigate={onNavigate} view="searchMusic">Search the media</PageLink> finds a song by its title, its author, its
+            words or its keywords (words the site's administrator gives it, listed first), and <em>Play this song</em> on a result takes you to it. When you are logged in, each result also has
             a checkbox: tick songs (from as many searches as you like), give the playlist a name in the box above the
             results and press <em>Save as a playlist</em>. The songs play in the order you ticked them, and the playlist is
             then under <em>Your playlists</em> on the Listen to the media page.

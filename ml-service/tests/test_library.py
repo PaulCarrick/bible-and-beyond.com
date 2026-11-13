@@ -362,3 +362,26 @@ def test_the_tool_reads_and_changes_details(tmp_path):
     [sys.executable, str(SCRIPT), "update", "--kind=book", "--id=test-upload-book"], input="not json", capture_output=True, text=True, check=False,
   )
   assert completed.returncode == 1 and json.loads(completed.stdout)["error"] == "The details could not be read."
+
+
+def test_keywords_of_a_book_are_found_kept_on_upload_and_changed_on_edit(tmp_path):
+  import_file("book", write(tmp_path, BOOK_FILE), {**BOOK, "keywords": "recovery, step four"})
+  library_admin.set_published("book", "test-upload-book", True)
+  assert library_admin.get_details("book", "test-upload-book")["keywords"] == "recovery, step four"
+
+  # A keyword that is not in the text lists the book by its first passage (the preface).
+  found = client.get("/search-other-books", params={"query": "recovery"}).json()
+  ours = [entry for entry in found["results"] if entry["book"] == "test-upload-book"]
+  assert [(entry["section"], entry["unit"]) for entry in ours] == [(0, 1)]
+  assert found["results"][0]["book"] == "test-upload-book"
+  # Words in both the keywords and the text: the first passage is listed once, not twice.
+  both = client.get("/search-other-books", params={"query": "preface recovery", "match_mode": "any", "book": "test-upload-book"}).json()
+  assert [(entry["section"], entry["unit"]) for entry in both["results"]] == [(0, 1)]
+
+  # Uploading again with no keywords keeps them; the Edit page changes or clears them.
+  import_file("book", write(tmp_path, BOOK_FILE, "again.txt"), BOOK)
+  assert library_admin.get_details("book", "test-upload-book")["keywords"] == "recovery, step four"
+  details = library_admin.get_details("book", "test-upload-book")
+  library_admin.update_details("book", "test-upload-book", {**details, "keywords": ""})
+  assert library_admin.get_details("book", "test-upload-book")["keywords"] == ""
+  assert all(entry["book"] != "test-upload-book" for entry in client.get("/search-other-books", params={"query": "recovery"}).json()["results"])

@@ -169,3 +169,25 @@ def test_a_wrong_words_file_is_refused_and_nothing_is_saved(tmp_path, folder):
   with pytest.raises(music.MusicProblem, match="not a real PNG"):
     music.upload(write(tmp_path, "b", MP4), "b.mp4", "test-music-bad", DETAILS, (write(tmp_path, "f", PDF), "words.png"))
   assert music.get_song("test-music-bad", published_only=False) is None and not folder.exists() or list(folder.iterdir()) == []
+
+
+def test_keywords_are_found_by_the_search_kept_when_left_out_and_changed_when_given(tmp_path):
+  music.upload(write(tmp_path, "a", MP4), "a.mp4", "test-music-grace", {**DETAILS, "keywords": "recovery, hurts habits"})
+  music.set_published("test-music-grace", True)
+  song = music.get_song("test-music-grace")
+  assert song["keywords"] == "recovery, hurts habits"
+
+  # Found by a keyword that is not in the title, author or words, and listed first.
+  found = client.get("/search-music", params={"query": "recovery"}).json()
+  assert found["results"][0]["id"] == "test-music-grace"
+  assert client.get("/search-music", params={"query": "hurts habits", "match_mode": "phrase"}).json()["total"] >= 1
+
+  # Uploading again or changing the details without keywords keeps them; giving them changes them.
+  music.upload(write(tmp_path, "b", MP4), "b.mp4", "test-music-grace", DETAILS)
+  music.update_details("test-music-grace", {"title": "Amazing Grace"})
+  assert music.get_song("test-music-grace")["keywords"] == "recovery, hurts habits"
+  music.update_details("test-music-grace", {"title": "Amazing Grace", "keywords": ""})
+  assert music.get_song("test-music-grace")["keywords"] == ""
+  assert all(result["id"] != "test-music-grace" for result in client.get("/search-music", params={"query": "recovery"}).json()["results"])
+  with pytest.raises(music.MusicProblem, match="keywords"):
+    music.update_details("test-music-grace", {"title": "Amazing Grace", "keywords": "x" * 501})

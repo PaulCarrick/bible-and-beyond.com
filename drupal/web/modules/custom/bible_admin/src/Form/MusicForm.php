@@ -84,6 +84,13 @@ class MusicForm extends FormBase {
       '#default_value' => $song['author'] ?? '',
       '#maxlength' => 200,
     ];
+    $form['keywords'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Keywords'),
+      '#description' => $this->t('Words or phrases, separated by commas, that a visitor might search for and that are not in the text itself, for example "recovery, addiction, step 4". The search pages find it by them. Optional.'),
+      '#default_value' => $song['keywords'] ?? '',
+      '#maxlength' => 500,
+    ];
     $form['lyrics'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Words'),
@@ -179,6 +186,7 @@ class MusicForm extends FormBase {
       'title' => trim((string) $form_state->getValue('title')),
       'author' => trim((string) $form_state->getValue('author')),
       'lyrics' => (string) $form_state->getValue('lyrics'),
+      'keywords' => trim((string) $form_state->getValue('keywords')),
     ];
     try {
       $song = $this->manager->saveMusic(
