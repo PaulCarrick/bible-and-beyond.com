@@ -8,6 +8,22 @@ set -euo pipefail
 files=/app/drupal/web/sites/default/files
 chown site:site "$files" /app/drupal-private /app/drupal-config /app/ml-service/data
 
+# A shell account for maintenance inside the container (nano and sudo are installed), made only when
+# SHELL_USER and SHELL_USER_PASSWORD are set in docker/.env; it may use sudo with its password. The password
+# goes to chpasswd on its standard input, so it never appears in a command line or the log. Images without
+# these settings have no such account.
+if [ -n "${SHELL_USER:-}" ] && [ -n "${SHELL_USER_PASSWORD:-}" ]; then
+  if ! [[ "$SHELL_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || [ "$SHELL_USER" = site ] || [ "$SHELL_USER" = root ]; then
+    echo "SHELL_USER must be a lower-case account name other than site or root; no shell account made." >&2
+  else
+    id "$SHELL_USER" > /dev/null 2>&1 || useradd --create-home --shell /bin/bash "$SHELL_USER"
+    usermod -aG sudo "$SHELL_USER"
+    printf '%s:%s\n' "$SHELL_USER" "$SHELL_USER_PASSWORD" | chpasswd
+    echo "Shell account $SHELL_USER is ready (sudo with its password)."
+  fi
+fi
+unset SHELL_USER_PASSWORD
+
 # A hash salt for Drupal, made once and kept, unless DRUPAL_HASH_SALT is given.
 if [ -z "${DRUPAL_HASH_SALT:-}" ] && [ ! -s /app/drupal-private/hash_salt ]; then
   head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > /app/drupal-private/hash_salt
