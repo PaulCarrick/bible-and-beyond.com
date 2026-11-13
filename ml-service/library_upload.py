@@ -24,7 +24,7 @@ lines are left out).
 In any of them a statement can be linked to the verse it comes from, without the reference showing:
 {{the words|Luke 1:35}} (devotionals.text_and_references).
 
-A PDF (.pdf) or Word document (.docx) of any of them keeps its formatting (document_import.py) and is cut
+A PDF (.pdf), Word document (.docx) or EPUB ebook (.epub) of any of them keeps its formatting (document_import.py) and is cut
 into notes, days or chapters by its headings (document_split.py): a commentary by headings naming passages
 ("John 3", "John 3:16", "Verses 16-18"; without them, the whole document is one note on the passage typed in
 the form), a daily devotional by date headings ("January 1", with "Morning" or "Evening"), and a book or a

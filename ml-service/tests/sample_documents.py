@@ -98,3 +98,73 @@ def make_scanned_pdf(path: Path, lines: list[str]) -> Path:
     draw.text((150, 200 + index * 80), line, fill="black", font=font)
   page.save(path, "PDF", resolution=200)
   return path
+
+
+def make_epub(path: Path, version: int = 3, locked: bool = False, font_obfuscation: bool = False) -> Path:
+  """An ebook: two parts with chapters in three pages, a cover picture inside an <svg>, a note link, a heading
+  the contents does not name, and its table of contents as nav.xhtml (version 3) or toc.ncx (version 2). The
+  second chapter's page has no heading of its own: the contents gives it one. locked adds an encryption file
+  as a DRM lock does; font_obfuscation adds one that only hides a font (not a lock)."""
+  import zipfile
+
+  page = """<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>x</title>
+<style>p {{ color: red }}</style></head><body>{body}</body></html>"""
+  cover = page.format(body='<div><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">'
+                           '<image xlink:href="../images/cover.png"/></svg></div>')
+  one = page.format(body='<section><h1 id="part-1">Part One</h1><h2 id="chapter-1">Chapter 1</h2>'
+                         '<p>The words of <b>grace</b> and <i>mercy</i>, as in John 3:16.<a epub:type="noteref" href="notes.xhtml#n1">1</a></p>'
+                         '<h2>A heading inside the chapter</h2><p>More of the first chapter.</p>'
+                         '<ul><li>First point</li><li>Second point</li></ul></section>')
+  two = page.format(body='<div class="chapter"><p>The second chapter has no heading of its own.</p>'
+                         '<p><img src="../images/cover.png" alt="A green picture"/></p></div>')
+  three = page.format(body='<h1 id="part-2">Part Two</h1><h2 id="chapter-3">Chapter 3</h2><p>The third chapter.</p>')
+  nav = page.format(body='<nav epub:type="toc"><ol>'
+                         '<li><a href="text/one.xhtml#part-1">Part One</a><ol>'
+                         '<li><a href="text/one.xhtml#chapter-1">Chapter 1</a></li><li><a href="text/two.xhtml">Chapter 2</a></li></ol></li>'
+                         '<li><a href="text/three.xhtml#part-2">Part Two</a><ol><li><a href="text/three.xhtml#chapter-3">Chapter 3</a></li></ol></li>'
+                         '</ol></nav>')
+  ncx = """<?xml version="1.0" encoding="utf-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><navMap>
+<navPoint id="p1"><navLabel><text>Part One</text></navLabel><content src="text/one.xhtml#part-1"/>
+  <navPoint id="c1"><navLabel><text>Chapter 1</text></navLabel><content src="text/one.xhtml#chapter-1"/></navPoint>
+  <navPoint id="c2"><navLabel><text>Chapter 2</text></navLabel><content src="text/two.xhtml"/></navPoint></navPoint>
+<navPoint id="p2"><navLabel><text>Part Two</text></navLabel><content src="text/three.xhtml#part-2"/>
+  <navPoint id="c3"><navLabel><text>Chapter 3</text></navLabel><content src="text/three.xhtml#chapter-3"/></navPoint></navPoint>
+</navMap></ncx>"""
+  nav_item = '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>' if version == 3 else ""
+  ncx_item = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>' if version == 2 else ""
+  package = f"""<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="{version}.0" unique-identifier="id">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>A Sample Ebook</dc:title></metadata>
+<manifest>{nav_item}{ncx_item}
+<item id="cover" href="text/cover.xhtml" media-type="application/xhtml+xml"/>
+<item id="one" href="text/one.xhtml" media-type="application/xhtml+xml"/>
+<item id="two" href="text/two.xhtml" media-type="application/xhtml+xml"/>
+<item id="three" href="text/three.xhtml" media-type="application/xhtml+xml"/>
+<item id="picture" href="images/cover.png" media-type="image/png"/>
+</manifest>
+<spine{' toc="ncx"' if version == 2 else ''}><itemref idref="cover"/><itemref idref="one"/><itemref idref="two"/><itemref idref="three"/></spine>
+</package>"""
+  with zipfile.ZipFile(path, "w") as archive:
+    archive.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+    archive.writestr("META-INF/container.xml", """<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>""")
+    archive.writestr("OEBPS/content.opf", package)
+    archive.writestr("OEBPS/text/cover.xhtml", cover)
+    archive.writestr("OEBPS/text/one.xhtml", one)
+    archive.writestr("OEBPS/text/two.xhtml", two)
+    archive.writestr("OEBPS/text/three.xhtml", three)
+    archive.writestr("OEBPS/images/cover.png", picture_bytes())
+    if version == 3:
+      archive.writestr("OEBPS/nav.xhtml", nav)
+    else:
+      archive.writestr("OEBPS/toc.ncx", ncx)
+    algorithm = "http://www.idpf.org/2008/embedding" if font_obfuscation else "http://www.w3.org/2001/04/xmlenc#aes128-cbc"
+    if locked or font_obfuscation:
+      archive.writestr("META-INF/encryption.xml", f"""<?xml version="1.0"?>
+<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:enc="http://www.w3.org/2001/04/xmlenc#">
+<enc:EncryptedData><enc:EncryptionMethod Algorithm="{algorithm}"/><enc:CipherData><enc:CipherReference URI="OEBPS/text/one.xhtml"/></enc:CipherData></enc:EncryptedData>
+</encryption>""")
+  return path

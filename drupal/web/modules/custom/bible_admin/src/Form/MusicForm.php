@@ -93,11 +93,11 @@ class MusicForm extends FormBase {
     ];
     $form['words_document'] = [
       '#type' => 'file',
-      '#title' => $this->t('Words from a PDF or Word document (optional)'),
+      '#title' => $this->t('Words from a PDF, Word document or ebook (optional)'),
       '#description' => !empty($song['lyrics_html'])
         ? $this->t('The words above came from a document, and the music page shows them with its formatting. Choose another document to replace them; changing the words in the box above shows the typed words instead.')
-        : $this->t('A PDF (.pdf) or Word document (.docx) of up to @size MB: its text replaces the words above, and the music page shows it with its formatting (headings, bold, italic, lists, pictures). A scanned PDF is read by text recognition.', ['@size' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576)]),
-      '#attributes' => ['accept' => '.pdf,.docx'],
+        : $this->t('A PDF (.pdf), Word document (.docx) or EPUB ebook (.epub) of up to @size MB: its text replaces the words above, and the music page shows it with its formatting (headings, bold, italic, lists, pictures). A scanned PDF is read by text recognition.', ['@size' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576)]),
+      '#attributes' => ['accept' => '.pdf,.docx,.epub'],
     ];
     $hasWordsFile = !empty($song['words_kind']);
     $form['words_file'] = [
@@ -161,8 +161,8 @@ class MusicForm extends FormBase {
       if (!$document->isValid()) {
         $form_state->setErrorByName('words_document', $this->t('The document could not be uploaded: @reason', ['@reason' => $document->getErrorMessage()]));
       }
-      elseif (!in_array(strtolower($document->getClientOriginalExtension()), ['pdf', 'docx'], TRUE)) {
-        $form_state->setErrorByName('words_document', $this->t('The document must be a PDF (.pdf) or a Word document (.docx).'));
+      elseif (!in_array(strtolower($document->getClientOriginalExtension()), ['pdf', 'docx', 'epub'], TRUE)) {
+        $form_state->setErrorByName('words_document', $this->t('The document must be a PDF (.pdf), a Word document (.docx) or an EPUB ebook (.epub).'));
       }
       elseif ($document->getSize() > BibleManager::MAX_DOCUMENT_BYTES) {
         $form_state->setErrorByName('words_document', $this->t('The document is larger than @size MB.', ['@size' => (int) (BibleManager::MAX_DOCUMENT_BYTES / 1048576)]));

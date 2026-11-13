@@ -1,10 +1,14 @@
-"""Reading PDF and Word (.docx) files for the uploads of commentaries, devotionals, Other books and song words,
+"""Reading PDF, Word (.docx) and EPUB files for the uploads of commentaries, devotionals, Other books and song words,
 keeping as much of their formatting as the site can show.
 
 A document becomes HTML: paragraphs, headings, bold, italic, underline, superscript and subscript, lists,
 quotations, tables, pictures and footnotes. Fonts, colours, columns and page layout are not kept.
 
   Word   through mammoth (styles become headings, lists, tables, footnotes and pictures).
+  EPUB   an ebook: a zip of web pages, read in the order of its spine; its table of contents (nav.xhtml or
+         toc.ncx) says which headings are parts and chapters, and its pictures are kept. A locked (DRM) ebook is
+         refused. Kindle files (.mobi, .azw, .azw3, .kfx) are not read: an unlocked one can be converted to
+         EPUB with Calibre first.
   PDF    through pdfplumber: the fonts and sizes of the words give bold, italic, superscript and headings; its
          tables, its pictures (drawn with pypdfium2) and its bookmarks (pypdf) are kept. A page with no text (a
          scan) is read by Tesseract OCR, which gives the words and paragraphs only, and a warning is shown.
@@ -29,7 +33,13 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 from contact import DROPPED_WITH_CONTENT, SAFE_LINK, _Cleaner, clean_message_html
 
-DOCUMENT_TYPES = (".pdf", ".docx")
+DOCUMENT_TYPES = (".pdf", ".docx", ".epub")
+KINDLE_TYPES = (".mobi", ".azw", ".azw3", ".kfx", ".prc")
+KINDLE_ADVICE = (
+  "Kindle files (.mobi, .azw, .azw3, .kfx) cannot be read here. If the book is not locked (one you made or a "
+  "free one), convert it to EPUB with the free Calibre app and upload the .epub. Books bought from Amazon are "
+  "locked and cannot be used."
+)
 MAX_DOCUMENT_BYTES = 50 * 1024 * 1024
 MAX_PAGES = 2000
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -500,13 +510,214 @@ def _apply_outline(html: str, outline: list[tuple[int, str]]) -> str:
   return str(soup)
 
 
+# --- EPUB ----------------------------------------------------------------------------------------------
+
+# Font obfuscation (EPUB's own and Adobe's) is not a lock on the text; any other encryption is.
+FONT_OBFUSCATION = {"http://www.idpf.org/2008/embedding", "http://ns.adobe.com/pdf/enc#RC"}
+EPUB_PAGE_TYPES = {"application/xhtml+xml", "text/html"}
+EPUB_IMAGE_TYPES = {
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+}
+EPUB_LOCKED = (
+  "This ebook is locked (copy protection, DRM), so its text cannot be read. Only unlocked ebooks can be "
+  "uploaded: ones you made, free ones, or ones sold without DRM."
+)
+
+
+def _local_name(tag: str) -> str:
+  return tag.rsplit("}", 1)[-1]
+
+
+def _epub_path(base: str, href: str) -> str:
+  """The archive path of a link found in the file at base (links are relative and may be %-encoded)."""
+  import posixpath
+  from urllib.parse import unquote
+
+  return posixpath.normpath(posixpath.join(posixpath.dirname(base), unquote(href.split("#", 1)[0]))).lstrip("/")
+
+
+def _epub_toc(archive, names: set, package_path: str, package, manifest: dict) -> list[tuple[int, str, str, str]]:
+  """The table of contents: (level from 1, title, archive path, fragment), from nav.xhtml (EPUB 3) or toc.ncx
+  (EPUB 2). Empty when there is none."""
+  from defusedxml import ElementTree
+
+  entries = []
+  navigation = next((item for item in manifest.values() if "nav" in item["properties"].split()), None)
+  if navigation and navigation["path"] in names:
+    soup = BeautifulSoup(archive.read(navigation["path"]), "html.parser")
+    nav = next(
+      (element for element in soup.find_all("nav") if "toc" in (element.get("epub:type") or element.get("role") or "")),
+      soup.find("nav"),
+    )
+
+    def walk(listing, level):
+      for item in listing.find_all("li", recursive=False):
+        link = item.find("a", recursive=False) or item.find("a")
+        if link and link.get("href"):
+          entries.append((level, " ".join(link.get_text(" ").split()), _epub_path(navigation["path"], link["href"]),
+                          link["href"].split("#", 1)[1] if "#" in link["href"] else ""))
+        inner = item.find("ol", recursive=False)
+        if inner:
+          walk(inner, level + 1)
+
+    if nav and nav.find("ol"):
+      walk(nav.find("ol"), 1)
+  if entries:
+    return entries
+  spine = next((element for element in package.iter() if _local_name(element.tag) == "spine"), None)
+  ncx = manifest.get(spine.get("toc")) if spine is not None and spine.get("toc") else None
+  ncx = ncx or next((item for item in manifest.values() if item["media_type"] == "application/x-dtbncx+xml"), None)
+  if ncx and ncx["path"] in names:
+    root = ElementTree.fromstring(archive.read(ncx["path"]))
+
+    def walk_points(element, level):
+      for point in element:
+        if _local_name(point.tag) != "navPoint":
+          continue
+        label = next((node for node in point.iter() if _local_name(node.tag) == "text"), None)
+        content = next((node for node in point if _local_name(node.tag) == "content"), None)
+        if content is not None and content.get("src"):
+          source = content.get("src")
+          entries.append((level, " ".join((label.text or "").split()) if label is not None else "",
+                          _epub_path(ncx["path"], source), source.split("#", 1)[1] if "#" in source else ""))
+        walk_points(point, level + 1)
+
+    navigation_map = next((node for node in root.iter() if _local_name(node.tag) == "navMap"), None)
+    if navigation_map is not None:
+      walk_points(navigation_map, 1)
+  return entries
+
+
+def convert_epub(path: Path) -> Document:
+  import zipfile
+
+  from defusedxml import ElementTree
+
+  document = Document("")
+  try:
+    archive = zipfile.ZipFile(path)
+  except zipfile.BadZipFile as error:
+    raise DocumentProblem("The EPUB file could not be read (it is not a complete ebook).") from error
+  with archive:
+    names = set(archive.namelist())
+    # A lock: Adobe's rights file, or encryption other than font obfuscation.
+    if "META-INF/rights.xml" in names:
+      raise DocumentProblem(EPUB_LOCKED)
+    if "META-INF/encryption.xml" in names:
+      try:
+        encryption = ElementTree.fromstring(archive.read("META-INF/encryption.xml"))
+      except Exception as error:
+        raise DocumentProblem(EPUB_LOCKED) from error
+      methods = {element.get("Algorithm") for element in encryption.iter() if _local_name(element.tag) == "EncryptionMethod"}
+      if methods - FONT_OBFUSCATION:
+        raise DocumentProblem(EPUB_LOCKED)
+    try:
+      container = ElementTree.fromstring(archive.read("META-INF/container.xml"))
+      package_path = next(element.get("full-path") for element in container.iter() if _local_name(element.tag) == "rootfile")
+      package = ElementTree.fromstring(archive.read(package_path))
+    except Exception as error:
+      raise DocumentProblem("The EPUB file could not be read (its list of contents is missing or damaged).") from error
+
+    manifest = {}
+    for element in package.iter():
+      if _local_name(element.tag) == "item" and element.get("id") and element.get("href"):
+        manifest[element.get("id")] = {
+          "path": _epub_path(package_path, element.get("href")),
+          "media_type": element.get("media-type") or "",
+          "properties": element.get("properties") or "",
+        }
+    pages = []
+    for element in package.iter():
+      if _local_name(element.tag) == "itemref" and element.get("linear") != "no":
+        item = manifest.get(element.get("idref"))
+        if item and item["media_type"] in EPUB_PAGE_TYPES and item["path"] in names:
+          pages.append(item["path"])
+    if not pages:
+      raise DocumentProblem("The EPUB file has no pages to read.")
+    media_types = {item["path"]: item["media_type"] for item in manifest.values()}
+
+    # The table of contents decides the parts and chapters: (path, fragment) -> (level, title).
+    toc = {}
+    for level, title, target, fragment in _epub_toc(archive, names, package_path, package, manifest):
+      toc.setdefault((target, fragment), (min(level, 4), title))
+
+    pieces = []
+    named_pages = {target for target, _fragment in toc}
+    reached_contents = not named_pages
+    for page in pages:
+      soup = BeautifulSoup(archive.read(page), "html.parser")
+      body = soup.body or soup
+      # Pages before the first one the contents names that hold no words (a cover) are left out.
+      reached_contents = reached_contents or page in named_pages
+      if not reached_contents and not body.get_text(strip=True):
+        document.warnings.append("A cover page (a picture with no words) before the contents was left out.")
+        continue
+      for element in body.find_all(["script", "style", "head", "title", "link", "meta"]):
+        element.decompose()
+      # Pictures, including the <image> inside an <svg> (a cover, say), become the site's own pictures.
+      for element in body.find_all(["img", "image"]):
+        source = element.get("src") or element.get("xlink:href") or element.get("href") or ""
+        picture_path = _epub_path(page, source) if source and not source.startswith("data:") else ""
+        address = None
+        if picture_path in names:
+          media_type = media_types.get(picture_path) or EPUB_IMAGE_TYPES.get(Path(picture_path).suffix.lower(), "")
+          if media_type != "image/svg+xml":
+            address = _picture(archive.read(picture_path), media_type, document.images, document.warnings)
+        holder = element.find_parent("svg") if element.name == "image" else None
+        if address:
+          picture = soup.new_tag("img", src=address, alt=element.get("alt") or "")
+          (holder or element).replace_with(picture)
+        else:
+          (holder or element).decompose()
+      for element in body.find_all("svg"):
+        element.decompose()
+      # Links inside the book (notes, the contents) are not addresses on this site: their words stay.
+      for link in body.find_all("a"):
+        if not SAFE_LINK.match(link.get("href") or ""):
+          link.unwrap()
+
+      if toc:
+        # Headings the contents names get its level; the others stay inside their chapter (h3, h4).
+        marked = set()
+        for heading in body.find_all(re.compile(r"^h[1-6]$")):
+          entry = toc.get((page, heading.get("id") or ""))
+          if entry is None:
+            entry = next((value for (target, fragment), value in toc.items()
+                          if target == page and fragment == "" and _normal(value[1]) == _normal(heading.get_text(" "))), None)
+          if entry:
+            heading.name = f"h{entry[0]}"
+            marked.add(entry)
+          else:
+            heading.name = "h3" if int(heading.name[1]) <= 3 else "h4"
+        # An entry that points at something other than a heading (or at the page itself) gets a heading there.
+        for (target, fragment), (level, title) in toc.items():
+          if target != page or (level, title) in marked or not title:
+            continue
+          anchor = body.find(id=fragment) if fragment else None
+          if fragment and anchor is None:
+            continue
+          heading = soup.new_tag(f"h{level}")
+          heading.string = title
+          if anchor is not None:
+            anchor.insert_before(heading)
+          else:
+            body.insert(0, heading)
+          marked.add((level, title))
+      pieces.append("".join(str(child) for child in body.contents))
+  document.html = "\n".join(pieces)
+  return document
+
+
 # --- reading any document ------------------------------------------------------------------------------
 
 
 def convert(path: Path, original_name: str) -> Document:
   extension = Path(original_name).suffix.lower()
+  if extension in KINDLE_TYPES:
+    raise DocumentProblem(KINDLE_ADVICE)
   if extension not in DOCUMENT_TYPES:
-    raise DocumentProblem("The document must be a PDF (.pdf) or a Word document (.docx).")
+    raise DocumentProblem("The document must be a PDF (.pdf), a Word document (.docx) or an ebook (.epub).")
   size = path.stat().st_size
   if size == 0:
     raise DocumentProblem("The file is empty.")
@@ -518,6 +729,10 @@ def convert(path: Path, original_name: str) -> Document:
     raise DocumentProblem("The file is not really a PDF.")
   if extension == ".docx" and not start.startswith(b"PK"):
     raise DocumentProblem("The file is not really a Word document (.docx). An old .doc file must be saved again as .docx.")
+  if extension == ".epub" and not start.startswith(b"PK"):
+    raise DocumentProblem("The file is not really an EPUB ebook.")
+  if extension == ".epub":
+    return convert_epub(path)
   return convert_pdf(path) if extension == ".pdf" else convert_docx(path)
 
 

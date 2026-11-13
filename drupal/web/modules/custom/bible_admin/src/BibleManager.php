@@ -35,7 +35,7 @@ class BibleManager {
   /**
    * The kinds of upload file kept, by extension: text (.txt, .tsv), PDF and Word.
    */
-  private const UPLOAD_EXTENSIONS = ['txt', 'tsv', 'pdf', 'docx'];
+  private const UPLOAD_EXTENSIONS = ['txt', 'tsv', 'pdf', 'docx', 'epub'];
 
   private const UPLOAD_FOLDER = 'bible-uploads';
 
@@ -814,7 +814,7 @@ class BibleManager {
     }
 
     // A PDF or Word document (an upload or a song's words document) may take longer to read.
-    $timeout ??= preg_grep('/\.(pdf|docx)$/i', $arguments) ? self::DOCUMENT_TIMEOUT_SECONDS : self::COMMAND_TIMEOUT_SECONDS;
+    $timeout ??= preg_grep('/\.(pdf|docx|epub)$/i', $arguments) ? self::DOCUMENT_TIMEOUT_SECONDS : self::COMMAND_TIMEOUT_SECONDS;
     $process = new Process([$python, $script, ...$arguments], $directory, NULL, $input, $timeout);
     try {
       $process->run();

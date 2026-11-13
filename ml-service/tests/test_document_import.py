@@ -1,4 +1,4 @@
-"""Tests for PDF and Word uploads (document_import.py, document_split.py, their use in library_upload.py and
+"""Tests for PDF, Word and EPUB uploads (document_import.py, document_split.py, their use in library_upload.py and
 music.py). The documents are made by tests/sample_documents.py; the uploads use the real database and remove
 only their own items (ids starting test-document-). conftest.py gives each test its own pictures folder."""
 
@@ -15,7 +15,7 @@ from main import app
 from scripture_references import formatted_html
 from search import connect
 from bible_import.importer import load_books
-from sample_documents import make_docx, make_docx_headings, make_pdf, make_scanned_pdf
+from sample_documents import make_docx, make_docx_headings, make_epub, make_pdf, make_scanned_pdf
 
 client = TestClient(app)
 BOOK = {"id": "test-document-book", "name": "A Sample Book", "author": "A. Writer", "source_name": "A test source"}
@@ -88,7 +88,7 @@ def test_wrong_documents_are_refused(tmp_path):
     convert(fake, "fake.pdf")
   old = tmp_path / "old.doc"
   old.write_bytes(b"\xd0\xcf\x11\xe0")
-  with pytest.raises(DocumentProblem, match="PDF \\(.pdf\\) or a Word document"):
+  with pytest.raises(DocumentProblem, match="PDF \\(.pdf\\), a Word document"):
     convert(old, "old.doc")
 
 
@@ -246,3 +246,50 @@ def test_control_characters_from_a_pdf_are_dropped():
   # A PDF once gave NUL for a hyphen it had no character for; PostgreSQL refuses NUL in text.
   cleaned = clean_library_html("<p>Soft\x00cover\x07 and\ttabs</p>")
   assert cleaned == "<p>Softcover and\ttabs</p>" and "\x00" not in html_to_text(cleaned)
+
+
+@pytest.mark.parametrize("version", [3, 2])
+def test_an_ebook_is_cut_by_its_table_of_contents_and_keeps_its_formatting(tmp_path, version):
+  document = convert(make_epub(tmp_path / "book.epub", version=version), "book.epub")
+  sections, entries, split = split_chapters(document, "A Sample Ebook")
+
+  assert sections == [(1, "Part One"), (2, "Part Two")]
+  assert [(entry.section, entry.unit, entry.unit_title) for entry in entries] == [(1, 1, "Chapter 1"), (1, 2, "Chapter 2"), (2, 1, "Chapter 3")]
+  first = entries[0].html
+  assert "<strong>grace</strong>" in first and "<em>mercy</em>" in first and "<ul><li>First point</li>" in first
+  # A heading the contents does not name stays inside its chapter; the note link keeps only its number.
+  assert "<h3>A heading inside the chapter</h3>" in first and "notes.xhtml" not in first and "color" not in first
+  # The cover (an <image> inside an <svg>) and the picture in the page are one file, kept once.
+  assert len(document.images) == 1 and '<img src="/library-image/' in entries[1].html
+  assert "The second chapter has no heading of its own." in entries[1].text
+  # The cover page (a picture only) before the contents is left out, with a warning, rather than kept as a chapter.
+  assert any("cover page" in warning for warning in split.warnings)
+
+
+def test_a_locked_ebook_and_kindle_files_are_refused_with_a_reason(tmp_path):
+  with pytest.raises(DocumentProblem, match="locked"):
+    convert(make_epub(tmp_path / "locked.epub", locked=True), "locked.epub")
+  # Hiding a font is not a lock on the text.
+  assert "grace" in convert(make_epub(tmp_path / "font.epub", font_obfuscation=True), "font.epub").html
+  kindle = tmp_path / "book.azw3"
+  kindle.write_bytes(b"BOOKMOBI" + b"\x00" * 100)
+  with pytest.raises(DocumentProblem, match="Calibre"):
+    convert(kindle, "book.azw3")
+  not_epub = tmp_path / "fake.epub"
+  not_epub.write_bytes(b"%PDF-1.4 not an ebook")
+  with pytest.raises(DocumentProblem, match="not really an EPUB"):
+    convert(not_epub, "fake.epub")
+
+
+def test_an_ebook_is_previewed_and_imported_as_an_other_book(tmp_path):
+  path = make_epub(tmp_path / "upload.epub")
+  details = {**BOOK, "id": "test-document-ebook", "name": "A Sample Ebook"}
+  shown = preview("book", path, details)
+  assert shown["can_import"] and shown["summary"]["units"] == 3 and shown["summary"]["pictures"] == 1
+  assert shown["summary"]["sections"] == ["Part One", "Part Two"]
+  import_file("book", path, details)
+  with connect() as connection:
+    rows = connection.execute(
+      "SELECT section, unit, unit_title FROM devotional_entries WHERE devotional_id = 'test-document-ebook' ORDER BY section, unit"
+    ).fetchall()
+  assert [tuple(row) for row in rows] == [(1, 1, "Chapter 1"), (1, 2, "Chapter 2"), (2, 1, "Chapter 3")]
