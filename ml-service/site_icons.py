@@ -40,8 +40,27 @@ def _check_kind(kind: str) -> str:
   return kind
 
 
+def kind_of_picture(start: bytes) -> str | None:
+  """The extension that fits a file's first bytes, or None when it is none of the pictures taken."""
+  if start.startswith(b"\x89PNG\r\n\x1a\n"):
+    return ".png"
+  if start.startswith(b"\xff\xd8\xff"):
+    return ".jpg"
+  if start[:4] == b"RIFF" and start[8:12] == b"WEBP":
+    return ".webp"
+  if start[:6] in (b"GIF87a", b"GIF89a"):
+    return ".gif"
+  if start[:4] == b"\x00\x00\x01\x00":
+    return ".ico"
+  if b"<svg" in start.lower():
+    return ".svg"
+  return None
+
+
 def check_file(path: Path, original_name: str) -> str:
-  """The extension to keep the file under, after checking its kind (by its first bytes), and size."""
+  """The extension to keep the file under, after checking its size and what it really is (by its first
+  bytes). A picture whose name has the wrong extension (a JPEG saved as logo.png, say) is kept under the
+  extension of what it really is, as a picture viewer would open it."""
   extension = Path(original_name).suffix.lower()
   extension = ".jpg" if extension == ".jpeg" else extension
   if extension not in TYPES:
@@ -53,17 +72,10 @@ def check_file(path: Path, original_name: str) -> str:
     raise IconProblem(f"The icon is larger than {MAX_BYTES // 1024} KB.")
   with open(path, "rb") as file:
     start = file.read(4096)
-  looks_right = {
-    ".png": start.startswith(b"\x89PNG\r\n\x1a\n"),
-    ".jpg": start.startswith(b"\xff\xd8\xff"),
-    ".webp": start[:4] == b"RIFF" and start[8:12] == b"WEBP",
-    ".gif": start[:6] in (b"GIF87a", b"GIF89a"),
-    ".ico": start[:4] == b"\x00\x00\x01\x00",
-    ".svg": b"<svg" in start.lower(),
-  }[extension]
-  if not looks_right:
-    raise IconProblem(f"The file is not really a {extension[1:].upper()} picture.")
-  return extension
+  actual = kind_of_picture(start)
+  if actual is None:
+    raise IconProblem("The file is not a PNG, JPEG, WebP, GIF, ICO or SVG picture (its contents are not one).")
+  return actual
 
 
 def current(kind: str) -> tuple[Path, str] | None:

@@ -58,8 +58,8 @@ def test_replacing_an_icon_with_another_kind_of_file_keeps_only_the_new_one(tmp_
 def test_wrong_files_are_refused(tmp_path, monkeypatch):
   with pytest.raises(IconProblem, match="PNG, JPEG"):
     site_icons.save("header", write(tmp_path, "a.txt", b"hello"), "a.txt")
-  with pytest.raises(IconProblem, match="not really"):
-    site_icons.save("header", write(tmp_path, "fake.png", b"GIF89a....."), "fake.png")
+  with pytest.raises(IconProblem, match="not a PNG"):
+    site_icons.save("header", write(tmp_path, "fake.png", b"hello, not a picture"), "fake.png")
   with pytest.raises(IconProblem, match="empty"):
     site_icons.save("header", write(tmp_path, "empty.png", b""), "empty.png")
   monkeypatch.setattr(site_icons, "MAX_BYTES", 10)
@@ -68,6 +68,14 @@ def test_wrong_files_are_refused(tmp_path, monkeypatch):
   with pytest.raises(IconProblem, match="header emblem"):
     site_icons.save("footer", write(tmp_path, "ok.png", PNG), "ok.png")
   assert site_icons.current("header") is None
+
+
+def test_a_picture_with_the_wrong_extension_is_kept_as_what_it_really_is(tmp_path):
+  # A JPEG saved as logo.png (it happened with the owner's logo): kept as header.jpg and served as a JPEG.
+  jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 40
+  site_icons.save("header", write(tmp_path, "logo.png", jpeg), "logo.png")
+  assert sorted(path.name for path in site_icons.icons_folder().iterdir()) == ["header.jpg"]
+  assert client.get("/site-icon/header").headers["content-type"] == "image/jpeg"
 
 
 def run_tool(*arguments):
@@ -82,4 +90,4 @@ def test_the_tool_uploads_shows_a_preview_and_removes(tmp_path):
   status, answer = run_tool("remove", "--kind=tab")
   assert status == 0 and answer["icons"]["tab"] is None
   status, answer = run_tool("upload", "--kind=tab", f"--file={write(tmp_path, 'bad.png', b'nope')}", "--name=bad.png")
-  assert status == 1 and answer["ok"] is False and "not really" in answer["error"]
+  assert status == 1 and answer["ok"] is False and "not a PNG" in answer["error"]
