@@ -540,7 +540,7 @@ class BibleManager {
   /**
    * Largest song file, in bytes (music.MAX_FILE_BYTES). The server's own limits (PHP and nginx) must allow it.
    */
-  public const MAX_MUSIC_BYTES = 200 * 1024 * 1024;
+  public const MAX_MUSIC_BYTES = 1024 * 1024 * 1024;
 
   /**
    * Every song of the Christian music section, hidden ones too, by title.

@@ -240,3 +240,9 @@ def test_a_document_can_be_kept_whole_as_one_chapter(tmp_path):
   daily = preview("devotional", path, {**BOOK, "id": "test-document-daily", "kind": "daily", "whole": True})
   assert not daily["can_import"] and daily["details"]["whole"] is True
   assert preview("commentary", path, {**COMMENTARY, "whole": True})["details"]["whole"] is False
+
+
+def test_control_characters_from_a_pdf_are_dropped():
+  # A PDF once gave NUL for a hyphen it had no character for; PostgreSQL refuses NUL in text.
+  cleaned = clean_library_html("<p>Soft\x00cover\x07 and\ttabs</p>")
+  assert cleaned == "<p>Softcover and\ttabs</p>" and "\x00" not in html_to_text(cleaned)

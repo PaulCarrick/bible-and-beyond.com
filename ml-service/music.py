@@ -24,10 +24,11 @@ from commentaries import HEADLINE_OPTIONS
 from search import connect, parse_terms
 from service_settings import get_setting
 
-MAX_FILE_BYTES = 200 * 1024 * 1024
+MAX_FILE_BYTES = 1024 * 1024 * 1024  # 1 GB: a recorded talk on video runs to 600 MB
 TITLE_LIMIT = 200
 AUTHOR_LIMIT = 200
-LYRICS_LIMIT = 20_000
+# Characters of words: a song's, or a sermon's transcript (the owner's Road to Recovery sermons run to 34,000).
+LYRICS_LIMIT = 100_000
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
 MEDIA_TYPES = {".mp3": "audio/mpeg", ".mp4": "video/mp4"}
 MAX_WORDS_BYTES = 20 * 1024 * 1024

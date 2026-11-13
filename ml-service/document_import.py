@@ -568,8 +568,13 @@ class LibraryCleaner(_Cleaner):
     super().handle_endtag(tag)
 
 
+# Control characters (all but tab, line feed and carriage return): a PDF can give NUL for a glyph it has no
+# character for (a hyphen in one of the owner's PDFs), and PostgreSQL refuses NUL in text.
+CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
 def clean_library_html(html: str) -> str:
-  cleaned = clean_message_html(html, LibraryCleaner)
+  cleaned = clean_message_html(CONTROL_CHARACTERS.sub("", html), LibraryCleaner)
   # <b> and <i> open as <strong> and <em>; close them the same way.
   cleaned = cleaned.replace("</b>", "</strong>").replace("</i>", "</em>")
   # Empty paragraphs (blank lines) are dropped.
