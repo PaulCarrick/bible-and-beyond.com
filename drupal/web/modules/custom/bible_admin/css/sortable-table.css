@@ -8,6 +8,9 @@
   font: inherit;
   text-align: inherit;
   cursor: pointer;
+  /* A header and its mark stay on one line ("Words ↕" wrapped under a wide Author column); the
+     columns with long text (Title, Author) give up the room instead. */
+  white-space: nowrap;
 }
 
 .bible-admin-sort-button:hover,
