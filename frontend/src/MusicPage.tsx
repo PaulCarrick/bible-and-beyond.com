@@ -24,9 +24,10 @@ interface PlayingList {
 // the others, and closing a section stops its song. The page stays mounted, so a song playing goes on while
 // another page is open, except a video, which is paused when the page is left (it could not be seen).
 //
-// A logged-in visitor also gets a checkbox at the right of each song and, under the list, their playlists:
-// the ticked songs are saved under a name (in the order of the page), and Play plays a playlist's songs one
-// after another, opening each and scrolling to it.
+// A logged-in visitor also gets a checkbox at the right of each song; under the list the ticked songs are
+// saved under a name. Their playlists are in a closed section at the top of the page: choose one and Play
+// plays its songs one after another, opening each and scrolling to it; a song's title in the list plays the
+// playlist from that song; Reorder moves its songs up and down.
 function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const { user } = useContext(AccountContext)
   const listReference = useRef<HTMLDivElement>(null)
@@ -36,8 +37,14 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const [playlistName, setPlaylistName] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isPlaylistsOpen, setIsPlaylistsOpen] = useState(false)
+  // The chosen playlist's songs in the order being arranged, while Reorder is open.
+  const [reorderIds, setReorderIds] = useState<string[] | null>(null)
+  // What happened at the top (the playlists) and at the foot (saving the ticked songs).
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [saveMessage, setSaveMessage] = useState('')
+  const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [playing, setPlaying] = useState<PlayingList | null>(null)
   // The playlist being played, for the players' own events (which see the state of the render they were made in).
   const playingReference = useRef<PlayingList | null>(null)
@@ -70,8 +77,12 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setPlaylists([])
     setChosenPlaylistId(null)
     setPlaylistName('')
+    setReorderIds(null)
+    setIsConfirmingDelete(false)
     setMessage('')
     setErrorMessage('')
+    setSaveMessage('')
+    setSaveErrorMessage('')
     setPlaying(null)
   }
 
@@ -170,40 +181,91 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     })
   }
 
+  // Puts a saved playlist in the list (by name) and chooses it.
+  function keepPlaylist(playlist: Playlist) {
+    setPlaylists((current) =>
+      [...current.filter((entry) => entry.id !== playlist.id), playlist].sort((first, second) =>
+        first.name.localeCompare(second.name, undefined, { sensitivity: 'base' }),
+      ),
+    )
+    setChosenPlaylistId(playlist.id)
+  }
+
+  // Saves the ticked songs. Replacing a playlist keeps the order of the songs it already had; songs newly
+  // ticked go at the end, in the order of the page.
   async function handleSave() {
     setIsBusy(true)
-    setMessage('')
-    setErrorMessage('')
+    setSaveMessage('')
+    setSaveErrorMessage('')
+    const existing = playlists.find((playlist) => playlist.name.toLowerCase() === trimmedName.toLowerCase())
+    const kept = existing ? existing.song_ids.filter((id) => tickedIds.has(id) && songsById.has(id)) : []
+    const added = tickedSongs.map((song) => song.id).filter((id) => !kept.includes(id))
     try {
-      const { playlist, replaced } = await savePlaylist(
-        trimmedName,
-        tickedSongs.map((song) => song.id),
-      )
-      setPlaylists((current) =>
-        [...current.filter((entry) => entry.id !== playlist.id), playlist].sort((first, second) =>
-          first.name.localeCompare(second.name, undefined, { sensitivity: 'base' }),
-        ),
-      )
-      setChosenPlaylistId(playlist.id)
+      const { playlist, replaced } = await savePlaylist(trimmedName, [...kept, ...added])
+      keepPlaylist(playlist)
+      setReorderIds(null)
+      setMessage('')
       setTickedIds(new Set())
       setPlaylistName('')
       const count = playlist.song_ids.length
-      setMessage(`${replaced ? 'Replaced' : 'Saved'} the playlist “${playlist.name}” (${count} ${count === 1 ? 'song' : 'songs'}).`)
+      setSaveMessage(
+        `${replaced ? 'Replaced' : 'Saved'} the playlist “${playlist.name}” (${count} ${count === 1 ? 'song' : 'songs'}). ` +
+          'It is under Your playlists at the top of the page.',
+      )
     } catch (error) {
-      setErrorMessage((error as Error).message)
+      setSaveErrorMessage((error as Error).message)
     } finally {
       setIsBusy(false)
     }
   }
 
-  function handlePlayPlaylist() {
+  // Plays the chosen playlist from one of its songs (the first unless said) to the end.
+  function handlePlayPlaylist(startIndex = 0) {
     if (!chosenPlaylist || chosenSongs.length === 0) {
       return
     }
     setMessage('')
     setErrorMessage('')
-    changePlaying({ name: chosenPlaylist.name, songIds: chosenSongs, index: 0 })
-    startSong(chosenSongs[0])
+    changePlaying({ name: chosenPlaylist.name, songIds: chosenSongs, index: startIndex })
+    startSong(chosenSongs[startIndex])
+  }
+
+  function handleReorder() {
+    setMessage('')
+    setErrorMessage('')
+    setIsConfirmingDelete(false)
+    setReorderIds(chosenSongs)
+  }
+
+  // Moves a song one place up (-1) or down (+1). At either end it stays (the button keeps the focus).
+  function moveSong(index: number, step: number) {
+    setReorderIds((current) => {
+      if (!current || index + step < 0 || index + step >= current.length) {
+        return current
+      }
+      const next = [...current]
+      ;[next[index], next[index + step]] = [next[index + step], next[index]]
+      return next
+    })
+  }
+
+  async function handleSaveOrder() {
+    if (!chosenPlaylist || !reorderIds) {
+      return
+    }
+    setIsBusy(true)
+    setMessage('')
+    setErrorMessage('')
+    try {
+      const { playlist } = await savePlaylist(chosenPlaylist.name, reorderIds)
+      keepPlaylist(playlist)
+      setReorderIds(null)
+      setMessage(`Saved the new order of “${playlist.name}”.`)
+    } catch (error) {
+      setErrorMessage((error as Error).message)
+    } finally {
+      setIsBusy(false)
+    }
   }
 
   function handleStop() {
@@ -222,7 +284,11 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     }
     setTickedIds(new Set(chosenSongs))
     setPlaylistName(chosenPlaylist.name)
-    setMessage(`The songs of “${chosenPlaylist.name}” are ticked. Change the ticks, then save under the same name to replace it.`)
+    setSaveMessage('')
+    setSaveErrorMessage('')
+    setMessage(
+      `The songs of “${chosenPlaylist.name}” are ticked. Change the ticks in the list, then save at the foot of the page to replace it (its order is kept).`,
+    )
   }
 
   async function handleDelete() {
@@ -252,6 +318,169 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     <div className="welcome music-page" hidden={isHidden}>
       <h1>Christian music</h1>
       <p>Hymns and songs to listen to, with their words. Open a song to play it and read its words; only one plays at a time.</p>
+      {user && songs.length > 0 && (
+        <details
+          className="music-playlists"
+          open={isPlaylistsOpen}
+          onToggle={(event) => setIsPlaylistsOpen(event.currentTarget.open)}
+        >
+          <summary>
+            Your playlists{playlists.length > 0 ? ` (${playlists.length})` : ''}
+            {playing && playingSong && <span className="music-playlists-playing"> · playing “{playing.name}”</span>}
+          </summary>
+          <div className="music-playlists-body">
+            {playlists.length === 0 ? (
+              <p>You have no playlists yet. Tick the songs you want in the list below, then give the playlist a name and save it at the foot of the page.</p>
+            ) : (
+              <div className="music-playlist-play">
+                <label>
+                  Playlist
+                  <select
+                    value={chosenPlaylistId ?? ''}
+                    disabled={reorderIds !== null}
+                    onChange={(event) => {
+                      setChosenPlaylistId(Number(event.target.value))
+                      setIsConfirmingDelete(false)
+                    }}
+                  >
+                    {playlists.map((playlist) => (
+                      <option key={playlist.id} value={playlist.id}>
+                        {playlist.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={chosenSongs.length === 0 || reorderIds !== null}
+                  onClick={() => handlePlayPlaylist()}
+                >
+                  Play
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={chosenSongs.length < 2 || reorderIds !== null}
+                  onClick={handleReorder}
+                >
+                  Reorder
+                </button>
+                {playing && (
+                  <button type="button" className="secondary-button" onClick={handleStop}>
+                    Stop
+                  </button>
+                )}
+              </div>
+            )}
+
+            {playing && playingSong && (
+              <p className="music-now-playing" role="status">
+                Playing “{playing.name}”: song {playing.index + 1} of {playing.songIds.length}, <strong>{playingSong.title}</strong>
+              </p>
+            )}
+
+            {chosenPlaylist && reorderIds && (
+              <div className="music-playlist-songs">
+                <p className="music-playlist-hint">Move the songs with the arrows, then save the order.</p>
+                <ol className="music-reorder-list">
+                  {reorderIds.map((id, index) => {
+                    const title = songsById.get(id)?.title ?? id
+                    return (
+                      <li key={id}>
+                        <span className="music-reorder-title">{title}</span>
+                        <button
+                          type="button"
+                          className="secondary-button small-button"
+                          aria-label={`Move ${title} up`}
+                          title="Move up"
+                          aria-disabled={index === 0}
+                          onClick={() => moveSong(index, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button small-button"
+                          aria-label={`Move ${title} down`}
+                          title="Move down"
+                          aria-disabled={index === reorderIds.length - 1}
+                          onClick={() => moveSong(index, 1)}
+                        >
+                          ↓
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ol>
+                <div className="music-reorder-actions">
+                  <button type="button" className="primary-button" disabled={isBusy} onClick={handleSaveOrder}>
+                    Save order
+                  </button>
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={() => setReorderIds(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {chosenPlaylist && !reorderIds && (
+              <div className="music-playlist-songs">
+                {chosenSongs.length === 0 ? (
+                  <p>This playlist has no songs on the site now.</p>
+                ) : (
+                  <>
+                    <p className="music-playlist-hint">Click a song to play the playlist from there.</p>
+                    <ol>
+                      {chosenSongs.map((id, index) => (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            className={
+                              playing && playing.songIds[playing.index] === id ? 'link-button music-playlist-song playing' : 'link-button music-playlist-song'
+                            }
+                            title="Play the playlist from this song"
+                            onClick={() => handlePlayPlaylist(index)}
+                          >
+                            {songsById.get(id)?.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+                <div className="note-actions">
+                  <button type="button" className="link-button" onClick={handleChange}>
+                    Change this playlist
+                  </button>
+                  {isConfirmingDelete ? (
+                    <>
+                      <span>Delete “{chosenPlaylist.name}”?</span>
+                      <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
+                        Yes, delete it
+                      </button>
+                      <button type="button" className="link-button" onClick={() => setIsConfirmingDelete(false)}>
+                        No
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="link-button danger" onClick={() => setIsConfirmingDelete(true)}>
+                      Delete this playlist
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {message && <p role="status">{message}</p>}
+            {errorMessage && (
+              <p className="error" role="alert">
+                {errorMessage}
+              </p>
+            )}
+          </div>
+        </details>
+      )}
       {user && songs.length > 0 && (
         <p className="music-tick-heading">Tick songs for a playlist</p>
       )}
@@ -336,117 +565,47 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
         ))}
       </div>
 
-      {user && songs.length > 0 && (
-        <section className="music-playlists">
-          <h2>Your playlists</h2>
-
-          {tickedSongs.length > 0 && (
-            <div className="music-playlist-save">
-              <p>
-                {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
-              </p>
-              <label>
-                Playlist name
-                <input
-                  type="text"
-                  value={playlistName}
-                  maxLength={100}
-                  onChange={(event) => setPlaylistName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && trimmedName && !isBusy) {
-                      handleSave()
-                    }
-                  }}
-                />
-              </label>
-              <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
-                {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
-              </button>
-              <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
-                Clear the ticks
-              </button>
-              {nameInUse && <p className="music-playlist-hint">You already have a playlist called “{trimmedName}”; saving replaces its songs.</p>}
-            </div>
-          )}
-
-          {playlists.length === 0 ? (
-            <p>You have no playlists yet. Tick the songs you want, give the playlist a name and save it.</p>
-          ) : (
-            <div className="music-playlist-play">
-              <label>
-                Playlist
-                <select
-                  value={chosenPlaylistId ?? ''}
-                  onChange={(event) => {
-                    setChosenPlaylistId(Number(event.target.value))
-                    setIsConfirmingDelete(false)
-                  }}
-                >
-                  {playlists.map((playlist) => (
-                    <option key={playlist.id} value={playlist.id}>
-                      {playlist.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="primary-button" disabled={chosenSongs.length === 0} onClick={handlePlayPlaylist}>
-                Play
-              </button>
-              {playing && (
-                <button type="button" className="secondary-button" onClick={handleStop}>
-                  Stop
-                </button>
-              )}
-            </div>
-          )}
-
-          {playing && playingSong && (
-            <p className="music-now-playing" role="status">
-              Playing “{playing.name}”: song {playing.index + 1} of {playing.songIds.length}, <strong>{playingSong.title}</strong>
-            </p>
-          )}
-
-          {chosenPlaylist && (
-            <div className="music-playlist-songs">
-              {chosenSongs.length === 0 ? (
-                <p>This playlist has no songs on the site now.</p>
-              ) : (
-                <ol>
-                  {chosenSongs.map((id) => (
-                    <li key={id}>{songsById.get(id)?.title}</li>
-                  ))}
-                </ol>
-              )}
-              <div className="note-actions">
-                <button type="button" className="link-button" onClick={handleChange}>
-                  Change this playlist
-                </button>
-                {isConfirmingDelete ? (
-                  <>
-                    <span>Delete “{chosenPlaylist.name}”?</span>
-                    <button type="button" className="link-button danger" disabled={isBusy} onClick={handleDelete}>
-                      Yes, delete it
-                    </button>
-                    <button type="button" className="link-button" onClick={() => setIsConfirmingDelete(false)}>
-                      No
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" className="link-button danger" onClick={() => setIsConfirmingDelete(true)}>
-                    Delete this playlist
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {message && <p role="status">{message}</p>}
-          {errorMessage && (
-            <p className="error" role="alert">
-              {errorMessage}
+      {user && tickedSongs.length > 0 && (
+        <section className="music-playlist-save" aria-label="Save the ticked songs as a playlist">
+          <p>
+            {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
+          </p>
+          <label>
+            Playlist name
+            <input
+              type="text"
+              value={playlistName}
+              maxLength={100}
+              onChange={(event) => setPlaylistName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && trimmedName && !isBusy) {
+                  handleSave()
+                }
+              }}
+            />
+          </label>
+          <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
+            {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
+          </button>
+          <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
+            Clear the ticks
+          </button>
+          {nameInUse && (
+            <p className="music-playlist-hint">
+              You already have a playlist called “{trimmedName}”; saving replaces its songs (keeping their order).
             </p>
           )}
         </section>
+      )}
+      {user && (saveMessage || saveErrorMessage) && (
+        <div className="music-save-messages">
+          {saveMessage && <p role="status">{saveMessage}</p>}
+          {saveErrorMessage && (
+            <p className="error" role="alert">
+              {saveErrorMessage}
+            </p>
+          )}
+        </div>
       )}
 
       <p className="related-note music-licence">

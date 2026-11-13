@@ -2207,11 +2207,81 @@ select:disabled {
   font-size: 0.9rem;
 }
 
-/* The visitor's playlists, under the list of songs. */
+/* The visitor's playlists: a closed section at the top of the music page. */
 .music-playlists {
-  margin-top: 2rem;
+  margin-top: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.music-playlists > summary {
+  padding: 0.7rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.music-playlists > summary:hover {
+  text-decoration: underline;
+}
+
+.music-playlists-playing {
+  font-weight: 400;
+  font-size: 0.95rem;
+  color: #1a6ebd;
+}
+
+.music-playlists-body {
+  padding: 0 1rem 1rem;
+}
+
+.music-playlists-body > .music-playlist-play:first-child {
+  margin-top: 0.25rem;
+}
+
+/* Saving the ticked songs, under the list. */
+.music-playlist-save {
+  margin-top: 1.5rem;
   padding-top: 0.5rem;
   border-top: 2px solid var(--border);
+}
+
+.music-save-messages {
+  margin-top: 0.5rem;
+}
+
+.music-playlist-song.playing {
+  font-weight: 600;
+}
+
+/* Reorder: each song with its up and down buttons. */
+.music-reorder-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.music-reorder-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.music-reorder-list .small-button[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.music-reorder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.music-reorder-actions .primary-button,
+.music-reorder-actions .secondary-button {
+  margin-top: 0;
 }
 
 .music-playlist-save,
@@ -2253,11 +2323,13 @@ select:disabled {
 }
 
 .music-playlists .primary-button,
-.music-playlists .secondary-button {
+.music-playlists .secondary-button,
+.music-playlist-save .primary-button,
+.music-playlist-save .secondary-button {
   margin-top: 0;
 }
 
-.music-playlist-save .music-playlist-hint {
+.music-playlist-hint {
   font-size: 0.9rem;
 }
 
