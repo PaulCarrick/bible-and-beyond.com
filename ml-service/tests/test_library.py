@@ -309,3 +309,56 @@ def test_a_plain_text_of_one_chapter_can_be_uploaded_with_its_credit_and_links(t
   with pytest.raises(UploadProblem, match="daily"):
     preview("devotional", write(tmp_path, plain), {**DEVOTIONAL, "id": "test-upload-plain-daily"})
   assert preview("book", write(tmp_path, "Only a title\n"), details)["problems"]
+
+
+def test_the_details_can_be_edited_without_touching_the_text(tmp_path):
+  import_file("commentary", write(tmp_path, COMMENTARY_FILE), COMMENTARY)
+  library_admin.set_published("commentary", "test-upload-poole", True)
+  details = library_admin.get_details("commentary", "test-upload-poole")
+  assert details["short_name"] == "Matthew Poole" and details["is_published"] and not details["refreshable"]
+
+  changed = library_admin.update_details("commentary", "test-upload-poole", {
+    "name": "  Poole's   Annotations ", "short_name": "Poole", "source_name": "Another source", "source_url": "", "license_url": "",
+  })
+  assert changed["name"] == "Poole's Annotations" and changed["short_name"] == "Poole" and changed["source_url"] == ""
+  assert changed["license_url"].endswith("publicdomain/mark/1.0/") and changed["is_published"]
+  listed = next(entry for entry in list_commentaries() if entry["id"] == "test-upload-poole")
+  assert listed["name"] == "Poole's Annotations"
+  assert search_commentaries("zebrafinch", "all", None, 1, 66, None, 1, 25, "rank", "asc")["total"] == 1
+
+  with pytest.raises(library_admin.LibraryProblem, match="short name"):
+    library_admin.update_details("commentary", "test-upload-poole", {**changed, "short_name": ""})
+  with pytest.raises(library_admin.LibraryProblem, match="https://"):
+    library_admin.update_details("commentary", "test-upload-poole", {**changed, "source_url": "javascript:alert(1)"})
+  with pytest.raises(library_admin.LibraryProblem, match="There is no book"):
+    library_admin.get_details("book", "test-upload-poole")
+
+  import_file("book", write(tmp_path, BOOK_FILE, "book.txt"), BOOK)
+  changed = library_admin.update_details("book", "test-upload-book", {
+    "name": "Test Book, Revised", "author": "C. Writer", "translator": "D. Translator", "source_name": "A test source",
+    "source_url": "https://example.org/book", "credit": "Used by permission.",
+  })
+  assert changed["translator"] == "D. Translator" and changed["credit"] == "Used by permission."
+  assert next(item for item in library_admin.list_items("book") if item["id"] == "test-upload-book")["count"] == 3
+  cleared = library_admin.update_details("book", "test-upload-book", {**changed, "translator": "", "credit": ""})
+  assert cleared["translator"] == "" and cleared["credit"] == ""
+  with connect() as connection:
+    assert connection.execute("SELECT translator, credit FROM devotionals WHERE id = 'test-upload-book'").fetchone() == (None, None)
+
+
+def test_the_tool_reads_and_changes_details(tmp_path):
+  import_file("book", write(tmp_path, BOOK_FILE, "book.txt"), BOOK)
+  completed = subprocess.run([sys.executable, str(SCRIPT), "get", "--kind=book", "--id=test-upload-book"], capture_output=True, text=True, check=False)
+  item = json.loads(completed.stdout)["item"]
+  assert completed.returncode == 0 and item["author"] == "C. Writer"
+
+  completed = subprocess.run(
+    [sys.executable, str(SCRIPT), "update", "--kind=book", "--id=test-upload-book"],
+    input=json.dumps({**item, "author": "Écrivain"}), capture_output=True, text=True, check=False,
+  )
+  assert completed.returncode == 0 and json.loads(completed.stdout)["item"]["author"] == "Écrivain"
+
+  completed = subprocess.run(
+    [sys.executable, str(SCRIPT), "update", "--kind=book", "--id=test-upload-book"], input="not json", capture_output=True, text=True, check=False,
+  )
+  assert completed.returncode == 1 and json.loads(completed.stdout)["error"] == "The details could not be read."

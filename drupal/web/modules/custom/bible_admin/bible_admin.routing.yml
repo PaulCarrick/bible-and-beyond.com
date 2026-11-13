@@ -146,6 +146,16 @@ bible_admin.library_preview:
     collection: 'commentaries|devotionals|books'
     token: '[0-9a-f]{32}'
 
+bible_admin.library_edit:
+  path: '/admin/{collection}/edit/{item_id}'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\LibraryEditForm'
+    _title: 'Edit the details'
+  requirements:
+    _permission: 'administer bibles'
+    collection: 'commentaries|devotionals|books'
+    item_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
 bible_admin.library_change:
   path: '/admin/{collection}/{action}/{item_id}'
   defaults:

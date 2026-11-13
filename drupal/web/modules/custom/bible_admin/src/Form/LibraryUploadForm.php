@@ -106,6 +106,15 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
       ]),
       '#attributes' => ['accept' => '.txt,.tsv,.pdf,.docx'],
     ];
+    if (!$isCommentary) {
+      $form['whole'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Keep a PDF or Word document as one chapter'),
+        '#description' => $isBook
+          ? $this->t('The whole document becomes one chapter named after the book, with its headings inside it and nothing left out as a title page, instead of being cut into chapters at its headings. For a short text such as a lesson or a bulletin insert.')
+          : $this->t('For a devotional by chapter: the whole document becomes one chapter named after the devotional, with its headings inside it, instead of being cut at its headings. A daily devotional is always read by its dates.'),
+      ];
+    }
     if ($isCommentary) {
       $form['passage'] = [
         '#type' => 'textfield',
@@ -238,6 +247,7 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
     foreach (['id', 'name', 'short_name', 'author', 'devotional_kind', 'translator', 'source_name', 'source_url', 'license_url', 'credit', 'passage'] as $key) {
       $parameters[$key] = trim((string) $form_state->getValue($key));
     }
+    $parameters['whole'] = (bool) $form_state->getValue('whole');
     $parameters['id'] = strtolower($parameters['id']);
     $token = NULL;
     try {

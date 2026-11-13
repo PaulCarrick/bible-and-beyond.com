@@ -7,10 +7,14 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_library.py publish|unpublish|delete --kind=... --id=matthew-henry
     manage_library.py refresh --kind=... --id=matthew-henry     (starts reloading from the source, in the background)
     manage_library.py set-credit --kind=book --id=apostles-creed --credit="..."   (its own credit line; empty for the usual one)
+    manage_library.py get --kind=... --id=...                   (its details, for the Edit page)
+    manage_library.py update --kind=... --id=... < details.json (changes its details: name, author or short name,
+        translator, source name and address, license address or credit line; the text is not touched)
     manage_library.py preview|import FILE --kind=commentary --id=... --name=... --short-name=... \\
         --source-name=... [--source-url=...] [--license-url=...]
     manage_library.py preview|import FILE --kind=devotional --id=... --name=... --author=... \\
-        --devotional-kind=daily|chapters --source-name=... [--source-url=...] [--translator=...]
+        --devotional-kind=daily|chapters --source-name=... [--source-url=...] [--translator=...] [--whole]
+    (--whole: a PDF or Word document is one chapter, not cut at its headings)
 
 The file formats are described in library_upload.py. An upload that is new stays hidden until published.
 """
@@ -23,14 +27,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from library_admin import LibraryProblem, delete, list_items, refresh, run_refresh, set_credit, set_published  # noqa: E402
+from library_admin import (  # noqa: E402
+  LibraryProblem, delete, get_details, list_items, refresh, run_refresh, set_credit, set_published, update_details,
+)
 from library_upload import UploadProblem, import_file, preview  # noqa: E402
 
 
 def parse_arguments():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
-  for name in ("list", "publish", "unpublish", "delete", "refresh", "run-refresh"):
+  for name in ("list", "get", "update", "publish", "unpublish", "delete", "refresh", "run-refresh"):
     command = commands.add_parser(name)
     command.add_argument("--kind", required=True, choices=["commentary", "devotional", "book"])
     if name != "list":
@@ -56,6 +62,8 @@ def parse_arguments():
     command.add_argument("--passage", default="")
     # Its own credit line (devotionals and books); left out, it keeps the one it has; empty, the usual line.
     command.add_argument("--credit", default=None)
+    # A PDF or Word document kept whole as one chapter, its headings inside it (a book or a devotional by chapter).
+    command.add_argument("--whole", action="store_true")
   return parser.parse_args()
 
 
@@ -64,7 +72,7 @@ def details(arguments) -> dict:
     "id": arguments.id, "name": arguments.name, "short_name": arguments.short_name, "author": arguments.author,
     "kind": arguments.devotional_kind, "source_name": arguments.source_name, "source_url": arguments.source_url,
     "license_url": arguments.license_url, "translator": arguments.translator, "credit": arguments.credit,
-    "passage": arguments.passage,
+    "passage": arguments.passage, "whole": arguments.whole,
   }
 
 
@@ -76,6 +84,17 @@ def run(arguments) -> dict:
     return {"ok": True, **set_published(kind, arguments.id, command == "publish")}
   if command == "delete":
     return {"ok": True, **delete(kind, arguments.id)}
+  if command == "get":
+    return {"ok": True, "item": get_details(kind, arguments.id)}
+  if command == "update":
+    # The details come as JSON on the standard input (the Drupal form sends them so).
+    try:
+      changes = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+      raise LibraryProblem("The details could not be read.")
+    if not isinstance(changes, dict):
+      raise LibraryProblem("The details could not be read.")
+    return {"ok": True, "item": update_details(kind, arguments.id, changes)}
   if command == "set-credit":
     return {"ok": True, **set_credit(kind, arguments.id, arguments.credit)}
   if command == "refresh":

@@ -163,6 +163,65 @@ def set_credit(kind: str, item_id: str, credit: str) -> dict:
   return {"id": item_id, "credit": credit}
 
 
+# The details an administrator may change on the Edit page, by kind (not the id, which is in addresses and
+# notes, and not whether a devotional is daily or by chapter, which its readings are laid out for).
+EDITABLE = {
+  "commentary": ("name", "short_name", "source_name", "source_url", "license_url"),
+  "devotional": ("name", "author", "translator", "source_name", "source_url", "credit"),
+  "book": ("name", "author", "translator", "source_name", "source_url", "credit"),
+}
+
+
+def get_details(kind: str, item_id: str) -> dict:
+  """The details of one commentary, devotional or Other book, for its Edit page."""
+  definition = _kind(kind)
+  columns = EDITABLE[kind]
+  with connect() as connection:
+    _existing_id(connection, kind, item_id)
+    row = connection.execute(
+      f"SELECT {', '.join(columns)}, is_published FROM {definition['table']} WHERE id = %s", (item_id,)
+    ).fetchone()
+  details = {column: value or "" for column, value in zip(columns, row)}
+  return {"id": item_id, **details, "is_published": row[-1], "refreshable": item_id in definition["known"]}
+
+
+def update_details(kind: str, item_id: str, details: dict) -> dict:
+  """Changes the name, author or short name, translator, source and credit line of one item; its text and
+  its published state stay as they are. Checked as on the Upload form."""
+  from library_upload import PUBLIC_DOMAIN_MARK, URL_PATTERN
+
+  definition = _kind(kind)
+  columns = EDITABLE[kind]
+  cleaned = {column: " ".join(str(details.get(column) or "").split()) for column in columns}
+  required = ("name", "short_name", "source_name") if kind == "commentary" else ("name", "author", "source_name")
+  for column in required:
+    if not cleaned[column]:
+      raise LibraryProblem(f"Fill in the {column.replace('_', ' ')}.")
+  for column in ("name", "author", "translator", "source_name", "short_name"):
+    if column in cleaned and len(cleaned[column]) > 200:
+      raise LibraryProblem(f"The {column.replace('_', ' ')} can be at most 200 characters.")
+  if kind == "commentary" and len(cleaned["short_name"]) > 40:
+    raise LibraryProblem("The short name can be at most 40 characters (it is used on the tabs).")
+  for column in ("source_url", "license_url"):
+    if cleaned.get(column) and (len(cleaned[column]) > 500 or not URL_PATTERN.match(cleaned[column])):
+      raise LibraryProblem(f"The {column.replace('_', ' ')} must start with https:// or http://.")
+  if kind == "commentary":
+    cleaned["license_url"] = cleaned["license_url"] or PUBLIC_DOMAIN_MARK
+  else:
+    if len(cleaned["credit"]) > 500:
+      raise LibraryProblem("The credit line can be at most 500 characters.")
+    # Empty: no translator named, and the usual "... is in the public domain" line.
+    cleaned["translator"] = cleaned["translator"] or None
+    cleaned["credit"] = cleaned["credit"] or None
+  with connect() as connection:
+    _existing_id(connection, kind, item_id)
+    connection.execute(
+      f"UPDATE {definition['table']} SET {', '.join(f'{column} = %s' for column in columns)} WHERE id = %s",
+      (*(cleaned[column] for column in columns), item_id),
+    )
+  return get_details(kind, item_id)
+
+
 def delete(kind: str, item_id: str) -> dict:
   """Deletes the text (its notes or readings go with it). Visitors' notes on it stay; a devotional's email
   subscriptions are removed, since there is nothing left to send."""

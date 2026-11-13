@@ -252,13 +252,16 @@ def read_plain_text(path: Path):
   return Parsed([(1, title)], [Entry(1, 1, 1, title, "", text)]), result
 
 
-def read_devotional_document(path: Path, kind: str, title: str):
-  """(Parsed, result) for a PDF or Word document: by date headings (daily) or by headings (by chapter)."""
-  from document_split import split_chapters, split_daily
+def read_devotional_document(path: Path, kind: str, title: str, whole: bool = False):
+  """(Parsed, result) for a PDF or Word document: by date headings (daily), by headings (by chapter), or the
+  whole document as one chapter named title (whole; not for a daily devotional)."""
+  from document_split import split_chapters, split_daily, whole_chapter
 
   document = read_document(path)
   if kind == "daily":
     sections, entries, split = split_daily(document)
+  elif whole:
+    sections, entries, split = whole_chapter(document, title or "Text")
   else:
     sections, entries, split = split_chapters(document, title or "Text")
   result = ReadResult(list(split.problems), [], document.images, True, document.ocr_pages)
@@ -270,13 +273,13 @@ def read_devotional_document(path: Path, kind: str, title: str):
   return Parsed(sections, entries), result
 
 
-def read_devotional_file(path: Path, kind: str, title: str = ""):
+def read_devotional_file(path: Path, kind: str, title: str = "", whole: bool = False):
   """(Parsed, result) for a daily or a by-chapter devotional, or a plain text of one chapter, or a PDF or Word
   document (title names its one chapter when it has no headings)."""
   if kind not in ("daily", "chapters"):
     raise UploadProblem("The kind must be daily or chapters.")
   if is_document(path):
-    return read_devotional_document(path, kind, title)
+    return read_devotional_document(path, kind, title, whole)
   if is_plain_text(path):
     if kind == "daily":
       raise UploadProblem("A daily devotional must be a tab-separated file (a plain text is one chapter).")
@@ -370,7 +373,10 @@ def check_details(kind: str, details: dict) -> dict:
   and "" goes back to the usual "... is in the public domain".
   """
   credit = details.get("credit")
-  cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items()}
+  whole = bool(details.get("whole"))
+  cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items() if key != "whole"}
+  # A PDF or Word document kept whole as one chapter (a book or a devotional by chapter; not daily).
+  cleaned["whole"] = whole and kind != "commentary"
   cleaned["credit"] = None if credit is None or kind == "commentary" else cleaned["credit"]
   if cleaned["credit"] and len(cleaned["credit"]) > 500:
     raise UploadProblem("The credit line can be at most 500 characters.")
@@ -441,7 +447,7 @@ def preview(kind: str, path: Path, details: dict) -> dict:
       ],
     }
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"])
     units = sorted({(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries})
     linked = check_statement_links(parsed, result)
     summary = {
@@ -484,7 +490,7 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
       cleaned["license_url"], entries, introductions, publish_if_new=False,
     )
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"])
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
     save_images(result.images)

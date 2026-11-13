@@ -221,6 +221,32 @@ class BibleManager {
   }
 
   /**
+   * The details of one commentary, devotional or Other book, for its Edit page.
+   *
+   * @return array
+   *   id, the editable details (name, short_name or author, translator, source_name, source_url, license_url
+   *   or credit), is_published and refreshable.
+   */
+  public function getLibraryItem(string $kind, string $itemId): array {
+    return $this->run(['get', '--kind=' . $kind, '--id=' . $itemId], 'manage_library.py')['item'];
+  }
+
+  /**
+   * Changes the details of a commentary, devotional or Other book (not its text). They go on the tool's
+   * input as JSON. The log names the item, not the details.
+   */
+  public function updateLibraryItem(string $kind, string $itemId, array $details): array {
+    $input = json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    $result = $this->run(['update', '--kind=' . $kind, '--id=' . $itemId], 'manage_library.py', $input);
+    $this->logger->notice('@user changed the details of the @kind @id.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@kind' => $kind,
+      '@id' => $itemId,
+    ]);
+    return $result['item'];
+  }
+
+  /**
    * What importing an uploaded commentary or devotional file would do. Saves nothing.
    */
   public function previewLibrary(string $path, array $parameters): array {
@@ -254,6 +280,10 @@ class BibleManager {
     // A devotional's or book's own credit line is always sent, so an empty box brings back the usual line.
     if ($parameters['kind'] !== 'commentary') {
       $arguments[] = '--credit=' . ($parameters['credit'] ?? '');
+      // A PDF or Word document kept whole as one chapter, not cut at its headings.
+      if (!empty($parameters['whole'])) {
+        $arguments[] = '--whole';
+      }
     }
     return $arguments;
   }

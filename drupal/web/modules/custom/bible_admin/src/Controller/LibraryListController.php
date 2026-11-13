@@ -11,7 +11,7 @@ use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * The list of commentaries or of devotionals ({collection}), with Publish, Hide, Delete and Refresh.
+ * The list of commentaries, devotionals or Other books ({collection}), with Publish, Hide, Edit, Delete and Refresh.
  */
 class LibraryListController extends ControllerBase {
 
@@ -82,6 +82,7 @@ class LibraryListController extends ControllerBase {
         $links[] = ['title' => $item['loaded'] ? $this->t('Refresh') : $this->t('Load'), 'url' => $change('refresh')];
       }
       if ($item['loaded']) {
+        $links[] = ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.library_edit', ['collection' => $collection, 'item_id' => $item['id']])];
         $links[] = ['title' => $this->t('Delete'), 'url' => $change('delete')];
       }
 

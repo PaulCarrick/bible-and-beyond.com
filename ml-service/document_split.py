@@ -276,3 +276,14 @@ def split_commentary(document: Document, book_lookup: dict, passage: str = ""):
 
 def whole_document(document: Document) -> Piece | None:
   return piece_of(top_blocks(document.html), document.footnotes)
+
+
+def whole_chapter(document: Document, title: str):
+  """(sections, entries, Split) with the whole document as one chapter named title: its headings stay inside it
+  and nothing is left out as a title page (the Upload form's "Keep it as one chapter")."""
+  split = Split(warnings=list(document.warnings))
+  piece = whole_document(document)
+  if piece is None:
+    split.problems.append("No text was found in the document.")
+    return [], [], split
+  return [(1, title[:200])], [Entry(1, 1, 1, title[:200], "", piece.text, piece.html)], split

@@ -220,3 +220,23 @@ def test_song_words_come_from_a_document_and_typing_new_words_drops_the_formatti
   changed = music.update_details("test-document-song", {"title": "Test Song", "author": "", "lyrics": "New words."})
   assert changed["lyrics_html"] is None
   music.delete("test-document-song")
+
+
+def test_a_document_can_be_kept_whole_as_one_chapter(tmp_path):
+  path = make_docx(tmp_path / "book.docx")
+  shown = preview("book", path, {**BOOK, "whole": True})
+  assert shown["can_import"] and shown["summary"]["units"] == 1 and shown["summary"]["sections"] == ["A Sample Book"]
+  assert shown["details"]["whole"] is True and not any("title page" in warning for warning in shown["warnings"])
+
+  assert import_file("book", path, {**BOOK, "whole": True})["count"] == 1
+  with connect() as connection:
+    title, html = connection.execute(
+      "SELECT unit_title, html FROM devotional_entries WHERE devotional_id = 'test-document-book'"
+    ).fetchone()
+  # Every heading stays inside the one chapter, and so does the short text before the first one.
+  assert title == "A Sample Book" and "Part Two" in html and "Chapter 3" in html and "<table>" in html
+
+  # A daily devotional is still read by its dates; a commentary ignores it.
+  daily = preview("devotional", path, {**BOOK, "id": "test-document-daily", "kind": "daily", "whole": True})
+  assert not daily["can_import"] and daily["details"]["whole"] is True
+  assert preview("commentary", path, {**COMMENTARY, "whole": True})["details"]["whole"] is False

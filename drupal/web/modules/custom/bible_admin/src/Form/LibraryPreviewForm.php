@@ -72,6 +72,9 @@ class LibraryPreviewForm extends FormBase {
     }
     else {
       $rows[] = [$this->t('Days or chapters'), number_format((int) $summary['units'])];
+      if (!empty($preview['details']['whole'])) {
+        $rows[] = [$this->t('Chapters'), $this->t('Kept whole as one chapter (not cut at its headings)')];
+      }
       $rows[] = [$this->t('Readings'), number_format((int) $summary['readings'])];
       $rows[] = [$this->t('Sections'), ['data' => ['#plain_text' => implode(', ', $summary['sections'])]]];
       if (!empty($summary['statement_links'])) {
