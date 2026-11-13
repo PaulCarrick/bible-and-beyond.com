@@ -24,8 +24,8 @@ interface PlayingList {
 // the others, and closing a section stops its song. The page stays mounted, so a song playing goes on while
 // another page is open, except a video, which is paused when the page is left (it could not be seen).
 //
-// A logged-in visitor also gets a checkbox at the right of each song; under the list the ticked songs are
-// saved under a name. Their playlists are in a closed section at the top of the page: choose one and Play
+// A logged-in visitor also gets a checkbox at the right of each song; once some are ticked, a box under the
+// playlists (above the list) saves them under a name. Their playlists are in a closed section at the top of the page: choose one and Play
 // plays its songs one after another, opening each and scrolling to it; a song's title in the list plays the
 // playlist from that song; Reorder moves its songs up and down.
 function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
@@ -210,7 +210,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
       const count = playlist.song_ids.length
       setSaveMessage(
         `${replaced ? 'Replaced' : 'Saved'} the playlist “${playlist.name}” (${count} ${count === 1 ? 'song' : 'songs'}). ` +
-          'It is under Your playlists at the top of the page.',
+          'Open Your playlists above to play it.',
       )
     } catch (error) {
       setSaveErrorMessage((error as Error).message)
@@ -287,7 +287,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setSaveMessage('')
     setSaveErrorMessage('')
     setMessage(
-      `The songs of “${chosenPlaylist.name}” are ticked. Change the ticks in the list, then save at the foot of the page to replace it (its order is kept).`,
+      `The songs of “${chosenPlaylist.name}” are ticked. Change the ticks in the list, then save it again under Your playlists (its order is kept).`,
     )
   }
 
@@ -316,7 +316,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
 
   return (
     <div className="welcome music-page" hidden={isHidden}>
-      <h1>Christian music</h1>
+      <h1>Christian media</h1>
       <p>Hymns and songs to listen to, with their words. Open a song to play it and read its words; only one plays at a time.</p>
       {user && songs.length > 0 && (
         <details
@@ -330,7 +330,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </summary>
           <div className="music-playlists-body">
             {playlists.length === 0 ? (
-              <p>You have no playlists yet. Tick the songs you want in the list below, then give the playlist a name and save it at the foot of the page.</p>
+              <p>You have no playlists yet. Tick the songs you want in the list below; a box to name and save the playlist then appears here.</p>
             ) : (
               <div className="music-playlist-play">
                 <label>
@@ -481,6 +481,49 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </div>
         </details>
       )}
+      {user && tickedSongs.length > 0 && (
+        <section className="music-playlist-save" aria-label="Save the ticked songs as a playlist">
+          <p>
+            {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
+          </p>
+          <label>
+            Playlist name
+            <input
+              type="text"
+              value={playlistName}
+              maxLength={100}
+              onChange={(event) => setPlaylistName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && trimmedName && !isBusy) {
+                  handleSave()
+                }
+              }}
+            />
+          </label>
+          <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
+            {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
+          </button>
+          <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
+            Clear the ticks
+          </button>
+          {nameInUse && (
+            <p className="music-playlist-hint">
+              You already have a playlist called “{trimmedName}”; saving replaces its songs (keeping their order).
+            </p>
+          )}
+        </section>
+      )}
+      {user && (saveMessage || saveErrorMessage) && (
+        <div className="music-save-messages">
+          {saveMessage && <p role="status">{saveMessage}</p>}
+          {saveErrorMessage && (
+            <p className="error" role="alert">
+              {saveErrorMessage}
+            </p>
+          )}
+        </div>
+      )}
+
       {user && songs.length > 0 && (
         <p className="music-tick-heading">Tick songs for a playlist</p>
       )}
@@ -564,49 +607,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </div>
         ))}
       </div>
-
-      {user && tickedSongs.length > 0 && (
-        <section className="music-playlist-save" aria-label="Save the ticked songs as a playlist">
-          <p>
-            {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
-          </p>
-          <label>
-            Playlist name
-            <input
-              type="text"
-              value={playlistName}
-              maxLength={100}
-              onChange={(event) => setPlaylistName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && trimmedName && !isBusy) {
-                  handleSave()
-                }
-              }}
-            />
-          </label>
-          <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
-            {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
-          </button>
-          <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
-            Clear the ticks
-          </button>
-          {nameInUse && (
-            <p className="music-playlist-hint">
-              You already have a playlist called “{trimmedName}”; saving replaces its songs (keeping their order).
-            </p>
-          )}
-        </section>
-      )}
-      {user && (saveMessage || saveErrorMessage) && (
-        <div className="music-save-messages">
-          {saveMessage && <p role="status">{saveMessage}</p>}
-          {saveErrorMessage && (
-            <p className="error" role="alert">
-              {saveErrorMessage}
-            </p>
-          )}
-        </div>
-      )}
 
       <p className="related-note music-licence">
         <MusicLicenceNote />

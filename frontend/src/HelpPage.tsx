@@ -21,7 +21,7 @@ const sections = [
   { id: 'help-commentaries', title: 'Commentaries' },
   { id: 'help-devotionals', title: 'Devotionals and daily emails' },
   { id: 'help-other-books', title: 'Other books' },
-  { id: 'help-music', title: 'Christian music' },
+  { id: 'help-music', title: 'Christian media' },
   { id: 'help-faq', title: 'FAQ: questions about the faith' },
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-notes', title: 'Your notes' },
@@ -156,7 +156,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <h2>Search everything</h2>
         <p>
           <PageLink onNavigate={onNavigate} view="searchAll">Search everything</PageLink> (in the menu, and under the cards on the Welcome page)
-          looks for your words in the Bible, the commentaries, the devotionals, the other books and the Christian music at once. Type a word
+          looks for your words in the Bible, the commentaries, the devotionals, the other books and the Christian media at once. Type a word
           or a phrase, choose whether to match <em>all the words</em>, <em>any word</em> or the <em>exact phrase</em>,
           and press <em>Search</em>.
         </p>
@@ -173,7 +173,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           when the words differ: a search for &ldquo;the beatitudes&rdquo; finds commentary notes and readings on
           &ldquo;Blessed are the poor in spirit&rdquo;, which never use the word. An AI suggests the Bible verses; the
           commentaries, devotionals, other books and songs are those nearest in meaning, closest first. The same
-          choice is on <em>Search the commentaries</em>, <em>Search other books</em> and <em>Search the music</em>. The
+          choice is on <em>Search the commentaries</em>, <em>Search other books</em> and <em>Search the media</em>. The
           AI can be wrong, so read each result where it was found.
         </p>
         <p>
@@ -182,7 +182,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           <a href="https://archive.org" target="_blank" rel="noopener noreferrer">
             Internet Archive
           </a>{' '}
-          (or its recordings, on <em>Search the music</em>) and shows a few lines around your words. Older books open with{' '}
+          (or its recordings, on <em>Search the media</em>) and shows a few lines around your words. Older books open with{' '}
           <em>Read on archive.org</em>. Books still under copyright show <em>Borrow for an hour on archive.org</em>: the
           Internet Archive lends them free, an hour at a time, to anyone signed in on archive.org with a free Archive
           account (set one up there once). The loan is between you and the Internet Archive; this site only finds the
@@ -504,7 +504,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
 
       {hasMusic && (
         <section id="help-music" tabIndex={-1} className="help-section">
-          <h2>Christian music</h2>
+          <h2>Christian media</h2>
           <p>
             <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs by title. Open one (click its
             title) to see its player and its words; press play. Starting another pauses the first, and closing a song stops it. A recording keeps playing while
@@ -516,14 +516,14 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             name="music-open"
             width={1152}
             height={1250}
-            alt="The Christian music page with Amazing Grace closed and It Is Well with My Soul open, showing its video player and its words"
-            caption="Listen to the music: one song open, with its player and its words."
+            alt="The Christian media page with Amazing Grace closed and It Is Well with My Soul open, showing its video player and its words"
+            caption="Listen to the media: one song open, with its player and its words."
           />
           <p>
             <strong>Playlists</strong> (when you are logged in): each song has a checkbox at the right. Tick the songs you
-            want, then at the foot of the page give the playlist a name and press <em>Save as a playlist</em>; the songs
-            play in the order of the page until you reorder them. Your playlists are in <em>Your playlists</em> at the top
-            of the page (click it to open it). Choose one and press <em>Play</em>: each song opens and plays in turn, and
+            want; a box appears near the top of the page, under <em>Your playlists</em>: give the playlist a name and
+            press <em>Save as a playlist</em>. The songs play in the order of the page until you reorder them. Your
+            playlists are in <em>Your playlists</em> at the top of the page (click it to open it). Choose one and press <em>Play</em>: each song opens and plays in turn, and
             the next starts when one ends (on some phones you may need to press play on each song). Click a song in the
             playlist's list to play from that song on. <em>Reorder</em> gives each song up and down arrows; press{' '}
             <em>Save order</em> when it is right. <em>Change this playlist</em> ticks its songs so you can add or take
@@ -531,15 +531,15 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             <em>Delete this playlist</em> removes it. Your playlists are yours alone.
           </p>
           <p>
-            <PageLink onNavigate={onNavigate} view="searchMusic">Search the music</PageLink> finds a song by its title, its author or its
+            <PageLink onNavigate={onNavigate} view="searchMusic">Search the media</PageLink> finds a song by its title, its author or its
             words, and <em>Play this song</em> on a result takes you to it.
           </p>
           <Screenshot
             name="music-search"
             width={1152}
             height={1010}
-            alt="Search the music with the word grace, showing Amazing Grace with grace in bold and Play this song"
-            caption="Searching the music for “grace”."
+            alt="Search the media with the word grace, showing Amazing Grace with grace in bold and Play this song"
+            caption="Searching the media for “grace”."
           />
           <p>
             <MusicLicenceNote />

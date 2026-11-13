@@ -12,7 +12,7 @@ function TutorialPage({ onNavigate }: TutorialPageProps) {
       <h1>Tutorial video</h1>
       <p>
         A ten-minute tour of Bible and Beyond: reading and searching the Bible, the commentaries, the devotionals,
-        the other books and the music, searching the Internet Archive, the FAQ, and what a free account adds: notes,
+        the other books and the media, searching the Internet Archive, the FAQ, and what a free account adds: notes,
         daily emails, playlists, and on request AI search, your own questions and Conversations. Press play to start;
         the button at the bottom right shows it full screen, and CC turns the captions on or off.
       </p>

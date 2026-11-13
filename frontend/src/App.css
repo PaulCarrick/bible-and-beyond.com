@@ -2240,11 +2240,11 @@ select:disabled {
   margin-top: 0.25rem;
 }
 
-/* Saving the ticked songs, under the list. */
+/* Saving the ticked songs, just under the playlists at the top. */
 .music-playlist-save {
-  margin-top: 1.5rem;
-  padding-top: 0.5rem;
-  border-top: 2px solid var(--border);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 .music-save-messages {

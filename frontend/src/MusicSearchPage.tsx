@@ -86,7 +86,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
 
   return (
     <div className="welcome book-search" hidden={isHidden}>
-      <h1>Search the music</h1>
+      <h1>Search the media</h1>
       <p>
         Find a song by its title, its author or its words. Words are found in any form (<em>sing</em> also finds{' '}
         <em>singing</em>); put a phrase in quotation marks to keep it together.
@@ -105,7 +105,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
             placeholder={effectiveMatchMode === 'ai' ? 'Example: songs about heaven' : 'Example "amazing grace" or soul'}
           />
           <button type="submit" className="primary-button" disabled={query.trim() === '' || isSearching}>
-            {effectiveMatchMode === 'ai' ? 'Find songs with AI' : effectiveMatchMode === 'archive' ? 'Search the Internet Archive' : 'Search the music'}
+            {effectiveMatchMode === 'ai' ? 'Find songs with AI' : effectiveMatchMode === 'archive' ? 'Search the Internet Archive' : 'Search the media'}
           </button>
         </div>
         <div className="book-search-options">

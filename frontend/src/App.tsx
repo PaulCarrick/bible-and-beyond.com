@@ -304,10 +304,10 @@ function App() {
     ...(songs.length > 0
       ? [
           {
-            heading: 'Christian music',
+            heading: 'Christian media',
             entries: [
-              { view: 'music' as View, label: 'Listen to the music' },
-              { view: 'searchMusic' as View, label: 'Search the music' },
+              { view: 'music' as View, label: 'Listen to the media' },
+              { view: 'searchMusic' as View, label: 'Search the media' },
             ],
           },
         ]
