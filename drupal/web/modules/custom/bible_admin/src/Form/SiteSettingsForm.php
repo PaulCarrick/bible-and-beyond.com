@@ -171,9 +171,9 @@ class SiteSettingsForm extends FormBase {
       $form['mail']['smtp_host'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Email server (SMTP host)'),
+        '#description' => $this->t('Leave this and the two contact addresses empty if this site sends no email (a local copy, say); the site then sends none.'),
         '#default_value' => $mail['smtp_host'],
         '#maxlength' => 253,
-        '#required' => TRUE,
       ];
       $form['mail']['smtp_port'] = [
         '#type' => 'number',
@@ -226,14 +226,12 @@ class SiteSettingsForm extends FormBase {
         '#title' => $this->t('Contact "Email From:"'),
         '#default_value' => $mail['from_address'],
         '#maxlength' => 254,
-        '#required' => TRUE,
       ];
       $form['mail']['to_address'] = [
         '#type' => 'email',
         '#title' => $this->t('Contact email to'),
         '#default_value' => $mail['to_address'],
         '#maxlength' => 254,
-        '#required' => TRUE,
       ];
       $form['mail']['subject'] = [
         '#type' => 'textfield',
@@ -304,9 +302,10 @@ class SiteSettingsForm extends FormBase {
       $form_state->setErrorByName('copyright_text', $this->t('The copyright line must be one line of plain text.'));
     }
 
+    // The email server may be left empty (a site that sends no email); what is typed must be valid.
     $host = trim((string) $form_state->getValue('smtp_host'));
-    if (!preg_match(self::HOST_PATTERN, $host)) {
-      $form_state->setErrorByName('smtp_host', $this->t('The email server must be a host name such as mail.example.com.'));
+    if ($host !== '' && !preg_match(self::HOST_PATTERN, $host)) {
+      $form_state->setErrorByName('smtp_host', $this->t('The email server must be a host name such as mail.example.com, or empty.'));
     }
     $port = $form_state->getValue('smtp_port');
     if (!is_numeric($port) || (string) (int) $port !== trim((string) $port) || (int) $port < 1 || (int) $port > 65535) {
@@ -320,8 +319,9 @@ class SiteSettingsForm extends FormBase {
       $form_state->setErrorByName('smtp_authentication', $this->t('Choose one of the ways to sign in that are listed.'));
     }
     foreach (['from_address' => $this->t('Contact "Email From:"'), 'to_address' => $this->t('Contact email to')] as $key => $label) {
-      if (!$this->emailValidator->isValid(trim((string) $form_state->getValue($key)))) {
-        $form_state->setErrorByName($key, $this->t('@label must be an email address.', ['@label' => $label]));
+      $address = trim((string) $form_state->getValue($key));
+      if ($address !== '' && !$this->emailValidator->isValid($address)) {
+        $form_state->setErrorByName($key, $this->t('@label must be an email address, or empty.', ['@label' => $label]));
       }
     }
     $subject = trim((string) $form_state->getValue('subject'));
