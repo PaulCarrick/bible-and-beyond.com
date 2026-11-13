@@ -124,9 +124,12 @@ class LibraryListController extends ControllerBase {
         $this->t('Source'),
         $this->t($about['counted']),
         $this->t('Status'),
-        $this->t('Operations'),
+        ['data' => $this->t('Operations'), 'data-no-sort' => 'true'],
       ],
       '#rows' => $rows,
+      // Click a header to sort by it (js/sortable-table.js): again to reverse, a third time to clear.
+      '#attributes' => ['class' => ['bible-admin-sortable']],
+      '#attached' => ['library' => ['bible_admin/sortable_table']],
       '#empty' => $this->t('There are none.'),
     ];
 

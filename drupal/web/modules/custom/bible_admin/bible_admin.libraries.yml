@@ -13,3 +13,13 @@ backup:
     - core/drupal
     - core/drupalSettings
     - core/once
+
+sortable_table:
+  js:
+    js/sortable-table.js: {}
+  css:
+    component:
+      css/sortable-table.css: {}
+  dependencies:
+    - core/drupal
+    - core/once

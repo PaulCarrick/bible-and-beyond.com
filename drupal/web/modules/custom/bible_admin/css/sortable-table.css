@@ -1,0 +1,25 @@
+/* The headers of a sortable admin list (js/sortable-table.js): each is a button that looks like the
+   header text, with a mark after it (↕ not sorted, ▲ A to Z, ▼ Z to A). */
+.bible-admin-sort-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.bible-admin-sort-button:hover,
+.bible-admin-sort-button:focus-visible {
+  text-decoration: underline;
+}
+
+.bible-admin-sort-mark {
+  opacity: 0.45;
+  font-size: 0.85em;
+}
+
+.bible-admin-sort-mark.is-active {
+  opacity: 1;
+}
