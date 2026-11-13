@@ -1,10 +1,11 @@
-import { useContext, useId, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AccountContext } from './AccountContext'
 import ArchiveResults from './ArchiveResults'
-import { searchMusic } from './api'
-import type { MusicSearchResponse } from './api'
+import { fetchPlaylists, searchMusic } from './api'
+import type { MusicSearchResponse, Playlist } from './api'
 import { renderExcerpt } from './highlight'
+import PlaylistSaveBox from './PlaylistSaveBox'
 
 interface MusicSearchPageProps {
   isHidden: boolean
@@ -26,6 +27,10 @@ const perPage = 25
 // Search the titles, authors and words of the Christian music: words in any form, all of them, any of them or
 // an exact phrase. Each result has the words found in bold and a link to the song. The page stays mounted, so
 // the search and its results are kept while another page is open.
+//
+// A logged-in visitor also gets a checkbox at the right of each result, as on the music page, and the box that
+// saves the ticked songs as a playlist (PlaylistSaveBox). The ticks stay through other pages of results and
+// other searches, and a new playlist plays the songs in the order they were ticked.
 function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
@@ -42,6 +47,36 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   const effectiveMatchMode = matchMode === 'ai' && !canUseAi ? 'all' : matchMode
   // The Internet Archive search shown (ArchiveResults does the searching), with a new number for each search.
   const [archiveSearch, setArchiveSearch] = useState<{ query: string; id: number } | null>(null)
+  // Songs ticked for a playlist, in the order they were ticked, and the visitor's playlists (for the save box).
+  const [tickedIds, setTickedIds] = useState<string[]>([])
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [playlistName, setPlaylistName] = useState('')
+  const userId = user?.id ?? null
+
+  // Nothing of the last visitor's stays after logging out or in as someone else.
+  const [shownUserId, setShownUserId] = useState(userId)
+  if (shownUserId !== userId) {
+    setShownUserId(userId)
+    setTickedIds([])
+    setPlaylists([])
+    setPlaylistName('')
+  }
+
+  // The visitor's playlists, each time the page is opened (one may have been saved on the music page).
+  useEffect(() => {
+    if (userId === null || isHidden) {
+      return
+    }
+    const request = new AbortController()
+    fetchPlaylists(request.signal)
+      .then(setPlaylists)
+      .catch(() => undefined)
+    return () => request.abort()
+  }, [userId, isHidden])
+
+  function toggleTick(songId: string, isTicked: boolean) {
+    setTickedIds((current) => (isTicked ? [...current.filter((id) => id !== songId), songId] : current.filter((id) => id !== songId)))
+  }
 
   async function run(search: Search) {
     controller.current?.abort()
@@ -133,6 +168,20 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
         )}
       </form>
 
+      {user && (
+        <PlaylistSaveBox
+          tickedIds={tickedIds}
+          playlists={playlists}
+          name={playlistName}
+          onNameChange={setPlaylistName}
+          onSaved={(playlist) => {
+            setPlaylists((current) => [...current.filter((entry) => entry.id !== playlist.id), playlist])
+            setTickedIds([])
+          }}
+          onClear={() => setTickedIds([])}
+          afterSaving="Play it from Your playlists on the Listen to the media page."
+        />
+      )}
       {archiveSearch && <ArchiveResults query={archiveSearch.query} kind="audio" searchId={archiveSearch.id} />}
       <div>
         {errorMessage && <p className="error">{errorMessage}</p>}
@@ -142,18 +191,31 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
             <p className="book-search-count">
               {response.total === 0 ? 'Nothing was found.' : `${response.total.toLocaleString()} ${response.total === 1 ? 'song' : 'songs'} found`}
             </p>
+            {user && response.results.length > 0 && <p className="music-tick-heading">Tick songs for a playlist</p>}
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
-                <li key={result.id} className="result book-result">
-                  <div className="book-result-place">
-                    <strong>{result.title}</strong>
-                    {result.author ? ` · ${result.author}` : ''}
-                    {result.kind === 'video' ? ' · video' : ''}
+                <li key={result.id} className={user ? 'result book-result music-search-result' : 'result book-result'}>
+                  <div className="music-search-result-body">
+                    <div className="book-result-place">
+                      <strong>{result.title}</strong>
+                      {result.author ? ` · ${result.author}` : ''}
+                      {result.kind === 'video' ? ' · video' : ''}
+                    </div>
+                    <p className="book-result-text">{renderExcerpt(result.text)}</p>
+                    <button type="button" className="link-button" onClick={() => onOpen(result.id)}>
+                      Play this song
+                    </button>
                   </div>
-                  <p className="book-result-text">{renderExcerpt(result.text)}</p>
-                  <button type="button" className="link-button" onClick={() => onOpen(result.id)}>
-                    Play this song
-                  </button>
+                  {user && (
+                    <input
+                      type="checkbox"
+                      className="music-tick"
+                      checked={tickedIds.includes(result.id)}
+                      onChange={(event) => toggleTick(result.id, event.target.checked)}
+                      aria-label={`Add ${result.title} to a playlist`}
+                      title="Tick to add this song to a playlist"
+                    />
+                  )}
                 </li>
               ))}
             </ul>

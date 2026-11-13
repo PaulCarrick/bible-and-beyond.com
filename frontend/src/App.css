@@ -2207,6 +2207,24 @@ select:disabled {
   font-size: 0.9rem;
 }
 
+/* The music search for a logged-in visitor: each result with its checkbox at the right edge, as on the music
+   page (MusicSearchPage.tsx). */
+.result.book-result.music-search-result {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.music-search-result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.music-search-result .music-tick {
+  margin-top: 0.15rem;
+}
+
 /* The visitor's playlists: a closed section at the top of the music page. */
 .music-playlists {
   margin-top: 1.25rem;

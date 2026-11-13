@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { deletePlaylist, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist } from './api'
+import PlaylistSaveBox from './PlaylistSaveBox'
 import type { MusicSong, Playlist } from './api'
 import { AccountContext } from './AccountContext'
 import MusicLicenceNote from './MusicLicenceNote'
@@ -43,8 +44,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   // What happened at the top (the playlists) and at the foot (saving the ticked songs).
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
-  const [saveMessage, setSaveMessage] = useState('')
-  const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [playing, setPlaying] = useState<PlayingList | null>(null)
   // The playlist being played, for the players' own events (which see the state of the render they were made in).
   const playingReference = useRef<PlayingList | null>(null)
@@ -81,8 +80,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setIsConfirmingDelete(false)
     setMessage('')
     setErrorMessage('')
-    setSaveMessage('')
-    setSaveErrorMessage('')
     setPlaying(null)
   }
 
@@ -91,16 +88,17 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     playingReference.current = playing
   }, [playing])
 
-  // The visitor's playlists, whenever someone logs in.
+  // The visitor's playlists, whenever someone logs in and each time the page is opened (one may have been
+  // saved from the music search meanwhile). The playlist chosen stays chosen while it exists.
   useEffect(() => {
-    if (userId === null) {
+    if (userId === null || isHidden) {
       return
     }
     const controller = new AbortController()
     fetchPlaylists(controller.signal)
       .then((loaded) => {
         setPlaylists(loaded)
-        setChosenPlaylistId(loaded[0]?.id ?? null)
+        setChosenPlaylistId((current) => (loaded.some((playlist) => playlist.id === current) ? current : loaded[0]?.id ?? null))
       })
       .catch((error: Error) => {
         if (error.name !== 'AbortError') {
@@ -108,7 +106,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
         }
       })
     return () => controller.abort()
-  }, [userId])
+  }, [userId, isHidden])
 
   // Changes the playlist being played at once, for an event that comes before the next render.
   function changePlaying(next: PlayingList | null) {
@@ -166,8 +164,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   // Only the songs on the page now (a song hidden since the list was loaded is skipped).
   const chosenSongs = chosenPlaylist ? chosenPlaylist.song_ids.filter((id) => songsById.has(id)) : []
   const tickedSongs = songs.filter((song) => tickedIds.has(song.id))
-  const trimmedName = playlistName.trim().replace(/\s+/g, ' ')
-  const nameInUse = playlists.some((playlist) => playlist.name.toLowerCase() === trimmedName.toLowerCase())
 
   function toggleTick(songId: string, isTicked: boolean) {
     setTickedIds((current) => {
@@ -189,34 +185,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
       ),
     )
     setChosenPlaylistId(playlist.id)
-  }
-
-  // Saves the ticked songs. Replacing a playlist keeps the order of the songs it already had; songs newly
-  // ticked go at the end, in the order of the page.
-  async function handleSave() {
-    setIsBusy(true)
-    setSaveMessage('')
-    setSaveErrorMessage('')
-    const existing = playlists.find((playlist) => playlist.name.toLowerCase() === trimmedName.toLowerCase())
-    const kept = existing ? existing.song_ids.filter((id) => tickedIds.has(id) && songsById.has(id)) : []
-    const added = tickedSongs.map((song) => song.id).filter((id) => !kept.includes(id))
-    try {
-      const { playlist, replaced } = await savePlaylist(trimmedName, [...kept, ...added])
-      keepPlaylist(playlist)
-      setReorderIds(null)
-      setMessage('')
-      setTickedIds(new Set())
-      setPlaylistName('')
-      const count = playlist.song_ids.length
-      setSaveMessage(
-        `${replaced ? 'Replaced' : 'Saved'} the playlist “${playlist.name}” (${count} ${count === 1 ? 'song' : 'songs'}). ` +
-          'Open Your playlists above to play it.',
-      )
-    } catch (error) {
-      setSaveErrorMessage((error as Error).message)
-    } finally {
-      setIsBusy(false)
-    }
   }
 
   // Plays the chosen playlist from one of its songs (the first unless said) to the end.
@@ -284,8 +252,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     }
     setTickedIds(new Set(chosenSongs))
     setPlaylistName(chosenPlaylist.name)
-    setSaveMessage('')
-    setSaveErrorMessage('')
     setMessage(
       `The songs of “${chosenPlaylist.name}” are ticked. Change the ticks in the list, then save it again under Your playlists (its order is kept).`,
     )
@@ -481,47 +447,21 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </div>
         </details>
       )}
-      {user && tickedSongs.length > 0 && (
-        <section className="music-playlist-save" aria-label="Save the ticked songs as a playlist">
-          <p>
-            {tickedSongs.length} {tickedSongs.length === 1 ? 'song' : 'songs'} ticked.
-          </p>
-          <label>
-            Playlist name
-            <input
-              type="text"
-              value={playlistName}
-              maxLength={100}
-              onChange={(event) => setPlaylistName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && trimmedName && !isBusy) {
-                  handleSave()
-                }
-              }}
-            />
-          </label>
-          <button type="button" className="primary-button" disabled={isBusy || !trimmedName} onClick={handleSave}>
-            {nameInUse ? 'Replace the playlist' : 'Save as a playlist'}
-          </button>
-          <button type="button" className="secondary-button" onClick={() => setTickedIds(new Set())}>
-            Clear the ticks
-          </button>
-          {nameInUse && (
-            <p className="music-playlist-hint">
-              You already have a playlist called “{trimmedName}”; saving replaces its songs (keeping their order).
-            </p>
-          )}
-        </section>
-      )}
-      {user && (saveMessage || saveErrorMessage) && (
-        <div className="music-save-messages">
-          {saveMessage && <p role="status">{saveMessage}</p>}
-          {saveErrorMessage && (
-            <p className="error" role="alert">
-              {saveErrorMessage}
-            </p>
-          )}
-        </div>
+      {user && (
+        <PlaylistSaveBox
+          tickedIds={tickedSongs.map((song) => song.id)}
+          playlists={playlists}
+          name={playlistName}
+          onNameChange={setPlaylistName}
+          onSaved={(playlist) => {
+            keepPlaylist(playlist)
+            setReorderIds(null)
+            setMessage('')
+            setTickedIds(new Set())
+          }}
+          onClear={() => setTickedIds(new Set())}
+          afterSaving="Open Your playlists above to play it."
+        />
       )}
 
       {user && songs.length > 0 && (
