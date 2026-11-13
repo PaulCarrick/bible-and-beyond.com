@@ -256,6 +256,25 @@ class BibleManager {
   }
 
   /**
+   * Imports one file of a multiple upload (the Bulk upload area on the Devotionals and Other books pages): the
+   * file waits in the private upload folder, under its own extension, only while the tool reads it.
+   */
+  public function importLibraryUpload(UploadedFile $file, array $parameters): array {
+    $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+    if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+      throw new BibleManagerException('The upload could not be saved.');
+    }
+    try {
+      $extension = strtolower($file->getClientOriginalExtension());
+      $file->move($directory, 'upload.' . $extension);
+      return $this->importLibrary($directory . '/upload.' . $extension, $parameters);
+    }
+    finally {
+      $this->fileSystem->deleteRecursive($directory);
+    }
+  }
+
+  /**
    * Imports an uploaded commentary or devotional file. A new one stays hidden until published.
    */
   public function importLibrary(string $path, array $parameters): array {

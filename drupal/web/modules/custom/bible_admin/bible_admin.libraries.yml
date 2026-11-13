@@ -23,3 +23,13 @@ sortable_table:
   dependencies:
     - core/drupal
     - core/once
+
+bulk_upload:
+  js:
+    js/bulk-upload.js: {}
+  css:
+    component:
+      css/bulk-upload.css: {}
+  dependencies:
+    - core/drupal
+    - core/once

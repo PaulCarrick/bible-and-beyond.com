@@ -203,6 +203,19 @@ bible_admin.faq_note_delete:
     note_id: '\d+'
 
 # The Christian music section: songs with an MP3 or MP4 file, open to whoever may administer the Bibles.
+# Several files at once (the drop area on the Christian music, Devotionals and Other books pages,
+# js/bulk-upload.js): the page sends one file a time to this route, which saves it as a new item named after
+# the file. POST only, with the CSRF header.
+bible_admin.bulk_upload:
+  path: '/admin/{collection}/bulk-upload'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\BulkUploadController::upload'
+  methods: [POST]
+  requirements:
+    _permission: 'administer bibles'
+    _csrf_request_header_token: 'TRUE'
+    collection: 'music|devotionals|books'
+
 bible_admin.music:
   path: '/admin/music'
   defaults:

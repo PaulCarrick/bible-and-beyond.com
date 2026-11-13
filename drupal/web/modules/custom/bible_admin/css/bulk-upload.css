@@ -1,0 +1,124 @@
+/* Uploading several files at once (js/bulk-upload.js) on the Christian music, Devotionals and Other books
+   pages: a drop area, the options for all the files, the buttons, and one line for each file. */
+.bible-admin-bulk-upload {
+  margin: 1rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #d3d4d9;
+  border-radius: 8px;
+}
+
+.bible-admin-bulk-upload h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.bible-admin-bulk-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  border: 2px dashed #9ea3ad;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.bible-admin-bulk-zone.is-over {
+  border-color: #1a6ebd;
+  background: rgba(26, 110, 189, 0.06);
+}
+
+.bible-admin-bulk-choose {
+  color: #1a6ebd;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bible-admin-bulk-chosen {
+  font-weight: 600;
+}
+
+.bible-admin-bulk-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.bible-admin-bulk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 16rem;
+}
+
+.bible-admin-bulk-field label {
+  font-weight: 600;
+}
+
+.bible-admin-bulk-field input,
+.bible-admin-bulk-field select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #9ea3ad;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.bible-admin-bulk-hint {
+  font-size: 0.85rem;
+  color: #55565b;
+}
+
+.bible-admin-bulk-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-basis: 100%;
+}
+
+.bible-admin-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.bible-admin-bulk-message {
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+.bible-admin-bulk-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.5rem;
+}
+
+.bible-admin-bulk-list li {
+  padding: 0.2rem 0;
+}
+
+.bible-admin-bulk-name {
+  font-weight: 600;
+}
+
+.bible-admin-bulk-size {
+  margin: 0 0.75rem;
+  color: #55565b;
+}
+
+.bible-admin-bulk-list li.is-done .bible-admin-bulk-status {
+  color: #2e7d32;
+}
+
+.bible-admin-bulk-list li.is-skipped .bible-admin-bulk-status {
+  color: #8a6d00;
+}
+
+.bible-admin-bulk-list li.is-failed .bible-admin-bulk-status {
+  color: #b5300f;
+  font-weight: 600;
+}
+
+/* The admin theme's .button sets display, which would show a button marked hidden. */
+.bible-admin-bulk-upload [hidden] {
+  display: none !important;
+}

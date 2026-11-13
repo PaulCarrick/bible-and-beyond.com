@@ -29,6 +29,8 @@ class MusicListController extends ControllerBase {
         '#tag' => 'p',
         '#value' => $this->t('The songs of the Christian music section: an MP3 (sound) or MP4 (video) file each, with its title, author and words. A new song is hidden until you publish it; the section appears on the site once a song is published. Only upload recordings that are in the public domain or that you have permission to publish. The files are kept in the music folder set on the Site settings screen.'),
       ],
+      // Several files at once, each a new song named after its file (js/bulk-upload.js).
+      'bulk' => BulkUploadController::area('music'),
     ];
 
     try {

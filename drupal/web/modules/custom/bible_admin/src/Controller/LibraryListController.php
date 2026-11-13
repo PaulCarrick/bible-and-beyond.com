@@ -133,6 +133,17 @@ class LibraryListController extends ControllerBase {
       '#empty' => $this->t('There are none.'),
     ];
 
+    // Several files at once (devotionals and books). Not while a refresh runs: the page then reloads itself
+    // every 15 seconds, which would cut off an upload.
+    if ($collection !== 'commentaries') {
+      $build['bulk'] = $isRefreshing
+        ? ['#markup' => '<p>' . $this->t('Uploading several files at once is possible again when the refresh has finished.') . '</p>']
+        : BulkUploadController::area($collection);
+      $build['bulk']['#weight'] = -5;
+      $build['intro']['#weight'] = -10;
+      $build['upload']['#weight'] = -8;
+    }
+
     // While a refresh runs, the page reloads itself every 15 seconds to show how it is going.
     if ($isRefreshing) {
       $build['#attached']['html_head'][] = [
