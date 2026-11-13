@@ -165,7 +165,7 @@ if [ "$drift" = 0 ]; then
   echo "  all installed config files match the repository"
 else
   echo "  Install them from your Mac with:"
-  echo "    ssh -t bible-and-beyond sudo ~/bible-and-beyond.com/deploy/install-system-config.sh"
+  echo "    ssh -t bible-and-beyond 'sudo ~/bible-and-beyond.com/deploy/install-system-config.sh'"
 fi
 
 echo "== Health"

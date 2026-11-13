@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the system packages, and the nginx and PHP-FPM config files, from this repository. Run ON the server with sudo:
 #
-#   ssh -t bible-and-beyond sudo ~/bible-and-beyond.com/deploy/install-system-config.sh
+#   ssh -t bible-and-beyond 'sudo ~/bible-and-beyond.com/deploy/install-system-config.sh'
 #
 # Only files that differ are replaced. The new configuration is tested before it goes live, and
 # the old files are put back if the test fails. Certificates and keys are never touched.
