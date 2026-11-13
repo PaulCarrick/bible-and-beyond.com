@@ -31,7 +31,7 @@ AUTHOR_LIMIT = 200
 LYRICS_LIMIT = 100_000
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
 MEDIA_TYPES = {".mp3": "audio/mpeg", ".mp4": "video/mp4"}
-MAX_WORDS_BYTES = 20 * 1024 * 1024
+MAX_WORDS_BYTES = 1024 * 1024 * 1024
 # The words file: a PDF or a picture (no SVG: it can carry scripts). .jpeg is kept as .jpg.
 WORDS_TYPES = {
   ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",

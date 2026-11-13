@@ -46,7 +46,7 @@ from scripture_references import verse_limits
 from search import connect
 from document_import import DOCUMENT_TYPES, DocumentProblem, convert, save_images
 
-MAX_FILE_BYTES = 200 * 1024 * 1024
+MAX_FILE_BYTES = 1024 * 1024 * 1024  # 1 GB, as the admin forms allow
 MAX_TEXT_CHARACTERS = 1_000_000
 MAX_PROBLEMS_SHOWN = 20
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")

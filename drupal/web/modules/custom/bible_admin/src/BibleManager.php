@@ -23,14 +23,16 @@ use Symfony\Component\Process\Process;
 class BibleManager {
 
   /**
-   * Largest upload, in bytes. A Bible text file is about 4.5 MB.
+   * Largest upload of a text file (a Bible, or a commentary, devotional or book as text), in bytes: 1 GB, like
+   * the songs and the documents (the owner's choice, 2026-11-13; PHP and nginx allow as much).
    */
-  public const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+  public const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 
   /**
-   * Largest PDF or Word document for a commentary, devotional or book (document_import.MAX_DOCUMENT_BYTES).
+   * Largest PDF, Word document or EPUB for a commentary, devotional, book or a song's words
+   * (document_import.MAX_DOCUMENT_BYTES): 1 GB.
    */
-  public const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+  public const MAX_DOCUMENT_BYTES = 1024 * 1024 * 1024;
 
   /**
    * The kinds of upload file kept, by extension: text (.txt, .tsv), PDF and Word.

@@ -40,7 +40,7 @@ KINDLE_ADVICE = (
   "free one), convert it to EPUB with the free Calibre app and upload the .epub. Books bought from Amazon are "
   "locked and cannot be used."
 )
-MAX_DOCUMENT_BYTES = 50 * 1024 * 1024
+MAX_DOCUMENT_BYTES = 1024 * 1024 * 1024  # 1 GB, as the admin forms allow
 MAX_PAGES = 2000
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 OCR_RESOLUTION = 300

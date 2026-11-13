@@ -105,7 +105,7 @@ class MusicForm extends FormBase {
       '#title' => $hasWordsFile ? $this->t('A new words file (optional)') : $this->t('The words as a PDF or picture (optional)'),
       '#description' => ($hasWordsFile
         ? $this->t('This song shows its words from a @kind. Leave this empty to keep it, or choose another to replace it.', ['@kind' => $song['words_kind'] === 'pdf' ? 'PDF' : $this->t('picture')])
-        : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 20 MB. When there is one, the music page shows it in place of the words typed above.')),
+        : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 1 GB. When there is one, the music page shows it in place of the words typed above.')),
       '#attributes' => ['accept' => '.pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif'],
     ];
     if ($hasWordsFile) {
@@ -152,8 +152,8 @@ class MusicForm extends FormBase {
       elseif (!in_array(strtolower($words->getClientOriginalExtension()), ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif'], TRUE)) {
         $form_state->setErrorByName('words_file', $this->t('The words file must be a PDF or a picture (.png, .jpg, .webp or .gif).'));
       }
-      elseif ($words->getSize() > 20 * 1048576) {
-        $form_state->setErrorByName('words_file', $this->t('The words file is larger than 20 MB.'));
+      elseif ($words->getSize() > BibleManager::MAX_DOCUMENT_BYTES) {
+        $form_state->setErrorByName('words_file', $this->t('The words file is larger than 1 GB.'));
       }
     }
     $document = $this->uploadedFile('words_document');
