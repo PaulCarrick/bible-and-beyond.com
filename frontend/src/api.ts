@@ -24,6 +24,7 @@ import type {
   NewAccount,
   Note,
   NotePage,
+  ConversationBoard,
   ConversationPage,
   ConversationPost,
   ConversationReply,
@@ -649,13 +650,14 @@ export async function deleteNote(id: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/notes/${id}`, { method: 'DELETE', credentials: 'include' }))
 }
 
-// Conversations. Every call needs a logged-in visitor whose account an administrator allowed them.
-// One page of every member's posts, newest first; query keeps those with every word, mine the visitor's own.
+// Conversations and the Prayer Wall. Anyone may read; writing needs a logged-in visitor whose account an
+// administrator allowed them (use_conversations).
+// One page of every member's posts on one board, newest first; query keeps those with every word, mine the visitor's own.
 export async function fetchConversationPage(
-  options: { query: string; onlyMine: boolean; page: number; perPage: number },
+  options: { board: ConversationBoard; query: string; onlyMine: boolean; page: number; perPage: number },
   signal: AbortSignal,
 ): Promise<ConversationPage> {
-  const queryString = new URLSearchParams({ page: String(options.page), per_page: String(options.perPage) })
+  const queryString = new URLSearchParams({ board: options.board, page: String(options.page), per_page: String(options.perPage) })
   if (options.query.trim() !== '') {
     queryString.set('query', options.query.trim())
   }
@@ -666,13 +668,18 @@ export async function fetchConversationPage(
   return readJson<ConversationPage>(response)
 }
 
-// Adds a post (no id) or changes one of the visitor's own.
-export async function saveConversationPost(id: number | null, title: string, body: string): Promise<ConversationPost> {
+// Adds a post to a board (no id) or changes one of the visitor's own (a post stays on its board).
+export async function saveConversationPost(
+  id: number | null,
+  title: string,
+  body: string,
+  board: ConversationBoard = 'conversations',
+): Promise<ConversationPost> {
   const response = await fetch(`${mlServiceUrl}/conversations${id === null ? '' : `/${id}`}`, {
     method: id === null ? 'POST' : 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, body }),
+    body: JSON.stringify({ title, body, board }),
   })
   return (await readJson<{ post: ConversationPost }>(response)).post
 }

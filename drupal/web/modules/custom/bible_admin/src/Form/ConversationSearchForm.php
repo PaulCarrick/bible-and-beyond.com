@@ -9,8 +9,8 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
 /**
- * The search box above the Conversations posts: keeps the posts with every word in the title, the text or
- * the author's name or address.
+ * The search box above the Conversations and Prayer Wall posts: keeps the posts with every word in the title,
+ * the text or the author's name or address, and those of one board when one is chosen.
  */
 class ConversationSearchForm extends FormBase {
 
@@ -18,8 +18,18 @@ class ConversationSearchForm extends FormBase {
     return 'bible_admin_conversation_search';
   }
 
-  public function buildForm(array $form, FormStateInterface $form_state, string $query = ''): array {
+  public function buildForm(array $form, FormStateInterface $form_state, string $query = '', string $board = ''): array {
     $form['#attributes']['class'][] = 'container-inline';
+    $form['board'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Show'),
+      '#options' => [
+        '' => $this->t('Both'),
+        'conversations' => $this->t('Conversations'),
+        'prayer' => $this->t('Prayer Wall'),
+      ],
+      '#default_value' => $board,
+    ];
     $form['query'] = [
       '#type' => 'search',
       '#title' => $this->t('Title, text, author, address or reply contains'),
@@ -29,7 +39,7 @@ class ConversationSearchForm extends FormBase {
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['search'] = ['#type' => 'submit', '#value' => $this->t('Search')];
-    if ($query !== '') {
+    if ($query !== '' || $board !== '') {
       $form['actions']['clear'] = [
         '#type' => 'link',
         '#title' => $this->t('Show all'),
@@ -40,8 +50,11 @@ class ConversationSearchForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $query = trim((string) $form_state->getValue('query'));
-    $form_state->setRedirect('bible_admin.conversations', [], $query === '' ? [] : ['query' => ['query' => $query]]);
+    $parameters = array_filter([
+      'query' => trim((string) $form_state->getValue('query')),
+      'board' => (string) $form_state->getValue('board'),
+    ], fn ($value) => $value !== '');
+    $form_state->setRedirect('bible_admin.conversations', [], $parameters === [] ? [] : ['query' => $parameters]);
   }
 
 }

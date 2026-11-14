@@ -34,13 +34,13 @@ function formatDate(isoTime: string) {
 }
 
 // The Conversations card at the foot of the welcome page, for every visitor (anyone may read): what it is, and the
-// start of the latest post (its title, author, date and first paragraph) when there is one.
+// start of the latest Conversations post (never a Prayer Wall one; that board has only a button here) (its title, author, date and first paragraph) when there is one.
 function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps) {
   const [latest, setLatest] = useState<ConversationPost | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchConversationPage({ query: '', onlyMine: false, page: 1, perPage: 1 }, controller.signal)
+    fetchConversationPage({ board: 'conversations', query: '', onlyMine: false, page: 1, perPage: 1 }, controller.signal)
       .then((loaded) => setLatest(loaded.posts[0] ?? null))
       // The card still works without the latest post; nothing to show if it cannot be loaded.
       .catch(() => undefined)
@@ -50,7 +50,10 @@ function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps)
   return (
     <section className="welcome-card welcome-conversations">
       <h3>Conversations</h3>
-      <p>Read and search what members of this site have written. Members the site has invited can write posts and reply.</p>
+      <p>
+        Read and search what members of this site have written, and their prayer requests on the Prayer Wall. Members the site has
+        invited can write posts and reply.
+      </p>
       {latest && (
         <div className="welcome-latest-post">
           <p className="welcome-latest-label">Latest post</p>
@@ -64,6 +67,9 @@ function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps)
       <div className="welcome-buttons">
         <button type="button" className="primary-button" onClick={() => onNavigate('conversations')}>
           {latest ? 'Read the conversations' : 'Conversations'}
+        </button>
+        <button type="button" className="secondary-button" onClick={() => onNavigate('prayerWall')}>
+          Prayer Wall
         </button>
       </div>
     </section>

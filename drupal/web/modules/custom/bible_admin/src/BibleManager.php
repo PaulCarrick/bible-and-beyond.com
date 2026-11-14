@@ -520,8 +520,12 @@ class BibleManager {
    *   reply_count), total,
    *   page and per_page.
    */
-  public function listConversationPosts(string $query, int $page): array {
-    return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_conversations.py');
+  public function listConversationPosts(string $query, int $page, string $board = ''): array {
+    $arguments = ['list', '--query=' . $query, '--page=' . $page];
+    if (in_array($board, ['conversations', 'prayer'], TRUE)) {
+      $arguments[] = '--board=' . $board;
+    }
+    return $this->run($arguments, 'manage_conversations.py');
   }
 
   /**

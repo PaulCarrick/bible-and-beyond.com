@@ -471,7 +471,10 @@ export interface NotePage {
   per_page: number
 }
 
-// A post in Conversations (members' posts, seen by every member allowed them).
+// Where a post is: Conversations, or the Prayer Wall ('prayer'). A post shows only on its own board.
+export type ConversationBoard = 'conversations' | 'prayer'
+
+// A post in Conversations or on the Prayer Wall (members' posts; anyone may read them).
 export interface ConversationPost {
   id: number
   title: string
@@ -483,6 +486,7 @@ export interface ConversationPost {
   author: string
   // Whether the member reading it wrote it (only then can it be changed or deleted).
   is_mine: boolean
+  board: ConversationBoard
   // Members' replies to it, oldest first.
   replies: ConversationReply[]
 }

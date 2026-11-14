@@ -1,9 +1,9 @@
-"""List, read and delete the members' posts of Conversations. Used by the Drupal "Conversations" admin page.
+"""List, read and delete the members' posts of Conversations and the Prayer Wall. Used by the Drupal "Conversations" admin page.
 
 Every command prints one JSON object. On success it has "ok": true. On failure it has "ok": false and an
 "error" written for the administrator, and the exit status is not 0.
 
-    manage_conversations.py list [--query=words] [--page=1]
+    manage_conversations.py list [--query=words] [--page=1] [--board=conversations|prayer]
     manage_conversations.py get --id=7
     manage_conversations.py delete --id=7
     manage_conversations.py get-reply --id=12
@@ -36,6 +36,7 @@ def parse_arguments():
   listing = commands.add_parser("list")
   listing.add_argument("--query", default="")
   listing.add_argument("--page", type=int, default=1)
+  listing.add_argument("--board", default="", choices=["", "conversations", "prayer"])
   for name in ("get", "delete", "get-reply", "delete-reply"):
     commands.add_parser(name).add_argument("--id", type=int, required=True)
   return parser.parse_args()
@@ -43,7 +44,7 @@ def parse_arguments():
 
 def run(arguments) -> dict:
   if arguments.command == "list":
-    return {"ok": True, **admin_list_posts(arguments.query, arguments.page)}
+    return {"ok": True, **admin_list_posts(arguments.query, arguments.page, arguments.board)}
   if arguments.command == "get":
     return {"ok": True, "post": admin_get_post(arguments.id)}
   if arguments.command == "get-reply":

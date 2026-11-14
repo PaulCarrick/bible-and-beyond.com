@@ -26,6 +26,7 @@ const sections = [
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-notes', title: 'Your notes' },
   { id: 'help-conversations', title: 'Conversations' },
+  { id: 'help-prayer-wall', title: 'Prayer Wall' },
   { id: 'help-contact', title: 'Contact' },
   { id: 'help-tips', title: 'Handy shortcuts' },
   { id: 'help-texts', title: 'About the texts and credits' },
@@ -717,6 +718,18 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           alt="The Conversations page with two posts by two members, each with a reply, and Edit and Delete on the member's own post and reply"
           caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
         />
+      </section>
+
+      <section id="help-prayer-wall" tabIndex={-1} className="help-section">
+        <h2>Prayer Wall</h2>
+        <p>
+          The <PageLink onNavigate={onNavigate} view="prayerWall">Prayer Wall</PageLink> (in the sidebar under Members,
+          below Conversations) is where members share prayer requests and praises, and others reply to say they are
+          praying. It works exactly like Conversations: anyone can read and search it, and the members who may write in
+          Conversations may write here too (press <em>Share a prayer request</em>). The two are kept apart: a prayer
+          request shows only on the Prayer Wall, and a Conversations post only in Conversations. Anyone can read what
+          you share, with your name, so leave out what others would not want made public.
+        </p>
       </section>
 
       <section id="help-contact" tabIndex={-1} className="help-section">

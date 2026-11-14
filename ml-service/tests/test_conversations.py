@@ -366,3 +366,28 @@ def test_anyone_reads_and_searches_but_only_a_member_writes():
   assert client.get("/conversations", params={"mine": "true"}).status_code == 403
   assert client.put(f"/conversations/{post['id']}", json=POST).status_code == 403
   assert client.delete(f"/conversations/{post['id']}").status_code == 403
+
+
+def test_prayer_wall_posts_show_only_on_the_prayer_wall():
+  sign_up("ann")
+  talk = client.post("/conversations", json=POST).json()["post"]
+  prayer = client.post("/conversations", json={**POST, "title": "Pray for grace", "board": "prayer"}).json()["post"]
+  assert talk["board"] == "conversations" and prayer["board"] == "prayer"
+  client.post(f"/conversations/{prayer['id']}/replies", json=REPLY)
+
+  def ids(**params):
+    return [entry["id"] for entry in client.get("/conversations", params=params).json()["posts"]]
+
+  # Each board lists only its own posts, in a search and in "my posts" too; the default is Conversations.
+  assert prayer["id"] not in ids(query="grace") and talk["id"] in ids(query="grace")
+  assert ids(board="prayer", query="grace") == [prayer["id"]]
+  assert ids(board="prayer", mine="true") == [prayer["id"]] and prayer["id"] not in ids(mine="true")
+  assert client.get("/conversations", params={"board": "nowhere"}).status_code == 404
+  assert client.post("/conversations", json={**POST, "board": "nowhere"}).status_code == 404
+  # A change keeps the post on its board, and its reply came with it.
+  changed = client.put(f"/conversations/{prayer['id']}", json={**POST, "board": "conversations"}).json()["post"]
+  assert changed["board"] == "prayer" and len(changed["replies"]) == 1
+  # The administrator sees both, and can keep one board.
+  listed = conversations.admin_list_posts("grace", 1, "prayer")
+  assert [post["id"] for post in listed["posts"]] == [prayer["id"]] and listed["posts"][0]["board"] == "prayer"
+  assert {post["board"] for post in conversations.admin_list_posts("grace")["posts"]} >= {"prayer", "conversations"}

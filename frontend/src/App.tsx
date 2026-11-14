@@ -316,8 +316,15 @@ function App() {
       : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
-    // Everyone may read Conversations; only accounts an administrator allowed (use_conversations) may write.
-    { heading: 'Members', entries: [{ view: 'conversations' as View, label: 'Conversations' }] },
+    // Everyone may read Conversations and the Prayer Wall; only accounts an administrator allowed (use_conversations)
+    // may write. The two keep their posts apart (a board on each post).
+    {
+      heading: 'Members',
+      entries: [
+        { view: 'conversations' as View, label: 'Conversations' },
+        { view: 'prayerWall' as View, label: 'Prayer Wall' },
+      ],
+    },
     {
       heading: 'About',
       entries: [
@@ -408,6 +415,7 @@ function App() {
               )}
               {/* Kept mounted so a half-written post is not lost; made again for another account. */}
               <ConversationsPage key={user?.id ?? 'logged-out'} isHidden={activeView !== 'conversations'} />
+              <ConversationsPage key={`prayer-${user?.id ?? 'logged-out'}`} board="prayer" isHidden={activeView !== 'prayerWall'} />
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'verify' && emailLink && (

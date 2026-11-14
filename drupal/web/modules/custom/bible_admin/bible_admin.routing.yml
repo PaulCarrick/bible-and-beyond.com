@@ -94,7 +94,7 @@ bible_admin.conversations:
   path: '/admin/conversations'
   defaults:
     _controller: '\Drupal\bible_admin\Controller\ConversationListController::build'
-    _title: 'Conversations'
+    _title: 'Conversations and Prayer Wall'
   requirements:
     _permission: 'administer site users'
 

@@ -20,8 +20,8 @@ bible_admin.site_users:
   weight: -3
 
 bible_admin.conversations:
-  title: 'Conversations'
-  description: 'The posts members write on the public site''s Conversations page: read and remove them.'
+  title: 'Conversations and Prayer Wall'
+  description: 'The posts members write on the public site''s Conversations and Prayer Wall pages: read and remove them.'
   route_name: bible_admin.conversations
   parent: system.admin
   weight: -3

@@ -4,11 +4,29 @@ import { AccountContext } from './AccountContext'
 import { fetchConversationPage } from './api'
 import ConversationPostCard from './ConversationPostCard'
 import ConversationPostForm from './ConversationPostForm'
-import type { ConversationPage } from './types'
+import type { ConversationBoard, ConversationPage } from './types'
 
 interface ConversationsPageProps {
+  // Which board this page shows: Conversations, or the Prayer Wall. Each shows only its own posts.
+  board?: ConversationBoard
   // The page stays mounted while another is open, so a half-written post is not lost.
   isHidden: boolean
+}
+
+// What each board calls itself; everything else about the two pages is the same.
+const boardWords: Record<ConversationBoard, { heading: string; intro: string; write: string; none: string }> = {
+  conversations: {
+    heading: 'Conversations',
+    intro: 'Posts by members of this site, newest first, with their replies. Anyone can read and search them.',
+    write: 'Write a post',
+    none: 'Nobody has written a post yet.',
+  },
+  prayer: {
+    heading: 'Prayer Wall',
+    intro: 'Prayer requests and praises from members of this site, newest first, with their replies. Anyone can read and search them, and pray along.',
+    write: 'Share a prayer request',
+    none: 'Nobody has shared a prayer request yet.',
+  },
 }
 
 const postsPerPage = 10
@@ -17,7 +35,8 @@ const postsPerPage = 10
 // logged in or not (the owner's choice, 2026-11-14). Only accounts an administrator allowed (use_conversations; the
 // server checks too, and says so in can_post) may write posts and replies and change or delete their own.
 // The page asks search engines not to index it (members' names are on it); it is not in the sitemap either.
-function ConversationsPage({ isHidden }: ConversationsPageProps) {
+function ConversationsPage({ board = 'conversations', isHidden }: ConversationsPageProps) {
+  const words = boardWords[board]
   const { user, onNavigate } = useContext(AccountContext)
   const [result, setResult] = useState<ConversationPage | null>(null)
   // What is typed in the search box, and what the list is actually searched for (set when it is submitted).
@@ -51,7 +70,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
       return
     }
     const controller = new AbortController()
-    fetchConversationPage({ query, onlyMine, page, perPage: postsPerPage }, controller.signal)
+    fetchConversationPage({ board, query, onlyMine, page, perPage: postsPerPage }, controller.signal)
       .then((loaded) => {
         // Deleting the last post of the last page leaves that page empty: show the one before.
         if (loaded.posts.length === 0 && loaded.total > 0 && page > 1) {
@@ -67,7 +86,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
         }
       })
     return () => controller.abort()
-  }, [isHidden, userId, query, onlyMine, page, reload])
+  }, [board, isHidden, userId, query, onlyMine, page, reload])
 
   function handleSearch(event: FormEvent) {
     event.preventDefault()
@@ -86,8 +105,8 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
 
   return (
     <div className="notes-page conversations-page" hidden={isHidden}>
-      <h1>Conversations</h1>
-      <p>Posts by members of this site, newest first, with their replies. Anyone can read and search them.</p>
+      <h1>{words.heading}</h1>
+      <p>{words.intro}</p>
       {result !== null && !canPost && (
         <p className="conversation-readers-note">
           Members the site has invited can write posts and reply.{' '}
@@ -125,7 +144,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
             </label>
             {!isWriting && (
               <button type="button" className="primary-button" onClick={() => setIsWriting(true)}>
-                Write a post
+                {words.write}
               </button>
             )}
           </div>
@@ -133,9 +152,10 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
       )}
 
       {/* Kept in the page while closed, so a half-written post stays and the editor is never made twice. */}
-      <section className="conversation-new" hidden={!canPost || !isWriting} aria-label="Write a post">
-        <h2>Write a post</h2>
+      <section className="conversation-new" hidden={!canPost || !isWriting} aria-label={words.write}>
+        <h2>{words.write}</h2>
         <ConversationPostForm
+          board={board}
           onSaved={() => {
             // The new post is the newest: show the list from its start, without a search that hides it.
             setSearchText('')
@@ -174,7 +194,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
           {result.total === 0
             ? isFiltered
               ? 'No posts match.'
-              : 'Nobody has written a post yet.'
+              : words.none
             : `${result.total} ${result.total === 1 ? 'post' : 'posts'}${isFiltered ? (result.total === 1 ? ' matches' : ' match') : ''}${
                 query !== '' ? ` “${query}”` : ''
               }.`}

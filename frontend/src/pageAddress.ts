@@ -23,6 +23,7 @@ const addresses: Record<View, string> = {
   copyright: '/copyright',
   notes: '/notes',
   conversations: '/conversations',
+  prayerWall: '/prayer-wall',
   register: '/register',
   login: '/login',
   forgot: '/forgot-password',

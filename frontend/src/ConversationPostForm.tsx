@@ -3,11 +3,13 @@ import type { FormEvent } from 'react'
 import { saveConversationPost } from './api'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
-import type { ConversationPost } from './types'
+import type { ConversationBoard, ConversationPost } from './types'
 
 interface ConversationPostFormProps {
   // The post being changed; none for a new post.
   post?: ConversationPost
+  // The board a new post goes on (a changed post stays on its own).
+  board?: ConversationBoard
   onSaved: (post: ConversationPost) => void
   onCancel: () => void
 }
@@ -16,7 +18,7 @@ interface ConversationPostFormProps {
 const titleLimit = 200
 
 // A title and the text of a post, in the editor shared with notes and the contact form.
-function ConversationPostForm({ post, onSaved, onCancel }: ConversationPostFormProps) {
+function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel }: ConversationPostFormProps) {
   const [title, setTitle] = useState(post?.title ?? '')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -47,7 +49,7 @@ function ConversationPostForm({ post, onSaved, onCancel }: ConversationPostFormP
     setIsSaving(true)
     setErrorMessage('')
     try {
-      const saved = await saveConversationPost(post?.id ?? null, title.trim(), editor.getHtml())
+      const saved = await saveConversationPost(post?.id ?? null, title.trim(), editor.getHtml(), post?.board ?? board)
       if (!post) {
         setTitle('')
         editor.clear()

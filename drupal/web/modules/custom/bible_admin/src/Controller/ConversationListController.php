@@ -15,7 +15,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
- * The members' posts of Conversations on the public site, newest first, with a search and pages, so an
+ * The members' posts of Conversations and the Prayer Wall on the public site, newest first, with a search and pages, so an
  * administrator can read them and remove one.
  */
 class ConversationListController extends ControllerBase {
@@ -37,19 +37,25 @@ class ConversationListController extends ControllerBase {
   }
 
   public function build(): array {
-    $query = trim((string) $this->requestStack->getCurrentRequest()->query->get('query', ''));
+    $request = $this->requestStack->getCurrentRequest();
+    $query = trim((string) $request->query->get('query', ''));
+    $board = (string) $request->query->get('board', '');
+    if (!in_array($board, ['conversations', 'prayer'], TRUE)) {
+      $board = '';
+    }
+    $boardNames = ['conversations' => $this->t('Conversations'), 'prayer' => $this->t('Prayer Wall')];
     $build = [
       '#cache' => ['max-age' => 0],
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('These are the posts that members write on the Conversations page of the public site, with their replies. Only accounts with Conversations turned on (on the Site users page) can read and write them. "Read and delete" shows a post with its replies, where you can delete the post (with its replies) or any one reply; it is gone for good. To stop a member posting, turn Conversations off on their account.'),
+        '#value' => $this->t('These are the posts that members write on the Conversations and Prayer Wall pages of the public site, with their replies (each post shows only on its own page; the Where column says which). Anyone can read them; only accounts with Conversations turned on (on the Site users page) can write on either. "Read and delete" shows a post with its replies, where you can delete the post (with its replies) or any one reply; it is gone for good. To stop a member posting, turn Conversations off on their account.'),
       ],
-      'search' => $this->formBuilder()->getForm(ConversationSearchForm::class, $query),
+      'search' => $this->formBuilder()->getForm(ConversationSearchForm::class, $query, $board),
     ];
 
     try {
-      $listing = $this->manager->listConversationPosts($query, $this->pagerManager->findPage() + 1);
+      $listing = $this->manager->listConversationPosts($query, $this->pagerManager->findPage() + 1, $board);
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());
@@ -60,7 +66,7 @@ class ConversationListController extends ControllerBase {
     $build['count'] = [
       '#type' => 'html_tag',
       '#tag' => 'p',
-      '#value' => $query === ''
+      '#value' => $query === '' && $board === ''
         ? $this->formatPlural((int) $listing['total'], 'One post.', '@count posts.')
         : $this->formatPlural((int) $listing['total'], 'One post matches.', '@count posts match.'),
     ];
@@ -73,6 +79,7 @@ class ConversationListController extends ControllerBase {
       }
       $rows[] = [
         ['data' => ['#plain_text' => $post['title']]],
+        ['data' => ['#plain_text' => (string) ($boardNames[$post['board'] ?? 'conversations'] ?? '')]],
         ['data' => ['#plain_text' => $post['excerpt']]],
         ['data' => ['#plain_text' => $post['author'] . ' (' . $post['author_email'] . ')']],
         ['data' => ['#plain_text' => $written]],
@@ -92,6 +99,7 @@ class ConversationListController extends ControllerBase {
       '#type' => 'table',
       '#header' => [
         $this->t('Title'),
+        $this->t('Where'),
         $this->t('Beginning'),
         $this->t('Author'),
         $this->t('Written'),
@@ -99,7 +107,7 @@ class ConversationListController extends ControllerBase {
         $this->t('Operations'),
       ],
       '#rows' => $rows,
-      '#empty' => $query === '' ? $this->t('No member has written a post yet.') : $this->t('No post matches.'),
+      '#empty' => $query === '' && $board === '' ? $this->t('No member has written a post yet.') : $this->t('No post matches.'),
     ];
     $build['pager'] = ['#type' => 'pager'];
     return $build;

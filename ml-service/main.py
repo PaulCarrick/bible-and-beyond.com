@@ -943,6 +943,8 @@ def notes_delete(note_id: int, request: Request):
 
 class ConversationPostRequest(BaseModel):
   title: str = Field(max_length=1000)
+  # Which board the new post goes on (a post never moves, so a change ignores it).
+  board: str = Field(default="conversations", max_length=40)
   # What the member wrote, as the editor (Quill) makes it: a little HTML, cleaned before it is kept.
   body: str
 
@@ -962,9 +964,11 @@ def conversations_list(
   mine: bool = False,
   page: int = 1,
   per_page: int = 10,
+  board: str = Query(default="conversations", max_length=40),
 ):
-  """One page of every member's posts, newest first, with the total that match. query keeps the posts with
-  every word in the title, the text or the author's name; mine keeps the member's own.
+  """One page of every member's posts on one board ("conversations", or "prayer" for the Prayer Wall), newest
+  first, with the total that match; a post shows only on its own board. query keeps the posts with every word in the title, the text or
+  the author's name; mine keeps the member's own.
 
   Anyone may read, with no login (the owner's choice, 2026-11-14); only a logged-in account with
   use_conversations may write, and only it sees its own posts as is_mine. can_post tells the page which."""
@@ -974,7 +978,7 @@ def conversations_list(
     # "My posts" means nothing to a reader who cannot post.
     conversations_account(request)
   try:
-    result = list_posts(member["id"] if member else 0, query, mine, page, per_page)
+    result = list_posts(member["id"] if member else 0, query, mine, page, per_page, board)
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {**result, "can_post": member is not None}
@@ -984,7 +988,7 @@ def conversations_list(
 def conversations_create(body: ConversationPostRequest, request: Request):
   user = conversations_account(request)
   try:
-    return {"post": create_post(user["id"], body.title, body.body)}
+    return {"post": create_post(user["id"], body.title, body.body, body.board)}
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 

@@ -1,4 +1,7 @@
-"""Conversations: a blog of posts written by members of the main site, with replies.
+"""Conversations and the Prayer Wall: posts written by members of the main site, with replies.
+
+The two are boards of one table (conversation_posts.board, 'conversations' or 'prayer'): the same rules, the
+same people, but a post shows only on its own board. A reply belongs to its post, so it is on that board.
 
 Only accounts an administrator allowed (users.use_conversations) may use it; main.py checks that on every
 endpoint. Every allowed member reads every post and reply (there are no private posts) and may reply to any
@@ -19,6 +22,7 @@ REPLY_HTML_LIMIT = 30000
 MAX_POSTS_PER_USER = 1000
 MAX_REPLIES_PER_USER = 5000
 PER_PAGE_LIMIT = 50
+BOARDS = ("conversations", "prayer")
 QUERY_WORD_LIMIT = 10
 
 # An author's name is read with the post or reply, so a changed name shows everywhere. An account with no name
@@ -26,7 +30,7 @@ QUERY_WORD_LIMIT = 10
 _AUTHOR = "COALESCE(NULLIF(concat_ws(' ', users.first_name, users.last_name), ''), 'A member')"
 _COLUMNS = f"""
   conversation_posts.id, conversation_posts.user_id, conversation_posts.title, conversation_posts.body,
-  conversation_posts.created_at, conversation_posts.updated_at, {_AUTHOR}
+  conversation_posts.created_at, conversation_posts.updated_at, {_AUTHOR}, conversation_posts.board
 """
 _FROM = "conversation_posts JOIN users ON users.id = conversation_posts.user_id"
 _REPLY_COLUMNS = f"""
@@ -52,6 +56,7 @@ def _row_to_post(row, viewer_id: int) -> dict:
     "created_at": row[4].isoformat(),
     "updated_at": row[5].isoformat(),
     "author": row[6],
+    "board": row[7],
     # Whether the member asking wrote it (the page then offers Edit and Delete).
     "is_mine": row[1] == viewer_id,
     "replies": [],
@@ -86,6 +91,12 @@ def _with_replies(connection, posts: list[dict], viewer_id: int) -> list[dict]:
   return posts
 
 
+def _checked_board(board: str) -> str:
+  if board not in BOARDS:
+    raise ConversationProblem("There is no such board.", 404)
+  return board
+
+
 def _checked_title(title: str) -> str:
   title = " ".join((title or "").split())
   if not title:
@@ -107,7 +118,8 @@ def _get(connection, post_id: int, viewer_id: int) -> dict:
   return _with_replies(connection, [_row_to_post(row, viewer_id)], viewer_id)[0]
 
 
-def create_post(user_id: int, title: str, body: str) -> dict:
+def create_post(user_id: int, title: str, body: str, board: str = "conversations") -> dict:
+  board = _checked_board(board)
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
   with connect() as connection:
@@ -115,8 +127,8 @@ def create_post(user_id: int, title: str, body: str) -> dict:
     if count >= MAX_POSTS_PER_USER:
       raise ConversationProblem(f"You have reached the limit of {MAX_POSTS_PER_USER} posts. Please delete some first.")
     post_id = connection.execute(
-      "INSERT INTO conversation_posts (user_id, title, body, body_text) VALUES (%s, %s, %s, %s) RETURNING id",
-      (user_id, title, cleaned["html"], cleaned["text"]),
+      "INSERT INTO conversation_posts (user_id, title, body, body_text, board) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+      (user_id, title, cleaned["html"], cleaned["text"], board),
     ).fetchone()[0]
     return _get(connection, post_id, user_id)
 
@@ -149,9 +161,11 @@ def _search_conditions(words: list[str], include_email: bool = False) -> tuple[l
   return conditions, values
 
 
-def list_posts(viewer_id: int, query: str | None = None, only_mine: bool = False, page: int = 1, per_page: int = 10) -> dict:
-  """Every member's posts with their replies, newest post first, one page of them: {"posts", "total", "page",
-  "per_page"}.
+def list_posts(
+  viewer_id: int, query: str | None = None, only_mine: bool = False, page: int = 1, per_page: int = 10, board: str = "conversations"
+) -> dict:
+  """Every member's posts on one board with their replies, newest post first, one page of them: {"posts",
+  "total", "page", "per_page"}.
 
   query keeps the posts that have every word of it, in any case and any part of a word, in the title, the
   text, the author's name or a reply. only_mine keeps the viewer's own posts."""
@@ -161,6 +175,8 @@ def list_posts(viewer_id: int, query: str | None = None, only_mine: bool = False
   if len(words) > QUERY_WORD_LIMIT:
     raise ConversationProblem(f"Please search for up to {QUERY_WORD_LIMIT} words.")
   conditions, values = _search_conditions(words)
+  conditions.append("conversation_posts.board = %(board)s")
+  values["board"] = _checked_board(board)
   if only_mine:
     conditions.append("conversation_posts.user_id = %(viewer)s")
     values["viewer"] = viewer_id
@@ -269,13 +285,15 @@ def _admin_post(row) -> dict:
     "author": row[6],
     "author_email": row[7],
     "reply_count": row[8],
+    "board": row[9],
   }
 
 
 _ADMIN_COLUMNS = f"""
   conversation_posts.id, conversation_posts.title, conversation_posts.body, conversation_posts.body_text,
   conversation_posts.created_at, conversation_posts.updated_at, {_AUTHOR}, users.email,
-  (SELECT count(*) FROM conversation_replies WHERE conversation_replies.post_id = conversation_posts.id)
+  (SELECT count(*) FROM conversation_replies WHERE conversation_replies.post_id = conversation_posts.id),
+  conversation_posts.board
 """
 _ADMIN_REPLY_COLUMNS = f"""
   conversation_replies.id, conversation_replies.post_id, conversation_replies.body, conversation_replies.body_text,
@@ -298,11 +316,14 @@ def _admin_reply(row) -> dict:
   }
 
 
-def admin_list_posts(query: str = "", page: int = 1) -> dict:
+def admin_list_posts(query: str = "", page: int = 1, board: str = "") -> dict:
   """Every post, newest first, ADMIN_PER_PAGE at a time; query keeps those with every word in the title, the
-  text, the author's name or address, or a reply."""
+  text, the author's name or address, or a reply; board (when given) those of one board."""
   page = max(page, 1)
   conditions, values = _search_conditions(query.split()[:QUERY_WORD_LIMIT], include_email=True)
+  if board:
+    conditions.append("conversation_posts.board = %(board)s")
+    values["board"] = _checked_board(board)
   where = " AND ".join(conditions) or "true"
   with connect() as connection:
     total = connection.execute(f"SELECT count(*) FROM {_FROM} WHERE {where}", values).fetchone()[0]
