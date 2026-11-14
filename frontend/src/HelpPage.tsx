@@ -526,8 +526,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             press <em>Save as a playlist</em>. The songs play in the order of the page until you change it. Your
             playlists are in <em>Your playlists</em> at the top of the page (click it to open it). Choose one and press <em>Play</em>: each song opens and plays in turn, and
             the next starts when one ends (on some phones you may need to press play on each song). Click a song in the
-            playlist's list to play from that song on. <em>Edit</em> lets you change it in one place: each song has up and
-            down arrows and <em>Remove</em>, and under them <em>Add songs</em> lists the songs not in it (choose one, or
+            playlist's list to play from that song on. <em>Edit</em> lets you change it in one place: drag a song by its handle
+            (⠿) to move it, or use its up and down arrows, and <em>Remove</em> takes it out; and under them <em>Add songs</em> lists the songs not in it (choose one, or
             several with Cmd or Ctrl held, and press <em>Add</em>; they go at the end); press <em>Save changes</em> when it
             is right. <em>Change this playlist</em> ticks its songs so you can add or take
             some away and save under the same name (the order is kept, new songs go at the end);{' '}

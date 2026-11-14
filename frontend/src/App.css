@@ -2766,3 +2766,24 @@ select:disabled {
 .music-add-songs .secondary-button {
   margin-top: 0;
 }
+
+/* Edit a playlist: the handle a song is dragged by, and the song while it is dragged. */
+.music-drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  padding: 0.15rem 0.35rem;
+  opacity: 0.6;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.music-reorder-list li.is-dragging {
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 6px;
+}
+
+.music-reorder-list li.is-dragging .music-drag-handle {
+  cursor: grabbing;
+}

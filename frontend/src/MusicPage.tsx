@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { deletePlaylist, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist } from './api'
 import PlaylistSaveBox from './PlaylistSaveBox'
 import type { MusicSong, Playlist } from './api'
@@ -32,6 +33,9 @@ interface PlayingList {
 function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const { user } = useContext(AccountContext)
   const listReference = useRef<HTMLDivElement>(null)
+  // Edit's list of songs, for dragging: the song being dragged by its handle, if any.
+  const editListReference = useRef<HTMLOListElement>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
   const [tickedIds, setTickedIds] = useState<Set<string>>(new Set())
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [chosenPlaylistId, setChosenPlaylistId] = useState<number | null>(null)
@@ -208,6 +212,63 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setEditIds(chosenSongs)
   }
 
+  // Dragging a song by its handle (mouse, pen or finger: pointer events, so it works on phones too). The pointer is
+  // captured by the handle, so the moves keep coming while it is over other rows; the song is moved to the place of
+  // the row under the pointer as it goes, so the list shows where it will land.
+  function startDrag(event: ReactPointerEvent<HTMLElement>, songId: string) {
+    if (event.button !== 0) {
+      return
+    }
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDraggingId(songId)
+  }
+
+  function dragTo(event: ReactPointerEvent<HTMLElement>) {
+    if (draggingId === null || !editListReference.current) {
+      return
+    }
+    const rows = [...editListReference.current.querySelectorAll<HTMLLIElement>(':scope > li')]
+    // The first row whose middle is below the pointer is where the song goes; past them all, the end.
+    let target = rows.findIndex((row) => {
+      const box = row.getBoundingClientRect()
+      return event.clientY < box.top + box.height / 2
+    })
+    if (target === -1) {
+      target = rows.length - 1
+    }
+    setEditIds((current) => {
+      if (!current) {
+        return current
+      }
+      const from = current.indexOf(draggingId)
+      if (from === -1 || from === target) {
+        return current
+      }
+      const next = current.filter((id) => id !== draggingId)
+      next.splice(target, 0, draggingId)
+      return next
+    })
+  }
+
+  function endDrag() {
+    setDraggingId(null)
+  }
+
+  // A drag ends wherever the button is let go, even if the handle lost the pointer on the way.
+  useEffect(() => {
+    if (draggingId === null) {
+      return
+    }
+    const stop = () => setDraggingId(null)
+    window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', stop)
+    return () => {
+      window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', stop)
+    }
+  }, [draggingId])
+
   function removeSong(index: number) {
     setEditIds((current) => (current ? current.filter((_, position) => position !== index) : current))
   }
@@ -367,13 +428,26 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
 
             {chosenPlaylist && editIds && (
               <div className="music-playlist-songs">
-                <p className="music-playlist-hint">Move the songs with the arrows, remove the ones you do not want, add others below, then save the changes.</p>
+                <p className="music-playlist-hint">Drag the songs by ⠿ (or move them with the arrows), remove the ones you do not want, add others below, then save the changes.</p>
                 {editIds.length === 0 && <p>No songs are left. Add some, or cancel and delete the playlist instead.</p>}
-                <ol className="music-reorder-list">
+                <ol className="music-reorder-list" ref={editListReference}>
                   {editIds.map((id, index) => {
                     const title = songsById.get(id)?.title ?? id
                     return (
-                      <li key={id}>
+                      <li key={id} className={draggingId === id ? 'is-dragging' : undefined}>
+                        {/* For the mouse and touch; keyboard users have the arrows. */}
+                        <span
+                          className="music-drag-handle"
+                          title="Drag to move"
+                          aria-hidden="true"
+                          onPointerDown={(event) => startDrag(event, id)}
+                          onPointerMove={dragTo}
+                          onPointerUp={endDrag}
+                          onPointerCancel={endDrag}
+                          onLostPointerCapture={endDrag}
+                        >
+                          ⠿
+                        </span>
                         <span className="music-reorder-title">{title}</span>
                         <button
                           type="button"
@@ -408,31 +482,35 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                     )
                   })}
                 </ol>
-                <div className="music-add-songs">
-                  <label htmlFor="music-add-songs-list">Add songs</label>
-                  <p className="music-playlist-hint" id="music-add-songs-hint">
-                    Choose one or more (hold Cmd on a Mac, or Ctrl, to choose several), then press Add.
-                  </p>
-                  <select
-                    id="music-add-songs-list"
-                    multiple
-                    size={8}
-                    aria-describedby="music-add-songs-hint"
-                    value={songsToAdd}
-                    onChange={(event) => setSongsToAdd([...event.target.selectedOptions].map((option) => option.value))}
-                  >
-                    {songs
-                      .filter((song) => !editIds.includes(song.id))
-                      .map((song) => (
-                        <option key={song.id} value={song.id}>
-                          {song.title}
-                        </option>
-                      ))}
-                  </select>
-                  <button type="button" className="secondary-button" disabled={songsToAdd.length === 0} onClick={addChosenSongs}>
-                    {songsToAdd.length > 1 ? `Add the ${songsToAdd.length} songs` : 'Add'}
-                  </button>
-                </div>
+                {songs.some((song) => !editIds.includes(song.id)) ? (
+                  <div className="music-add-songs">
+                    <label htmlFor="music-add-songs-list">Add songs</label>
+                    <p className="music-playlist-hint" id="music-add-songs-hint">
+                      Choose one or more (hold Cmd on a Mac, or Ctrl, to choose several), then press Add.
+                    </p>
+                    <select
+                      id="music-add-songs-list"
+                      multiple
+                      size={8}
+                      aria-describedby="music-add-songs-hint"
+                      value={songsToAdd}
+                      onChange={(event) => setSongsToAdd([...event.target.selectedOptions].map((option) => option.value))}
+                    >
+                      {songs
+                        .filter((song) => !editIds.includes(song.id))
+                        .map((song) => (
+                          <option key={song.id} value={song.id}>
+                            {song.title}
+                          </option>
+                        ))}
+                    </select>
+                    <button type="button" className="secondary-button" disabled={songsToAdd.length === 0} onClick={addChosenSongs}>
+                      {songsToAdd.length > 1 ? `Add the ${songsToAdd.length} songs` : 'Add'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="music-playlist-hint">Every song on the site is in this playlist.</p>
+                )}
                 <div className="music-reorder-actions">
                   <button type="button" className="primary-button" disabled={isBusy || editIds.length === 0} onClick={handleSaveEdit}>
                     Save changes
