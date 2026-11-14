@@ -28,7 +28,7 @@ interface PlayingList {
 // A logged-in visitor also gets a checkbox at the right of each song; once some are ticked, a box under the
 // playlists (above the list) saves them under a name. Their playlists are in a closed section at the top of the page: choose one and Play
 // plays its songs one after another, opening each and scrolling to it; a song's title in the list plays the
-// playlist from that song; Reorder moves its songs up and down.
+// playlist from that song; Edit moves its songs up and down, removes some and adds others (chosen in a list).
 function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const { user } = useContext(AccountContext)
   const listReference = useRef<HTMLDivElement>(null)
@@ -39,9 +39,11 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const [isBusy, setIsBusy] = useState(false)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [isPlaylistsOpen, setIsPlaylistsOpen] = useState(false)
-  // The chosen playlist's songs in the order being arranged, while Reorder is open.
-  const [reorderIds, setReorderIds] = useState<string[] | null>(null)
+  // The chosen playlist's songs as they are being edited (order, removed, added), while Edit is open.
+  const [editIds, setEditIds] = useState<string[] | null>(null)
   // What happened at the top (the playlists) and at the foot (saving the ticked songs).
+  // The songs chosen in Edit's "Add songs" list, not yet added.
+  const [songsToAdd, setSongsToAdd] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [playing, setPlaying] = useState<PlayingList | null>(null)
@@ -76,7 +78,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setPlaylists([])
     setChosenPlaylistId(null)
     setPlaylistName('')
-    setReorderIds(null)
+    setEditIds(null)
     setIsConfirmingDelete(false)
     setMessage('')
     setErrorMessage('')
@@ -198,16 +200,33 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     startSong(chosenSongs[startIndex])
   }
 
-  function handleReorder() {
+  function handleEdit() {
     setMessage('')
     setErrorMessage('')
     setIsConfirmingDelete(false)
-    setReorderIds(chosenSongs)
+    setSongsToAdd([])
+    setEditIds(chosenSongs)
+  }
+
+  function removeSong(index: number) {
+    setEditIds((current) => (current ? current.filter((_, position) => position !== index) : current))
+  }
+
+  // Puts the songs chosen in the list at the end, in the order of the page.
+  function addChosenSongs() {
+    setEditIds((current) => {
+      if (!current) {
+        return current
+      }
+      const chosen = new Set(songsToAdd)
+      return [...current, ...songs.filter((song) => chosen.has(song.id) && !current.includes(song.id)).map((song) => song.id)]
+    })
+    setSongsToAdd([])
   }
 
   // Moves a song one place up (-1) or down (+1). At either end it stays (the button keeps the focus).
   function moveSong(index: number, step: number) {
-    setReorderIds((current) => {
+    setEditIds((current) => {
       if (!current || index + step < 0 || index + step >= current.length) {
         return current
       }
@@ -217,18 +236,18 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     })
   }
 
-  async function handleSaveOrder() {
-    if (!chosenPlaylist || !reorderIds) {
+  async function handleSaveEdit() {
+    if (!chosenPlaylist || !editIds || editIds.length === 0) {
       return
     }
     setIsBusy(true)
     setMessage('')
     setErrorMessage('')
     try {
-      const { playlist } = await savePlaylist(chosenPlaylist.name, reorderIds)
+      const { playlist } = await savePlaylist(chosenPlaylist.name, editIds)
       keepPlaylist(playlist)
-      setReorderIds(null)
-      setMessage(`Saved the new order of “${playlist.name}”.`)
+      setEditIds(null)
+      setMessage(`Saved the changes to “${playlist.name}”.`)
     } catch (error) {
       setErrorMessage((error as Error).message)
     } finally {
@@ -303,7 +322,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                   Playlist
                   <select
                     value={chosenPlaylistId ?? ''}
-                    disabled={reorderIds !== null}
+                    disabled={editIds !== null}
                     onChange={(event) => {
                       setChosenPlaylistId(Number(event.target.value))
                       setIsConfirmingDelete(false)
@@ -319,7 +338,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={chosenSongs.length === 0 || reorderIds !== null}
+                  disabled={chosenSongs.length === 0 || editIds !== null}
                   onClick={() => handlePlayPlaylist()}
                 >
                   Play
@@ -327,10 +346,10 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                 <button
                   type="button"
                   className="secondary-button"
-                  disabled={chosenSongs.length < 2 || reorderIds !== null}
-                  onClick={handleReorder}
+                  disabled={editIds !== null}
+                  onClick={handleEdit}
                 >
-                  Reorder
+                  Edit
                 </button>
                 {playing && (
                   <button type="button" className="secondary-button" onClick={handleStop}>
@@ -346,11 +365,12 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
               </p>
             )}
 
-            {chosenPlaylist && reorderIds && (
+            {chosenPlaylist && editIds && (
               <div className="music-playlist-songs">
-                <p className="music-playlist-hint">Move the songs with the arrows, then save the order.</p>
+                <p className="music-playlist-hint">Move the songs with the arrows, remove the ones you do not want, add others below, then save the changes.</p>
+                {editIds.length === 0 && <p>No songs are left. Add some, or cancel and delete the playlist instead.</p>}
                 <ol className="music-reorder-list">
-                  {reorderIds.map((id, index) => {
+                  {editIds.map((id, index) => {
                     const title = songsById.get(id)?.title ?? id
                     return (
                       <li key={id}>
@@ -370,27 +390,61 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                           className="secondary-button small-button"
                           aria-label={`Move ${title} down`}
                           title="Move down"
-                          aria-disabled={index === reorderIds.length - 1}
+                          aria-disabled={index === editIds.length - 1}
                           onClick={() => moveSong(index, 1)}
                         >
                           ↓
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button small-button"
+                          aria-label={`Remove ${title} from the playlist`}
+                          title="Remove from the playlist"
+                          onClick={() => removeSong(index)}
+                        >
+                          Remove
                         </button>
                       </li>
                     )
                   })}
                 </ol>
-                <div className="music-reorder-actions">
-                  <button type="button" className="primary-button" disabled={isBusy} onClick={handleSaveOrder}>
-                    Save order
+                <div className="music-add-songs">
+                  <label htmlFor="music-add-songs-list">Add songs</label>
+                  <p className="music-playlist-hint" id="music-add-songs-hint">
+                    Choose one or more (hold Cmd on a Mac, or Ctrl, to choose several), then press Add.
+                  </p>
+                  <select
+                    id="music-add-songs-list"
+                    multiple
+                    size={8}
+                    aria-describedby="music-add-songs-hint"
+                    value={songsToAdd}
+                    onChange={(event) => setSongsToAdd([...event.target.selectedOptions].map((option) => option.value))}
+                  >
+                    {songs
+                      .filter((song) => !editIds.includes(song.id))
+                      .map((song) => (
+                        <option key={song.id} value={song.id}>
+                          {song.title}
+                        </option>
+                      ))}
+                  </select>
+                  <button type="button" className="secondary-button" disabled={songsToAdd.length === 0} onClick={addChosenSongs}>
+                    {songsToAdd.length > 1 ? `Add the ${songsToAdd.length} songs` : 'Add'}
                   </button>
-                  <button type="button" className="secondary-button" disabled={isBusy} onClick={() => setReorderIds(null)}>
+                </div>
+                <div className="music-reorder-actions">
+                  <button type="button" className="primary-button" disabled={isBusy || editIds.length === 0} onClick={handleSaveEdit}>
+                    Save changes
+                  </button>
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={() => setEditIds(null)}>
                     Cancel
                   </button>
                 </div>
               </div>
             )}
 
-            {chosenPlaylist && !reorderIds && (
+            {chosenPlaylist && !editIds && (
               <div className="music-playlist-songs">
                 {chosenSongs.length === 0 ? (
                   <p>This playlist has no songs on the site now.</p>
@@ -455,7 +509,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           onNameChange={setPlaylistName}
           onSaved={(playlist) => {
             keepPlaylist(playlist)
-            setReorderIds(null)
+            setEditIds(null)
             setMessage('')
             setTickedIds(new Set())
           }}

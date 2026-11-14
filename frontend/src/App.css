@@ -2739,3 +2739,30 @@ select:disabled {
   border: none;
   border-top: 1px solid var(--border);
 }
+
+/* Edit a playlist: the list of songs to add, with its Add button below. */
+.music-add-songs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.9rem 0;
+}
+
+.music-add-songs label {
+  font-weight: 600;
+}
+
+.music-add-songs .music-playlist-hint {
+  margin: 0;
+}
+
+.music-add-songs select {
+  width: 100%;
+  max-width: 32rem;
+  font: inherit;
+}
+
+.music-add-songs .secondary-button {
+  margin-top: 0;
+}
