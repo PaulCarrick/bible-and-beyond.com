@@ -91,7 +91,7 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
               Read Bible
             </button>
             <button type="button" className="primary-button" onClick={() => onNavigate('bible')}>
-              Search Bible
+              Search Bibles
             </button>
           </div>
         </section>
