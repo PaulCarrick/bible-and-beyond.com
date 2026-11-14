@@ -88,10 +88,10 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
           </p>
           <div className="welcome-buttons">
             <button type="button" className="primary-button" onClick={() => onNavigate('read')}>
-              Read the Bible
+              Read Bible
             </button>
             <button type="button" className="primary-button" onClick={() => onNavigate('bible')}>
-              Search the Bible
+              Search Bible
             </button>
           </div>
         </section>
@@ -105,10 +105,10 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
             {/* Read first, then Search, as on the Bible card. */}
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('browse')}>
-                Read the commentaries
+                Read commentaries
               </button>
               <button type="button" className="primary-button" onClick={() => onNavigate('commentary')}>
-                Search the commentaries
+                Search commentaries
               </button>
             </div>
           </section>
@@ -122,7 +122,7 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('devotionals')}>
-                Read the devotionals
+                Read devotionals
               </button>
             </div>
           </section>
@@ -153,10 +153,10 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
             </p>
             <div className="welcome-buttons">
               <button type="button" className="primary-button" onClick={() => onNavigate('music')}>
-                Listen to the music
+                Listen to music
               </button>
               <button type="button" className="primary-button" onClick={() => onNavigate('searchMusic')}>
-                Search the music
+                Search music
               </button>
             </div>
           </section>

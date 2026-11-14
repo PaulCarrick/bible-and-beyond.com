@@ -66,7 +66,7 @@ function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps)
       )}
       <div className="welcome-buttons">
         <button type="button" className="primary-button" onClick={() => onNavigate('conversations')}>
-          {latest ? 'Read the conversations' : 'Conversations'}
+          {latest ? 'Read conversations' : 'Conversations'}
         </button>
         <button type="button" className="secondary-button" onClick={() => onNavigate('prayerWall')}>
           Prayer Wall

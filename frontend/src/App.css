@@ -92,16 +92,46 @@
 
 /* Kept compact so the whole list fits a laptop screen; the phone menu (below) spaces the entries for touch. */
 .side-nav-group + .side-nav-group {
-  margin-top: 0.65rem;
+  margin-top: 0.3rem;
 }
 
+/* A group's heading is a button that opens and closes it (they start closed). */
 .side-nav-heading {
-  padding: 0 0.6rem 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.2rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
   color: var(--text);
+  font: inherit;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
+  text-align: left;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.side-nav-heading:hover,
+.side-nav-heading:focus-visible {
+  background: var(--accent-bg);
+}
+
+/* A small triangle that points right when the group is closed and down when it is open. */
+.side-nav-arrow {
+  display: inline-block;
+  width: 10px;
+  font-size: 9px;
+  letter-spacing: 0;
+  text-align: center;
+  transition: transform 0.15s;
+}
+
+.side-nav-heading[aria-expanded='true'] .side-nav-arrow {
+  transform: rotate(90deg);
 }
 
 .side-nav-item {
@@ -184,7 +214,11 @@
   }
 
   .side-nav-group + .side-nav-group {
-    margin-top: 1.1rem;
+    margin-top: 0.4rem;
+  }
+
+  .side-nav-heading {
+    padding: 0.55rem 0.6rem;
   }
 
   /* The header stays at the top of the screen, so the menu button is always there, and the open menu
@@ -815,7 +849,7 @@ select:disabled {
   grid-row: span 3;
   grid-template-rows: subgrid;
   row-gap: 0.6rem;
-  padding: 1rem 1.1rem;
+  padding: 1rem 0.85rem;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -830,17 +864,22 @@ select:disabled {
   margin: 0;
 }
 
-/* A card's buttons, one above the other, all as wide as the widest. */
+/* A card's buttons, side by side (the owner's choice, 2026-11-14), in slightly smaller type and without "the" in
+   their words, so two fit a card three to a row; they wrap onto a second line only when the card is narrower. */
 .welcome-buttons {
-  display: grid;
-  grid-template-columns: max-content;
-  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.25rem;
   align-self: start;
   justify-self: start;
 }
 
-.welcome-buttons .primary-button {
-  width: 100%;
+.welcome-buttons .primary-button,
+.welcome-buttons .secondary-button {
+  margin-top: 0;
+  padding: calc(0.4rem - 1px) calc(0.4rem - 1px);
+  font-size: 0.8em;
+  white-space: nowrap;
 }
 
 .welcome-tips {
