@@ -212,58 +212,56 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     setEditIds(chosenSongs)
   }
 
-  // Dragging a song by its handle (mouse, pen or finger: pointer events, so it works on phones too). The pointer is
-  // captured by the handle, so the moves keep coming while it is over other rows; the song is moved to the place of
-  // the row under the pointer as it goes, so the list shows where it will land.
+  // Dragging a song by its handle (mouse, pen or finger: pointer events, so it works on phones too). While a drag
+  // is on, the window follows the pointer (not the handle: moving the row in the list can make the browser drop the
+  // handle's hold on the pointer), and the song is moved to the place of the row under the pointer as it goes, so
+  // the list shows where it will land. Letting go anywhere ends it.
   function startDrag(event: ReactPointerEvent<HTMLElement>, songId: string) {
     if (event.button !== 0) {
       return
     }
     event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
     setDraggingId(songId)
   }
 
-  function dragTo(event: ReactPointerEvent<HTMLElement>) {
-    if (draggingId === null || !editListReference.current) {
-      return
-    }
-    const rows = [...editListReference.current.querySelectorAll<HTMLLIElement>(':scope > li')]
-    // The first row whose middle is below the pointer is where the song goes; past them all, the end.
-    let target = rows.findIndex((row) => {
-      const box = row.getBoundingClientRect()
-      return event.clientY < box.top + box.height / 2
-    })
-    if (target === -1) {
-      target = rows.length - 1
-    }
-    setEditIds((current) => {
-      if (!current) {
-        return current
-      }
-      const from = current.indexOf(draggingId)
-      if (from === -1 || from === target) {
-        return current
-      }
-      const next = current.filter((id) => id !== draggingId)
-      next.splice(target, 0, draggingId)
-      return next
-    })
-  }
-
-  function endDrag() {
-    setDraggingId(null)
-  }
-
-  // A drag ends wherever the button is let go, even if the handle lost the pointer on the way.
   useEffect(() => {
     if (draggingId === null) {
       return
     }
+    const follow = (event: PointerEvent) => {
+      const list = editListReference.current
+      if (!list) {
+        return
+      }
+      event.preventDefault()
+      const rows = [...list.querySelectorAll<HTMLLIElement>(':scope > li')]
+      // The first row whose middle is below the pointer is where the song goes; past them all, the end.
+      let target = rows.findIndex((row) => {
+        const box = row.getBoundingClientRect()
+        return event.clientY < box.top + box.height / 2
+      })
+      if (target === -1) {
+        target = rows.length - 1
+      }
+      setEditIds((current) => {
+        if (!current) {
+          return current
+        }
+        const from = current.indexOf(draggingId)
+        if (from === -1 || from === target) {
+          return current
+        }
+        const next = current.filter((id) => id !== draggingId)
+        next.splice(target, 0, draggingId)
+        return next
+      })
+    }
     const stop = () => setDraggingId(null)
+    window.addEventListener('pointermove', follow)
     window.addEventListener('pointerup', stop)
     window.addEventListener('pointercancel', stop)
     return () => {
+      window.removeEventListener('pointermove', follow)
       window.removeEventListener('pointerup', stop)
       window.removeEventListener('pointercancel', stop)
     }
@@ -441,10 +439,6 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                           title="Drag to move"
                           aria-hidden="true"
                           onPointerDown={(event) => startDrag(event, id)}
-                          onPointerMove={dragTo}
-                          onPointerUp={endDrag}
-                          onPointerCancel={endDrag}
-                          onLostPointerCapture={endDrag}
                         >
                           ⠿
                         </span>
