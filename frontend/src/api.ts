@@ -499,6 +499,11 @@ export function formattedHtmlForPage(html: string): string {
   return html.replaceAll('src="/library-image/', `src="${mlServiceUrl}/library-image/`)
 }
 
+// The picture of one page of a PDF kept with "Preserve original pages".
+export function libraryPageAddress(document: string, page: number): string {
+  return `${mlServiceUrl}/library-page/${document}/${page}.webp`
+}
+
 // The full address of an icon uploaded on the Site settings screen (header_icon or tab_icon).
 export function siteIconAddress(path: string): string {
   return `${mlServiceUrl}${path}`

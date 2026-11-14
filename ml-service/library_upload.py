@@ -69,6 +69,8 @@ class ReadResult:
   images: dict = field(default_factory=dict)  # a PDF or Word document's pictures, saved on import
   formatted: bool = False  # read from a PDF or Word document, with its formatting
   ocr_pages: int = 0
+  # "Preserve original pages": the PDF, its folder key, and each entry's (and introduction's) pages, in order.
+  original: dict | None = None
 
 
 def is_document(path: Path) -> bool:
@@ -127,14 +129,35 @@ def note(result: ReadResult, kind: str, message: str):
 # --- commentaries --------------------------------------------------------------------------------------
 
 
-def read_commentary_file(path: Path, passage: str = ""):
+def keep_original_pages(path: Path, document, result: ReadResult, entry_texts: list, introduction_texts: list | None = None):
+  """Records which pages of the PDF each entry (and introduction) came from, for "Preserve original pages"."""
+  from document_import import document_key, page_ranges
+
+  if path.suffix.lower() != ".pdf":
+    note(result, "problem", "“Preserve original pages” works with a PDF only.")
+    return
+  introduction_texts = introduction_texts or []
+  # Each list is in the order of the document (a commentary's introductions are listed after its notes).
+  ranges = page_ranges(document.page_texts, entry_texts) + page_ranges(document.page_texts, introduction_texts)
+  missing = sum(1 for found in ranges if found is None)
+  if missing:
+    note(result, "warning", f"{missing} part(s) could not be matched to pages of the PDF; they show their text instead.")
+  result.original = {
+    "path": path, "key": document_key(path), "pages": len(document.page_texts),
+    "entries": ranges[:len(entry_texts)], "introductions": ranges[len(entry_texts):],
+  }
+
+
+def read_commentary_file(path: Path, passage: str = "", keep_pages: bool = False):
   """(entries, introductions, result, book names). Entries and introductions are as save_commentary takes them."""
   with connect() as connection:
     with connection.cursor() as cursor:
       book_names, book_lookup = load_books(cursor)
   limits = verse_limits()
   if is_document(path):
-    return read_commentary_document(path, passage, book_names, book_lookup, limits)
+    return read_commentary_document(path, passage, book_names, book_lookup, limits, keep_pages)
+  if keep_pages:
+    raise UploadProblem("“Preserve original pages” works with a PDF only.")
   entries, introductions = [], []
   seen_entries, seen_introductions = set(), set()
   result = ReadResult()
@@ -196,7 +219,7 @@ def read_commentary_file(path: Path, passage: str = ""):
   return entries, introductions, result, book_names
 
 
-def read_commentary_document(path: Path, passage: str, book_names: dict, book_lookup: dict, limits: dict):
+def read_commentary_document(path: Path, passage: str, book_names: dict, book_lookup: dict, limits: dict, keep_pages: bool = False):
   from document_split import split_commentary
 
   document = read_document(path)
@@ -204,6 +227,8 @@ def read_commentary_document(path: Path, passage: str, book_names: dict, book_lo
   result = ReadResult(list(split.problems), [], document.images, True, document.ocr_pages)
   for warning in split.warnings:
     note(result, "warning", warning)
+  if keep_pages:
+    keep_original_pages(path, document, result, [entry[4] for entry in entries], [introduction[2] for introduction in introductions])
   for book, chapter, verse, end_verse, text, _html in entries:
     if len(text) > MAX_TEXT_CHARACTERS:
       note(result, "problem", f"{book_names[book]} {chapter}:{verse}: the note is longer than {MAX_TEXT_CHARACTERS:,} characters.")
@@ -252,7 +277,7 @@ def read_plain_text(path: Path):
   return Parsed([(1, title)], [Entry(1, 1, 1, title, "", text)]), result
 
 
-def read_devotional_document(path: Path, kind: str, title: str, whole: bool = False):
+def read_devotional_document(path: Path, kind: str, title: str, whole: bool = False, keep_pages: bool = False):
   """(Parsed, result) for a PDF or Word document: by date headings (daily), by headings (by chapter), or the
   whole document as one chapter named title (whole; not for a daily devotional)."""
   from document_split import split_chapters, split_daily, whole_chapter
@@ -267,19 +292,23 @@ def read_devotional_document(path: Path, kind: str, title: str, whole: bool = Fa
   result = ReadResult(list(split.problems), [], document.images, True, document.ocr_pages)
   for warning in split.warnings:
     note(result, "warning", warning)
+  if keep_pages:
+    keep_original_pages(path, document, result, [entry.text for entry in entries])
   for entry in entries:
     if len(entry.text) > MAX_TEXT_CHARACTERS:
       note(result, "problem", f"{entry.unit_title}: the text is longer than {MAX_TEXT_CHARACTERS:,} characters.")
   return Parsed(sections, entries), result
 
 
-def read_devotional_file(path: Path, kind: str, title: str = "", whole: bool = False):
+def read_devotional_file(path: Path, kind: str, title: str = "", whole: bool = False, keep_pages: bool = False):
   """(Parsed, result) for a daily or a by-chapter devotional, or a plain text of one chapter, or a PDF or Word
   document (title names its one chapter when it has no headings)."""
   if kind not in ("daily", "chapters"):
     raise UploadProblem("The kind must be daily or chapters.")
   if is_document(path):
-    return read_devotional_document(path, kind, title, whole)
+    return read_devotional_document(path, kind, title, whole, keep_pages)
+  if keep_pages:
+    raise UploadProblem("“Preserve original pages” works with a PDF only.")
   if is_plain_text(path):
     if kind == "daily":
       raise UploadProblem("A daily devotional must be a tab-separated file (a plain text is one chapter).")
@@ -377,7 +406,10 @@ def check_details(kind: str, details: dict) -> dict:
   credit = details.get("credit")
   keywords = details.get("keywords")
   whole = bool(details.get("whole"))
-  cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items() if key != "whole"}
+  keep_pages = bool(details.get("original_pages"))
+  cleaned = {key: " ".join(str(value or "").split()) for key, value in details.items() if key not in ("whole", "original_pages")}
+  # The PDF's pages kept as pictures and shown by the reader (any kind).
+  cleaned["original_pages"] = keep_pages
   # A PDF or Word document kept whole as one chapter (a book or a devotional by chapter; not daily).
   cleaned["whole"] = whole and kind != "commentary"
   cleaned["credit"] = None if credit is None or kind == "commentary" else cleaned["credit"]
@@ -441,7 +473,7 @@ def preview(kind: str, path: Path, details: dict) -> dict:
   """What importing the file would do. Saves nothing."""
   cleaned = check_details(kind, details)
   if kind == "commentary":
-    entries, introductions, result, book_names = read_commentary_file(path, cleaned.get("passage", ""))
+    entries, introductions, result, book_names = read_commentary_file(path, cleaned.get("passage", ""), cleaned["original_pages"])
     covered = sorted({book for book, *_ in entries})
     summary = {
       "notes": len(entries),
@@ -453,7 +485,7 @@ def preview(kind: str, path: Path, details: dict) -> dict:
       ],
     }
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"], cleaned["original_pages"])
     units = sorted({(entry.section, entry.unit, entry.unit_title) for entry in parsed.entries})
     linked = check_statement_links(parsed, result)
     summary = {
@@ -469,6 +501,9 @@ def preview(kind: str, path: Path, details: dict) -> dict:
   summary["formatted"] = result.formatted
   summary["pictures"] = len(result.images)
   summary["ocr_pages"] = result.ocr_pages
+  if result.original:
+    kept = {page for found in result.original["entries"] + result.original["introductions"] if found for page in range(found[0], found[1] + 1)}
+    summary["original_pages"] = len(kept)
   return {
     "kind": kind,
     "details": cleaned,
@@ -480,6 +515,22 @@ def preview(kind: str, path: Path, details: dict) -> dict:
   }
 
 
+def save_original_pages(original: dict, rows: list) -> None:
+  """Draws the pages the parts came from and records each part's pages: rows are (table, where, values) in the
+  order of original["entries"] + original["introductions"]."""
+  import json
+
+  from document_import import save_page_images
+
+  ranges = original["entries"] + original["introductions"]
+  pages = {page for found in ranges if found for page in range(found[0], found[1] + 1)}
+  save_page_images(original["path"], original["key"], pages)
+  with connect() as connection:
+    for (table, where, values), found in zip(rows, ranges):
+      kept = json.dumps({"document": original["key"], "first": found[0], "last": found[1]}) if found else None
+      connection.execute(f"UPDATE {table} SET original_pages = %s WHERE {where}", (kept, *values))
+
+
 def import_file(kind: str, path: Path, details: dict) -> dict:
   """Saves the file. A new one stays hidden until published; one already there keeps its state."""
   from commentaries import save_commentary
@@ -487,7 +538,7 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
 
   cleaned = check_details(kind, details)
   if kind == "commentary":
-    entries, introductions, result, _ = read_commentary_file(path, cleaned.get("passage", ""))
+    entries, introductions, result, _ = read_commentary_file(path, cleaned.get("passage", ""), cleaned["original_pages"])
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
     save_images(result.images)
@@ -495,12 +546,23 @@ def import_file(kind: str, path: Path, details: dict) -> dict:
       cleaned["id"], cleaned["name"], cleaned["short_name"], cleaned["source_name"], cleaned["source_url"],
       cleaned["license_url"], entries, introductions, publish_if_new=False,
     )
+    if result.original:
+      save_original_pages(
+        result.original,
+        [("commentary_entries", "commentary_id = %s AND book_number = %s AND chapter = %s AND verse = %s", (cleaned["id"], entry[0], entry[1], entry[2])) for entry in entries]
+        + [("commentary_introductions", "commentary_id = %s AND book_number = %s AND chapter = %s", (cleaned["id"], introduction[0], introduction[1])) for introduction in introductions],
+      )
   else:
-    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"])
+    parsed, result = read_devotional_file(path, cleaned["kind"], cleaned["name"], cleaned["whole"], cleaned["original_pages"])
     if result.problems:
       raise UploadProblem("The file has problems: " + " ".join(result.problems[:3]))
     save_images(result.images)
     count = save_devotional(cleaned["id"], cleaned, parsed, publish_if_new=False)
+    if result.original:
+      save_original_pages(
+        result.original,
+        [("devotional_entries", "devotional_id = %s AND section = %s AND unit = %s AND part = %s", (cleaned["id"], entry.section, entry.unit, entry.part)) for entry in parsed.entries],
+      )
     if cleaned["credit"] is not None:
       with connect() as connection:
         connection.execute("UPDATE devotionals SET credit = %s WHERE id = %s", (cleaned["credit"] or None, cleaned["id"]))

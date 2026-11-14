@@ -115,6 +115,11 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
           : $this->t('For a devotional by chapter: the whole document becomes one chapter named after the devotional, with its headings inside it, instead of being cut at its headings. A daily devotional is always read by its dates.'),
       ];
     }
+    $form['original_pages'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Preserve original pages (PDF only)'),
+      '#description' => $this->t('Keeps every page of the PDF as a picture, and the site shows each @part as its original pages, with a button to switch to the text. The text is still read from the PDF (by text recognition for a scan) and is what search finds. Use it when a scan reads poorly or the layout matters. The pages take room on the server: about 100 to 250 KB each.', ['@part' => $isCommentary ? $this->t('note') : ($isBook ? $this->t('chapter') : $this->t('day or chapter'))]),
+    ];
     if ($isCommentary) {
       $form['passage'] = [
         '#type' => 'textfield',
@@ -257,6 +262,7 @@ I believe in Jesus Christ, his only Son, our Lord ...</pre>{% endif %}<p>{{ link
       $parameters[$key] = trim((string) $form_state->getValue($key));
     }
     $parameters['whole'] = (bool) $form_state->getValue('whole');
+    $parameters['original_pages'] = (bool) $form_state->getValue('original_pages');
     $parameters['id'] = strtolower($parameters['id']);
     $token = NULL;
     try {

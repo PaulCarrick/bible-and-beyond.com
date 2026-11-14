@@ -369,3 +369,66 @@ def test_with_one_level_of_bookmarks_other_headings_stay_inside_their_chapter():
   outlined = document_import._apply_outline(html, [(1, "1 Bill's Story"), (1, "Spiritual Experience"), (2, "Web site")])
   assert "<h1>BILL’S STORY</h1>" in outlined
   assert "<p><strong>The Press Edition</strong></p>" in outlined and "<p><strong>A heading inside</strong></p>" in outlined
+
+
+def book_of_three_pages(tmp_path):
+  words = "Grace and peace be multiplied unto you through the knowledge of God and of Jesus our Lord."
+  return make_pdf(tmp_path / "pages.pdf", [
+    ("h1", "The First Chapter"), ("p", "Zebrafinch opens the first chapter. " + words), ("p", words),
+    ("page", ""), ("p", "The first chapter goes on over the second page. " + words),
+    ("page", ""), ("h1", "The Second Chapter"), ("p", "Quokka opens the second chapter. " + words),
+  ])
+
+
+def test_original_pages_are_kept_and_each_chapter_knows_its_pages(tmp_path):
+  path = book_of_three_pages(tmp_path)
+  shown = preview("book", path, {**BOOK, "original_pages": True})
+  assert shown["can_import"] and shown["summary"]["original_pages"] == 3 and shown["details"]["original_pages"] is True
+
+  import_file("book", path, {**BOOK, "original_pages": True})
+  with connect() as connection:
+    connection.execute("UPDATE devotionals SET is_published = true WHERE id = 'test-document-book'")
+    kept = connection.execute(
+      "SELECT unit, original_pages FROM devotional_entries WHERE devotional_id = 'test-document-book' ORDER BY unit"
+    ).fetchall()
+  key = document_import.document_key(path)
+  assert kept == [(1, {"document": key, "first": 1, "last": 2}), (2, {"document": key, "first": 3, "last": 3})]
+  assert sorted(file.name for file in (document_import.pages_folder() / key).iterdir()) == ["1.webp", "2.webp", "3.webp"]
+
+  # The reader gets the pages with the text, which is still what is searched.
+  unit = client.get("/devotional-unit", params={"devotional": "test-document-book", "section": 1, "unit": 1}).json()
+  assert unit["entries"][0]["original_pages"] == {"document": key, "first": 1, "last": 2}
+  assert "Zebrafinch" in unit["entries"][0]["text"]
+  found = client.get("/search-other-books", params={"query": "quokka", "match_mode": "all", "book": "test-document-book"}).json()
+  assert found["total"] == 1
+  page = client.get(f"/library-page/{key}/2.webp")
+  assert page.status_code == 200 and page.headers["content-type"] == "image/webp" and page.content[:4] == b"RIFF"
+  assert client.get(f"/library-page/{key}/9.webp").status_code == 404
+  assert client.get("/library-page/..%2F..%2Fmain/1.webp").status_code == 404
+
+
+def test_original_pages_need_a_pdf_and_are_not_kept_unless_asked(tmp_path):
+  path = book_of_three_pages(tmp_path)
+  import_file("book", path, BOOK)
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM devotional_entries WHERE devotional_id = 'test-document-book' AND original_pages IS NOT NULL").fetchone()[0] == 0
+  word = make_docx(tmp_path / "book.docx")
+  assert preview("book", word, {**BOOK, "original_pages": True})["problems"] == ["“Preserve original pages” works with a PDF only."]
+
+
+def test_a_commentary_keeps_the_pages_of_its_notes(tmp_path):
+  path = make_pdf(tmp_path / "notes.pdf", [
+    ("h1", "John 3"), ("p", "An introduction to the chapter about new birth and the wind that blows."),
+    ("h2", "Verse 16"), ("p", "God so loved the world that He gave His Son, the greatest gift of all."),
+    ("page", ""), ("h2", "Verse 17"), ("p", "He came not to condemn the world but that it might be saved by Him."),
+  ])
+  import_file("commentary", path, {**COMMENTARY, "original_pages": True})
+  with connect() as connection:
+    notes = connection.execute("SELECT verse, original_pages->>'first' FROM commentary_entries WHERE commentary_id = 'test-document-notes' ORDER BY verse").fetchall()
+    introduction = connection.execute("SELECT original_pages->>'first' FROM commentary_introductions WHERE commentary_id = 'test-document-notes'").fetchone()
+  assert notes == [(16, "1"), (17, "2")] and introduction == ("1",)
+
+
+def test_page_ranges_follow_the_text_in_order():
+  pages = ["Chapter one begins here and runs on", "and ends here. Chapter two begins", "and chapter two ends."]
+  assert document_import.page_ranges(pages, ["Chapter one begins here and runs on and ends here.", "Chapter two begins and chapter two ends.", "x"]) == [(1, 2), (2, 3), None]

@@ -66,6 +66,8 @@ def parse_arguments():
     command.add_argument("--keywords", default=None)
     # A PDF or Word document kept whole as one chapter, its headings inside it (a book or a devotional by chapter).
     command.add_argument("--whole", action="store_true")
+    # A PDF's pages kept as pictures and shown by the reader; its text is still read for search.
+    command.add_argument("--original-pages", action="store_true")
   return parser.parse_args()
 
 
@@ -75,6 +77,7 @@ def details(arguments) -> dict:
     "kind": arguments.devotional_kind, "source_name": arguments.source_name, "source_url": arguments.source_url,
     "license_url": arguments.license_url, "translator": arguments.translator, "credit": arguments.credit,
     "keywords": arguments.keywords, "passage": arguments.passage, "whole": arguments.whole,
+    "original_pages": arguments.original_pages,
   }
 
 

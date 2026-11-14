@@ -670,6 +670,19 @@ def library_image(name: str):
   )
 
 
+@app.get("/library-page/{document}/{page}.webp")
+def library_page(document: str, page: str):
+  """A page of a PDF kept with "Preserve original pages" (document_import.py). Its folder is named from the PDF's
+  contents, so a page never changes and can be cached for a year."""
+  path = document_import.page_image_file(document, page)
+  if path is None:
+    raise HTTPException(status_code=404, detail="There is no such page.")
+  return FileResponse(
+    path, media_type="image/webp",
+    headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
+  )
+
+
 @app.get("/site-icon/{kind}")
 def site_icon(kind: str):
   """An icon uploaded on the Site settings screen. Cached for a month: the page adds ?v= with its version,

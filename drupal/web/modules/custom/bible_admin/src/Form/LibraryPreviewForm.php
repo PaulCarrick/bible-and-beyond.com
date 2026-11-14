@@ -83,6 +83,9 @@ class LibraryPreviewForm extends FormBase {
       $rows[] = [$this->t('Credit line'), ['data' => ['#plain_text' => ($preview['details']['credit'] ?? '') !== '' ? $preview['details']['credit'] : $this->t('The usual line (public domain)')]]];
       $rows[] = [$this->t('Keywords'), ['data' => ['#plain_text' => ($preview['details']['keywords'] ?? '') !== '' ? $preview['details']['keywords'] : $this->t('None typed (one already there is kept)')]]];
     }
+    if (!empty($preview['details']['original_pages'])) {
+      $rows[] = [$this->t('Original pages'), $this->t('@count kept as pictures; the site shows them, with a button for the text', ['@count' => number_format((int) ($summary['original_pages'] ?? 0))])];
+    }
     if (!empty($summary['formatted'])) {
       $rows[] = [$this->t('Formatting'), $this->t('Kept from the document (headings, bold, italic, lists, quotations, tables, footnotes)')];
       $rows[] = [$this->t('Pictures'), number_format((int) ($summary['pictures'] ?? 0))];

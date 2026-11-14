@@ -252,6 +252,17 @@ export interface CommentaryResponse {
   html?: string
   chapter_introduction_html?: string
   book_introduction_html?: string
+  // The PDF pages each came from ("Preserve original pages" on the Upload form), shown in place of the text.
+  original_pages?: OriginalPages
+  chapter_introduction_pages?: OriginalPages
+  book_introduction_pages?: OriginalPages
+}
+
+// A PDF's pages kept as pictures (document is the folder key), from first to last page, from 1.
+export interface OriginalPages {
+  document: string
+  first: number
+  last: number
 }
 
 // One commentary, as listed for choosing which to search.
@@ -289,6 +300,7 @@ export interface CommentaryNote {
   references: [number, number, string][]
   // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
   html?: string
+  original_pages?: OriginalPages
 }
 
 export interface CommentaryChapter {
@@ -303,6 +315,8 @@ export interface CommentaryChapter {
   // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
   chapter_introduction_html?: string
   book_introduction_html?: string
+  chapter_introduction_pages?: OriginalPages
+  book_introduction_pages?: OriginalPages
   entries: CommentaryNote[]
   previous: ChapterNeighbour | null
   next: ChapterNeighbour | null
@@ -366,6 +380,7 @@ export interface DevotionalEntry {
   references: [number, number, string, string?][]
   // The same with its formatting, from a PDF or Word upload (references as links); absent for plain text.
   html?: string
+  original_pages?: OriginalPages
 }
 
 // One day or chapter, as the server sends it.

@@ -57,14 +57,17 @@ def make_docx_headings(path: Path, headings_and_text: list[tuple[int, str]]) -> 
 
 
 def make_pdf(path: Path, lines: list[tuple[str, str]], picture=False, table=False) -> Path:
-  """A text PDF: (style, text) lines where style is "h1", "h2", "p", "bold" or "italic"."""
+  """A text PDF: (style, text) lines where style is "h1", "h2", "p", "bold", "italic" or "page" (a new page)."""
   from reportlab.lib.pagesizes import letter
   from reportlab.lib.styles import getSampleStyleSheet
-  from reportlab.platypus import Image as FlowImage, Paragraph, SimpleDocTemplate, Spacer, Table
+  from reportlab.platypus import Image as FlowImage, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table
 
   styles = getSampleStyleSheet()
   story = []
   for style, text in lines:
+    if style == "page":
+      story.append(PageBreak())
+      continue
     if style == "h1":
       story.append(Paragraph(text, styles["Heading1"]))
     elif style == "h2":

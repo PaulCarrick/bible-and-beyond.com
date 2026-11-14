@@ -2494,6 +2494,33 @@ select:disabled {
 
 /* Conversations (ConversationsPage.tsx): members' posts. The list, cards, search and paging reuse the My notes
    styles. */
+/* "Preserve original pages": the PDF's pages as pictures, one under another, the width of the reading. */
+.original-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.original-pages img {
+  display: block;
+  width: 100%;
+  max-width: 46rem;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.original-pages-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
 /* For a reader who cannot post: who can take part, with room before the search box. */
 .conversation-readers-note {
   margin: 0.5rem 0 1rem;

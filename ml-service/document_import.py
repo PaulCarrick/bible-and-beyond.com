@@ -61,6 +61,96 @@ class Document:
   footnotes: dict = field(default_factory=dict)  # Word footnote number -> its HTML, put at the end of its chapter
   warnings: list = field(default_factory=list)
   ocr_pages: int = 0
+  # A PDF's text page by page (what the reading parts are matched to, to show their original pages).
+  page_texts: list = field(default_factory=list)
+
+
+# --- the original pages of a PDF ("Preserve original pages" on the Upload form) ---------------------------
+# Each page is kept as a picture, and each part of the text (a chapter, a day, a note) remembers the pages it
+# came from, so the reader can show the pages as printed; the text read from them is still what is searched.
+PAGE_IMAGE_WIDTH = 1000  # pixels: sharp on a phone and on most screens, about 100 to 250 KB a page as WebP
+PAGE_KEY = re.compile(r"^[0-9a-f]{20}$")
+
+
+def pages_folder() -> Path:
+  return Path(os.environ.get("LIBRARY_PAGES_FOLDER") or Path(__file__).resolve().parent / "data" / "library-pages")
+
+
+def document_key(path: Path) -> str:
+  """The name of a PDF's folder of pages: from its contents, so the same PDF uploaded again shares them."""
+  return hashlib.sha256(path.read_bytes()).hexdigest()[:20]
+
+
+def _squeezed(text: str) -> str:
+  return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def page_ranges(page_texts: list[str], pieces: list[str]) -> list[tuple[int, int] | None]:
+  """For each piece of text, in the order they come in the document, the first and last page (from 1) it is
+  on, found by where its first and last words are in the pages' text; None for one that cannot be found."""
+  starts, whole = [], ""
+  for text in page_texts:
+    starts.append(len(whole))
+    whole += _squeezed(text)
+
+  def page_at(position: int) -> int:
+    page = 0
+    while page + 1 < len(starts) and starts[page + 1] <= position:
+      page += 1
+    return page + 1
+
+  ranges, cursor = [], 0
+  for piece in pieces:
+    squeezed = _squeezed(piece)
+    if len(squeezed) < 8:
+      ranges.append(None)
+      continue
+    head, tail = squeezed[:60], squeezed[-60:]
+    start = whole.find(head, cursor)
+    if start < 0:
+      start = whole.find(head)
+    if start < 0:
+      ranges.append(None)
+      continue
+    # The last time its closing words appear near where it should end (a sentence can recur inside it).
+    end = whole.rfind(tail, start, start + len(squeezed) + 40)
+    end = start + len(squeezed) - 1 if end < 0 else end + len(tail) - 1
+    ranges.append((page_at(start), page_at(min(end, len(whole) - 1))))
+    cursor = start + 1
+  return ranges
+
+
+def save_page_images(path: Path, key: str, pages: set[int]) -> int:
+  """Draws the pages (from 1) of the PDF as WebP pictures in its folder; ones already there are kept."""
+  import pypdfium2
+
+  folder = pages_folder() / key
+  folder.mkdir(parents=True, exist_ok=True)
+  pdf = pypdfium2.PdfDocument(str(path))
+  try:
+    drawn = 0
+    for number in sorted(pages):
+      target = folder / f"{number}.webp"
+      if target.exists() or not 1 <= number <= len(pdf):
+        continue
+      page = pdf[number - 1]
+      width = page.get_width() or 612
+      picture = page.render(scale=PAGE_IMAGE_WIDTH / width).to_pil().convert("RGB")
+      temporary = target.with_suffix(".tmp")
+      picture.save(temporary, "WEBP", quality=75, method=4)
+      temporary.replace(target)
+      drawn += 1
+    return drawn
+  finally:
+    pdf.close()
+
+
+def page_image_file(key: str, page: str) -> Path | None:
+  """The picture of a kept page, or None (the key and page are checked, so no other file can be asked for)."""
+  if not PAGE_KEY.match(key) or not re.fullmatch(r"[1-9]\d{0,4}", page):
+    return None
+  path = pages_folder() / key / f"{page}.webp"
+  return path if path.is_file() else None
 
 
 # --- where pictures are kept ---------------------------------------------------------------------------
@@ -456,6 +546,7 @@ def _convert_pdf(path: Path) -> Document:
     ]
     if not all_lines and not any(page_tables):
       raise DocumentProblem("No text was found in the PDF.")
+    document.page_texts = [" ".join(line.text for line in all_lines if line.page == number) for number in range(len(pages_lines))]
     sizes = Counter()
     for line in all_lines:
       sizes[line.size] += len(line.text)

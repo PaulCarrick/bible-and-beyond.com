@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import FormattedText from './FormattedText'
+import OriginalPages from './OriginalPages'
+import type { OriginalPages as OriginalPagesType } from './types'
 import { highlightLinked } from './highlight'
 import type { LinkOptions } from './highlight'
 
@@ -35,10 +38,37 @@ interface NoteTextProps {
   onOpenReference: (book: number, chapter: number, verse: number, shownText: string, element: HTMLElement) => void
   // The text with its formatting (a PDF or Word upload); when given, it is shown instead of the plain text.
   html?: string
+  // The PDF pages it came from ("Preserve original pages"): shown as pictures, with a button for the text.
+  originalPages?: OriginalPagesType
+}
+
+// A reading kept with its original pages: the pages, or its text, with a button to switch. Opened from a search
+// (words to show in bold), it starts on the text, where the words are.
+function WithOriginalPages(props: NoteTextProps & { originalPages: OriginalPagesType }) {
+  const [showsText, setShowsText] = useState(props.terms.length > 0)
+  return (
+    <>
+      <p className="original-pages-switch">
+        <button type="button" className="secondary-button small-button" onClick={() => setShowsText(!showsText)}>
+          {showsText ? 'Show the original pages' : 'Show the text'}
+        </button>
+        <span>
+          {showsText
+            ? 'The text read from the original pages; it may have small mistakes.'
+            : `The original page${props.originalPages.first === props.originalPages.last ? '' : 's'}.`}
+        </span>
+      </p>
+      {showsText ? <NoteText {...props} originalPages={undefined} /> : <OriginalPages pages={props.originalPages} />}
+    </>
+  )
 }
 
 // The text of a commentary note as paragraphs, with its scripture references as links.
-function NoteText({ text, references, terms, translation = 'BSB', onOpenReference, html }: NoteTextProps) {
+function NoteText(props: NoteTextProps) {
+  const { text, references, terms, translation = 'BSB', onOpenReference, html, originalPages } = props
+  if (originalPages) {
+    return <WithOriginalPages {...props} originalPages={originalPages} />
+  }
   if (html) {
     return <FormattedText html={html} terms={terms} translation={translation} onOpenReference={onOpenReference} />
   }

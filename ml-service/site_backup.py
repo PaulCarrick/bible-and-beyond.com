@@ -22,6 +22,7 @@ Two parts, chosen with the page's two checkboxes (for a backup, and again for a 
             files/icons/...                  the header emblem and browser-tab icon uploaded on the Site
                                              settings screen (site_icons.py), if any
             files/library-images/...         the pictures of PDF and Word uploads (document_import.py)
+            files/library-pages/...          the pages of PDFs kept with "Preserve original pages"
 
 and manifest.json (when it was taken, the note, which parts it holds, a few counts). The zip holds personal
 data (accounts, password hashes) and the service keys: keep it private.
@@ -76,6 +77,7 @@ MUSIC = "files/music/"
 DRUPAL_FILES = "files/drupal/"
 ICONS = "files/icons/"
 LIBRARY_IMAGES = "files/library-images/"
+LIBRARY_PAGES = "files/library-pages/"
 # Small files of ml-service/data that are part of the site (the service settings file itself can live
 # elsewhere, see settings_path()).
 DATA_FILES = ["api_bible_usage.json"]
@@ -367,6 +369,7 @@ def take_backup(parts: dict, note: str = "", report=lambda message: None) -> Pat
         manifest["counts"]["Drupal files"] = _add_folder(archive, _drupal_files_directory(), DRUPAL_FILES, DRUPAL_GENERATED)
         manifest["counts"]["Site icons"] = _add_folder(archive, site_icons.icons_folder(), ICONS)
         manifest["counts"]["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
+        manifest["counts"]["Original pages of PDFs"] = _add_folder(archive, document_import.pages_folder(), LIBRARY_PAGES)
       archive.writestr("manifest.json", json.dumps(manifest, indent=2))
     partial.rename(target)
   except BaseException:
@@ -516,6 +519,8 @@ def restore_backup(path: Path, wanted: dict, report=lambda message: None) -> str
       _extract_folder(archive, ICONS, site_icons.icons_folder())
       # Pictures are named by their contents, so those of the backup are added to any already here.
       _extract_folder(archive, LIBRARY_IMAGES, document_import.images_folder())
+      # Likewise the kept pages (each PDF's folder is named by its contents).
+      _extract_folder(archive, LIBRARY_PAGES, document_import.pages_folder())
 
     if database:
       report("Restoring Drupal's database ...")

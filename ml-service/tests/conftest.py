@@ -20,3 +20,4 @@ def no_real_site_icons(tmp_path, monkeypatch):
 def no_real_library_images(tmp_path, monkeypatch):
   """Tests never write pictures of uploaded documents into the real data/library-images."""
   monkeypatch.setenv("LIBRARY_IMAGES_FOLDER", str(tmp_path / "library-images"))
+  monkeypatch.setenv("LIBRARY_PAGES_FOLDER", str(tmp_path / "library-pages"))

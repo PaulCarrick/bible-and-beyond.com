@@ -338,6 +338,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     <NoteText
                       text={chapter.book_introduction}
                       html={chapter.book_introduction_html}
+                      originalPages={chapter.book_introduction_pages}
                       translation={contextTranslation}
                       references={chapter.book_introduction_references}
                       terms={[]}
@@ -355,6 +356,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                     <NoteText
                       text={chapter.chapter_introduction}
                       html={chapter.chapter_introduction_html}
+                      originalPages={chapter.chapter_introduction_pages}
                       translation={contextTranslation}
                       references={chapter.chapter_introduction_references}
                       terms={[]}
@@ -426,6 +428,7 @@ function BrowseTab({ commentaries, translations, isHidden, destination }: Browse
                       <NoteText
                         text={note.text}
                         html={note.html}
+                        originalPages={note.original_pages}
                         translation={contextTranslation}
                         references={note.references}
                         terms={[]}

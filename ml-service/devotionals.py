@@ -1678,7 +1678,7 @@ def get_unit(devotional_id, section, unit):
   with connect() as connection:
     row = connection.execute(f"SELECT {DESCRIBE_COLUMNS} FROM devotionals WHERE id = %s AND is_published", (devotional_id,)).fetchone()
     entries = connection.execute(
-      "SELECT unit_title, heading, text, html FROM devotional_entries "
+      "SELECT unit_title, heading, text, html, original_pages FROM devotional_entries "
       "WHERE devotional_id = %s AND section = %s AND unit = %s ORDER BY part",
       (devotional_id, section, unit),
     ).fetchall()
@@ -1714,8 +1714,10 @@ def get_unit(devotional_id, section, unit):
         **dict(zip(("text", "references"), text_and_references(text))),
         # The formatted reading, with its references as links (formatted_html), when it was uploaded so.
         **({"html": formatted_html(html)} if html else {}),
+        # The PDF pages it came from ("Preserve original pages"): {document, first, last}.
+        **({"original_pages": pages} if pages else {}),
       }
-      for _title, heading, text, html in entries
+      for _title, heading, text, html, pages in entries
     ],
     "previous": neighbour(position - 1),
     "next": neighbour(position + 1),

@@ -233,6 +233,8 @@ CREATE TABLE IF NOT EXISTS commentary_entries (
     text TEXT NOT NULL,
     -- The note with its formatting, from a PDF or Word upload (migration 031); NULL for plain text.
     html TEXT,
+    -- The PDF pages it came from, shown by the reader ("Preserve original pages", migration 033).
+    original_pages JSONB,
     search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', text)) STORED
 );
 
@@ -245,6 +247,7 @@ CREATE TABLE IF NOT EXISTS commentary_introductions (
     chapter INTEGER NOT NULL,
     text TEXT NOT NULL,
     html TEXT,
+    original_pages JSONB,
     PRIMARY KEY (commentary_id, book_number, chapter)
 );
 
@@ -290,6 +293,8 @@ CREATE TABLE IF NOT EXISTS devotional_entries (
     text TEXT NOT NULL,
     -- The reading with its formatting, from a PDF or Word upload (migration 031); NULL for plain text.
     html TEXT,
+    -- The PDF pages it came from, shown by the reader ("Preserve original pages", migration 033).
+    original_pages JSONB,
     -- Search inside the Other books (migration 018).
     search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('commentary_english', unit_title || ' ' || text)) STORED,
     PRIMARY KEY (devotional_id, section, unit, part)

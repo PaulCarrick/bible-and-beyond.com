@@ -307,6 +307,10 @@ class BibleManager {
         $arguments[] = '--whole';
       }
     }
+    // A PDF's pages kept as pictures and shown by the reader (any kind).
+    if (!empty($parameters['original_pages'])) {
+      $arguments[] = '--original-pages';
+    }
     return $arguments;
   }
 
