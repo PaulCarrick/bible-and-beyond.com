@@ -117,6 +117,16 @@ def page_ranges(page_texts: list[str], pieces: list[str]) -> list[tuple[int, int
     end = start + len(squeezed) - 1 if end < 0 else end + len(tail) - 1
     ranges.append((page_at(start), page_at(min(end, len(whole) - 1))))
     cursor = start + 1
+  # A part that could not be found lies between the parts before and after it: it gets the pages between them.
+  for index, found in enumerate(ranges):
+    if found is not None:
+      continue
+    before = next((ranges[back] for back in range(index - 1, -1, -1) if ranges[back]), None)
+    after = next((ranges[ahead] for ahead in range(index + 1, len(ranges)) if ranges[ahead]), None)
+    if before and after and before[1] <= after[0]:
+      ranges[index] = (before[1], after[0])
+    elif before is None and after:
+      ranges[index] = (1, after[0])  # before the first part found: from the first page
   return ranges
 
 
@@ -504,12 +514,12 @@ def _convert_pdf(path: Path) -> Document:
   with pdf:
     if len(pdf.pages) > MAX_PAGES:
       raise DocumentProblem(f"The PDF has more than {MAX_PAGES} pages.")
-    pages_lines, page_heights, page_tables, page_images = [], [], [], []
+    pages_lines, page_heights, page_tables, page_images, whole_page_texts = [], [], [], [], []
     for number, page in enumerate(pdf.pages):
       page_heights.append(page.height)
       tables = []
       try:
-        tables = [table for table in page.find_tables() if table.bbox[3] - table.bbox[1] > 10]
+        tables = [table for table in page.find_tables() if table.bbox[3] - table.bbox[1] > 10 and _is_real_table(table)]
       except Exception:
         tables = []
       def outside_tables(word):
@@ -539,6 +549,7 @@ def _convert_pdf(path: Path) -> Document:
         page_images.append(pictures)
       page_tables.append([(table.bbox[1], _table_html(table)) for table in tables])
       pages_lines.append(_lines_of([word for word in words if outside_tables(word)], number))
+      whole_page_texts.append(" ".join(line.text for line in _lines_of(words, number)))
     repeated = _repeated_margins(pages_lines, page_heights)
     all_lines = [
       line for lines, height in zip(pages_lines, page_heights) for line in lines
@@ -546,7 +557,8 @@ def _convert_pdf(path: Path) -> Document:
     ]
     if not all_lines and not any(page_tables):
       raise DocumentProblem("No text was found in the PDF.")
-    document.page_texts = [" ".join(line.text for line in all_lines if line.page == number) for number in range(len(pages_lines))]
+    # Everything on each page, tables included: what the parts of the text are matched to.
+    document.page_texts = whole_page_texts
     sizes = Counter()
     for line in all_lines:
       sizes[line.size] += len(line.text)
@@ -600,6 +612,16 @@ def _join_across_pages(blocks: list[str]) -> list[str]:
         continue
     joined.append(block)
   return joined
+
+
+def _is_real_table(table) -> bool:
+  """A table with at least two columns used. Some PDFs draw a box around each line of prose, which looks like a
+  one-column table; its lines are read as text instead."""
+  try:
+    rows = table.extract() or []
+  except Exception:
+    return False
+  return any(sum(1 for cell in row if cell and str(cell).strip()) >= 2 for row in rows)
 
 
 def _table_html(table) -> str:

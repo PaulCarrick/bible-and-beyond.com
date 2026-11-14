@@ -432,3 +432,26 @@ def test_a_commentary_keeps_the_pages_of_its_notes(tmp_path):
 def test_page_ranges_follow_the_text_in_order():
   pages = ["Chapter one begins here and runs on", "and ends here. Chapter two begins", "and chapter two ends."]
   assert document_import.page_ranges(pages, ["Chapter one begins here and runs on and ends here.", "Chapter two begins and chapter two ends.", "x"]) == [(1, 2), (2, 3), None]
+
+
+def test_a_part_not_found_takes_the_pages_between_its_neighbours():
+  pages = ["Alpha chapter text here", "more alpha text", "Gamma chapter text", "gamma ends"]
+  assert document_import.page_ranges(pages, ["xx unmatched opening", "Alpha chapter text here more alpha text", "zz cannot be found anywhere", "Gamma chapter text gamma ends"]) == [(1, 1), (1, 2), (2, 3), (3, 4)]
+
+
+def test_lines_of_prose_in_boxes_are_text_not_a_table(tmp_path):
+  # Some PDFs draw a box around each line of prose; that is a one-column "table", read as text instead.
+  from reportlab.lib.pagesizes import letter
+  from reportlab.pdfgen import canvas
+
+  path = tmp_path / "boxed.pdf"
+  drawing = canvas.Canvas(str(path), pagesize=letter)
+  lines = ["Blessed are the poor in spirit, for theirs is the kingdom.", "Blessed are they that mourn, for they shall be comforted.", "Blessed are the meek, for they shall inherit the earth."]
+  for index, line in enumerate(lines):
+    top = 700 - index * 24
+    drawing.rect(70, top - 6, 470, 22)
+    drawing.drawString(76, top, line)
+  drawing.save()
+  document = convert(path, "boxed.pdf")
+  assert "<table" not in document.html and "Blessed are the meek" in html_to_text(document.html)
+  assert "Blessed are the meek" in document.page_texts[0]
