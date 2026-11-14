@@ -186,6 +186,8 @@ class _Line:
   size: float
   words: list  # (text, bold, italic, superscript)
   page: int
+  # The bottom of a drop cap that starts this line (the lines beside it start further right), else 0.
+  drop_cap_bottom: float = 0
 
   @property
   def text(self):
@@ -207,27 +209,44 @@ def _lines_of(words: list, page_number: int) -> list[_Line]:
       lines.append(_Line(min(word["top"] for word in group), max(word["bottom"] for word in group), min(word["x0"] for word in group),
                          max(word["x1"] for word in group), 0, group, page_number))
   else:
+    # A drop cap (a first letter two or three lines tall) would stretch its line over the next ones and merge
+    # them ("W which AR FEVER we new, ran young high"): a word more than twice the usual height counts only its
+    # top part when lines are grouped, so it joins the first line it starts on.
+    heights = sorted(max(word["bottom"] - word["top"], 0.1) for word in words)
+    usual = heights[len(heights) // 2] if heights else 0.1
     for word in sorted(words, key=lambda word: (word["top"], word["x0"])):
-      height = max(word["bottom"] - word["top"], 0.1)
+      bottom = word["bottom"]
+      tall = bottom - word["top"] > 2 * usual
+      if tall:
+        bottom = word["top"] + 1.2 * usual
+      height = max(bottom - word["top"], 0.1)
       for line in reversed(lines[-4:]):
-        overlap = min(line.bottom, word["bottom"]) - max(line.top, word["top"])
+        overlap = min(line.bottom, bottom) - max(line.top, word["top"])
         if overlap >= 0.5 * min(height, line.bottom - line.top):
-          line.top, line.bottom = min(line.top, word["top"]), max(line.bottom, word["bottom"])
+          line.top, line.bottom = min(line.top, word["top"]), max(line.bottom, bottom)
           line.x0, line.x1 = min(line.x0, word["x0"]), max(line.x1, word["x1"])
           line.words.append(word)
+          if tall:
+            line.drop_cap_bottom = word["bottom"]
           break
       else:
-        lines.append(_Line(word["top"], word["bottom"], word["x0"], word["x1"], 0, [word], page_number))
+        lines.append(_Line(word["top"], bottom, word["x0"], word["x1"], 0, [word], page_number, word["bottom"] if tall else 0))
   lines.sort(key=lambda line: (line.top, line.x0))
   for line in lines:
     sizes = Counter(round(word.get("size") or (word["bottom"] - word["top"]), 1) for word in line.words)
     line.size = sizes.most_common(1)[0][0]
     styled = []
+    drop_cap = None
     for word in sorted(line.words, key=lambda word: word["x0"]):
       bold, italic = _style_of(word.get("fontname", ""))
       size = word.get("size") or (word["bottom"] - word["top"])
       superscript = size < line.size * 0.8 and word["bottom"] < line.bottom - size * 0.25
-      styled.append((word["text"], bold, italic, superscript))
+      text = word["text"]
+      # A one-letter drop cap followed closely by the rest of its word: one word ("W" + "AR" is "WAR").
+      if drop_cap is not None and word["x0"] - drop_cap["x1"] < line.size and text[:1].isalpha():
+        text = styled.pop()[0] + text
+      drop_cap = word if len(text) == 1 and text.isalpha() and size > 2 * line.size else None
+      styled.append((text, bold, italic, superscript))
     line.words = styled
   return lines
 
@@ -274,6 +293,8 @@ def _paragraphs(lines: list[_Line], body_size: float, heading_sizes: list[float]
   usual_gap = max(sorted(gaps)[len(gaps) // 10], body_size * 0.15) if gaps else body_size * 0.4
   left = Counter(round(line.x0) for line in lines).most_common(1)[0][0] if lines else 0
   width = max((line.x1 for line in lines), default=0) - left
+  # The lines beside a drop cap start to the right of it: that is not an indent.
+  drop_cap_until = 0.0
   for index, line in enumerate(lines):
     text = line.text.strip()
     if not text:
@@ -291,11 +312,13 @@ def _paragraphs(lines: list[_Line], body_size: float, heading_sizes: list[float]
     if current:
       previous = current[-1]
       gap = line.top - previous.bottom if line.page == previous.page else usual_gap
-      indented = line.x0 - left > body_size * 1.2
+      indented = line.x0 - left > body_size * 1.2 and not (line.page == previous.page and line.top < drop_cap_until)
       short_before = width and previous.x1 - left < width * 0.75
       if gap > usual_gap * 1.5 + 1 or indented or short_before:
         flush()
     current.append(line)
+    if line.drop_cap_bottom:
+      drop_cap_until = line.drop_cap_bottom
   flush()
   return blocks
 
@@ -342,7 +365,44 @@ def ocr_available() -> bool:
   return shutil.which("tesseract") is not None
 
 
+def _repaired_pdf(path: Path) -> Path | None:
+  """A copy of the PDF rewritten by pypdf, when pdfplumber sees fewer pages than pypdf does; else None.
+
+  Some PDFs have a damaged cross-reference table that pypdf reads past but pdfplumber (pdfminer) does not, so
+  it sees only the first page: the Anonymous Press's PDF of Alcoholics Anonymous (193 pages) imported as its
+  title page alone on 2026-11-14. Rewriting the file with pypdf gives a clean table. The caller removes the copy."""
+  import tempfile
+
+  import pdfplumber
+  from pypdf import PdfReader, PdfWriter
+
+  try:
+    reader = PdfReader(path)
+    if reader.is_encrypted:
+      return None
+    with pdfplumber.open(path) as pdf:
+      if len(pdf.pages) >= len(reader.pages):
+        return None
+    handle, name = tempfile.mkstemp(suffix=".pdf")
+    with os.fdopen(handle, "wb") as out:
+      PdfWriter(clone_from=reader).write(out)
+    return Path(name)
+  except Exception:
+    # Not repairable this way: read it as it is, and let the usual errors speak.
+    return None
+
+
 def convert_pdf(path: Path) -> Document:
+  repaired = _repaired_pdf(path)
+  if repaired is None:
+    return _convert_pdf(path)
+  try:
+    return _convert_pdf(repaired)
+  finally:
+    repaired.unlink(missing_ok=True)
+
+
+def _convert_pdf(path: Path) -> Document:
   import pdfplumber
   from pypdf import PdfReader
 
@@ -441,7 +501,11 @@ def _join_across_pages(blocks: list[str]) -> list[str]:
       previous_text = re.sub(r"<[^>]+>", "", joined[-1][3:-4]).rstrip()
       next_text = re.sub(r"<[^>]+>", "", block[3:-4]).lstrip()
       if previous_text and next_text and previous_text[-1] not in ".!?:;”\"’)" and next_text[:1].islower():
-        joined[-1] = joined[-1][:-4] + " " + block[3:]
+        # A word hyphenated at the break is one word again ("thou-" + "sands").
+        if re.search(r"[a-z]-$", previous_text) and joined[-1][:-4].endswith("-"):
+          joined[-1] = joined[-1][:-5] + block[3:]
+        else:
+          joined[-1] = joined[-1][:-4] + " " + block[3:]
         continue
     joined.append(block)
   return joined
@@ -476,7 +540,19 @@ def _outline(reader) -> list[tuple[int, str]]:
 
 
 def _normal(text: str) -> str:
-  return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+  # Apostrophes, straight or curly, are dropped rather than made spaces, so "Bill's" and "BILL’S" agree.
+  # So is a full stop just before one ("Dr.'s" is "drs").
+  return re.sub(r"[^a-z0-9]+", " ", re.sub(r"\.?['’ʼ]", "", text.lower())).strip()
+
+
+def _title_forms(text: str) -> set[str]:
+  """The ways a bookmark's or a heading's words may be written: as they are, and without a chapter number in
+  front ("1 Bill's Story", "Chapter 1 Bill's Story" and "BILL’S STORY" all match)."""
+  normal = _normal(text)
+  bare = re.sub(r"^(chapter|part|section)?\s*([0-9]+|[ivxlc]+)\b\s*", "", normal).strip()
+  # "Dr." in a bookmark for "Doctor" in the text ("The Dr.'s Opinion", "THE DOCTOR’S OPINION").
+  spelled = {re.sub(r"\bdr(s?)\b", r"doctor\1", form) for form in (normal, bare)}
+  return {form for form in (normal, bare, *spelled) if form}
 
 
 def _apply_outline(html: str, outline: list[tuple[int, str]]) -> str:
@@ -485,11 +561,12 @@ def _apply_outline(html: str, outline: list[tuple[int, str]]) -> str:
   soup = BeautifulSoup(html, "html.parser")
   blocks = [block for block in soup.children if isinstance(block, Tag)]
   marked = 0
+  marked_levels = set()
   position = 0
   for level, title in outline:
-    wanted = _normal(title)
+    wanted = _title_forms(title)
     for index in range(position, len(blocks)):
-      if _normal(blocks[index].get_text(" ")) == wanted:
+      if _title_forms(blocks[index].get_text(" ")) & wanted:
         heading = soup.new_tag(f"h{min(level, 4)}")
         heading.string = blocks[index].get_text(" ").strip()
         heading["data-bookmark"] = "1"
@@ -497,13 +574,25 @@ def _apply_outline(html: str, outline: list[tuple[int, str]]) -> str:
         blocks[index] = heading
         position = index + 1
         marked += 1
+        marked_levels.add(level)
         break
   if marked < max(1, len(outline) // 2):
     return html
-  deepest = max(level for level, _ in outline)
+  # The bookmarks found in the text, not those that point nowhere in it (a publisher's links at the end).
+  deepest = max(marked_levels)
   for block in blocks:
     if re.fullmatch(r"h[1-6]", block.name or "") and not block.get("data-bookmark"):
-      block.name = f"h{min(deepest + 1, 4)}"
+      if deepest == 1:
+        # One level of bookmarks is the list of chapters: other large or bold lines (a title page, the headings
+        # inside a chapter) stay in their chapter as bold lines, rather than cutting the book into parts.
+        text = block.get_text(" ").strip()
+        block.name = "p"
+        block.clear()
+        strong = soup.new_tag("strong")
+        strong.string = text
+        block.append(strong)
+      else:
+        block.name = f"h{min(deepest + 1, 4)}"
   for block in blocks:
     if block.get("data-bookmark"):
       del block["data-bookmark"]

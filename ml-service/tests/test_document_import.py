@@ -3,6 +3,7 @@ music.py). The documents are made by tests/sample_documents.py; the uploads use 
 only their own items (ids starting test-document-). conftest.py gives each test its own pictures folder."""
 
 import shutil
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -293,3 +294,78 @@ def test_an_ebook_is_previewed_and_imported_as_an_other_book(tmp_path):
       "SELECT section, unit, unit_title FROM devotional_entries WHERE devotional_id = 'test-document-ebook' ORDER BY section, unit"
     ).fetchall()
   assert [tuple(row) for row in rows] == [(1, 1, "Chapter 1"), (1, 2, "Chapter 2"), (2, 1, "Chapter 3")]
+
+
+def test_a_pdf_whose_pages_pdfplumber_cannot_all_see_is_repaired_first(tmp_path, monkeypatch):
+  # The Anonymous Press's PDF of Alcoholics Anonymous has a damaged cross-reference table: pypdf finds its 193
+  # pages, pdfplumber only the first. Here pdfplumber is made to see only the first page of the original file.
+  import pdfplumber
+  from reportlab.pdfgen import canvas
+
+  path = tmp_path / "three.pdf"
+  drawing = canvas.Canvas(str(path))
+  for number in range(1, 4):
+    drawing.drawString(72, 700, f"Page {number} of the book about grace.")
+    drawing.showPage()
+  drawing.save()
+
+  real_open = pdfplumber.open
+  opened = []
+
+  class FirstPageOnly:
+    # The real PDF, with only its first page showing.
+    def __init__(self, pdf):
+      self.pdf = pdf
+      self.pages = pdf.pages[:1]
+
+    def __getattr__(self, name):
+      return getattr(self.pdf, name)
+
+    def __enter__(self):
+      return self
+
+    def __exit__(self, *details):
+      self.pdf.close()
+
+  def open_as_if_damaged(file_path, *arguments, **keywords):
+    pdf = real_open(file_path, *arguments, **keywords)
+    opened.append(Path(file_path))
+    return FirstPageOnly(pdf) if Path(file_path) == path else pdf
+
+  monkeypatch.setattr(pdfplumber, "open", open_as_if_damaged)
+  text = html_to_text(convert(path, "three.pdf").html)
+  assert all(f"Page {number}" in text for number in range(1, 4))
+  # The repaired copy was read, then removed.
+  copies = [file for file in opened if file != path]
+  assert copies and not any(file.exists() for file in copies)
+
+
+def test_a_drop_cap_starts_its_word_and_its_paragraph_reads_in_order():
+  # As in the Anonymous Press's Alcoholics Anonymous: a "W" two lines tall, then "AR FEVER ran high ... to",
+  # and the next line, which starts to the right of the letter, "which we new, young officers ...".
+  def word(text, top, bottom, x0, x1, size=9.3):
+    return {"text": text, "top": top, "bottom": bottom, "x0": x0, "x1": x1, "size": size, "fontname": "Times"}
+
+  words = [word("W", 89.1, 115.8, 30.5, 51.1, 26.7)]
+  words += [word(text, 89.7, 99.0, 54.5 + 20 * index, 70 + 20 * index) for index, text in enumerate(["AR", "FEVER", "ran", "high", "to", "thou-"])]
+  words += [word(text, 100.7, 110.0, 50.5 + 20 * index, 66 + 20 * index) for index, text in enumerate(["sands", "which", "we", "new,"])]
+  words += [word(text, 111.7, 121.0, 30.5 + 20 * index, 46 + 20 * index) for index, text in enumerate(["young", "officers", "were", "there."])]
+  lines = document_import._lines_of(words, 0)
+  assert [line.text for line in lines] == ["WAR FEVER ran high to thou-", "sands which we new,", "young officers were there."]
+  blocks = document_import._join_across_pages(document_import._paragraphs(lines, 9.3, []))
+  assert blocks == ["<p>WAR FEVER ran high to thousands which we new, young officers were there.</p>"]
+
+
+def test_a_bookmark_matches_a_heading_without_its_chapter_number_or_apostrophe_style():
+  html = "<p>THE DOCTOR’S OPINION</p><p>We believe.</p><p><em>Chapter 1</em></p><p>BILL’S STORY</p><p>War fever ran high.</p><p>THERE IS A SOLUTION</p><p>We know.</p>"
+  outlined = document_import._apply_outline(html, [(1, "The Dr.'s Opinion"), (1, "1 Bill's Story"), (1, "2 There Is A Solution")])
+  assert "<h1>THE DOCTOR’S OPINION</h1>" in outlined
+  assert "<h1>BILL’S STORY</h1>" in outlined and "<h1>THERE IS A SOLUTION</h1>" in outlined
+
+
+def test_with_one_level_of_bookmarks_other_headings_stay_inside_their_chapter():
+  html = "<h2>The Press Edition</h2><p>Title page.</p><h1>BILL’S STORY</h1><p>Text.</p><h3>A heading inside</h3><p>More.</p>"
+  # A deeper bookmark that is not in the text (a publisher's link) does not count.
+  outlined = document_import._apply_outline(html, [(1, "1 Bill's Story"), (1, "Spiritual Experience"), (2, "Web site")])
+  assert "<h1>BILL’S STORY</h1>" in outlined
+  assert "<p><strong>The Press Edition</strong></p>" in outlined and "<p><strong>A heading inside</strong></p>" in outlined
