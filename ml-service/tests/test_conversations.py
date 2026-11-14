@@ -52,21 +52,19 @@ def log_in(name):
   assert client.post("/account/login", json={"email": f"{name}@conversations-test.example", "password": PASSWORD}).status_code == 200
 
 
-def test_every_endpoint_needs_a_login():
-  assert client.get("/conversations").status_code == 401
+def test_writing_needs_a_login():
   assert client.post("/conversations", json=POST).status_code == 401
   assert client.put("/conversations/1", json=POST).status_code == 401
   assert client.delete("/conversations/1").status_code == 401
 
 
-def test_every_endpoint_needs_the_flag_and_it_starts_off():
+def test_writing_needs_the_flag_and_it_starts_off():
   client.post(
     "/account/register",
     json={"email": "new@conversations-test.example", "password": PASSWORD, "password_confirmation": PASSWORD},
   )
   assert client.get("/account/me").json()["user"]["use_conversations"] is False
 
-  assert client.get("/conversations").status_code == 403
   assert client.post("/conversations", json=POST).status_code == 403
   assert client.put("/conversations/1", json=POST).status_code == 403
   assert client.delete("/conversations/1").status_code == 403
@@ -175,7 +173,9 @@ def test_turning_the_flag_off_stops_the_account_and_deleting_the_user_deletes_th
   client.post("/conversations", json=POST)
   with connect() as connection:
     connection.execute("UPDATE users SET use_conversations = false WHERE id = %s", (user_id,))
-  assert client.get("/conversations").status_code == 403
+  assert client.post("/conversations", json=POST).status_code == 403
+  # The account can still read, as anyone can, but no longer as the author.
+  assert client.get("/conversations").json()["posts"][0]["is_mine"] is False
   with connect() as connection:
     connection.execute("DELETE FROM users WHERE id = %s", (user_id,))
     assert connection.execute("SELECT count(*) FROM conversation_posts WHERE user_id = %s", (user_id,)).fetchone()[0] == 0
@@ -341,3 +341,28 @@ def test_migration_030_turns_saved_non_breaking_spaces_into_plain_spaces():
     ).fetchone()
   assert (body, body_text) == ("<p>who wrote early</p>", "who wrote early")
   assert after == before
+
+
+def test_anyone_reads_and_searches_but_only_a_member_writes():
+  sign_up("ann")
+  post = client.post("/conversations", json=POST).json()["post"]
+  client.post(f"/conversations/{post['id']}/replies", json=REPLY)
+  assert client.get("/conversations").json()["can_post"] is True
+
+  # Logged out: every post with its replies, searchable, none of them "mine", and no writing.
+  client.cookies.clear()
+  listed = client.get("/conversations", params={"query": "grace"}).json()
+  assert listed["can_post"] is False and [entry["id"] for entry in listed["posts"]] == [post["id"]]
+  assert listed["posts"][0]["is_mine"] is False and len(listed["posts"][0]["replies"]) == 1
+  assert listed["posts"][0]["replies"][0]["is_mine"] is False
+  assert "@" not in str(listed)
+  assert client.get("/conversations", params={"mine": "true"}).status_code == 401
+  assert client.post(f"/conversations/{post['id']}/replies", json=REPLY).status_code == 401
+
+  # Logged in without the flag: the same, and "my posts" is refused.
+  sign_up("cal", allowed=False)
+  listed = client.get("/conversations").json()
+  assert listed["can_post"] is False and listed["total"] == 1 and listed["posts"][0]["is_mine"] is False
+  assert client.get("/conversations", params={"mine": "true"}).status_code == 403
+  assert client.put(f"/conversations/{post['id']}", json=POST).status_code == 403
+  assert client.delete(f"/conversations/{post['id']}").status_code == 403

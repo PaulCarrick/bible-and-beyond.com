@@ -488,6 +488,8 @@ export interface ConversationPage {
   total: number
   page: number
   per_page: number
+  // Whether the visitor may write posts and replies (logged in with use_conversations). Anyone may read.
+  can_post: boolean
 }
 
 // A place a reader is asked to open at: set when a note's link is followed, with a new id each time so

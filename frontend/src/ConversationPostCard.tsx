@@ -12,6 +12,8 @@ interface ConversationPostCardProps {
   onDeleted: (id: number) => void
   // The words searched for, shown highlighted in the post (none outside a search).
   highlightTerms: string[]
+  // Whether the visitor may reply (a member allowed Conversations); readers see no Reply button.
+  canReply: boolean
 }
 
 function formatTime(isoTime: string) {
@@ -20,7 +22,7 @@ function formatTime(isoTime: string) {
 
 // One post: its title, author, time and text, with Edit and Delete for its author, then its replies and a Reply
 // button for any member. Editing happens in place; deleting asks first.
-function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: ConversationPostCardProps) {
+function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canReply }: ConversationPostCardProps) {
   const [mode, setMode] = useState<'reading' | 'editing' | 'confirming'>('reading')
   const [isBusy, setIsBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -80,8 +82,8 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
                 No, keep it
               </button>
             </div>
-          ) : (
-            // One line under the post: Edit and Delete for its author, and Reply for every member.
+          ) : (post.is_mine || canReply) && (
+            // One line under the post: Edit and Delete for its author, and Reply for every member (none for a reader).
             <div className="note-actions conversation-actions">
               {post.is_mine && (
                 <>
@@ -95,7 +97,7 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms }: Co
                   </button>
                 </>
               )}
-              {!isReplying && (
+              {canReply && !isReplying && (
                 <button type="button" className="secondary-button small-button" onClick={() => setIsReplying(true)}>
                   Reply
                   <span className="visually-hidden"> to {post.title}</span>

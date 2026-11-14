@@ -314,8 +314,8 @@ function App() {
       : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
-    // Only for a logged-in account an administrator allowed (use_conversations); the server checks too.
-    ...(user?.use_conversations ? [{ heading: 'Members', entries: [{ view: 'conversations' as View, label: 'Conversations' }] }] : []),
+    // Everyone may read Conversations; only accounts an administrator allowed (use_conversations) may write.
+    { heading: 'Members', entries: [{ view: 'conversations' as View, label: 'Conversations' }] },
     {
       heading: 'About',
       entries: [
@@ -365,7 +365,6 @@ function App() {
                   devotionals={devotionals}
                   otherBooks={otherBooks}
                   songs={songs}
-                  canUseConversations={user?.use_conversations === true}
                   onNavigate={navigate}
                 />
               )}

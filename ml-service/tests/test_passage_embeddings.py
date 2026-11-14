@@ -167,16 +167,18 @@ def test_the_nearest_passages_are_found_first():
 
 
 def test_a_query_is_embedded_once_a_day_within_the_limit(setup):
-  first = query_vector(1, "  The   Beatitudes ")
-  assert query_vector(1, "the beatitudes") == first
+  # One fixed day throughout, so the count below does not depend on the day the tests run.
+  day = date(2026, 11, 12)
+  first = query_vector(1, "  The   Beatitudes ", day)
+  assert query_vector(1, "the beatitudes", day) == first
   assert setup == [("RETRIEVAL_QUERY", ["The Beatitudes"])]
   # Kept in the database too: after a restart (memory cleared) it costs nothing.
   passage_embeddings._kept.clear()
   assert query_vector(2, "THE BEATITUDES") == first and len(setup) == 1
   for number in range(passage_embeddings.SEARCHES_PER_DAY - 1):
-    query_vector(1, f"query {number}", date(2026, 11, 12))
+    query_vector(1, f"query {number}", day)
   with pytest.raises(PassageSearchProblem, match="AI searches today") as problem:
-    query_vector(1, "one too many", date(2026, 11, 12))
+    query_vector(1, "one too many", day)
   assert problem.value.status_code == 429
   with pytest.raises(PassageSearchProblem, match="under 300"):
     query_vector(1, "x" * 301)

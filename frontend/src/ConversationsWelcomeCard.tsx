@@ -33,7 +33,7 @@ function formatDate(isoTime: string) {
   return new Date(isoTime).toLocaleDateString(undefined, { dateStyle: 'medium' })
 }
 
-// The Conversations card at the foot of the welcome page, for members allowed Conversations: what it is, and the
+// The Conversations card at the foot of the welcome page, for every visitor (anyone may read): what it is, and the
 // start of the latest post (its title, author, date and first paragraph) when there is one.
 function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps) {
   const [latest, setLatest] = useState<ConversationPost | null>(null)
@@ -50,7 +50,7 @@ function ConversationsWelcomeCard({ onNavigate }: ConversationsWelcomeCardProps)
   return (
     <section className="welcome-card welcome-conversations">
       <h3>Conversations</h3>
-      <p>Read what other members have written, search their posts, and write your own.</p>
+      <p>Read and search what members of this site have written. Members the site has invited can write posts and reply.</p>
       {latest && (
         <div className="welcome-latest-post">
           <p className="welcome-latest-label">Latest post</p>

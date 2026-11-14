@@ -13,9 +13,10 @@ interface ConversationsPageProps {
 
 const postsPerPage = 10
 
-// Conversations: posts by the site's members, newest first, each with its replies, for accounts an administrator
-// allowed them (use_conversations; the server checks too). Every allowed member reads every post and may reply to
-// it; a member can add posts and change or delete their own posts and replies, and search them all.
+// Conversations: posts by the site's members, newest first, each with its replies. Anyone may read and search them,
+// logged in or not (the owner's choice, 2026-11-14). Only accounts an administrator allowed (use_conversations; the
+// server checks too, and says so in can_post) may write posts and replies and change or delete their own.
+// The page asks search engines not to index it (members' names are on it); it is not in the sitemap either.
 function ConversationsPage({ isHidden }: ConversationsPageProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const [result, setResult] = useState<ConversationPage | null>(null)
@@ -28,12 +29,25 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
   const [reload, setReload] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [isWriting, setIsWriting] = useState(false)
-  const isAllowed = user?.use_conversations === true
+  // From the server's answer, so it is right even before the account has loaded.
+  const canPost = result?.can_post === true
   const userId = user?.id ?? null
   const searchWords = useMemo(() => query.split(/\s+/).filter((word) => word !== ''), [query])
 
+  // While the page is shown, ask search engines not to index it (it shows members' names).
   useEffect(() => {
-    if (isHidden || !isAllowed) {
+    if (isHidden) {
+      return
+    }
+    const robots = document.createElement('meta')
+    robots.name = 'robots'
+    robots.content = 'noindex'
+    document.head.appendChild(robots)
+    return () => robots.remove()
+  }, [isHidden])
+
+  useEffect(() => {
+    if (isHidden) {
       return
     }
     const controller = new AbortController()
@@ -53,7 +67,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
         }
       })
     return () => controller.abort()
-  }, [isHidden, isAllowed, userId, query, onlyMine, page, reload])
+  }, [isHidden, userId, query, onlyMine, page, reload])
 
   function handleSearch(event: FormEvent) {
     event.preventDefault()
@@ -67,63 +81,59 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
     setPage(1)
   }
 
-  if (!isAllowed) {
-    return (
-      <div className="notes-page" hidden={isHidden}>
-        <h1>Conversations</h1>
-        {user === null ? (
-          <p>
-            Conversations are posts written by members of this site.{' '}
-            <button type="button" className="link-button" onClick={() => onNavigate('login')}>
-              Log in
-            </button>{' '}
-            to read and write them.
-          </p>
-        ) : (
-          <p>
-            Conversations are open to members the site&rsquo;s administrator has invited. To ask to join, use the{' '}
-            <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
-              Contact
-            </button>{' '}
-            page.
-          </p>
-        )}
-      </div>
-    )
-  }
-
   const pageCount = result ? Math.max(1, Math.ceil(result.total / postsPerPage)) : 1
   const isFiltered = query !== '' || onlyMine
 
   return (
     <div className="notes-page conversations-page" hidden={isHidden}>
       <h1>Conversations</h1>
-      <p>
-        Posts by members of this site, newest first. Every member who can use Conversations can read every post and
-        reply to it; only you can change or delete your own posts and replies.
-      </p>
-
-      <div className="notes-toolbar">
-        <label className="inline-label">
-          <input
-            type="checkbox"
-            checked={onlyMine}
-            onChange={(event) => {
-              setOnlyMine(event.target.checked)
-              setPage(1)
-            }}
-          />
-          Only my posts
-        </label>
-        {!isWriting && (
-          <button type="button" className="primary-button" onClick={() => setIsWriting(true)}>
-            Write a post
-          </button>
-        )}
-      </div>
+      <p>Posts by members of this site, newest first, with their replies. Anyone can read and search them.</p>
+      {result !== null && !canPost && (
+        <p className="conversation-readers-note">
+          Members the site has invited can write posts and reply.{' '}
+          {user === null ? (
+            <>
+              If you are one,{' '}
+              <button type="button" className="link-button" onClick={() => onNavigate('login')}>
+                log in
+              </button>
+              ; to ask to join, use the{' '}
+            </>
+          ) : (
+            <>To ask to join, use the </>
+          )}
+          <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
+            Contact
+          </button>{' '}
+          page.
+        </p>
+      )}
+      {canPost && (
+        <>
+          <p>Every member can reply to any post; only you can change or delete your own posts and replies.</p>
+          <div className="notes-toolbar">
+            <label className="inline-label">
+              <input
+                type="checkbox"
+                checked={onlyMine}
+                onChange={(event) => {
+                  setOnlyMine(event.target.checked)
+                  setPage(1)
+                }}
+              />
+              Only my posts
+            </label>
+            {!isWriting && (
+              <button type="button" className="primary-button" onClick={() => setIsWriting(true)}>
+                Write a post
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Kept in the page while closed, so a half-written post stays and the editor is never made twice. */}
-      <section className="conversation-new" hidden={!isWriting} aria-label="Write a post">
+      <section className="conversation-new" hidden={!canPost || !isWriting} aria-label="Write a post">
         <h2>Write a post</h2>
         <ConversationPostForm
           onSaved={() => {
@@ -177,6 +187,7 @@ function ConversationsPage({ isHidden }: ConversationsPageProps) {
               key={post.id}
               post={post}
               highlightTerms={searchWords}
+              canReply={canPost}
               onChanged={(changed) =>
                 setResult((current) =>
                   current ? { ...current, posts: current.posts.map((entry) => (entry.id === changed.id ? changed : entry)) } : current,

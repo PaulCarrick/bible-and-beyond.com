@@ -2494,6 +2494,11 @@ select:disabled {
 
 /* Conversations (ConversationsPage.tsx): members' posts. The list, cards, search and paging reuse the My notes
    styles. */
+/* For a reader who cannot post: who can take part, with room before the search box. */
+.conversation-readers-note {
+  margin: 0.5rem 0 1rem;
+}
+
 .conversation-new {
   margin-bottom: 1.5rem;
   padding: 1rem;

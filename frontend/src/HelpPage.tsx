@@ -678,17 +678,17 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
       <section id="help-conversations" tabIndex={-1} className="help-section">
         <h2>Conversations</h2>
         <p>
-          Conversations is a place where members of the site write posts for one another and reply to them. It is turned on for each
-          account by hand, so set up an account, then use the{' '}
-          <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form to ask to join, giving the email address of
-          your account. Once it is turned on, log in: <em>Conversations</em> appears in the sidebar (under Members) and at
-          the foot of the welcome page.
+          Conversations is a place where members of the site write posts for one another and reply to them. Anyone can
+          read and search it, with or without an account: <em>Conversations</em> is in the sidebar (under Members) and
+          at the foot of the welcome page. Writing posts and replies is turned on for each account by hand, so to take
+          part, set up an account, then use the <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form
+          to ask to join, giving the email address of your account. Once it is turned on, log in.
         </p>
         <ul className="welcome-tips">
           <li>
             <strong>Reading.</strong> The posts are listed newest first, ten to a page, each with its title, its
-            author&rsquo;s name and when it was written. Every member of Conversations can read every post; nobody
-            else can.
+            author&rsquo;s name and when it was written. Anyone can read every post and its replies, so remember
+            that what you write there, with your name, can be read by everyone.
           </li>
           <li>
             <strong>Writing.</strong> Press <em>Write a post</em>, give it a title, write in the box (with bold,

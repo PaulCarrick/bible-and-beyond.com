@@ -951,12 +951,20 @@ def conversations_list(
   per_page: int = 10,
 ):
   """One page of every member's posts, newest first, with the total that match. query keeps the posts with
-  every word in the title, the text or the author's name; mine keeps the member's own."""
-  user = conversations_account(request)
+  every word in the title, the text or the author's name; mine keeps the member's own.
+
+  Anyone may read, with no login (the owner's choice, 2026-11-14); only a logged-in account with
+  use_conversations may write, and only it sees its own posts as is_mine. can_post tells the page which."""
+  user = user_for_token(request.cookies.get(SESSION_COOKIE))
+  member = user if user is not None and user["use_conversations"] else None
+  if mine and member is None:
+    # "My posts" means nothing to a reader who cannot post.
+    conversations_account(request)
   try:
-    return list_posts(user["id"], query, mine, page, per_page)
+    result = list_posts(member["id"] if member else 0, query, mine, page, per_page)
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {**result, "can_post": member is not None}
 
 
 @app.post("/conversations")
