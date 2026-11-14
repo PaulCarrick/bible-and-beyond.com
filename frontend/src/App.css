@@ -841,6 +841,7 @@ select:disabled {
 .welcome-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  container: welcome-cards / inline-size;
   gap: 1rem;
 }
 
@@ -880,6 +881,27 @@ select:disabled {
   padding: calc(0.4rem - 1px) calc(0.4rem - 1px);
   font-size: 0.8em;
   white-space: nowrap;
+}
+
+/* Cards with room get full-size buttons with more space between them: two to a row (the cards area under
+   53rem, where a third does not fit) or one to a row wide enough. The compact ones above are for three to a row.
+   The cards area is measured, not the window, since the sidebar takes part of it. (A container on each card
+   would be simpler, but it stops the cards lining up their rows, which they share through subgrid.) */
+/* The Conversations card stands alone under the others, so it is measured on its own. */
+.welcome-conversations {
+  container: welcome-cards / inline-size;
+}
+
+@container welcome-cards (min-width: 22rem) and (max-width: 52.99rem) {
+  .welcome-buttons {
+    gap: 0.6rem 0.75rem;
+  }
+
+  .welcome-buttons .primary-button,
+  .welcome-buttons .secondary-button {
+    padding: calc(0.5rem - 1px) calc(1rem - 1px);
+    font-size: 0.95em;
+  }
 }
 
 .welcome-tips {
