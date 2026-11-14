@@ -358,6 +358,73 @@ def ask_open_question(user_id: int, question_html: str, today: date | None = Non
   return {"question": question, "answer": answer, "references": list_references(answer)}
 
 
+def search_faq(query: str, match_mode: str, page: int, per_page: int) -> dict:
+  """Search the FAQ: each question with the site owner's note under it and its stored answer (the AI's answer as
+  last kept; a question nobody has opened has none yet). The same matching as the music and the Other books
+  (words in any form, all words, any word or an exact phrase); questions whose own words match come first.
+  Each result has an excerpt of the note or the answer with the words found wrapped in \u0001 and \u0002."""
+  from commentaries import HEADLINE_OPTIONS
+  from search import parse_terms
+
+  terms = parse_terms(query, match_mode)
+  if not terms:
+    raise ValueError("Enter at least one word or phrase to search for.")
+  joiner = " || " if match_mode == "any" else " && "
+  tsquery = joiner.join(["phraseto_tsquery('commentary_english', %s)"] * len(terms))
+  listed = [(number, heading, question) for number, (heading, question) in enumerate(
+    ((heading, question) for heading, questions in QUESTION_GROUPS for question in questions), start=1)]
+  with connect() as connection:
+    if connection.execute(f"SELECT numnode({tsquery})", terms).fetchone()[0] == 0:
+      raise ValueError("Enter at least one word or phrase to search for.")
+    rows = connection.execute(
+      f"""
+      WITH listed (id, heading, question) AS (SELECT * FROM unnest(%s::int[], %s::text[], %s::text[])),
+      texts AS (
+        SELECT listed.id, listed.heading, listed.question,
+          -- The note's words without its tags; the answer's without Markdown's marks.
+          replace(replace(replace(regexp_replace(COALESCE(notes.body, ''), '<[^>]+>', ' ', 'g'), '&nbsp;', ' '), '&amp;', '&'), '&quot;', '"') AS note,
+          regexp_replace(COALESCE(answers.answer, ''), '[*#_`>]+', '', 'g') AS answer
+        FROM listed
+        LEFT JOIN faq_notes notes ON notes.question = listed.question
+        LEFT JOIN faq_answers answers ON answers.question = listed.question
+      ),
+      searched AS (
+        SELECT *, to_tsvector('commentary_english', question || ' ' || note || ' ' || answer) AS vector,
+          to_tsvector('commentary_english', question) AS question_vector
+        FROM texts
+      )
+      SELECT id, heading, question,
+        ts_headline('commentary_english', CASE WHEN note || answer = '' THEN question ELSE note || ' ' || answer END, ({tsquery}), %s),
+        count(*) OVER ()
+      FROM searched
+      WHERE vector @@ ({tsquery})
+      ORDER BY question_vector @@ ({tsquery}) DESC, ts_rank_cd(vector, ({tsquery}), 1) DESC, id
+      LIMIT %s OFFSET %s
+      """,
+      [[row[0] for row in listed], [row[1] for row in listed], [row[2] for row in listed],
+       *terms, HEADLINE_OPTIONS, *terms, *terms, *terms, per_page, (page - 1) * per_page],
+    ).fetchall()
+    total = rows[0][4] if rows else connection.execute(
+      f"""
+      WITH listed (question) AS (SELECT * FROM unnest(%s::text[]))
+      SELECT count(*) FROM listed
+      LEFT JOIN faq_notes notes ON notes.question = listed.question
+      LEFT JOIN faq_answers answers ON answers.question = listed.question
+      WHERE to_tsvector('commentary_english', listed.question || ' ' || regexp_replace(COALESCE(notes.body, ''), '<[^>]+>', ' ', 'g')
+        || ' ' || COALESCE(answers.answer, '')) @@ ({tsquery})
+      """,
+      [[row[2] for row in listed], *terms],
+    ).fetchone()[0]
+  return {
+    "query": query,
+    "terms": terms,
+    "total": total,
+    "page": page,
+    "per_page": per_page,
+    "results": [{"id": number, "group": heading, "question": question, "text": excerpt} for number, heading, question, excerpt, _ in rows],
+  }
+
+
 def clear_cache() -> None:
   """Forgets the open-question counts (the FAQ answers are in the database)."""
   with _open_question_lock:

@@ -156,13 +156,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <h2>Search everything</h2>
         <p>
           <PageLink onNavigate={onNavigate} view="searchAll">Search everything</PageLink> (in the menu, and under the cards on the Welcome page)
-          looks for your words in the Bible, the commentaries, the devotionals, the other books and the Christian media at once. Type a word
+          looks for your words in the Bible, the commentaries, the devotionals, the other books, the Christian media and the FAQ at once. Type a word
           or a phrase, choose whether to match <em>all the words</em>, <em>any word</em> or the <em>exact phrase</em>,
           and press <em>Search</em>.
         </p>
         <p>
           The results come in groups, with the first five of each and a count. Press <em>Show more verses</em> (or
-          notes, readings, passages, songs) to see the next ones; a song is found by its title, its author or its words, and <em>Play this song</em> opens it. In the Bible group the search finds whole words, so
+          notes, readings, passages, songs, questions) to see the next ones; a song is found by its title, its author or its words, and <em>Play this song</em> opens it; an FAQ question is found by its own words, the site owner&rsquo;s note under it or its answer, and <em>Show the answer</em> opens it on the FAQ page. In the Bible group the search finds whole words, so
           &ldquo;again&rdquo; does not also find &ldquo;against&rdquo;. Each result has a link that opens it where it
           was found: <em>Read in the Bible</em>, <em>Read the note</em>, <em>Read this reading</em> or{' '}
           <em>Read this chapter</em>. Press Back to return to your results.

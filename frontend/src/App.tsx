@@ -72,9 +72,11 @@ function App() {
   const [verseLink] = useState(() => readVerseAddress(window.location.search))
   // An address such as /faq?question=... (a link to another answer in a note from the site owner, opened in a
   // new tab). It is read here because the address is tidied to /faq before the FAQ page first draws.
-  const [faqQuestionLink] = useState(() =>
-    viewForAddress(window.location.pathname) === 'faq' ? new URLSearchParams(window.location.search).get('question') : null,
-  )
+  // A hit of Search everything asks for a question in the same way, with a new id each time.
+  const [faqRequest, setFaqRequest] = useState<{ question: string; id: number } | null>(() => {
+    const question = viewForAddress(window.location.pathname) === 'faq' ? new URLSearchParams(window.location.search).get('question') : null
+    return question ? { question, id: 0 } : null
+  })
   // An address such as /books?book=apostles-creed: the Other books reader at the start of that book (a link from
   // an FAQ note, another site or a bookmark). Read here, before the address is tidied to /books.
   const [bookLink] = useState((): Destination | null => {
@@ -381,6 +383,10 @@ function App() {
                   setMusicFocus({ id: songId, key: Date.now() })
                   navigate('music')
                 }}
+                onOpenFaq={(question) => {
+                  setFaqRequest({ question, id: Date.now() })
+                  navigate('faq')
+                }}
               />
               {user && !user.email_verified && activeView !== 'verify' && (
                 <p className="contact-sent" role="status">
@@ -428,7 +434,7 @@ function App() {
               {/* The form stays mounted too, so a half-written message is not lost. */}
               <ContactPage isHidden={activeView !== 'contact'} />
               {/* The FAQ stays mounted too, so the answers it has shown are kept. */}
-              <FaqPage isHidden={activeView !== 'faq'} initialQuestion={faqQuestionLink} />
+              <FaqPage isHidden={activeView !== 'faq'} questionRequest={faqRequest} />
 
               {/* The readers and searches stay mounted while another page is open, so nothing is lost. */}
               <BibleTab translations={translations} isHidden={activeView !== 'read'} destination={destination} />

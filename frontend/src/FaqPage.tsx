@@ -8,14 +8,14 @@ import OpenQuestionBox from './OpenQuestionBox'
 
 interface FaqPageProps {
   isHidden: boolean
-  // A question to show when the page opens, from an address such as /faq?question=... (a link in a note
-  // from the site owner opened in a new tab).
-  initialQuestion?: string | null
+  // A question to show: from an address such as /faq?question=... (a link in a note from the site owner opened
+  // in a new tab), or from a hit of Search everything. A new id each time, so the same question can be asked again.
+  questionRequest?: { question: string; id: number } | null
 }
 
 // Common questions about the faith, answered by Google's Gemini. Only the listed questions can be asked; the
 // server keeps each answer for a day, and the page keeps the ones it has shown so going back is instant.
-function FaqPage({ isHidden, initialQuestion = null }: FaqPageProps) {
+function FaqPage({ isHidden, questionRequest = null }: FaqPageProps) {
   const { user } = useContext(AccountContext)
   const [listing, setListing] = useState<FaqListing | null>(null)
   const [listingErrorMessage, setListingErrorMessage] = useState('')
@@ -66,17 +66,17 @@ function FaqPage({ isHidden, initialQuestion = null }: FaqPageProps) {
     window.scrollTo(0, 0)
   }
 
-  // The question an address asked for, shown once the list has arrived.
-  const initialQuestionShown = useRef(false)
+  // The question asked for (an address, or a search hit), shown once the list has arrived; each request once.
+  const shownRequest = useRef<number | null>(null)
   useEffect(() => {
-    if (!listing?.available || !initialQuestion || initialQuestionShown.current) {
+    if (!listing?.available || !questionRequest || shownRequest.current === questionRequest.id) {
       return
     }
-    initialQuestionShown.current = true
-    showQuestion(initialQuestion)
-    // showQuestion is a new function on every render; this runs once, when the list arrives.
+    shownRequest.current = questionRequest.id
+    showQuestion(questionRequest.question)
+    // showQuestion is a new function on every render; this runs when the list arrives or a new request comes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listing, initialQuestion])
+  }, [listing, questionRequest])
 
   const shownAnswer = shownQuestionId === null ? null : answers[shownQuestionId]
   const isAvailable = listing?.available ?? false

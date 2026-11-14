@@ -415,9 +415,11 @@ export async function searchOtherBooks(options: BookSearchOptions, signal: Abort
 }
 
 // The search on the welcome page (GET /search-everything): a few hits of each kind, in groups.
-export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book' | 'music'
+export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book' | 'music' | 'faq'
 
 export type SiteSearchResult =
+  // A question of the FAQ, found in its words, the site owner's note or its stored answer.
+  | { kind: 'faq'; id: number; group: string; question: string; text: string }
   | { kind: 'bible'; translation: string; book_number: number; chapter: number; verse: number; reference: string; text: string }
   | {
       kind: 'commentary'

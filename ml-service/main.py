@@ -508,7 +508,7 @@ def search_everything_on_the_site(
   request: Request,
   query: str = Query(min_length=1, max_length=500),
   match_mode: Literal["all", "any", "phrase", "ai"] = "all",
-  kind: Literal["bible", "commentary", "devotional", "book", "music"] | None = None,
+  kind: Literal["bible", "commentary", "devotional", "book", "music", "faq"] | None = None,
   page: int = Query(default=1, ge=1, le=1000),
   per_page: int = Query(default=5, ge=1, le=25),
 ):

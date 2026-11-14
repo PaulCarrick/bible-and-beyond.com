@@ -16,13 +16,16 @@ import passage_embeddings
 from ai_search import find_verses
 from commentaries import search_commentaries
 from devotionals import search_library
-from faq import FaqUnavailable
+from faq import FaqUnavailable, search_faq
 from music import search_music
 from search import connect, search_verses
 
 FIRST_BOOK = 1
 LAST_BOOK = 66
-KINDS = ("bible", "commentary", "devotional", "book", "music")
+# The FAQ: its questions, the site owner's notes and the stored answers (faq.search_faq).
+KINDS = ("bible", "commentary", "devotional", "book", "music", "faq")
+# The search by meaning has no embeddings of the FAQ, so it leaves the FAQ out.
+AI_KINDS = ("bible", "commentary", "devotional", "book", "music")
 PREFERRED_BIBLE = "BSB"
 
 
@@ -50,6 +53,8 @@ def search_group(kind, query, match_mode, page, per_page):
     }
   if kind == "music":
     found = search_music(query, match_mode, page, per_page)
+  elif kind == "faq":
+    found = search_faq(query, match_mode, page, per_page)
   elif kind == "commentary":
     found = search_commentaries(query, match_mode, None, FIRST_BOOK, LAST_BOOK, None, page, per_page, None, "asc")
   else:
@@ -102,8 +107,10 @@ def search_everything_with_ai(user_id, query, kind=None, page=1, per_page=5):
   """The groups found by meaning, in the order of KINDS (or the one group asked for). Raises
   ai_search.AiSearchProblem or passage_embeddings.PassageSearchProblem for a search that cannot be made."""
   if kind is not None:
+    if kind not in AI_KINDS:
+      return {"query": query, "ai": True, "groups": [{"kind": kind, "total": 0, "page": page, "per_page": per_page, "results": []}]}
     return {"query": query, "ai": True, "groups": [search_group_with_ai(kind, user_id, query, page, per_page)]}
-  groups = [search_group_with_ai(each, user_id, query, page, per_page) for each in KINDS]
+  groups = [search_group_with_ai(each, user_id, query, page, per_page) for each in AI_KINDS]
   # bible_unavailable: Gemini did not answer, so the page can say why there are no verses.
   return {
     "query": query, "ai": True, "bible_unavailable": any(group.get("unavailable") for group in groups),
