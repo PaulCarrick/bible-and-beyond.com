@@ -25,7 +25,7 @@ const boardWords: Record<ConversationBoard, { heading: string; intro: string; wr
   prayer: {
     heading: 'Prayer Wall',
     intro:
-      'Prayer requests and praises from members of this site, newest first, with their replies. Anyone can read and search them, and pray along. A request can be posted anonymously, or privately (seen only by its author).',
+      'Prayer requests and praises from members of this site, newest first, with their replies. Anyone can read and search them, and pray along. A request can be posted anonymously, or privately (seen only by its author and the site owner).',
     write: 'Share a prayer request',
     none: 'Nobody has shared a prayer request yet.',
   },
