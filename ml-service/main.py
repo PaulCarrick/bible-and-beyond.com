@@ -650,17 +650,15 @@ def maps_list(
 
 
 @app.get("/map-file/{map_id}/{which}")
-def maps_file(map_id: str, which: Literal["display", "thumbnail", "original"]):
-  """A published map's picture: the WebP shown on the site ("display"), the small one for the list
-  ("thumbnail"), or the file as uploaded ("original", saved by the browser). Cached for a month: the page adds
-  ?v= with the map's version, which changes when the picture is replaced."""
+def maps_file(map_id: str, which: Literal["display", "thumbnail"]):
+  """A published map's picture: the WebP shown on the site ("display") or the small one for the list
+  ("thumbnail"). The file as uploaded is never served (the owner's choice, for the maps' licences). Cached for a
+  month: the page adds ?v= with the map's version, which changes when the picture is replaced."""
   found = map_file(map_id, which)
   if found is None:
     raise HTTPException(status_code=404, detail="That map was not found.")
   path, media_type = found
   headers = {"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"}
-  if which == "original":
-    return FileResponse(path, media_type=media_type, headers=headers, filename=path.name)
   return FileResponse(path, media_type=media_type, headers=headers)
 
 

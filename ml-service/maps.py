@@ -334,18 +334,16 @@ def get_map(map_id: str, published_only: bool = True) -> dict | None:
 
 
 def map_file(map_id: str, which: str) -> tuple[Path, str] | None:
-  """A published map's file: "display" (the WebP shown), "thumbnail", or "original" (as uploaded), with its
-  media type; None when the map is not published or the file is missing."""
+  """A published map's picture: "display" (the WebP shown) or "thumbnail", with its media type; None when the map
+  is not published or the file is missing. The file as uploaded is kept but never served."""
+  if which not in ("display", "thumbnail"):
+    return None
   with connect() as connection:
-    row = connection.execute("SELECT file_name, media_type FROM maps WHERE id = %s AND is_published", (map_id,)).fetchone()
+    row = connection.execute("SELECT 1 FROM maps WHERE id = %s AND is_published", (map_id,)).fetchone()
   if row is None:
     return None
-  if which == "original":
-    path, media_type = maps_folder() / row[0], row[1]
-  else:
-    path = maps_folder() / (display_name(map_id) if which == "display" else thumbnail_name(map_id))
-    media_type = "image/webp"
-  return (path, media_type) if path.is_file() else None
+  path = maps_folder() / (display_name(map_id) if which == "display" else thumbnail_name(map_id))
+  return (path, "image/webp") if path.is_file() else None
 
 
 # --- saving --------------------------------------------------------------------------------------------------

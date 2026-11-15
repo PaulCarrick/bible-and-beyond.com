@@ -984,8 +984,9 @@ export async function fetchMaps(verse?: { book: number; chapter: number; verse: 
   return (await readJson<{ maps: MapInfo[] }>(await fetch(`${mlServiceUrl}/maps${queryString}`))).maps
 }
 
-// Where a map's picture is: the copy shown ("display"), the small one for the list, or the file as uploaded.
-export function mapFileAddress(map: { id: string; version: number }, which: 'display' | 'thumbnail' | 'original'): string {
+// Where a map's picture is: the copy shown ("display") or the small one for the list. The file as uploaded is never
+// offered (the owner's choice, for the maps' licences).
+export function mapFileAddress(map: { id: string; version: number }, which: 'display' | 'thumbnail'): string {
   return `${mlServiceUrl}/map-file/${encodeURIComponent(map.id)}/${which}?v=${map.version}`
 }
 

@@ -100,8 +100,9 @@ def test_a_map_is_hidden_until_published_with_its_copies_and_verses(tmp_path, fo
   assert listed and "file_name" not in listed[0]
   shown = client.get("/map-file/test-map-journey/display")
   assert shown.status_code == 200 and shown.headers["content-type"] == "image/webp"
-  original = client.get("/map-file/test-map-journey/original")
-  assert original.content == (tmp_path / "map.png").read_bytes() and "attachment" in original.headers["content-disposition"]
+  # The file as uploaded is never offered for download.
+  assert client.get("/map-file/test-map-journey/original").status_code == 422
+  assert maps.map_file("test-map-journey", "original") is None
   assert client.get("/map-file/test-map-journey/other").status_code == 422
 
 

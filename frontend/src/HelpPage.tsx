@@ -575,8 +575,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             Press <em>Open this map</em> to see one: drag it to move about, and zoom in and out with the + and − buttons,
             the mouse wheel or a pinch on a phone. <em>Full screen</em> gives it the whole window (Escape or{' '}
             <em>Leave full screen</em> returns). Under the map are what it shows, where it came from, and the verses it
-            goes with; click a verse to read it in the Bible (with Shift, Ctrl or Cmd held, in a new tab).{' '}
-            <em>Download the original</em> saves the map as it was uploaded, for printing.
+            goes with; click a verse to read it in the Bible (with Shift, Ctrl or Cmd held, in a new tab).
           </p>
           <p>
             <PageLink onNavigate={onNavigate} view="searchMaps">Search the maps</PageLink> finds a map by its title, description,

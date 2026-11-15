@@ -52,7 +52,7 @@ class MapForm extends FormBase {
       '#type' => 'file',
       '#title' => $map === NULL ? $this->t('The map') : $this->t('A new file (optional)'),
       '#description' => $map === NULL
-        ? $this->t('A picture (PNG, JPEG, WebP, GIF or TIFF) or a PDF, of up to 1 GB. The site shows a copy of at most 5,000 pixels on its longer side, which can be zoomed into; the file itself is kept and can be downloaded.')
+        ? $this->t('A picture (PNG, JPEG, WebP, GIF or TIFF) or a PDF, of up to 1 GB. The site shows a copy of at most 5,000 pixels on its longer side, which can be zoomed into; the file itself is kept on the server and is never offered for download.')
         : $this->t('Leave this empty to keep the present file (@type, @size MB). A new picture or PDF replaces it. Members\' pins and routes are kept where they were across and down the map, so replace it only with the same map (a sharper scan, say).', [
           '@type' => $map['file_type'],
           '@size' => number_format($map['file_size'] / 1048576, 1),

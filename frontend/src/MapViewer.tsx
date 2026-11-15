@@ -41,10 +41,6 @@ interface Draft {
   sharedWith: string[]
 }
 
-function describeSize(bytes: number): string {
-  return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
-}
-
 // A member's note with the verses it names as links to the Bible reader (line breaks kept by the style).
 function MarkText({ mark, onOpenVerse }: { mark: MapMark; onOpenVerse: (verse: VerseInBible) => void }) {
   const pieces = []
@@ -724,11 +720,6 @@ function MapViewer({ map, isHidden, onBack, onOpenVerse }: MapViewerProps) {
           </p>
         )}
         {map.source && <p className="map-source">{map.source}</p>}
-        <p className="map-download">
-          <a href={mapFileAddress(map, 'original')} download>
-            Download the original ({map.kind === 'pdf' ? 'PDF' : map.file_type}, {describeSize(map.file_size)})
-          </a>
-        </p>
       </div>
 
       <section className="map-layer" aria-label="Your notes, pins and routes">
