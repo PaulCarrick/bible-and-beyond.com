@@ -305,7 +305,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq }: Welc
             })}
           </ul>
           {group.results.length < group.total && (
-            <button type="button" className="welcome-search-more" disabled={loadingMore !== null} onClick={() => showMore(group)}>
+            <button type="button" className="secondary-button welcome-search-more" disabled={loadingMore !== null} onClick={() => showMore(group)}>
               {loadingMore === group.kind ? 'Loading…' : `Show more ${hitWords[group.kind]}s`}
             </button>
           )}

@@ -106,13 +106,14 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
       <p>
         Bible and Beyond is free. You can read and search everything on it without an account and without logging in.
         If you set up an account and log in, you can also write your own notes, have a devotional emailed to you each
-        day, and ask to be allowed to put your own questions to the FAQ or to join Conversations. This guide shows each part of the site.
+        day, make music playlists, and ask to be allowed to put your own questions to the FAQ or to write in Conversations and on
+        the Prayer Wall. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
       <p>
         Prefer to watch? The{' '}
         <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
-        is a seven-minute narrated tour of the whole site.
+        is an eleven-minute narrated tour of the whole site.
       </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
@@ -134,9 +135,12 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           Every page has the same three parts. At the top is the <strong>header</strong>: click the name or the round
           emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the top right are{' '}
           <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address,{' '}
-          <em>My notes</em> and <em>Log out</em> there instead. On the left is the <strong>menu</strong>, grouped into
-          the Bible, the commentaries, the devotionals, the other books, questions (the FAQ) and about (this Help page
-          and Contact). On a phone the menu is hidden behind the menu button in the header.
+          <em>My notes</em> and <em>Log out</em> there instead. On the left is the <strong>menu</strong>: Welcome and
+          Search everything at the top, then groups for the Bible, the commentaries, the devotionals, the other books,
+          Christian media, questions (the FAQ), members (Conversations and the Prayer Wall) and about (this Help page,
+          the tutorial video and Contact). The groups start closed to keep the menu short: click a group&rsquo;s name to
+          open it and see its pages, and click it again to close it. The group of the page you are on opens by itself.
+          On a phone the menu is hidden behind the menu button in the header.
         </p>
         <p>
           The Welcome page has a card for each part of the site, listing what is on it now (the Bibles, the
@@ -147,9 +151,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="welcome"
           width={1152}
-          height={1388}
-          alt="The Welcome page with the menu on the left and a card for the Bible, the commentaries, the devotionals and the other books"
-          caption="The Welcome page: the header, the menu on the left, a card for each part of the site, and Search everything at the foot."
+          height={1300}
+          alt="The Welcome page with the menu on the left, its groups closed, and cards for the Bible, the commentaries, the devotionals, the other books and Christian media"
+          caption="The Welcome page: the header, the menu on the left (click a group to open it), and a card for each part of the site."
         />
       </section>
 
@@ -192,7 +196,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="search-all"
           width={1152}
-          height={1764}
+          height={1700}
           alt="Search everything with results for love in the Bible and in the commentaries"
           caption="Search everything for “love”: the Bible verses first, then the commentary notes, each with a link to read it."
         />
@@ -348,9 +352,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="bible-search"
           width={1152}
-          height={2644}
-          alt="Search results for love in the BSB and KJV, with an NIV section below and the search options open"
-          caption="“love” searched in the BSB and the KJV together, with the NIV in its own section below, and the Search Options open."
+          height={1900}
+          alt="Search results for love in the BSB, with the search options open"
+          caption="“love” searched in the Berean Standard Bible, with the Search Options open."
         />
         <p>
           <strong>Searching with AI.</strong> If your account may ask its own FAQ questions, choose <em>Use AI to find
@@ -443,8 +447,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </p>
         <Screenshot
           name="devotional-email"
-          width={907}
-          height={409}
+          width={875}
+          height={377}
           alt="The Email me this devotional each day panel with a time of day, a time zone and a button"
           caption="Choosing a time to receive the daily reading by email."
         />
@@ -461,7 +465,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="other-books"
           width={1152}
-          height={1870}
+          height={1700}
           alt="The list of other books, each with part and chapter choosers and a Read button"
           caption="Read other books: every book with its parts and chapters."
         />
@@ -507,7 +511,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <section id="help-music" tabIndex={-1} className="help-section">
           <h2>Christian media</h2>
           <p>
-            <PageLink onNavigate={onNavigate} view="music">Listen to the music</PageLink> lists hymns and songs by title. Open one (click its
+            <PageLink onNavigate={onNavigate} view="music">Listen to the media</PageLink> lists hymns, songs and talks by title. Open one (click its
             title) to see its player and its words; press play. Starting another pauses the first, and closing a song stops it. A recording keeps playing while
             you read another page of the site (a video pauses, since it could not be seen). Some songs show their words
             as a page of a hymnal (a picture or a PDF) rather than as text; a PDF also has a link to open it in a new
@@ -533,6 +537,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             some away and save under the same name (the order is kept, new songs go at the end);{' '}
             <em>Delete this playlist</em> removes it. Your playlists are yours alone.
           </p>
+          <Screenshot
+            name="playlist-edit"
+            width={1152}
+            height={900}
+            alt="Your playlists open, editing a playlist: each song with a drag handle, up and down arrows and Remove, then the Add songs list"
+            caption="Editing a playlist: drag a song by its handle to move it, remove one, or add others from the list."
+          />
           <p>
             <PageLink onNavigate={onNavigate} view="searchMusic">Search the media</PageLink> finds a song by its title, its author, its
             words or its keywords (words the site's administrator gives it, listed first), and <em>Play this song</em> on a result takes you to it. When you are logged in, each result also has
@@ -659,8 +670,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           name="note"
           width={1152}
           height={953}
-          alt="The notes window for John 1:1 with a note being written"
-          caption="Writing a note on John 1:1."
+          alt="The notes window for John 1:14 with a note being written"
+          caption="Writing a note on John 1:14."
         />
         <p>
           <PageLink onNavigate={onNavigate} view="notes">My notes</PageLink> (at the top of the page when you are logged in) lists all of your
@@ -672,7 +683,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <Screenshot
           name="my-notes"
           width={1152}
-          height={1746}
+          height={1420}
           alt="The My notes page with four notes and the form to add a note on a Bible verse"
           caption="My notes, with a note on a verse, a reading and a commentary note, and the form to add one."
         />
@@ -715,9 +726,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </ul>
         <Screenshot
           name="conversations"
-          width={920}
-          height={957}
-          alt="The Conversations page with two posts by two members, each with a reply, and Edit and Delete on the member's own post and reply"
+          width={1152}
+          height={1000}
+          alt="The Conversations page with two posts by two members, one with a reply, and Edit and Delete on the member's own post"
           caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
         />
       </section>
@@ -732,6 +743,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           request shows only on the Prayer Wall, and a Conversations post only in Conversations. Anyone can read what
           you share, with your name, so leave out what others would not want made public.
         </p>
+        <Screenshot
+          name="prayer-wall"
+          width={1152}
+          height={900}
+          alt="The Prayer Wall with two prayer requests by members, one with a reply"
+          caption="The Prayer Wall: prayer requests and praises, newest first, with replies."
+        />
       </section>
 
       <section id="help-contact" tabIndex={-1} className="help-section">

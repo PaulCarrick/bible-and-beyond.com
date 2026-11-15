@@ -29,14 +29,17 @@ function SideNav({ groups, activeView, isOpen, onNavigate }: SideNavProps) {
     const heading = groupHeadingOf(groups, activeView)
     return new Set(heading ? [heading] : [])
   })
-  // The page last opened, so its group is opened once each time another page is reached (set while rendering, as
-  // React advises for state that follows a prop).
-  const [shownView, setShownView] = useState(activeView)
-  if (shownView !== activeView) {
-    setShownView(activeView)
-    const heading = groupHeadingOf(groups, activeView)
-    if (heading && !openHeadings.has(heading)) {
-      setOpenHeadings(new Set([...openHeadings, heading]))
+  // The page last opened and its group, so the group is opened once each time another page is reached (set while
+  // rendering, as React advises for state that follows a prop). The group is part of it because some groups
+  // (Other books, Christian media) appear only once the site knows it has some: a page of theirs opened directly
+  // is shown before its group exists.
+  const activeHeading = groupHeadingOf(groups, activeView)
+  const placeKey = `${activeView}|${activeHeading ?? ''}`
+  const [shownPlace, setShownPlace] = useState(placeKey)
+  if (shownPlace !== placeKey) {
+    setShownPlace(placeKey)
+    if (activeHeading && !openHeadings.has(activeHeading)) {
+      setOpenHeadings(new Set([...openHeadings, activeHeading]))
     }
   }
 
