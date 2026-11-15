@@ -850,7 +850,8 @@ select:disabled {
   grid-row: span 3;
   grid-template-rows: subgrid;
   row-gap: 0.6rem;
-  padding: 1rem 0.85rem;
+  /* Narrow at the sides so two buttons fit a card three to a row; wider when the cards have room (below). */
+  padding: 1rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -867,20 +868,19 @@ select:disabled {
 
 /* A card's buttons, side by side (the owner's choice, 2026-11-14), in slightly smaller type and without "the" in
    their words, so two fit a card three to a row; they wrap onto a second line only when the card is narrower. */
-/* The first button at the left of the card and the second at its right (the owner's choice, 2026-11-14). */
+/* At least 16px between a card's buttons (the owner's minimum, 2026-11-14). */
 .welcome-buttons {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem 0.25rem;
+  gap: 0.5rem 16px;
   align-self: start;
-  justify-self: stretch;
+  justify-self: start;
 }
 
 .welcome-buttons .primary-button,
 .welcome-buttons .secondary-button {
   margin-top: 0;
-  padding: calc(0.4rem - 1px) calc(0.4rem - 1px);
+  padding: calc(0.4rem - 1px) calc(0.35rem - 1px);
   font-size: 0.8em;
   white-space: nowrap;
 }
@@ -895,8 +895,12 @@ select:disabled {
 }
 
 @container welcome-cards (min-width: 22rem) and (max-width: 52.99rem) {
+  .welcome-card {
+    padding: 1rem 1.1rem;
+  }
+
   .welcome-buttons {
-    gap: 0.6rem 0.75rem;
+    gap: 0.6rem 1.25rem;
   }
 
   .welcome-buttons .primary-button,
@@ -2632,6 +2636,8 @@ select:disabled {
 /* The start of the latest post, under the card's line about Conversations. */
 .welcome-conversations {
   max-width: 34rem;
+  /* It stands alone, never three to a row, so it keeps the usual padding. */
+  padding: 1rem 1.1rem;
 }
 
 .welcome-latest-post {
