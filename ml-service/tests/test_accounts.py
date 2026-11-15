@@ -361,3 +361,67 @@ def test_a_failure_to_send_does_not_stop_sign_up(monkeypatch):
   monkeypatch.setattr(accounts, "send_plain_message", fail)
 
   assert register().status_code == 200
+
+
+def change_password(current=PASSWORD, password="a brand new password", confirmation="a brand new password", http=client):
+  return http.post(
+    "/account/password",
+    json={"current_password": current, "password": password, "password_confirmation": confirmation},
+  )
+
+
+def test_changing_the_password_needs_a_login():
+  register()
+  client.cookies.clear()
+  assert change_password().status_code == 401
+
+
+def test_a_wrong_current_password_is_refused_and_nothing_changes():
+  register()
+  response = change_password(current="not the password")
+  assert response.status_code == 422
+  assert "current password" in response.json()["detail"]
+  assert "not the password" not in response.text and "a brand new password" not in response.text
+  client.cookies.clear()
+  assert client.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD}).status_code == 200
+
+
+@pytest.mark.parametrize(
+  "password, confirmation, fragment",
+  [("short", "short", "at least 8"), ("a brand new password", "a different password", "not the same")],
+)
+def test_a_bad_new_password_is_refused(password, confirmation, fragment):
+  register()
+  response = change_password(password=password, confirmation=confirmation)
+  assert response.status_code == 422
+  assert fragment in response.json()["detail"]
+  client.cookies.clear()
+  assert client.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD}).status_code == 200
+
+
+def test_the_new_password_works_and_the_old_one_does_not():
+  register()
+  assert change_password().json() == {"changed": True}
+  client.cookies.clear()
+  assert client.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD}).status_code == 401
+  assert client.post("/account/login", json={"email": "ann@accounts-test.example", "password": "a brand new password"}).status_code == 200
+
+
+def test_changing_the_password_logs_out_other_devices_but_not_this_one(sent_mail):
+  register()
+  other_device = TestClient(app)
+  other_device.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD})
+  assert other_device.get("/account/me").json()["user"] is not None
+  sent_mail.clear()
+  client.post("/account/forgot-password", json={"email": "ann@accounts-test.example"})
+  reset_token = link_token(sent_mail[0], "reset")
+
+  assert change_password().status_code == 200
+
+  assert client.get("/account/me").json()["user"]["email"] == "ann@accounts-test.example"
+  assert other_device.get("/account/me").json() == {"user": None}
+  cancelled = client.post(
+    "/account/reset-password",
+    json={"token": reset_token, "password": "another new password", "password_confirmation": "another new password"},
+  )
+  assert cancelled.status_code == 400

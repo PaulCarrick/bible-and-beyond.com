@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSubscription } from './api'
+import ChangePasswordSection from './ChangePasswordSection'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
 import { ownTimeZone } from './timeZones'
@@ -18,7 +19,7 @@ interface MyAccountPageProps {
 
 // My account (added 2026-11-15 with text messages, the owner's request): the logged-in member's address, their
 // phone number with the two text message checkboxes, and the verse a day, which they can change here. Opened from their address in the
-// header. Nothing else about the account can be changed here yet.
+// header. Below them, a section of its own changes the password (ChangePasswordSection).
 function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAccountPageProps) {
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [phoneIsCell, setPhoneIsCell] = useState(user?.phone_is_cell ?? false)
@@ -171,6 +172,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
           </button>
         </div>
       </form>
+      <ChangePasswordSection />
     </div>
   )
 }

@@ -330,6 +330,32 @@ def reset_password(token: str, password: str, confirmation: str) -> None:
     connection.execute("DELETE FROM account_tokens WHERE user_id = %s", (user_id,))
 
 
+def change_password(user_id: int, session_token: str | None, current: str, password: str, confirmation: str) -> None:
+  """A logged-in member chooses a new password (the My account page). The current password must be right
+  (the same scrypt check as logging in, so a wrong one takes about as long). Every other session of the
+  account is logged out and any emailed reset link is cancelled; the session making the change stays."""
+  refusal = AccountProblem("Your current password is not right.", 422)
+  if not current or len(current) > PASSWORD_MAXIMUM:
+    password_matches(current[:PASSWORD_MAXIMUM], _DUMMY_HASH)
+    raise refusal
+  with connect() as connection:
+    row = connection.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,)).fetchone()
+    if row is None:
+      password_matches(current, _DUMMY_HASH)
+      raise AccountProblem("Please log in again.", 401)
+    if not password_matches(current, row[0]):
+      raise refusal
+  check_new_password(password, confirmation)
+  password_hash = hash_password(password)
+  with connect() as connection:
+    connection.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id))
+    connection.execute(
+      "DELETE FROM user_sessions WHERE user_id = %s AND token_hash <> %s",
+      (user_id, _hash_token(session_token or "")),
+    )
+    connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'reset'", (user_id,))
+
+
 def site_link(query: str) -> str:
   """An address on the main site. SITE_URL says where it is (https://bible-and-beyond.com when not set)."""
   return os.environ.get("SITE_URL", "https://bible-and-beyond.com").rstrip("/") + "/?" + query

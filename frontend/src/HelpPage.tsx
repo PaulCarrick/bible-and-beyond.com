@@ -688,6 +688,12 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             address, and use the link we email you within an hour to choose a new password.
           </li>
           <li>
+            <strong>Changing your password.</strong> While logged in, click your address at the top right to open{' '}
+            <em>My account</em>, and under <em>Change your password</em> type your current password and the new one twice
+            (at least 8 characters). Any other device logged in to your account is logged out; the one you are using stays
+            logged in.
+          </li>
+          <li>
             <strong>Your address</strong> is used only for the site&rsquo;s own emails (the confirmation link, a password
             reset and any daily devotional you choose). Your name and phone number are kept with your account; only
             the site&rsquo;s administrators can see them.

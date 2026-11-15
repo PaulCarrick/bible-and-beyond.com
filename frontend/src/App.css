@@ -1603,6 +1603,17 @@ select:disabled {
   max-width: 28rem;
 }
 
+.change-password {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+.change-password h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.3rem;
+}
+
 .contact-field small {
   color: #5a6472;
 }

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from accounts import (
   AccountProblem,
   SESSION_DAYS,
+  change_password,
   create_account,
   log_in,
   log_out,
@@ -935,6 +936,31 @@ def account_logout(request: Request, response: Response):
 def account_me(request: Request):
   """Who is logged in, or null. Logging in is never required; this only tells the page what to show."""
   return {"user": user_for_token(request.cookies.get(SESSION_COOKIE))}
+
+
+class PasswordChangeRequest(BaseModel):
+  # No max_length here: a refused value would be echoed back in the error. change_password checks the lengths.
+  current_password: str
+  password: str
+  password_confirmation: str
+
+
+@app.post("/account/password")
+def account_password(body: PasswordChangeRequest, request: Request):
+  """The logged-in member changes their password (the My account page). Other devices are logged out; this
+  one stays logged in. No password is logged or returned."""
+  user = require_user(request, "Please log in to change your password.")
+  try:
+    change_password(
+      user["id"],
+      request.cookies.get(SESSION_COOKIE),
+      body.current_password,
+      body.password,
+      body.password_confirmation,
+    )
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"changed": True}
 
 
 class TokenRequest(BaseModel):

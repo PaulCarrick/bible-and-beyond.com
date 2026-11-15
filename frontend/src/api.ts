@@ -634,6 +634,15 @@ export function forgotPassword(email: string) {
   return accountAction('forgot-password', { email })
 }
 
+// The logged-in member changes their password on the My account page; other devices are logged out.
+export function changePassword(currentPassword: string, password: string, passwordConfirmation: string) {
+  return accountAction('password', {
+    current_password: currentPassword,
+    password,
+    password_confirmation: passwordConfirmation,
+  })
+}
+
 export function resetPassword(token: string, password: string, passwordConfirmation: string) {
   return accountAction('reset-password', { token, password, password_confirmation: passwordConfirmation })
 }
