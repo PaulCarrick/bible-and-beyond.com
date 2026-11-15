@@ -867,12 +867,14 @@ select:disabled {
 
 /* A card's buttons, side by side (the owner's choice, 2026-11-14), in slightly smaller type and without "the" in
    their words, so two fit a card three to a row; they wrap onto a second line only when the card is narrower. */
+/* The first button at the left of the card and the second at its right (the owner's choice, 2026-11-14). */
 .welcome-buttons {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 0.5rem 0.25rem;
   align-self: start;
-  justify-self: start;
+  justify-self: stretch;
 }
 
 .welcome-buttons .primary-button,
