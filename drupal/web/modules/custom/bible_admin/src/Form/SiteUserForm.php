@@ -96,7 +96,7 @@ class SiteUserForm extends FormBase {
       '#title' => $this->t('Phone'),
       '#default_value' => $user['phone'] ?? '',
       '#maxlength' => self::PHONE_MAXIMUM,
-      '#description' => $this->t('Optional.'),
+      '#description' => $this->t('Optional. A US number is kept as +1 (555) 123-4567. Changing it turns off this member\'s text messages: only the member can turn them on (on their My account page), since texts need their own consent.'),
     ];
     $form['email_verified'] = [
       '#type' => 'checkbox',

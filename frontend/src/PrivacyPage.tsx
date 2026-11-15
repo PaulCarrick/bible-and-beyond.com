@@ -35,9 +35,14 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
     when: 'When you choose “Search the Internet Archive”',
   },
   {
+    service: 'Telnyx (text messages)',
+    whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, or your verse a day)',
+    when: 'Only if you ticked “Send me text messages”; never otherwise',
+  },
+  {
     service: 'Our email provider',
     whatIsSent: 'Your email address and the message',
-    when: 'Contact messages, account emails, daily devotionals, the prayer list and replies you asked to be emailed',
+    when: 'Contact messages, account emails, daily devotionals, the verse a day, the prayer list and replies you asked to be emailed',
   },
 ]
 
@@ -71,7 +76,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         </li>
         <li>
           <strong>Your first name, last name and phone number,</strong> if you choose to give them. All three are
-          optional.
+          optional. If you ask for text messages, we also keep when you agreed to them and whether you replied STOP.
         </li>
         <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
@@ -147,7 +152,11 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
 
       <h2>Your choices</h2>
       <ul>
-        <li>You can stop devotional, prayer list or reply emails with the link at the bottom of any email.</li>
+        <li>You can stop devotional, verse a day, prayer list or reply emails with the link at the bottom of any email.</li>
+        <li>
+          You can stop text messages by replying STOP to any text, or by unticking them on your My account page. Your
+          mobile carrier may charge for texts you receive.
+        </li>
         <li>
           To delete your account and everything stored with it, or to ask what we hold about you, use the{' '}
           <button type="button" className="link-button" onClick={() => onNavigate('contact')}>

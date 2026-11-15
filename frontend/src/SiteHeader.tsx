@@ -14,12 +14,14 @@ interface SiteHeaderProps {
   user: AccountUser | null
   onSetUpAccount: () => void
   onShowNotes: () => void
+  // The My account page (phone number and texts).
+  onShowAccount: () => void
   onLogIn: () => void
   onLogOut: () => void
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -50,9 +52,16 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
       <nav className="site-account" aria-label="Account">
         {user ? (
           <>
-            <span className="site-account-email" title={user.email}>
+            {/* The address opens the My account page (phone number and texts). */}
+            <button
+              type="button"
+              className="link-button site-account-email"
+              title={`My account: ${user.email}`}
+              aria-label={`My account (${user.email})`}
+              onClick={onShowAccount}
+            >
               {user.email}
-            </span>
+            </button>
             <button type="button" className="link-button" onClick={onShowNotes}>
               My notes
             </button>

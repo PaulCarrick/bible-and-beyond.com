@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import psycopg
 
 from contact import CONTROL_CHARACTERS, EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, send_plain_message
+from sms import SmsProblem, check_choices, format_phone
 from search import connect
 from site_settings import get_public_settings
 
@@ -107,13 +108,15 @@ def check_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str
       raise AccountProblem(f"The {label} can be at most {NAME_LIMIT} characters.")
   if len(phone) > PHONE_LIMIT:
     raise AccountProblem(f"The phone number can be at most {PHONE_LIMIT} characters.")
-  return first_name, last_name, phone
+  # A US number is kept as +1 (555) 123-4567.
+  return first_name, last_name, format_phone(phone)
 
 
 # What the site is told about a logged-in account. The columns are read in this order.
 _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
-  COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations
+  COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
+  users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL
 """
 
 
@@ -130,28 +133,70 @@ def _describe_user(row) -> dict:
     "last_name": row[5],
     "phone": row[6],
     "use_conversations": row[7],
+    # Text messages (sms.py): the phone is a cell number; the member asked for texts; they replied STOP since.
+    "phone_is_cell": row[8],
+    "sms_opt_in": row[9],
+    "sms_stopped": row[10],
   }
 
 
+def _sms_choices(phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[bool, str | None, bool]:
+  try:
+    return check_choices(phone, phone_is_cell, sms_opt_in)
+  except SmsProblem as problem:
+    raise AccountProblem(str(problem)) from problem
+
+
 def create_account(
-  email: str, password: str, confirmation: str, first_name: str = "", last_name: str = "", phone: str = ""
+  email: str,
+  password: str,
+  confirmation: str,
+  first_name: str = "",
+  last_name: str = "",
+  phone: str = "",
+  phone_is_cell: bool = False,
+  sms_opt_in: bool = False,
 ) -> dict:
   email = normalize_email(email)
   first_name, last_name, phone = check_profile(first_name, last_name, phone)
+  phone_is_cell, sms_number, sms_opt_in = _sms_choices(phone, phone_is_cell, sms_opt_in)
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   try:
     with connect() as connection:
       row = connection.execute(
         f"""
-        INSERT INTO users (email, password_hash, first_name, last_name, phone)
-        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, '')) RETURNING {_USER_COLUMNS}
+        INSERT INTO users
+          (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_consent_at)
+        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END)
+        RETURNING {_USER_COLUMNS}
         """,
-        (email, password_hash, first_name, last_name, phone),
+        (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_opt_in),
       ).fetchone()
   except psycopg.errors.UniqueViolation:
     raise AccountProblem("An account with that email address already exists. Please log in.", 409)
   return _describe_user(row)
+
+
+def update_phone(user_id: int, phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[dict, str | None]:
+  """Changes a member's phone number and text choices (the My account page). Returns the account and, when texts
+  were just turned on (or moved to a new number), the number to send the welcome text to."""
+  _, _, phone = check_profile("", "", phone)
+  phone_is_cell, sms_number, sms_opt_in = _sms_choices(phone, phone_is_cell, sms_opt_in)
+  with connect() as connection:
+    before = connection.execute("SELECT sms_opt_in, sms_number FROM users WHERE id = %s", (user_id,)).fetchone()
+    row = connection.execute(
+      f"""
+      UPDATE users SET phone = NULLIF(%(phone)s, ''), phone_is_cell = %(cell)s, sms_number = %(number)s,
+        sms_opt_in = %(opt_in)s,
+        sms_consent_at = CASE WHEN %(opt_in)s THEN now() ELSE sms_consent_at END,
+        sms_stopped_at = CASE WHEN %(opt_in)s THEN NULL ELSE sms_stopped_at END
+      WHERE id = %(user)s RETURNING {_USER_COLUMNS}
+      """,
+      {"phone": phone, "cell": phone_is_cell, "number": sms_number, "opt_in": sms_opt_in, "user": user_id},
+    ).fetchone()
+  newly_on = sms_opt_in and (before is None or not before[0] or before[1] != sms_number)
+  return _describe_user(row), sms_number if newly_on else None
 
 
 def _hash_token(token: str) -> str:

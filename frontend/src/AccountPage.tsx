@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { forgotPassword, logIn, registerAccount, resetPassword } from './api'
+import TextMessageChoices from './TextMessageChoices'
+import { formatUsPhone, nextPhoneValue } from './phoneFormat'
+import { ownTimeZone } from './timeZones'
+import VerseADayChoice from './VerseADayChoice'
 import type { AccountUser } from './types'
 import type { View } from './views'
 
@@ -21,6 +25,11 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneIsCell, setPhoneIsCell] = useState(false)
+  const [smsOptIn, setSmsOptIn] = useState(false)
+  const [verseADay, setVerseADay] = useState(false)
+  const [verseTime, setVerseTime] = useState('07:00')
+  const [timeZone, setTimeZone] = useState(ownTimeZone)
   const [emailAddress, setEmailAddress] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
@@ -52,7 +61,19 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
       } else {
         const user =
           mode === 'register'
-            ? await registerAccount({ email: emailAddress, password, passwordConfirmation, firstName, lastName, phone })
+            ? await registerAccount({
+                email: emailAddress,
+                password,
+                passwordConfirmation,
+                firstName,
+                lastName,
+                phone,
+                phoneIsCell: phone.trim() !== '' && phoneIsCell,
+                smsOptIn: phone.trim() !== '' && phoneIsCell && smsOptIn,
+                verseADay,
+                verseTime,
+                timezone: timeZone,
+              })
             : await logIn(emailAddress, password)
         if (user) {
           onDone(user)
@@ -136,9 +157,30 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
                 value={phone}
                 maxLength={40}
                 autoComplete="tel"
-                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+1 (555) 123-4567"
+                onChange={(event) => setPhone(nextPhoneValue(phone, event.target.value))}
+                onBlur={() => setPhone(formatUsPhone(phone))}
               />
             </label>
+          )}
+          {mode === 'register' && (
+            <TextMessageChoices
+              phone={phone}
+              phoneIsCell={phoneIsCell}
+              smsOptIn={smsOptIn}
+              onPhoneIsCellChange={setPhoneIsCell}
+              onSmsOptInChange={setSmsOptIn}
+            />
+          )}
+          {mode === 'register' && (
+            <VerseADayChoice
+              isOn={verseADay}
+              sendTime={verseTime}
+              timeZone={timeZone}
+              onIsOnChange={setVerseADay}
+              onSendTimeChange={setVerseTime}
+              onTimeZoneChange={setTimeZone}
+            />
           )}
           {mode !== 'forgot' && (
             <label className="contact-field">

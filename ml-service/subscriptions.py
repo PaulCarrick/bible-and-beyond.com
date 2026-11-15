@@ -20,6 +20,7 @@ from contact import MailUnavailable, load_mail_settings, send_email
 from devotionals import get_unit
 from search import connect
 from site_settings import get_public_settings
+import sms
 
 logger = logging.getLogger("subscriptions")
 
@@ -195,6 +196,9 @@ def unsubscribe_with_token(token: str) -> str:
       ).fetchone()
       if post:
         return f"replies to your post “{post[0]}”"
+      # And the verse a day (verse_a_day.py).
+      if connection.execute("DELETE FROM verse_subscriptions WHERE unsubscribe_token = %s RETURNING id", (token,)).fetchone():
+        return "the verse a day"
       raise SubscriptionProblem("This link is not valid, or the emails have already been stopped.", 404)
     found = connection.execute("SELECT name FROM devotionals WHERE id = %s", (row[0],)).fetchone()
   return found[0] if found else row[0]
@@ -248,7 +252,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       rows = connection.execute(
         """
         SELECT s.id, s.devotional_id, d.name, d.kind, s.send_time, s.timezone, s.next_section, s.next_unit,
-               s.last_sent_on, s.attempts_on, s.attempts, s.unsubscribe_token, u.email
+               s.last_sent_on, s.attempts_on, s.attempts, s.unsubscribe_token, u.email, u.id
         FROM devotional_subscriptions s
         JOIN users u ON u.id = s.user_id
         JOIN devotionals d ON d.id = s.devotional_id AND d.is_published AND d.collection = 'devotionals'
@@ -258,7 +262,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       ).fetchall()
     settings = None
     for (sub_id, devotional_id, name, kind, send_time, zone_name, next_section, next_unit, last_sent_on,
-         attempts_on, attempts, token, address) in rows:
+         attempts_on, attempts, token, address, user_id) in rows:
       if result["sent"] + result["failed"] >= EMAILS_PER_RUN:
         break
       try:
@@ -311,6 +315,8 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
         else:
           connection.execute("UPDATE devotional_subscriptions SET attempts_on = NULL, attempts = 0 WHERE id = %s", (sub_id,))
       result["sent"] += 1
+      # The same reading as a short text with a link, if the member asked for texts (never stops the run).
+      sms.text_user(user_id, f"{name}: {reading['title']}. Read it at", sms.site_address("/devotionals"))
       if pause:
         time.sleep(pause)
     lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))

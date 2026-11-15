@@ -420,6 +420,10 @@ export interface AccountUser {
   phone: string
   // An administrator allowed this account to read and write Conversations; off unless set in Drupal.
   use_conversations: boolean
+  // Text messages (sms.py): the phone is a cell number; the member asked for texts; they replied STOP since.
+  phone_is_cell: boolean
+  sms_opt_in: boolean
+  sms_stopped: boolean
 }
 
 // What the Set up account form sends.
@@ -430,6 +434,19 @@ export interface NewAccount {
   firstName: string
   lastName: string
   phone: string
+  phoneIsCell: boolean
+  smsOptIn: boolean
+  // A verse a day: its time of day and the visitor's time zone.
+  verseADay: boolean
+  verseTime: string
+  timezone: string
+}
+
+// The verse a day of the logged-in member (verse_a_day.py).
+export interface VerseSubscription {
+  send_time: string
+  timezone: string
+  last_sent_on: string | null
 }
 
 // A note a logged-in visitor wrote about a verse, a commentary note or a devotional reading.

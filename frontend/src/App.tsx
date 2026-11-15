@@ -32,6 +32,7 @@ import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import TutorialPage from './TutorialPage'
 import PrivacyPage from './PrivacyPage'
+import MyAccountPage from './MyAccountPage'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
 import SideNav from './SideNav'
@@ -106,6 +107,8 @@ function App() {
   // the site's own first.
   const [areSettingsLoaded, setAreSettingsLoaded] = useState(false)
   const [user, setUser] = useState<AccountUser | null>(null)
+  // Whether the first "who is logged in" answer has come (so My account does not say "log in" while it loads).
+  const [isAccountKnown, setIsAccountKnown] = useState(false)
   const [resendMessage, setResendMessage] = useState('')
   // Where a note's link asked a reader to open, with a new id each time.
   const [destination, setDestination] = useState<Destination | null>(verseLink ?? bookLink)
@@ -207,6 +210,7 @@ function App() {
     fetchCurrentUser()
       .then(setUser)
       .catch(() => setUser(null))
+      .finally(() => setIsAccountKnown(true))
   }, [])
 
   useEffect(() => {
@@ -349,6 +353,7 @@ function App() {
           user={user}
           onSetUpAccount={() => navigate('register')}
           onShowNotes={() => navigate('notes')}
+          onShowAccount={() => navigate('account')}
           onLogIn={() => navigate('login')}
           onLogOut={() => {
             logOut()
@@ -438,6 +443,7 @@ function App() {
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} />}
               {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
               {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
+              {activeView === 'account' && <MyAccountPage key={user?.id ?? 0} user={user} isAccountKnown={isAccountKnown} onUserChanged={setUser} onNavigate={navigate} />}
               {activeView === 'copyright' && (
                 <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />
               )}

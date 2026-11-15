@@ -9,6 +9,7 @@ import psycopg
 
 from accounts import AccountProblem, check_new_password, check_profile, hash_password, normalize_email
 from search import connect
+from sms import texting_number
 
 PER_PAGE = 50
 QUERY_LIMIT = 200
@@ -18,7 +19,7 @@ _COLUMNS = """
   users.open_ai_queries, COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''),
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
-  users.use_conversations, users.see_private_prayers
+  users.use_conversations, users.see_private_prayers, users.sms_opt_in, users.sms_stopped_at IS NOT NULL
 """
 
 
@@ -42,6 +43,9 @@ def _describe(row) -> dict:
     "use_conversations": row[11],
     # The site's own administrators: their prayer list email also holds private requests (prayer_list.py).
     "see_private_prayers": row[12],
+    # Text messages (sms.py), chosen by the member only: shown, never set here.
+    "sms_opt_in": row[13],
+    "sms_stopped": row[14],
   }
 
 
@@ -150,6 +154,12 @@ def update_user(
     if given is not None and value != current[column]:
       changes.append(f"{column} = NULLIF(%s, '')")
       values.append(value)
+      if column == "phone":
+        # The same number written another way (555-123-4567 becoming +1 (555) 123-4567) is not a new number.
+        number = texting_number(value)
+        if number is None or number != texting_number(current["phone"]):
+          # A new number has not been agreed to for texts: the member turns them on again on My account.
+          changes.append("phone_is_cell = false, sms_number = NULL, sms_opt_in = false")
   if password:
     _checked_password(password)
     changes.append("password_hash = %s")

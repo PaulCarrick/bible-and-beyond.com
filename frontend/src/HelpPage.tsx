@@ -653,6 +653,21 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             reset and any daily devotional you choose). Your name and phone number are kept with your account; only
             the site&rsquo;s administrators can see them.
           </li>
+          <li>
+            <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up the account, or later on{' '}
+            <em>My account</em>, and choose a time. Each day you get one Bible verse (BSB), chosen at random from
+            well-known passages and never the same two days running, by email, with a link to read it in context; and by
+            text too if you asked for texts. It starts once your address is confirmed, and every email has a link to stop
+            it.
+          </li>
+          <li>
+            <strong>Text messages.</strong> If you give a US or Canadian phone number (it is shown as +1 (555) 123-4567),
+            tick <em>This is a cell (mobile) number</em> and then <em>Send me text (SMS) messages</em>, when you set up
+            the account or later on <em>My account</em> (click your address at the top right). The devotionals, prayer
+            list, reply notices and verse a day you get by email are then also sent as a short text with a link; the emails still
+            come. Your mobile carrier may charge for texts. Reply STOP to any text to end them (START turns them back
+            on), or HELP for help.
+          </li>
         </ul>
       </section>
 

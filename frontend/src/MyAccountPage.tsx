@@ -1,0 +1,178 @@
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSubscription } from './api'
+import TextMessageChoices from './TextMessageChoices'
+import { formatUsPhone, nextPhoneValue } from './phoneFormat'
+import { ownTimeZone } from './timeZones'
+import VerseADayChoice from './VerseADayChoice'
+import type { AccountUser } from './types'
+import type { View } from './views'
+
+interface MyAccountPageProps {
+  user: AccountUser | null
+  // False until the site knows whether anyone is logged in.
+  isAccountKnown: boolean
+  onUserChanged: (user: AccountUser) => void
+  onNavigate: (view: View) => void
+}
+
+// My account (added 2026-11-15 with text messages, the owner's request): the logged-in member's address, their
+// phone number with the two text message checkboxes, and the verse a day, which they can change here. Opened from their address in the
+// header. Nothing else about the account can be changed here yet.
+function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAccountPageProps) {
+  const [phone, setPhone] = useState(user?.phone ?? '')
+  const [phoneIsCell, setPhoneIsCell] = useState(user?.phone_is_cell ?? false)
+  const [smsOptIn, setSmsOptIn] = useState(user?.sms_opt_in ?? false)
+  // The verse a day: undefined while loading.
+  const [verseLoaded, setVerseLoaded] = useState<boolean | undefined>(undefined)
+  const [verseADay, setVerseADay] = useState(false)
+  const [verseTime, setVerseTime] = useState('07:00')
+  const [timeZone, setTimeZone] = useState(ownTimeZone)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const userId = user?.id ?? null
+
+  useEffect(() => {
+    if (userId === null) {
+      return
+    }
+    const controller = new AbortController()
+    fetchVerseSubscription(controller.signal)
+      .then((found) => {
+        setVerseADay(found !== null)
+        if (found) {
+          setVerseTime(found.send_time)
+          setTimeZone(found.timezone)
+        }
+        setVerseLoaded(found !== null)
+      })
+      .catch((error: Error) => {
+        if (!controller.signal.aborted) {
+          setErrorMessage(error.message)
+        }
+      })
+    return () => controller.abort()
+  }, [userId])
+
+  if (user === null && !isAccountKnown) {
+    return (
+      <div className="account-page">
+        <h1>My account</h1>
+        <p>Loading…</p>
+      </div>
+    )
+  }
+  if (user === null) {
+    return (
+      <div className="account-page">
+        <h1>My account</h1>
+        <p>
+          Please{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('login')}>
+            log in
+          </button>{' '}
+          first.
+        </p>
+      </div>
+    )
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (isSaving) {
+      return
+    }
+    setIsSaving(true)
+    setMessage('')
+    setErrorMessage('')
+    const hasPhone = phone.trim() !== ''
+    try {
+      const saved = await savePhone(phone, hasPhone && phoneIsCell, hasPhone && phoneIsCell && smsOptIn)
+      if (verseADay) {
+        await saveVerseSubscription(verseTime, timeZone)
+      } else if (verseLoaded) {
+        await deleteVerseSubscription()
+      }
+      setVerseLoaded(verseADay)
+      onUserChanged(saved)
+      setPhone(saved.phone)
+      setPhoneIsCell(saved.phone_is_cell)
+      setSmsOptIn(saved.sms_opt_in)
+      setMessage(
+        saved.sms_opt_in && !user?.sms_opt_in
+          ? 'Saved. Texts are on: we have sent a text to confirm.'
+          : 'Saved.',
+      )
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'That could not be saved.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="account-page">
+      <h1>My account</h1>
+      <p>
+        Logged in as <strong>{user.email}</strong>
+        {user.first_name || user.last_name ? ` (${[user.first_name, user.last_name].filter(Boolean).join(' ')})` : ''}.
+      </p>
+      {user.sms_stopped && !user.sms_opt_in && (
+        <p className="account-note">
+          You replied STOP to one of our texts, so texts are off. Tick <em>Send me text messages</em> below to turn them
+          back on (you may also need to reply START to our number).
+        </p>
+      )}
+      <form className="contact-form" onSubmit={handleSubmit}>
+        <label className="contact-field">
+          Phone (optional)
+          <input
+            type="tel"
+            value={phone}
+            maxLength={40}
+            autoComplete="tel"
+            placeholder="+1 (555) 123-4567"
+            onChange={(event) => setPhone(nextPhoneValue(phone, event.target.value))}
+            onBlur={() => setPhone(formatUsPhone(phone))}
+          />
+        </label>
+        <TextMessageChoices
+          phone={phone}
+          phoneIsCell={phoneIsCell}
+          smsOptIn={smsOptIn}
+          onPhoneIsCellChange={setPhoneIsCell}
+          onSmsOptInChange={setSmsOptIn}
+        />
+        {verseLoaded !== undefined && (
+          <VerseADayChoice
+            isOn={verseADay}
+            sendTime={verseTime}
+            timeZone={timeZone}
+            onIsOnChange={setVerseADay}
+            onSendTimeChange={setVerseTime}
+            onTimeZoneChange={setTimeZone}
+          />
+        )}
+        {!user.email_verified && (smsOptIn || verseADay) && (
+          <p className="account-note">
+            Texts and the verse a day start once you have confirmed your email address, as the other emails do.
+          </p>
+        )}
+        {errorMessage && (
+          <p className="error" role="alert">
+            {errorMessage}
+          </p>
+        )}
+        {message && <p role="status">{message}</p>}
+        <div className="note-actions">
+          <button type="submit" className="primary-button" disabled={isSaving}>
+            {isSaving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export default MyAccountPage

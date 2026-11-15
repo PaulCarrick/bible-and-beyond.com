@@ -22,6 +22,7 @@ from contact import MailUnavailable, load_mail_settings, send_email
 from conversations import ANONYMOUS
 from search import connect
 from site_settings import get_public_settings
+import sms
 from subscriptions import ATTEMPTS_PER_DAY, EMAILS_PER_RUN, PAUSE_BETWEEN_EMAILS, SubscriptionProblem, check_timezone, parse_time
 
 logger = logging.getLogger("prayer_list")
@@ -189,14 +190,14 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       rows = connection.execute(
         """
         SELECT s.id, s.send_weekday, s.send_time, s.timezone, s.last_sent_on, s.sent_through, s.attempts_on,
-               s.attempts, s.unsubscribe_token, u.email, u.see_private_prayers
+               s.attempts, s.unsubscribe_token, u.email, u.see_private_prayers, u.id
         FROM prayer_list_subscriptions s JOIN users u ON u.id = s.user_id
         WHERE u.email_verified_at IS NOT NULL
         ORDER BY s.id
         """
       ).fetchall()
     settings = None
-    for sub_id, weekday, send_time, zone_name, last_sent_on, sent_through, attempts_on, attempts, token, address, is_admin in rows:
+    for sub_id, weekday, send_time, zone_name, last_sent_on, sent_through, attempts_on, attempts, token, address, is_admin, user_id in rows:
       if result["sent"] + result["failed"] >= EMAILS_PER_RUN:
         break
       try:
@@ -242,6 +243,10 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
           "UPDATE prayer_list_subscriptions SET sent_through = %s, attempts_on = NULL, attempts = 0 WHERE id = %s", (now, sub_id)
         )
       result["sent"] += 1
+      # A short text too, if the member asked for texts: the count and the titles, with a link.
+      count = len(requests)
+      titles = "; ".join(request["title"] for request in requests)
+      sms.text_user(user_id, f"{count} new prayer {'request' if count == 1 else 'requests'} this week: {titles}.", sms.site_address("/prayer-wall"))
       if pause:
         time.sleep(pause)
     lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))

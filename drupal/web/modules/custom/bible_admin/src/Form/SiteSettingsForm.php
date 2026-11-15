@@ -46,12 +46,12 @@ class SiteSettingsForm extends FormBase {
   /**
    * The keys of the outside services: hidden fields that are never filled in from what is saved.
    */
-  private const SERVICE_KEYS = ['gemini_api_key', 'api_bible_key', 'recaptcha_secret_key'];
+  private const SERVICE_KEYS = ['gemini_api_key', 'api_bible_key', 'recaptcha_secret_key', 'telnyx_api_key'];
 
   /**
    * The other service options, shown and saved as they are.
    */
-  private const SERVICE_OPTIONS = ['gemini_models', 'api_bible_endpoint', 'api_bible_monthly_limit', 'recaptcha_site_key', 'recaptcha_minimum_score', 'music_folder'];
+  private const SERVICE_OPTIONS = ['gemini_models', 'api_bible_endpoint', 'api_bible_monthly_limit', 'recaptcha_site_key', 'recaptcha_minimum_score', 'music_folder', 'telnyx_from_number', 'telnyx_public_key'];
 
   public function __construct(
     protected BibleManager $manager,
@@ -376,6 +376,10 @@ class SiteSettingsForm extends FormBase {
         'title' => $this->t('Google reCAPTCHA (the contact form)'),
         'fields' => ['recaptcha_site_key', 'recaptcha_secret_key', 'recaptcha_minimum_score'],
       ],
+      'telnyx' => [
+        'title' => $this->t('Telnyx (text messages to members who asked for them)'),
+        'fields' => ['telnyx_api_key', 'telnyx_from_number', 'telnyx_public_key'],
+      ],
       'music' => [
         'title' => $this->t('Christian music (where the song files are kept)'),
         'fields' => ['music_folder'],
@@ -391,6 +395,9 @@ class SiteSettingsForm extends FormBase {
       'recaptcha_secret_key' => $this->t('reCAPTCHA secret key'),
       'recaptcha_minimum_score' => $this->t('reCAPTCHA minimum score'),
       'music_folder' => $this->t('Music folder'),
+      'telnyx_api_key' => $this->t('Telnyx API key'),
+      'telnyx_from_number' => $this->t('Telnyx number'),
+      'telnyx_public_key' => $this->t('Telnyx public key'),
     ];
     $descriptions = [
       'gemini_models' => $this->t('Tried in order, separated by commas; the next is tried when one is busy. Leave empty for the default (gemini-3.6-flash, gemini-flash-latest).'),
@@ -398,6 +405,8 @@ class SiteSettingsForm extends FormBase {
       'api_bible_monthly_limit' => $this->t('The site stops asking API.Bible after this many requests in a month (the free plan allows 5,000).'),
       'recaptcha_site_key' => $this->t('The public key of a reCAPTCHA v3 key pair; the contact form shows it to visitors.'),
       'recaptcha_minimum_score' => $this->t('From 0 to 1. Messages scoring lower are refused as robots; 0.5 is usual.'),
+      'telnyx_from_number' => $this->t('The number texts are sent from, in international form, such as +18885551234 (a verified toll-free number in your Telnyx account). Leave empty to send no texts.'),
+      'telnyx_public_key' => $this->t('From the Telnyx portal (Keys & Credentials, Public Key). It checks that STOP and HELP replies really come from Telnyx; set the messaging profile\'s webhook to https://bible-and-beyond.com/api/sms/webhook.'),
       'music_folder' => $this->t('A full path on the server, such as /mnt/music. The MP3 and MP4 files uploaded on the Christian music page are kept here. To move them (for example to a bigger volume), copy the files to the new folder first, then change this; the files are not moved for you. The folder is made if it does not exist.'),
     ];
 

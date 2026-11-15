@@ -2988,3 +2988,26 @@ select:disabled {
   margin-right: 0.5rem;
   font-size: 0.9rem;
 }
+
+/* A note on the My account page (texts stopped, waiting for the address to be confirmed). */
+.account-note {
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+/* The text message checkboxes under a phone number (TextMessageChoices.tsx) sit right under the field. */
+.text-message-choices {
+  margin: -0.25rem 0 0.75rem;
+}
+
+/* The time of day and time zone under "Send me a verse a day" (VerseADayChoice.tsx). */
+.verse-a-day-time {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  margin-left: 1.6rem;
+}
+
+.verse-a-day-choice {
+  margin: 0 0 0.75rem;
+}

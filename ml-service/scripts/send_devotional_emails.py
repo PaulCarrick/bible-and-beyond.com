@@ -1,4 +1,4 @@
-"""Send the daily devotional emails and the prayer list emails that are due. A systemd timer runs this every few minutes.
+"""Send the daily devotional emails, the prayer list emails and the verses a day that are due. A systemd timer runs this every few minutes.
 
     .venv/bin/python scripts/send_devotional_emails.py
 
@@ -17,6 +17,7 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 import prayer_list  # noqa: E402
+import verse_a_day  # noqa: E402
 from subscriptions import send_due  # noqa: E402
 
 
@@ -26,7 +27,9 @@ def main() -> int:
   print(f"devotionals: sent {result['sent']}, failed {result['failed']}, skipped {result['skipped']}" + (" (another run was sending)" if result["already_running"] else ""))
   prayers = prayer_list.send_due()
   print(f"prayer list: sent {prayers['sent']}, failed {prayers['failed']}, nothing new {prayers['empty']}" + (" (another run was sending)" if prayers["already_running"] else ""))
-  return 1 if result["failed"] or prayers["failed"] else 0
+  verses = verse_a_day.send_due()
+  print(f"verse a day: sent {verses['sent']}, failed {verses['failed']}" + (" (another run was sending)" if verses["already_running"] else ""))
+  return 1 if result["failed"] or prayers["failed"] or verses["failed"] else 0
 
 
 if __name__ == "__main__":

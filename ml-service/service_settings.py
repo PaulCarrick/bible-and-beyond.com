@@ -1,4 +1,4 @@
-"""The keys and options of the outside services the site uses (Gemini, API.Bible, reCAPTCHA), and the
+"""The keys and options of the outside services the site uses (Gemini, API.Bible, reCAPTCHA, Telnyx), and the
 folder the Christian music files are kept in.
 
 They are set on the Drupal "Site settings" screen and kept in a private file next to the code
@@ -31,6 +31,11 @@ SETTINGS = {
   # Where the MP3 and MP4 files of the Christian music section are kept (music.py). It can be moved to a
   # bigger volume: copy the files there, then change it.
   "music_folder": ("MUSIC_FOLDER", False, "folder", str(Path(__file__).resolve().parent / "data" / "music")),
+  # Text messages through Telnyx (sms.py): the API key, the number texts come from (a toll-free number, in the
+  # form +18885551234) and the public key Telnyx signs its webhooks with (for STOP replies).
+  "telnyx_api_key": ("TELNYX_API_KEY", True, "text", ""),
+  "telnyx_from_number": ("TELNYX_FROM_NUMBER", False, "phone", ""),
+  "telnyx_public_key": ("TELNYX_PUBLIC_KEY", False, "text", ""),
 }
 
 TEXT_LIMIT = 500
@@ -123,6 +128,8 @@ def _checked(name: str, value: str) -> str:
       raise ServiceSettingsProblem(f"The music folder {value} could not be made: {error.strerror}.") from error
     if not folder.is_dir() or not os.access(folder, os.W_OK | os.X_OK):
       raise ServiceSettingsProblem(f"The music folder {value} cannot be written to by the site.")
+  if kind == "phone" and value and not re.match(r"^\+[1-9]\d{7,14}$", value):
+    raise ServiceSettingsProblem("The Telnyx number must be in international form, such as +18885551234.")
   if kind == "score":
     try:
       score = float(value)

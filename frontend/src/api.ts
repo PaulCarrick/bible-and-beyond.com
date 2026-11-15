@@ -5,6 +5,7 @@ import type {
   DevotionalContents,
   DevotionalSubscription,
   PrayerListSubscription,
+  VerseSubscription,
   PostOptions,
   DevotionalInfo,
   DevotionalUnit,
@@ -540,7 +541,7 @@ export async function sendContactMessage(message: ContactMessage): Promise<void>
 
 // Accounts. The browser keeps the session in a cookie that scripts cannot read; "include" sends it
 // when the page and the service are on different addresses (as they are on a developer's machine).
-async function accountRequest(path: string, method: 'GET' | 'POST', body?: object): Promise<AccountUser | null> {
+async function accountRequest(path: string, method: 'GET' | 'POST' | 'PUT', body?: object): Promise<AccountUser | null> {
   const response = await fetch(`${mlServiceUrl}/account/${path}`, {
     method,
     credentials: 'include',
@@ -562,7 +563,41 @@ export function registerAccount(account: NewAccount) {
     first_name: account.firstName,
     last_name: account.lastName,
     phone: account.phone,
+    phone_is_cell: account.phoneIsCell,
+    sms_opt_in: account.smsOptIn,
+    verse_a_day: account.verseADay,
+    verse_time: account.verseTime,
+    timezone: account.timezone,
   })
+}
+
+// The verse a day (logged-in members): null when the member does not get it.
+export async function fetchVerseSubscription(signal: AbortSignal): Promise<VerseSubscription | null> {
+  const response = await fetch(`${mlServiceUrl}/verse-subscription`, { credentials: 'include', signal })
+  return (await readJson<{ subscription: VerseSubscription | null }>(response)).subscription
+}
+
+export async function saveVerseSubscription(sendTime: string, timezone: string): Promise<VerseSubscription> {
+  const response = await fetch(`${mlServiceUrl}/verse-subscription`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ send_time: sendTime, timezone }),
+  })
+  return (await readJson<{ subscription: VerseSubscription }>(response)).subscription
+}
+
+export async function deleteVerseSubscription(): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/verse-subscription`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// Changes the logged-in member's phone number and text choices (the My account page).
+export async function savePhone(phone: string, phoneIsCell: boolean, smsOptIn: boolean): Promise<AccountUser> {
+  const user = await accountRequest('phone', 'PUT', { phone, phone_is_cell: phoneIsCell, sms_opt_in: smsOptIn })
+  if (!user) {
+    throw new Error('Please log in again.')
+  }
+  return user
 }
 
 export function logIn(email: string, password: string) {

@@ -4,6 +4,7 @@ from typing import Literal
 
 import psycopg
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -19,9 +20,12 @@ from accounts import (
   send_verification_email,
   start_password_reset,
   start_verification,
+  update_phone,
   user_for_token,
   verify_email,
 )
+import sms
+import verse_a_day
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
 from bible_reader import get_chapter as get_bible_chapter
 from bible_reader import get_contents as get_bible_contents
@@ -56,6 +60,8 @@ from music import list_songs, search_music, song_file, song_words_file
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
+  check_timezone,
+  parse_time,
   delete_subscription,
   list_subscriptions,
   save_subscription,
@@ -752,6 +758,13 @@ class RegisterRequest(BaseModel):
   first_name: str = ""
   last_name: str = ""
   phone: str = ""
+  # The phone is a cell number; the member asks for text messages (sms.py). Texts need both.
+  phone_is_cell: bool = False
+  sms_opt_in: bool = False
+  # A verse a day (verse_a_day.py): its time of day in the visitor's own time zone (an IANA name).
+  verse_a_day: bool = False
+  verse_time: str = "07:00"
+  timezone: str = "UTC"
 
 
 class LoginRequest(BaseModel):
@@ -776,9 +789,17 @@ def start_session(response: Response, request: Request, token: str):
 @app.post("/account/register")
 def account_register(body: RegisterRequest, request: Request, response: Response, background: BackgroundTasks):
   """Makes an account, emails a link to confirm the address, and logs the visitor in."""
+  if body.verse_a_day:
+    # Checked before the account is made, so a bad time or zone does not leave half a sign-up.
+    try:
+      parse_time(body.verse_time)
+      check_timezone(body.timezone)
+    except SubscriptionProblem as problem:
+      raise HTTPException(status_code=problem.status_code, detail=str(problem))
   try:
     created = create_account(
-      body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone
+      body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone,
+      body.phone_is_cell, body.sms_opt_in,
     )
     user, token = log_in(body.email, body.password)
   except AccountProblem as problem:
@@ -786,8 +807,73 @@ def account_register(body: RegisterRequest, request: Request, response: Response
   verification = start_verification(created["id"])
   if verification:
     background.add_task(send_verification_email, *verification)
+  if created["sms_opt_in"]:
+    background.add_task(sms.welcome_text, sms.texting_number(body.phone))
+  if body.verse_a_day:
+    verse_a_day.save_subscription(created["id"], body.verse_time, body.timezone)
   start_session(response, request, token)
   return {"user": user}
+
+
+class PhoneRequest(BaseModel):
+  phone: str = Field(default="", max_length=200)
+  phone_is_cell: bool = False
+  sms_opt_in: bool = False
+
+
+@app.put("/account/phone")
+def account_phone(body: PhoneRequest, request: Request, background: BackgroundTasks):
+  """Changes the logged-in member's phone number and text choices (the My account page). Turning texts on sends
+  a welcome text that says how to stop."""
+  user = require_user(request, "Please log in to change your account.")
+  try:
+    changed, welcome_number = update_phone(user["id"], body.phone, body.phone_is_cell, body.sms_opt_in)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  if welcome_number:
+    background.add_task(sms.welcome_text, welcome_number)
+  return {"user": changed}
+
+
+class VerseSubscriptionRequest(BaseModel):
+  # The time of day, such as "07:00", in the visitor's own time zone (an IANA name such as America/Chicago).
+  send_time: str
+  timezone: str
+
+
+@app.get("/verse-subscription")
+def verse_subscription_get(request: Request):
+  """Whether the logged-in member gets a verse a day, and when (null when not)."""
+  user = require_user(request, "Please log in to change your account.")
+  return {"subscription": verse_a_day.get_subscription(user["id"])}
+
+
+@app.put("/verse-subscription")
+def verse_subscription_save(body: VerseSubscriptionRequest, request: Request):
+  """Starts the verse a day, or changes its time."""
+  user = require_user(request, "Please log in to change your account.")
+  try:
+    return {"subscription": verse_a_day.save_subscription(user["id"], body.send_time, body.timezone)}
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/verse-subscription")
+def verse_subscription_delete(request: Request):
+  user = require_user(request, "Please log in to change your account.")
+  verse_a_day.delete_subscription(user["id"])
+  return {"deleted": True}
+
+
+@app.post("/sms/webhook")
+async def sms_webhook(request: Request):
+  """Telnyx calls this when someone replies to one of the site's texts: STOP turns their texts off, START back on,
+  HELP gets an answer. Only webhooks signed by Telnyx are acted on."""
+  body = await request.body()
+  if not sms.verify_signature(body, request.headers.get("telnyx-signature-ed25519", ""), request.headers.get("telnyx-timestamp", "")):
+    raise HTTPException(status_code=401, detail="Not signed by Telnyx.")
+  # The database work is ordinary blocking code: run it off the event loop.
+  return {"done": await run_in_threadpool(sms.handle_webhook, body)}
 
 
 @app.post("/account/login")

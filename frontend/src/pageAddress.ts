@@ -21,6 +21,7 @@ const addresses: Record<View, string> = {
   tutorial: '/tutorial',
   contact: '/contact',
   privacy: '/privacy',
+  account: '/account',
   copyright: '/copyright',
   notes: '/notes',
   conversations: '/conversations',

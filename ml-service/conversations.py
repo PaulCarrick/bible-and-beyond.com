@@ -28,6 +28,7 @@ from accounts import site_link
 from contact import ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from search import connect
 from site_settings import get_public_settings
+import sms
 
 logger = logging.getLogger("conversations")
 
@@ -368,7 +369,7 @@ def compose_reply_email(from_address: str, reply_id: int) -> EmailMessage | None
   with connect() as connection:
     row = connection.execute(
       f"""
-      SELECT posts.title, posts.reply_email_token, authors.email, {_AUTHOR}, conversation_replies.body_text
+      SELECT posts.title, posts.reply_email_token, authors.email, {_AUTHOR}, conversation_replies.body_text, authors.id
       FROM conversation_replies
       JOIN users ON users.id = conversation_replies.user_id
       JOIN conversation_posts posts ON posts.id = conversation_replies.post_id
@@ -380,7 +381,7 @@ def compose_reply_email(from_address: str, reply_id: int) -> EmailMessage | None
     ).fetchone()
   if row is None:
     return None
-  post_title, token, address, replier, text = row
+  post_title, token, address, replier, text, _ = row
   site = site_link("").rstrip("?").rstrip("/")
   email = EmailMessage()
   email["Subject"] = f"New reply to your post “{post_title}”"
@@ -422,6 +423,25 @@ def send_reply_email(reply_id: int) -> None:
       send_email(settings, email)
   except Exception as problem:
     logger.error("Reply email for reply %s not sent: %s: %s", reply_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+  _text_reply(reply_id)
+
+
+def _text_reply(reply_id: int) -> None:
+  """The reply as a short text too, if the post's author asked for replies and for texts (sms.py)."""
+  with connect() as connection:
+    row = connection.execute(
+      f"""
+      SELECT posts.user_id, posts.title, {_AUTHOR}, conversation_replies.body_text
+      FROM conversation_replies
+      JOIN users ON users.id = conversation_replies.user_id
+      JOIN conversation_posts posts ON posts.id = conversation_replies.post_id
+      WHERE conversation_replies.id = %s AND posts.email_replies AND posts.user_id <> conversation_replies.user_id
+      """,
+      (reply_id,),
+    ).fetchone()
+  if row:
+    author_id, post_title, replier, text = row
+    sms.text_user(author_id, f"{replier} replied to “{post_title}”: {text}", sms.site_address("/conversations"))
 
 
 def update_reply(user_id: int, reply_id: int, body: str) -> dict:
