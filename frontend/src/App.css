@@ -3369,3 +3369,9 @@ select:disabled {
   border-width: 1px;
   cursor: copy;
 }
+
+/* My notes: a map's entry lists the notes, pins and routes on it (changed on the map). */
+.note-map-hint {
+  color: var(--text);
+  font-size: 13px;
+}

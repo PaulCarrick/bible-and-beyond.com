@@ -732,7 +732,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           notes, newest first, 25 to a page. You can show one kind only, search them (the words you searched for are
           highlighted), and use <em>Open in the Bible</em>, <em>Open the commentary note</em> or{' '}
           <em>Open the reading</em> to go to what a note is about. Each note can be edited or deleted (you are asked
-          before it is deleted). <em>Add a note</em> writes a new note on any Bible verse.
+          before it is deleted). <em>Add a note</em> writes a new note on any Bible verse. If you add notes, pins or
+          routes to the maps, each map you have marked is one entry too, listing them, with <em>Open the map</em> (choose{' '}
+          <em>Maps</em> under Show to see only those); change or delete them on the map.
         </p>
         <Screenshot
           name="my-notes"

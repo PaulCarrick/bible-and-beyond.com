@@ -247,6 +247,8 @@ function App() {
         verse: note.verse ?? 1,
       })
       navigate('read')
+    } else if (note.item_type === 'map') {
+      openMap(note.source_code)
     } else if (note.item_type === 'commentary') {
       setDestination({
         id,

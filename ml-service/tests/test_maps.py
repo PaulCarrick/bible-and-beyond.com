@@ -347,3 +347,35 @@ def test_a_routes_points_can_be_changed(tmp_path):
   ).json()["mark"]
   assert changed["points"] == [[0.1, 0.1], [0.3, 0.25], [0.4, 0.4]] and changed["colour"] == "#2e8540"
   assert client.put(f"/map-marks/{route['id']}", json={"points": [[0.1, 0.1]], "name": "Way"}).status_code == 422
+
+
+def test_my_notes_lists_each_map_once_with_the_members_marks_on_it(tmp_path):
+  map_id = published_map(tmp_path)
+  other = published_map(tmp_path, "test-map-other")
+  sign_up("ann")
+  client.post("/notes", json={"item_type": "bible_verse", "source_code": "BSB", "book_number": 43, "chapter": 3, "verse": 16, "body": "<p>Love</p>"})
+  client.post(f"/maps/{map_id}/marks", json={"kind": "pin", "x": 0.5, "y": 0.5, "body": "Salamis <b>port</b>\nfirst stop"})
+  client.post(f"/maps/{map_id}/marks", json={"kind": "route", "points": [[0.1, 0.1], [0.2, 0.2]], "name": "Way"})
+  client.post(f"/maps/{other}/marks", json={"kind": "note", "body": "Another map"})
+
+  listed = client.get("/notes", params={"per_page": 10}).json()
+  # The verse note and one entry for each map, the most recently marked first.
+  assert listed["total"] == 3
+  assert [(entry["item_type"], entry["source_code"]) for entry in listed["notes"]] == [("map", other), ("map", map_id), ("bible_verse", "BSB")]
+  entry = listed["notes"][1]
+  assert entry["title"] == "Paul's first journey" and entry["mark_count"] == 2
+  # The member's plain text, made safe to show, oldest first.
+  assert entry["body"] == (
+    "<ul><li><strong>Pin:</strong> Salamis &lt;b&gt;port&lt;/b&gt;<br>first stop</li>"
+    "<li><strong>Route “Way”:</strong> <em>No note.</em></li></ul>"
+  )
+
+  assert [entry["source_code"] for entry in client.get("/notes", params={"item_type": "map"}).json()["notes"]] == [other, map_id]
+  # Searched in the notes, the route names and the map titles; a match shows the whole map's entry.
+  assert [entry["source_code"] for entry in client.get("/notes", params={"query": "salamis"}).json()["notes"]] == [map_id]
+  assert client.get("/notes", params={"query": "journey"}).json()["total"] == 2
+  assert client.get("/notes", params={"query": "journey way"}).json()["total"] == 1
+  # A notes window on one verse never gets them; nor a hidden map.
+  assert client.get("/notes", params={"item_type": "bible_verse", "source_code": "BSB", "book_number": 43, "chapter": 3, "verse": 16}).json()["total"] == 1
+  maps.set_published(map_id, False)
+  assert client.get("/notes").json()["total"] == 2

@@ -22,6 +22,7 @@ const typeChoices = [
   { value: 'bible_verse', label: 'Bible verses' },
   { value: 'commentary', label: 'Commentaries' },
   { value: 'devotional', label: 'Devotionals' },
+  { value: 'map', label: 'Maps' },
 ]
 
 // Everything the logged-in visitor has written, newest first, with a way to add a note on a Bible verse
@@ -157,8 +158,9 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
     <div className="notes-page">
       <h1>My notes</h1>
       <p>
-        Your notes on Bible verses, commentary notes and devotional readings. To write one on a commentary note or a
-        devotional reading, use the Notes link beside it.
+        Your notes on Bible verses, commentary notes and devotional readings, and each map you have marked with your
+        notes, pins and routes on it. To write one on a commentary note or a devotional reading, use the Notes link
+        beside it.
       </p>
 
       <div className="notes-toolbar">
@@ -221,7 +223,7 @@ function NotesPage({ books, translation, onOpenItem }: NotesPageProps) {
         <ul className="note-list">
           {result.notes.map((note) => (
             <NoteCard
-              key={note.id}
+              key={`${note.item_type}-${note.id}`}
               note={note}
               showTitle
               onOpenItem={onOpenItem}

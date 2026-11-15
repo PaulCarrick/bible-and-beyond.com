@@ -1024,7 +1024,7 @@ def notes_create(body: NoteRequest, request: Request):
 @app.get("/notes")
 def notes_list(
   request: Request,
-  item_type: Literal["bible_verse", "commentary", "devotional"] | None = None,
+  item_type: Literal["bible_verse", "commentary", "devotional", "map"] | None = None,
   source_code: str | None = None,
   book_number: int | None = None,
   chapter: int | None = None,

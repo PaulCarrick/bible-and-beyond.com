@@ -454,7 +454,9 @@ export interface VerseSubscription {
 // A note a logged-in visitor wrote about a verse, a commentary note or a devotional reading.
 export interface Note {
   id: number
-  item_type: 'bible_verse' | 'commentary' | 'devotional'
+  // 'map': one entry of the My notes list for a map the visitor marked, listing their notes, pins and routes on it
+  // (source_code is the map's id); it is changed on the map, not here.
+  item_type: 'bible_verse' | 'commentary' | 'devotional' | 'map'
   source_code: string
   book_number: number | null
   chapter: number | null
@@ -467,6 +469,8 @@ export interface Note {
   body: string
   created_at: string
   updated_at: string
+  // A map's entry: how many notes, pins and routes it lists.
+  mark_count?: number
 }
 
 // What a note is about: a Bible verse, a commentary note (its commentary and the verse it begins at) or a

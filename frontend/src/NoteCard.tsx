@@ -34,7 +34,11 @@ function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem, highlight
     [note.body, termsKey],
   )
   const wasEdited = note.updated_at !== note.created_at
-  const openLabel = { bible_verse: 'Open in the Bible', commentary: 'Open the commentary note', devotional: 'Open the reading' }[note.item_type]
+  const openLabel = { bible_verse: 'Open in the Bible', commentary: 'Open the commentary note', devotional: 'Open the reading', map: 'Open the map' }[
+    note.item_type
+  ]
+  // A map's entry lists the visitor's notes, pins and routes on it; they are changed on the map itself.
+  const isMap = note.item_type === 'map'
 
   // The editor is made when editing starts; fill it with the note as it is.
   useEffect(() => {
@@ -84,7 +88,7 @@ function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem, highlight
       {showTitle && <h3 className="note-title">{note.title}</h3>}
       <time dateTime={note.created_at}>
         {formatTime(note.created_at)}
-        {wasEdited && ` (edited ${formatTime(note.updated_at)})`}
+        {wasEdited && ` (${isMap ? 'last changed' : 'edited'} ${formatTime(note.updated_at)})`}
       </time>
 
       {mode === 'editing' ? (
@@ -125,14 +129,20 @@ function NoteCard({ note, showTitle, onChanged, onDeleted, onOpenItem, highlight
                   <span className="visually-hidden">: {note.title}</span>
                 </button>
               )}
-              <button type="button" className="link-button" onClick={() => setMode('editing')}>
-                Edit
-                <span className="visually-hidden"> the note on {note.title}</span>
-              </button>
-              <button type="button" className="link-button" onClick={() => setMode('confirming')}>
-                Delete
-                <span className="visually-hidden"> the note on {note.title}</span>
-              </button>
+              {isMap ? (
+                <span className="note-map-hint">Change or delete them on the map.</span>
+              ) : (
+                <>
+                  <button type="button" className="link-button" onClick={() => setMode('editing')}>
+                    Edit
+                    <span className="visually-hidden"> the note on {note.title}</span>
+                  </button>
+                  <button type="button" className="link-button" onClick={() => setMode('confirming')}>
+                    Delete
+                    <span className="visually-hidden"> the note on {note.title}</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
         </>
