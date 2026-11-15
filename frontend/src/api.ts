@@ -4,6 +4,8 @@ import type {
   CommentaryChapter,
   DevotionalContents,
   DevotionalSubscription,
+  PrayerListSubscription,
+  PostOptions,
   DevotionalInfo,
   DevotionalUnit,
   CommentaryContents,
@@ -668,18 +670,39 @@ export async function fetchConversationPage(
   return readJson<ConversationPage>(response)
 }
 
-// Adds a post to a board (no id) or changes one of the visitor's own (a post stays on its board).
+// Adds a post to a board (no id) or changes one of the visitor's own (a post stays on its board). The Prayer Wall
+// choices apply only there, and "email me replies" only on Conversations.
 export async function saveConversationPost(
   id: number | null,
   title: string,
   body: string,
   board: ConversationBoard = 'conversations',
+  options: PostOptions = { isAnonymous: false, isPrivate: false, emailToPrayerList: false, emailReplies: false },
 ): Promise<ConversationPost> {
   const response = await fetch(`${mlServiceUrl}/conversations${id === null ? '' : `/${id}`}`, {
     method: id === null ? 'POST' : 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, body, board }),
+    body: JSON.stringify({
+      title,
+      body,
+      board,
+      is_anonymous: options.isAnonymous,
+      is_private: options.isPrivate,
+      email_to_prayer_list: options.emailToPrayerList,
+      email_replies: options.emailReplies,
+    }),
+  })
+  return (await readJson<{ post: ConversationPost }>(response)).post
+}
+
+// Marks one of the visitor's own Prayer Wall requests answered or not (a checkbox on the post, without editing it).
+export async function setConversationAnswered(id: number, answered: boolean): Promise<ConversationPost> {
+  const response = await fetch(`${mlServiceUrl}/conversations/${id}/answered`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answered }),
   })
   return (await readJson<{ post: ConversationPost }>(response)).post
 }
@@ -866,4 +889,24 @@ export async function searchInternetArchive(
     per_page: String(options.perPage),
   })
   return readJson(await fetch(`${mlServiceUrl}/search-internet-archive?${queryString}`, { signal }))
+}
+
+// The weekly prayer list email (logged-in visitors with a confirmed address): null when the visitor does not get it.
+export async function fetchPrayerListSubscription(signal: AbortSignal): Promise<PrayerListSubscription | null> {
+  const response = await fetch(`${mlServiceUrl}/prayer-list-subscription`, { credentials: 'include', signal })
+  return (await readJson<{ subscription: PrayerListSubscription | null }>(response)).subscription
+}
+
+export async function savePrayerListSubscription(sendWeekday: number, sendTime: string, timezone: string): Promise<PrayerListSubscription> {
+  const response = await fetch(`${mlServiceUrl}/prayer-list-subscription`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ send_weekday: sendWeekday, send_time: sendTime, timezone }),
+  })
+  return (await readJson<{ subscription: PrayerListSubscription }>(response)).subscription
+}
+
+export async function deletePrayerListSubscription(): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/prayer-list-subscription`, { method: 'DELETE', credentials: 'include' }))
 }

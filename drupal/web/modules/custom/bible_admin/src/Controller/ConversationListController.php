@@ -79,7 +79,7 @@ class ConversationListController extends ControllerBase {
       }
       $rows[] = [
         ['data' => ['#plain_text' => $post['title']]],
-        ['data' => ['#plain_text' => (string) ($boardNames[$post['board'] ?? 'conversations'] ?? '')]],
+        ['data' => ['#plain_text' => (string) ($boardNames[$post['board'] ?? 'conversations'] ?? '') . self::prayerOptions($post)]],
         ['data' => ['#plain_text' => $post['excerpt']]],
         ['data' => ['#plain_text' => $post['author'] . ' (' . $post['author_email'] . ')']],
         ['data' => ['#plain_text' => $written]],
@@ -116,6 +116,22 @@ class ConversationListController extends ControllerBase {
   private function formatDate(string $iso): string {
     $time = strtotime($iso);
     return $time === FALSE ? '' : $this->dateFormatter->format($time, 'short');
+  }
+
+
+  /**
+   * The Prayer Wall choices of a post, such as " (private, anonymous)", or nothing.
+   *
+   * The administrators see the real author of an anonymous post and every private one.
+   */
+  public static function prayerOptions(array $post): string {
+    $options = array_filter([
+      !empty($post['is_private']) ? (string) t('private') : '',
+      !empty($post['is_anonymous']) ? (string) t('anonymous') : '',
+      !empty($post['email_to_prayer_list']) ? (string) t('emailed to the prayer list') : '',
+      !empty($post['answered_at']) ? (string) t('answered') : '',
+    ]);
+    return $options ? ' (' . implode(', ', $options) . ')' : '';
   }
 
 }

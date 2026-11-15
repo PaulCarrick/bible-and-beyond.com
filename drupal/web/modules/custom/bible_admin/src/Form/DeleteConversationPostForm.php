@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\Controller\ConversationListController;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Link;
@@ -43,7 +44,11 @@ class DeleteConversationPostForm extends ConfirmFormBase {
     $form['#cache'] = ['max-age' => 0];
     $form['post'] = [
       '#type' => 'details',
-      '#title' => $this->t('The post, by @author (@email)', ['@author' => $this->post['author'], '@email' => $this->post['author_email']]),
+      '#title' => $this->t('The post, by @author (@email)@options', [
+        '@author' => $this->post['author'],
+        '@email' => $this->post['author_email'],
+        '@options' => ConversationListController::prayerOptions($this->post),
+      ]),
       '#open' => TRUE,
       '#weight' => -10,
       // The text was cleaned with the site's allowlist when it was saved; #markup filters it again here.

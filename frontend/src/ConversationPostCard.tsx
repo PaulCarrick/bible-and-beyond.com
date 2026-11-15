@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { deleteConversationPost } from './api'
+import { deleteConversationPost, setConversationAnswered } from './api'
 import ConversationPostForm from './ConversationPostForm'
 import ConversationReplyForm from './ConversationReplyForm'
 import ConversationReplyItem from './ConversationReplyItem'
@@ -21,7 +21,8 @@ function formatTime(isoTime: string) {
 }
 
 // One post: its title, author, time and text, with Edit and Delete for its author, then its replies and a Reply
-// button for any member. Editing happens in place; deleting asks first.
+// button for any member. Editing happens in place; deleting asks first. A Prayer Wall request also has an Answered
+// checkbox for its author (saved at once, without editing) and an "Answered" mark for everyone once ticked.
 function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canReply }: ConversationPostCardProps) {
   const [mode, setMode] = useState<'reading' | 'editing' | 'confirming'>('reading')
   const [isBusy, setIsBusy] = useState(false)
@@ -33,6 +34,22 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canR
     [post.body, termsKey],
   )
   const wasEdited = post.updated_at !== post.created_at
+  const isPrayer = post.board === 'prayer'
+
+  async function handleAnswered(answered: boolean) {
+    if (isBusy) {
+      return
+    }
+    setIsBusy(true)
+    setErrorMessage('')
+    try {
+      onChanged(await setConversationAnswered(post.id, answered))
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'That could not be saved.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
 
   async function handleDelete() {
     if (isBusy) {
@@ -62,13 +79,33 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canR
         />
       ) : (
         <>
-          <h2 className="note-title">{post.title}</h2>
+          <h2 className="note-title">
+            {post.title}
+            {post.answered_at && (
+              <span className="prayer-answered-mark" title={`Marked answered ${formatTime(post.answered_at)}`}>
+                Answered
+              </span>
+            )}
+          </h2>
           <p className="conversation-byline">
             {post.author}
             {post.is_mine && ' (you)'} &middot;{' '}
             <time dateTime={post.created_at}>{formatTime(post.created_at)}</time>
             {wasEdited && ` (edited ${formatTime(post.updated_at)})`}
           </p>
+          {/* Only the author's own posts say how they were shared (others see "Anonymous" and never a private post). */}
+          {post.is_mine && (post.is_anonymous || post.is_private || post.email_to_prayer_list || post.email_replies) && (
+            <p className="prayer-post-options">
+              {[
+                post.is_private && 'Private: only you and the site owner and administrators can see it',
+                post.is_anonymous && 'Posted anonymously',
+                post.email_to_prayer_list && 'Emailed to the prayer list',
+                post.email_replies && 'Replies are emailed to you',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          )}
           {/* The server cleans the post (a short list of tags, safe links) before it keeps it; the search words are
               only wrapped in <mark> in its text. */}
           <div className="note-body" dangerouslySetInnerHTML={{ __html: shownBody }} />
@@ -85,6 +122,18 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canR
           ) : (post.is_mine || canReply) && (
             // One line under the post: Edit and Delete for its author, and Reply for every member (none for a reader).
             <div className="note-actions conversation-actions">
+              {post.is_mine && isPrayer && (
+                <label className="inline-label prayer-answered-box">
+                  <input
+                    type="checkbox"
+                    checked={post.answered_at !== null}
+                    disabled={isBusy}
+                    onChange={(event) => handleAnswered(event.target.checked)}
+                  />
+                  Answered
+                  <span className="visually-hidden"> (the request {post.title})</span>
+                </label>
+              )}
               {post.is_mine && (
                 <>
                   <button type="button" className="secondary-button small-button" onClick={() => setMode('editing')}>

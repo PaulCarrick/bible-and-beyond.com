@@ -4,6 +4,7 @@ import { AccountContext } from './AccountContext'
 import { fetchConversationPage } from './api'
 import ConversationPostCard from './ConversationPostCard'
 import ConversationPostForm from './ConversationPostForm'
+import PrayerListEmailPanel from './PrayerListEmailPanel'
 import type { ConversationBoard, ConversationPage } from './types'
 
 interface ConversationsPageProps {
@@ -23,7 +24,8 @@ const boardWords: Record<ConversationBoard, { heading: string; intro: string; wr
   },
   prayer: {
     heading: 'Prayer Wall',
-    intro: 'Prayer requests and praises from members of this site, newest first, with their replies. Anyone can read and search them, and pray along.',
+    intro:
+      'Prayer requests and praises from members of this site, newest first, with their replies. Anyone can read and search them, and pray along. A request can be posted anonymously, or privately (seen only by its author).',
     write: 'Share a prayer request',
     none: 'Nobody has shared a prayer request yet.',
   },
@@ -107,6 +109,8 @@ function ConversationsPage({ board = 'conversations', isHidden }: ConversationsP
     <div className="notes-page conversations-page" hidden={isHidden}>
       <h1>{words.heading}</h1>
       <p>{words.intro}</p>
+      {/* Anyone with an account may get the requests by email; posting still needs an invitation. */}
+      {board === 'prayer' && <PrayerListEmailPanel />}
       {result !== null && !canPost && (
         <p className="conversation-readers-note">
           Members the site has invited can write posts and reply.{' '}

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { AccountContext } from './AccountContext'
 import { deleteSubscription, fetchSubscriptions, saveSubscription } from './api'
+import { allTimeZones, ownTimeZone } from './timeZones'
 import type { DevotionalContents, DevotionalInfo, DevotionalSubscription } from './types'
 
 interface DevotionalEmailPanelProps {
@@ -11,16 +12,6 @@ interface DevotionalEmailPanelProps {
   currentUnit: number
 }
 
-function allTimeZones(): string[] {
-  const own = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const names = new Set<string>(Intl.supportedValuesOf('timeZone'))
-  names.add('UTC')
-  if (own) {
-    names.add(own)
-  }
-  return [...names].sort()
-}
-
 // "Email me this devotional each day": choose a time and a time zone (and, for a devotional with chapters,
 // the chapter to start with); change them or stop. Emails go to the address of the logged-in account.
 function DevotionalEmailPanel({ devotional, sections, currentSection, currentUnit }: DevotionalEmailPanelProps) {
@@ -28,7 +19,7 @@ function DevotionalEmailPanel({ devotional, sections, currentSection, currentUni
   const userId = user?.id ?? null
   const [subscription, setSubscription] = useState<DevotionalSubscription | null | undefined>(undefined)
   const [sendTime, setSendTime] = useState('07:00')
-  const [timeZone, setTimeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  const [timeZone, setTimeZone] = useState(ownTimeZone)
   const [start, setStart] = useState('')
   const [isChanging, setIsChanging] = useState(false)
   const [isBusy, setIsBusy] = useState(false)

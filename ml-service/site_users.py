@@ -18,7 +18,7 @@ _COLUMNS = """
   users.open_ai_queries, COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''),
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
-  users.use_conversations
+  users.use_conversations, users.see_private_prayers
 """
 
 
@@ -40,6 +40,8 @@ def _describe(row) -> dict:
     "note_count": row[9],
     "subscription_count": row[10],
     "use_conversations": row[11],
+    # The site's own administrators: their prayer list email also holds private requests (prayer_list.py).
+    "see_private_prayers": row[12],
   }
 
 
@@ -99,6 +101,7 @@ def create_user(
   last_name: str = "",
   phone: str = "",
   use_conversations: bool = False,
+  see_private_prayers: bool = False,
 ) -> dict:
   email = _checked_email(email)
   first_name, last_name, phone = _checked_profile(first_name, last_name, phone)
@@ -108,11 +111,12 @@ def create_user(
     with connect() as connection:
       user_id = connection.execute(
         """
-        INSERT INTO users (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone, use_conversations)
-        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s)
+        INSERT INTO users
+          (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone, use_conversations, see_private_prayers)
+        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s)
         RETURNING id
         """,
-        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone, use_conversations),
+        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone, use_conversations, see_private_prayers),
       ).fetchone()[0]
   except psycopg.errors.UniqueViolation as error:
     raise UserProblem("An account with that email address already exists.") from error
@@ -129,6 +133,7 @@ def update_user(
   last_name: str | None = None,
   phone: str | None = None,
   use_conversations: bool | None = None,
+  see_private_prayers: bool | None = None,
 ) -> dict:
   """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
   name or phone ("") clears it."""
@@ -158,6 +163,9 @@ def update_user(
   if use_conversations is not None:
     changes.append("use_conversations = %s")
     values.append(use_conversations)
+  if see_private_prayers is not None:
+    changes.append("see_private_prayers = %s")
+    values.append(see_private_prayers)
   if changes:
     try:
       with connect() as connection:

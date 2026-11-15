@@ -37,7 +37,7 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
   {
     service: 'Our email provider',
     whatIsSent: 'Your email address and the message',
-    when: 'Contact messages, account emails and daily devotionals',
+    when: 'Contact messages, account emails, daily devotionals, the prayer list and replies you asked to be emailed',
   },
 ]
 
@@ -91,6 +91,12 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           follow that request. Please do not post anything you want to keep private.
         </li>
         <li>
+          <strong>On the Prayer Wall you can choose.</strong> A request posted <em>anonymously</em> shows
+          &ldquo;Anonymous&rdquo; instead of your name. A <em>private</em> request is seen only by you and the site owner
+          and administrators, and is emailed only to them. A request you choose to <em>email to the prayer list</em> is sent,
+          with your name unless it is anonymous, to everyone who signed up for the weekly prayer list email.
+        </li>
+        <li>
           <strong>The site administrators</strong> can see account details, and can read and remove posts, so
           they can run and protect the site.
         </li>
@@ -141,7 +147,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
 
       <h2>Your choices</h2>
       <ul>
-        <li>You can stop daily emails with the link at the bottom of any email.</li>
+        <li>You can stop devotional, prayer list or reply emails with the link at the bottom of any email.</li>
         <li>
           To delete your account and everything stored with it, or to ask what we hold about you, use the{' '}
           <button type="button" className="link-button" onClick={() => onNavigate('contact')}>

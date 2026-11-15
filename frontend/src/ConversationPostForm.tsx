@@ -17,9 +17,15 @@ interface ConversationPostFormProps {
 // The limits the server keeps (conversations.py).
 const titleLimit = 200
 
-// A title and the text of a post, in the editor shared with notes and the contact form.
+// A title and the text of a post, in the editor shared with notes and the contact form. On the Prayer Wall it
+// also has three choices, all off to start: anonymous, private, and email to the prayer list (not with private).
 function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel }: ConversationPostFormProps) {
+  const isPrayer = (post?.board ?? board) === 'prayer'
   const [title, setTitle] = useState(post?.title ?? '')
+  const [isAnonymous, setIsAnonymous] = useState(post?.is_anonymous ?? false)
+  const [isPrivate, setIsPrivate] = useState(post?.is_private ?? false)
+  const [emailToPrayerList, setEmailToPrayerList] = useState(post?.email_to_prayer_list ?? false)
+  const [emailReplies, setEmailReplies] = useState(post?.email_replies ?? false)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editorReference = useRef<RichTextEditorHandle>(null)
@@ -49,9 +55,18 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
     setIsSaving(true)
     setErrorMessage('')
     try {
-      const saved = await saveConversationPost(post?.id ?? null, title.trim(), editor.getHtml(), post?.board ?? board)
+      const saved = await saveConversationPost(post?.id ?? null, title.trim(), editor.getHtml(), post?.board ?? board, {
+        isAnonymous: isPrayer && isAnonymous,
+        isPrivate: isPrayer && isPrivate,
+        emailToPrayerList: isPrayer && emailToPrayerList && !isPrivate,
+        emailReplies: !isPrayer && emailReplies,
+      })
       if (!post) {
         setTitle('')
+        setIsAnonymous(false)
+        setIsPrivate(false)
+        setEmailToPrayerList(false)
+        setEmailReplies(false)
         editor.clear()
       }
       onSaved(saved)
@@ -72,6 +87,52 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         {post ? `The text of your post ${post.title}` : 'The text of your post'}
       </span>
       <RichTextEditor ref={editorReference} placeholder="Write your post" labelledBy={labelId} />
+      {!isPrayer && (
+        <div className="prayer-options">
+          <label className="inline-label">
+            <input type="checkbox" checked={emailReplies} onChange={(event) => setEmailReplies(event.target.checked)} />
+            Email me replies
+            <small>Each new reply to this post is emailed to you (to a confirmed address). Every email has a link to stop them.</small>
+          </label>
+        </div>
+      )}
+      {isPrayer && (
+        <fieldset className="prayer-options">
+          <legend className="visually-hidden">Who sees this request</legend>
+          <label className="inline-label">
+            <input type="checkbox" checked={isAnonymous} onChange={(event) => setIsAnonymous(event.target.checked)} />
+            Post anonymously
+            <small>Your name is not shown; it says “Anonymous”.</small>
+          </label>
+          <label className="inline-label">
+            <input
+              type="checkbox"
+              checked={isPrivate}
+              onChange={(event) => {
+                setIsPrivate(event.target.checked)
+                if (event.target.checked) {
+                  setEmailToPrayerList(false)
+                }
+              }}
+            />
+            Private
+            <small>
+              Nobody else can see it on the Prayer Wall, but <strong>the site owner and administrators can read it</strong>
+              , and it is sent to them in their weekly prayer list email. It is not emailed to anyone else.
+            </small>
+          </label>
+          <label className="inline-label">
+            <input
+              type="checkbox"
+              checked={emailToPrayerList && !isPrivate}
+              disabled={isPrivate}
+              onChange={(event) => setEmailToPrayerList(event.target.checked)}
+            />
+            Email this request to the prayer list
+            <small>It goes in the next daily email to everyone who signed up for the prayer list.</small>
+          </label>
+        </fieldset>
+      )}
       {errorMessage && (
         <p className="error" role="alert">
           {errorMessage}

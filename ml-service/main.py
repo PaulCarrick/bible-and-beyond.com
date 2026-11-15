@@ -61,6 +61,7 @@ from subscriptions import (
   save_subscription,
   unsubscribe_with_token,
 )
+import prayer_list
 from conversations import (
   ConversationProblem,
   create_post,
@@ -68,6 +69,8 @@ from conversations import (
   delete_post,
   delete_reply,
   list_posts,
+  send_reply_email,
+  set_answered,
   update_post,
   update_reply,
 )
@@ -947,6 +950,13 @@ class ConversationPostRequest(BaseModel):
   board: str = Field(default="conversations", max_length=40)
   # What the member wrote, as the editor (Quill) makes it: a little HTML, cleaned before it is kept.
   body: str
+  # The Prayer Wall choices (refused on Conversations): no name shown; only the author sees it; email it to the
+  # prayer list (not with private).
+  is_anonymous: bool = False
+  is_private: bool = False
+  email_to_prayer_list: bool = False
+  # Conversations only (refused on the Prayer Wall): email each new reply by someone else to the author.
+  email_replies: bool = False
 
 
 def conversations_account(request: Request) -> dict:
@@ -988,7 +998,12 @@ def conversations_list(
 def conversations_create(body: ConversationPostRequest, request: Request):
   user = conversations_account(request)
   try:
-    return {"post": create_post(user["id"], body.title, body.body, body.board)}
+    return {
+      "post": create_post(
+        user["id"], body.title, body.body, body.board, body.is_anonymous, body.is_private, body.email_to_prayer_list,
+        body.email_replies,
+      )
+    }
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 
@@ -998,7 +1013,26 @@ def conversations_update(post_id: int, body: ConversationPostRequest, request: R
   """Changes one of the member's own posts; anyone else's is "not found"."""
   user = conversations_account(request)
   try:
-    return {"post": update_post(user["id"], post_id, body.title, body.body)}
+    return {
+      "post": update_post(
+        user["id"], post_id, body.title, body.body, body.is_anonymous, body.is_private, body.email_to_prayer_list,
+        body.email_replies,
+      )
+    }
+  except ConversationProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+class AnsweredRequest(BaseModel):
+  answered: bool
+
+
+@app.put("/conversations/{post_id}/answered")
+def conversations_answered(post_id: int, body: AnsweredRequest, request: Request):
+  """Marks one of the member's own Prayer Wall requests answered or not (a checkbox on the post, no editing)."""
+  user = conversations_account(request)
+  try:
+    return {"post": set_answered(user["id"], post_id, body.answered)}
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 
@@ -1019,13 +1053,16 @@ class ConversationReplyRequest(BaseModel):
 
 
 @app.post("/conversations/{post_id}/replies")
-def conversations_reply(post_id: int, body: ConversationReplyRequest, request: Request):
-  """Adds the member's reply to any post."""
+def conversations_reply(post_id: int, body: ConversationReplyRequest, request: Request, background: BackgroundTasks):
+  """Adds the member's reply to any post. If the post's author asked for replies by email, it is sent after
+  answering (so a slow mail server never holds up the page)."""
   user = conversations_account(request)
   try:
-    return {"reply": create_reply(user["id"], post_id, body.body)}
+    reply = create_reply(user["id"], post_id, body.body)
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  background.add_task(send_reply_email, reply["id"])
+  return {"reply": reply}
 
 
 @app.put("/conversations/replies/{reply_id}")
@@ -1117,6 +1154,41 @@ def subscriptions_delete(devotional_id: str, request: Request):
   user = require_user(request)
   try:
     delete_subscription(user["id"], devotional_id)
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+class PrayerListSubscriptionRequest(BaseModel):
+  # The day of the week (0 Monday to 6 Sunday) and time of day, such as "07:00", in the visitor's own time zone
+  # (an IANA name such as America/Chicago).
+  send_weekday: int = 0
+  send_time: str
+  timezone: str
+
+
+@app.get("/prayer-list-subscription")
+def prayer_list_get(request: Request):
+  """Whether the logged-in visitor gets the weekly prayer list email, and when (null when not)."""
+  user = require_user(request, "Please log in to get the prayer list by email.")
+  return {"subscription": prayer_list.get_subscription(user["id"])}
+
+
+@app.put("/prayer-list-subscription")
+def prayer_list_save(body: PrayerListSubscriptionRequest, request: Request):
+  """Starts the weekly prayer list email, or changes its day and time (needs a confirmed email address)."""
+  user = require_user(request, "Please log in to get the prayer list by email.")
+  try:
+    return {"subscription": prayer_list.save_subscription(user["id"], body.send_weekday, body.send_time, body.timezone)}
+  except SubscriptionProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/prayer-list-subscription")
+def prayer_list_delete(request: Request):
+  user = require_user(request, "Please log in to get the prayer list by email.")
+  try:
+    prayer_list.delete_subscription(user["id"])
   except SubscriptionProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}

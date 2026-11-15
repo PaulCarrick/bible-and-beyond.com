@@ -422,7 +422,7 @@ class BibleManager {
    *
    * @return array
    *   Keys: users (each with id, email, first_name, last_name, phone, created_at, last_login_at,
-   *   email_verified, open_ai_queries, use_conversations, note_count and subscription_count; the names and phone are '' when
+   *   email_verified, open_ai_queries, use_conversations, see_private_prayers, note_count and subscription_count; the names and phone are '' when
    *   the account has none), total, page and per_page.
    */
   public function listSiteUsers(string $query, int $page): array {
@@ -439,7 +439,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, array $profile): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile): array {
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($emailVerified) {
       $arguments[] = '--email-verified';
@@ -449,6 +449,9 @@ class BibleManager {
     }
     if ($useConversations) {
       $arguments[] = '--use-conversations';
+    }
+    if ($seePrivatePrayers) {
+      $arguments[] = '--see-private-prayers';
     }
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
@@ -464,7 +467,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, array $profile): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile): array {
     $arguments = [
       'update',
       '--id=' . $userId,
@@ -473,6 +476,7 @@ class BibleManager {
       '--email-verified=' . ($emailVerified ? 'yes' : 'no'),
       '--open-ai-queries=' . ($openAiQueries ? 'yes' : 'no'),
       '--use-conversations=' . ($useConversations ? 'yes' : 'no'),
+      '--see-private-prayers=' . ($seePrivatePrayers ? 'yes' : 'no'),
     ];
     $input = NULL;
     if ($password !== '') {

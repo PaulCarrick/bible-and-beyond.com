@@ -707,7 +707,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           <li>
             <strong>Writing.</strong> Press <em>Write a post</em>, give it a title, write in the box (with bold,
             italic, headings, lists, quotations and links; up to 20,000 characters) and press <em>Post it</em>. Your
-            name is shown with it, never your email address.
+            name is shown with it, never your email address. Tick <em>Email me replies</em> under the box (it starts
+            unticked) to be emailed each new reply to that post; your address must be confirmed. Each email has a link
+            to stop them, or edit the post and untick it.
           </li>
           <li>
             <strong>Changing or deleting.</strong> Your own posts have <em>Edit</em> and <em>Delete</em> (you are
@@ -742,6 +744,21 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           Conversations may write here too (press <em>Share a prayer request</em>). The two are kept apart: a prayer
           request shows only on the Prayer Wall, and a Conversations post only in Conversations. Anyone can read what
           you share, with your name, so leave out what others would not want made public.
+        </p>
+        <p>
+          Under a request&rsquo;s text are three choices, all off unless you tick them. <em>Post anonymously</em> shows
+          &ldquo;Anonymous&rdquo; instead of your name. <em>Private</em> keeps the request off the Prayer Wall for
+          everyone but you; the site owner and administrators can still read it, and it is sent to them (and nobody
+          else) in their prayer list email. <em>Email this request to the prayer
+          list</em> sends it to everyone who gets the prayer list by email. You can change them later with Edit. When
+          a prayer is answered, tick <em>Answered</em> beside Edit and Delete under your request (no need to edit it):
+          everyone then sees it marked &ldquo;Answered&rdquo;, and it is left out of the prayer list emails.
+        </p>
+        <p>
+          <strong>The prayer list by email:</strong> anyone with an account and a confirmed email address can open{' '}
+          <em>Email me the prayer list each week</em> at the top of the Prayer Wall and choose a day, a time and a time
+          zone. Once a week you get the requests members chose to email in the past week, leaving out answered ones (none
+          is sent in a week with no new requests). Each email has a link to stop them.
         </p>
         <Screenshot
           name="prayer-wall"

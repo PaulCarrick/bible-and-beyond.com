@@ -487,6 +487,15 @@ export interface ConversationPost {
   // Whether the member reading it wrote it (only then can it be changed or deleted).
   is_mine: boolean
   board: ConversationBoard
+  // The Prayer Wall choices (always false on Conversations): the author's name is not shown ("Anonymous"); only
+  // the author (and the site administrators) see it; it is emailed to the prayer list.
+  is_anonymous: boolean
+  is_private: boolean
+  email_to_prayer_list: boolean
+  // When its author marked the request answered (Prayer Wall only), or null. Answered requests are not emailed.
+  answered_at: string | null
+  // Conversations only, and true only for its author: new replies by others are emailed to the author.
+  email_replies: boolean
   // Members' replies to it, oldest first.
   replies: ConversationReply[]
 }
@@ -522,6 +531,23 @@ export type Destination =
   | { id: number; kind: 'devotional'; devotional: string; section: number; unit: number; onlyIfFound?: boolean }
 
 // A devotional the logged-in visitor gets by email each day.
+// The weekly prayer list email of the logged-in visitor (prayer_list.py).
+export interface PrayerListSubscription {
+  // 0 Monday to 6 Sunday.
+  send_weekday: number
+  send_time: string
+  timezone: string
+  last_sent_on: string | null
+}
+
+// The choices of a post being saved: the three Prayer Wall ones, and "email me replies" on Conversations.
+export interface PostOptions {
+  isAnonymous: boolean
+  isPrivate: boolean
+  emailToPrayerList: boolean
+  emailReplies: boolean
+}
+
 export interface DevotionalSubscription {
   devotional_id: string
   devotional_name: string

@@ -2928,3 +2928,63 @@ select:disabled {
     color: var(--text-h);
   }
 }
+
+/* The Prayer Wall choices under a post's text (ConversationPostForm.tsx): each checkbox with its words, and a
+   short explanation under the words. */
+.prayer-options {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border: none;
+}
+
+.prayer-options .inline-label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: baseline;
+}
+
+.prayer-options small {
+  grid-column: 2;
+  color: var(--text);
+}
+
+/* Under one's own Prayer Wall post: how it was shared (private, anonymous, emailed). */
+.prayer-post-options {
+  margin: -0.25rem 0 0.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* The prayer list email box at the top of the Prayer Wall. */
+.prayer-list-panel {
+  margin: 0 0 1rem;
+}
+
+/* The "Answered" mark after a Prayer Wall request's title, and its author's checkbox beside Edit and Delete. */
+.prayer-answered-mark {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid #2e7d32;
+  border-radius: 8px;
+  color: #2e7d32;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+@media (prefers-color-scheme: dark) {
+  .prayer-answered-mark {
+    border-color: #81c784;
+    color: #81c784;
+  }
+}
+
+.prayer-answered-box {
+  margin-right: 0.5rem;
+  font-size: 0.9rem;
+}

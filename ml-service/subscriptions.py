@@ -179,12 +179,22 @@ def delete_subscription(user_id: int, devotional_id: str) -> None:
 
 
 def unsubscribe_with_token(token: str) -> str:
-  """Stops the emails the token belongs to, with no login. Returns the devotional's name."""
+  """Stops the emails the token belongs to, with no login: a devotional's, the prayer list's, or the replies to a
+  Conversations post. Returns what they were."""
   if not token or len(token) > 100:
     raise SubscriptionProblem("This link is not valid, or the emails have already been stopped.", 404)
   with connect() as connection:
     row = connection.execute("DELETE FROM devotional_subscriptions WHERE unsubscribe_token = %s RETURNING devotional_id", (token,)).fetchone()
     if row is None:
+      # The prayer list emails (prayer_list.py) use this same link.
+      if connection.execute("DELETE FROM prayer_list_subscriptions WHERE unsubscribe_token = %s RETURNING id", (token,)).fetchone():
+        return "the Prayer Wall prayer list"
+      # And the "email me replies" emails of a Conversations post (conversations.py).
+      post = connection.execute(
+        "UPDATE conversation_posts SET email_replies = false WHERE reply_email_token = %s RETURNING title", (token,)
+      ).fetchone()
+      if post:
+        return f"replies to your post “{post[0]}”"
       raise SubscriptionProblem("This link is not valid, or the emails have already been stopped.", 404)
     found = connection.execute("SELECT name FROM devotionals WHERE id = %s", (row[0],)).fetchone()
   return found[0] if found else row[0]
