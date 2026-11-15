@@ -22,6 +22,12 @@ bible_admin.faq_note_add_action:
   appears_on:
     - bible_admin.faq_notes
 
+bible_admin.map_upload_action:
+  route_name: bible_admin.map_upload
+  title: 'Upload a map'
+  appears_on:
+    - bible_admin.maps
+
 bible_admin.music_upload_action:
   route_name: bible_admin.music_upload
   title: 'Upload a song'

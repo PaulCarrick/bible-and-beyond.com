@@ -15,6 +15,8 @@ const addresses: Record<View, string> = {
   searchBooks: '/search-books',
   music: '/music',
   searchMusic: '/search-music',
+  maps: '/maps',
+  searchMaps: '/search-maps',
   searchAll: '/search-all',
   faq: '/faq',
   help: '/help',

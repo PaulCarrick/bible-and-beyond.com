@@ -82,6 +82,11 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
         </li>
         <li>
+          <strong>Your notes, pins and routes on the maps,</strong> if an administrator has let your account add them:
+          the words you write and the places on the map they mark. They are private to you, except any you share: the
+          members you choose by their email address see that one, with your name.
+        </li>
+        <li>
           <strong>One login cookie</strong> that keeps you logged in. It is needed for the site to work, lasts 30
           days, and is removed when you log out.
         </li>
@@ -103,7 +108,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         </li>
         <li>
           <strong>The site administrators</strong> can see account details, and can read and remove posts, so
-          they can run and protect the site.
+          they can run and protect the site. Their pages show how many notes, pins and routes you have on the maps,
+          not what they say.
         </li>
       </ul>
 

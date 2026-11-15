@@ -439,7 +439,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE): array {
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($emailVerified) {
       $arguments[] = '--email-verified';
@@ -452,6 +452,9 @@ class BibleManager {
     }
     if ($seePrivatePrayers) {
       $arguments[] = '--see-private-prayers';
+    }
+    if ($useMaps) {
+      $arguments[] = '--use-maps';
     }
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
@@ -467,7 +470,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE): array {
     $arguments = [
       'update',
       '--id=' . $userId,
@@ -477,6 +480,7 @@ class BibleManager {
       '--open-ai-queries=' . ($openAiQueries ? 'yes' : 'no'),
       '--use-conversations=' . ($useConversations ? 'yes' : 'no'),
       '--see-private-prayers=' . ($seePrivatePrayers ? 'yes' : 'no'),
+      '--use-maps=' . ($useMaps ? 'yes' : 'no'),
     ];
     $input = NULL;
     if ($password !== '') {
@@ -663,6 +667,102 @@ class BibleManager {
       '@change' => $change,
       '@title' => $song['title'],
       '@id' => $song['id'],
+    ]);
+  }
+
+  /**
+   * Largest map file, in bytes (maps.MAX_FILE_BYTES).
+   */
+  public const MAX_MAP_BYTES = 1024 * 1024 * 1024;
+
+  /**
+   * The extensions a map may have: pictures and PDFs (maps.FILE_TYPES).
+   */
+  public const MAP_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'tif', 'tiff', 'pdf'];
+
+  /**
+   * Every map, hidden ones too, by title.
+   *
+   * @return array
+   *   Each map has id, title, description, source, keywords, verses_text, verses, kind ("image" or "pdf"),
+   *   file_type, file_size, pdf_page, width, height, file_present and is_published.
+   */
+  public function listMaps(): array {
+    return $this->run(['list'], 'manage_maps.py')['maps'];
+  }
+
+  /**
+   * One map, with mark_count (the members' notes, pins and routes on it).
+   */
+  public function getMap(string $mapId): array {
+    return $this->run(['get', '--id=' . $mapId], 'manage_maps.py')['map'];
+  }
+
+  /**
+   * Saves a map: a new map or a new file for one ($file), else only its details (and, for a PDF, the page
+   * drawn as the map). The uploaded file waits in the private upload folder only while the tool reads it.
+   *
+   * @param array $details
+   *   title, description, source and, when given, keywords and verses; sent on the tool's input.
+   */
+  public function saveMap(string $mapId, array $details, ?UploadedFile $file, ?int $pdfPage = NULL): array {
+    $input = json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    if ($file === NULL) {
+      $arguments = ['update', '--id=' . $mapId];
+      if ($pdfPage !== NULL) {
+        $arguments[] = '--page=' . $pdfPage;
+      }
+      // Drawing another page of a PDF may take a while.
+      $map = $this->run($arguments, 'manage_maps.py', $input, self::DOCUMENT_TIMEOUT_SECONDS);
+    }
+    else {
+      $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+      if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+        throw new BibleManagerException('The upload could not be saved.');
+      }
+      try {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $file->move($directory, 'upload.' . $extension);
+        $arguments = ['upload', $directory . '/upload.' . $extension, '--name=upload.' . $extension, '--id=' . $mapId, '--page=' . ($pdfPage ?? 1)];
+        $map = $this->run($arguments, 'manage_maps.py', $input, self::DOCUMENT_TIMEOUT_SECONDS);
+      }
+      finally {
+        $this->fileSystem->deleteRecursive($directory);
+      }
+    }
+    $this->logMap($file !== NULL ? 'uploaded' : 'changed', $map['map']);
+    return $map['map'];
+  }
+
+  /**
+   * The verses typed for a map, read as the site reads them; throws with a message naming any not understood.
+   */
+  public function checkMapVerses(string $verses): array {
+    return $this->run(['check-verses'], 'manage_maps.py', json_encode(['verses' => $verses], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE))['verses'];
+  }
+
+  /**
+   * Publishes, hides or deletes a map (deleting removes its files and the members' marks on it).
+   */
+  public function changeMap(string $action, string $mapId): array {
+    if (!in_array($action, ['publish', 'unpublish', 'delete'], TRUE)) {
+      throw new BibleManagerException('Unknown action.');
+    }
+    $map = $this->run([$action, '--id=' . $mapId], 'manage_maps.py')['map'];
+    $this->logMap(match ($action) {
+      'publish' => 'published',
+      'unpublish' => 'hid',
+      default => 'deleted',
+    }, $map);
+    return $map;
+  }
+
+  private function logMap(string $change, array $map): void {
+    $this->logger->notice('@user @change the map “@title” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@title' => $map['title'],
+      '@id' => $map['id'],
     ]);
   }
 

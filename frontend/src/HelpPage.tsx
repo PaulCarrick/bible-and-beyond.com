@@ -22,6 +22,7 @@ const sections = [
   { id: 'help-devotionals', title: 'Devotionals and daily emails' },
   { id: 'help-other-books', title: 'Other books' },
   { id: 'help-music', title: 'Christian media' },
+  { id: 'help-maps', title: 'Maps' },
   { id: 'help-faq', title: 'FAQ: questions about the faith' },
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-notes', title: 'Your notes' },
@@ -74,12 +75,14 @@ interface HelpPageProps {
   onNavigate: (view: View) => void
   // Whether a song of the Christian music section is published (its section is left out until one is).
   hasMusic?: boolean
+  // The maps section shows only when a map is published.
+  hasMaps?: boolean
 }
 
 // The user guide: every feature of the site with a screenshot, then where the texts come from (with the notices
 // and credits that go with them). The screenshots are in public/help/; the owner's address in them is replaced
 // by you@example.com.
-function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps) {
+function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false }: HelpPageProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const localBibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
@@ -119,7 +122,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
       <nav className="help-contents" aria-label="Contents of this guide">
         <h2>Contents</h2>
         <ol>
-          {sections.filter((section) => hasMusic || section.id !== 'help-music').map((section) => (
+          {sections.filter((section) => (hasMusic || section.id !== 'help-music') && (hasMaps || section.id !== 'help-maps')).map((section) => (
             <li key={section.id}>
               <button type="button" className="link-button" onClick={() => goToSection(section.id)}>
                 {section.title}
@@ -161,7 +164,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         <h2>Search everything</h2>
         <p>
           <PageLink onNavigate={onNavigate} view="searchAll">Search everything</PageLink> (in the menu, and under the cards on the Welcome page)
-          looks for your words in the Bible, the commentaries, the devotionals, the other books, the Christian media and the FAQ at once. Type a word
+          looks for your words in the Bible, the commentaries, the devotionals, the other books, the Christian media, the maps and the FAQ at once. Type a word
           or a phrase, choose whether to match <em>all the words</em>, <em>any word</em> or the <em>exact phrase</em>,
           and press <em>Search</em>.
         </p>
@@ -564,6 +567,43 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
         </section>
       )}
 
+      {hasMaps && (
+        <section id="help-maps" tabIndex={-1} className="help-section">
+          <h2>Maps</h2>
+          <p>
+            <PageLink onNavigate={onNavigate} view="maps">View the maps</PageLink> shows the maps of the lands and journeys of the Bible.
+            Press <em>Open this map</em> to see one: drag it to move about, and zoom in and out with the + and − buttons,
+            the mouse wheel or a pinch on a phone. <em>Full screen</em> gives it the whole window (Escape or{' '}
+            <em>Leave full screen</em> returns). Under the map are what it shows, where it came from, and the verses it
+            goes with; click a verse to read it in the Bible (with Shift, Ctrl or Cmd held, in a new tab).{' '}
+            <em>Download the original</em> saves the map as it was uploaded, for printing.
+          </p>
+          <p>
+            <PageLink onNavigate={onNavigate} view="searchMaps">Search the maps</PageLink> finds a map by its title, description,
+            keywords or verses; type a verse such as <em>Acts 13:4</em> to find the maps that go with it. Search
+            everything lists maps too.
+          </p>
+          <p>
+            <strong>Your own notes, pins and routes</strong> (for members an administrator has invited): on an open map,{' '}
+            <em>Drop a pin</em> and then click or tap the place, and write a note for it if you wish; <em>Trace a route</em>{' '}
+            and click or tap each point in turn (<em>Undo the last point</em> takes one back), then <em>Finish the
+            route</em>, name it and choose its colour; <em>Add a note</em> writes a note on the whole map. A verse in a
+            note, such as Acts 13:4, becomes a link. They are listed under the map with <em>Show on the map</em>,{' '}
+            <em>Edit</em> and <em>Delete</em>. When you edit a pin, drag it to move it; when you edit a route, drag any
+            of its points to move it; drag one of the small pale points between two to add a point there (or click it to
+            add one halfway); right-click a point (long-press on a phone) to take it out; and <em>Add points at the
+            end</em> and <em>Remove the last point</em> change its ends. Your pins and
+            routes are kept as places on the map, not as a copy of it.
+          </p>
+          <p>
+            <strong>Sharing.</strong> Only you see your notes, pins and routes unless you share one: under{' '}
+            <em>Share with</em> type the email address of another member who can use the maps and press <em>Add</em>
+            (add as many as you like), then save. They see it under <em>Shared with you</em>, drawn dotted on the map,
+            with your name; they cannot change it. Remove someone there to stop sharing with them.
+          </p>
+        </section>
+      )}
+
       <section id="help-faq" tabIndex={-1} className="help-section">
         <h2>FAQ: questions about the faith</h2>
         <p>
@@ -881,7 +921,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
             CC BY 4.0
           </a>
           ). The other Bibles, the commentaries, the devotionals and the other books are in the public domain (except the
-          modern wording of the Apostles’ Creed). The full
+          modern wording of the Apostles’ Creed).{hasMaps ? ' Maps from Biblica® Open Color Bible Maps™ (Biblica, Inc., CC BY-SA 4.0).' : ''} The full
           credits and notices are on the <PageLink onNavigate={onNavigate} view="copyright">Bible copyright notices</PageLink> page.
         </p>
       </section>

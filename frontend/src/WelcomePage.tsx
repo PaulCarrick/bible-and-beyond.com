@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { MusicSong } from './api'
+import type { MapInfo, MusicSong } from './api'
 import ConversationsWelcomeCard from './ConversationsWelcomeCard'
 import type { CommentarySource, DevotionalInfo, Translation } from './types'
 import type { View } from './views'
@@ -54,13 +54,15 @@ interface WelcomePageProps {
   otherBooks?: DevotionalInfo[]
   // The published songs of the Christian music section.
   songs?: MusicSong[]
+  // The published maps.
+  maps?: MapInfo[]
   // A logged-in account an administrator allowed Conversations (members' posts).
   onNavigate: (view: View) => void
 }
 
 // The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
 // the Help page.
-function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], maps = [], onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -157,6 +159,23 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
               </button>
               <button type="button" className="primary-button" onClick={() => onNavigate('searchMusic')}>
                 Search music
+              </button>
+            </div>
+          </section>
+        )}
+        {maps.length > 0 && (
+          <section className="welcome-card">
+            <h3>Maps</h3>
+            {/* Only the count, like the songs. */}
+            <p>
+              {maps.length === 1 ? 'A map' : `${maps.length} maps`} of the lands and journeys of the Bible, to zoom into, with the verses {maps.length === 1 ? 'it goes' : 'each goes'} with.
+            </p>
+            <div className="welcome-buttons">
+              <button type="button" className="primary-button" onClick={() => onNavigate('maps')}>
+                View maps
+              </button>
+              <button type="button" className="primary-button" onClick={() => onNavigate('searchMaps')}>
+                Search maps
               </button>
             </div>
           </section>

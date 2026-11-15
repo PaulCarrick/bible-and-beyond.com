@@ -2,7 +2,7 @@
 
 It runs the searches that already exist, a few results from each, and returns them in groups: the Bible
 (one Bible, the BSB when it is published, so a verse appears once rather than once per translation), the
-commentaries, the devotionals, the other books and the Christian music. In the Bible it matches whole words. A group with nothing found is left out. With kind, it
+commentaries, the devotionals, the other books, the Christian music, the maps and the FAQ. In the Bible it matches whole words. A group with nothing found is left out. With kind, it
 returns one group only, for "Show more" (the next page of that group).
 
 search_everything_with_ai is the same search by meaning, for an account allowed AI searches: Gemini suggests the
@@ -17,14 +17,16 @@ from ai_search import find_verses
 from commentaries import search_commentaries
 from devotionals import search_library
 from faq import FaqUnavailable, search_faq
+from maps import search_maps
 from music import search_music
 from search import connect, search_verses
 
 FIRST_BOOK = 1
 LAST_BOOK = 66
 # The FAQ: its questions, the site owner's notes and the stored answers (faq.search_faq).
-KINDS = ("bible", "commentary", "devotional", "book", "music", "faq")
-# The search by meaning has no embeddings of the FAQ, so it leaves the FAQ out.
+# The maps: their titles, keywords, descriptions and verses (maps.search_maps).
+KINDS = ("bible", "commentary", "devotional", "book", "music", "map", "faq")
+# The search by meaning has no embeddings of the FAQ or the maps, so it leaves them out.
 AI_KINDS = ("bible", "commentary", "devotional", "book", "music")
 PREFERRED_BIBLE = "BSB"
 
@@ -53,6 +55,8 @@ def search_group(kind, query, match_mode, page, per_page):
     }
   if kind == "music":
     found = search_music(query, match_mode, page, per_page)
+  elif kind == "map":
+    found = search_maps(query, match_mode, page, per_page)
   elif kind == "faq":
     found = search_faq(query, match_mode, page, per_page)
   elif kind == "commentary":

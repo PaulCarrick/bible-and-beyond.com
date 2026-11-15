@@ -11,6 +11,7 @@ ml-service/data/site-icons/
 # The pictures of documents uploaded on this site.
 ml-service/data/library-images/
 ml-service/data/library-pages/
+ml-service/data/maps/
 drupal/web/sites/*/settings.local.php
 drupal/web/sites/*/files/
 # Built or downloaded on this machine, rebuilt inside the image:

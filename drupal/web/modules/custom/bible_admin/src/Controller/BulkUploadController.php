@@ -14,8 +14,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Several files at once, like the media library of the Jump Start Website: on the Christian music, Devotionals
- * and Other books pages a drop area (built by js/bulk-upload.js from area()) takes many files, and the page
+ * Several files at once, like the media library of the Jump Start Website: on the Christian music, Maps,
+ * Devotionals and Other books pages a drop area (built by js/bulk-upload.js from area()) takes many files, and the page
  * sends them here one at a time (a song can be 1 GB, so they never share one request). Each file becomes a new
  * item named after the file, its id made from that name; an id already in use is skipped, never replaced.
  * A new item is hidden unless "Publish them when uploaded" was ticked.
@@ -36,6 +36,7 @@ class BulkUploadController extends ControllerBase {
     'music' => ['extensions' => ['mp3', 'mp4'], 'kind' => 'music', 'one' => 'song', 'many' => 'songs'],
     'books' => ['extensions' => ['pdf', 'docx', 'epub', 'txt', 'tsv'], 'kind' => 'book', 'one' => 'book', 'many' => 'books'],
     'devotionals' => ['extensions' => ['pdf', 'docx', 'epub', 'txt', 'tsv'], 'kind' => 'devotional', 'one' => 'devotional', 'many' => 'devotionals'],
+    'maps' => ['extensions' => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'tif', 'tiff', 'pdf'], 'kind' => 'map', 'one' => 'map', 'many' => 'maps'],
   ];
 
   public function __construct(private readonly BibleManager $manager) {}
@@ -61,7 +62,7 @@ class BulkUploadController extends ControllerBase {
         'data-token-url' => Url::fromRoute('system.csrftoken')->toString(),
         'data-extensions' => implode(',', $about['extensions']),
         'data-max-files' => (string) self::MAX_FILES,
-        'data-max-bytes' => (string) ($collection === 'music' ? BibleManager::MAX_MUSIC_BYTES : BibleManager::MAX_DOCUMENT_BYTES),
+        'data-max-bytes' => (string) self::limitOf($collection),
         'data-one' => $about['one'],
         'data-many' => $about['many'],
       ],
@@ -85,7 +86,7 @@ class BulkUploadController extends ControllerBase {
     if (!in_array($extension, $about['extensions'], TRUE)) {
       return $this->skipped('Not a file this page takes (' . implode(', ', array_map(fn ($each) => '.' . $each, $about['extensions'])) . ').');
     }
-    $limit = $collection === 'music' ? BibleManager::MAX_MUSIC_BYTES : BibleManager::MAX_DOCUMENT_BYTES;
+    $limit = self::limitOf($collection);
     if ($file->getSize() > $limit) {
       return $this->skipped('Larger than ' . (int) ($limit / 1048576) . ' MB.');
     }
@@ -98,7 +99,14 @@ class BulkUploadController extends ControllerBase {
       if ($this->idInUse($collection, $itemId)) {
         return $this->skipped('Already there (the id "' . $itemId . '" is in use), so it was left as it is.');
       }
-      if ($collection === 'music') {
+      if ($collection === 'maps') {
+        // The first page of a PDF; another can be chosen with Edit.
+        $this->manager->saveMap($itemId, ['title' => $name, 'description' => '', 'source' => ''], $file, 1);
+        if ($publish) {
+          $this->manager->changeMap('publish', $itemId);
+        }
+      }
+      elseif ($collection === 'music') {
         $this->manager->saveMusic($itemId, ['title' => $name, 'author' => '', 'lyrics' => ''], $file);
         if ($publish) {
           $this->manager->changeMusic('publish', $itemId);
@@ -167,10 +175,24 @@ class BulkUploadController extends ControllerBase {
     if ($collection === 'music') {
       $ids = array_column($this->manager->listMusic(), 'id');
     }
+    elseif ($collection === 'maps') {
+      $ids = array_column($this->manager->listMaps(), 'id');
+    }
     else {
       $ids = [...array_column($this->manager->listLibrary('book'), 'id'), ...array_column($this->manager->listLibrary('devotional'), 'id')];
     }
     return in_array($itemId, $ids, TRUE);
+  }
+
+  /**
+   * The largest file a collection takes, in bytes.
+   */
+  private static function limitOf(string $collection): int {
+    return match ($collection) {
+      'music' => BibleManager::MAX_MUSIC_BYTES,
+      'maps' => BibleManager::MAX_MAP_BYTES,
+      default => BibleManager::MAX_DOCUMENT_BYTES,
+    };
   }
 
   private function skipped(string $reason): JsonResponse {

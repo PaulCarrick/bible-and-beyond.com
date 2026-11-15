@@ -49,7 +49,8 @@
     const extensions = area.dataset.extensions.split(',');
     const maxFiles = Number(area.dataset.maxFiles);
     const maxBytes = Number(area.dataset.maxBytes);
-    const isMusic = collection === 'music';
+    // Songs and maps take only the files (their details are added with Edit); books and devotionals need more.
+    const isMusic = collection === 'music' || collection === 'maps';
     const prefix = `bulk-${collection}`;
     let chosen = [];
     let isBusy = false;

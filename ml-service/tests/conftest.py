@@ -21,3 +21,9 @@ def no_real_library_images(tmp_path, monkeypatch):
   """Tests never write pictures of uploaded documents into the real data/library-images."""
   monkeypatch.setenv("LIBRARY_IMAGES_FOLDER", str(tmp_path / "library-images"))
   monkeypatch.setenv("LIBRARY_PAGES_FOLDER", str(tmp_path / "library-pages"))
+
+
+@pytest.fixture(autouse=True)
+def no_real_maps(tmp_path, monkeypatch):
+  """Tests never write map files into the real data/maps."""
+  monkeypatch.setenv("MAPS_FOLDER", str(tmp_path / "maps"))

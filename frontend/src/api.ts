@@ -419,7 +419,7 @@ export async function searchOtherBooks(options: BookSearchOptions, signal: Abort
 }
 
 // The search on the welcome page (GET /search-everything): a few hits of each kind, in groups.
-export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book' | 'music' | 'faq'
+export type SiteSearchKind = 'bible' | 'commentary' | 'devotional' | 'book' | 'music' | 'map' | 'faq'
 
 export type SiteSearchResult =
   // A question of the FAQ, found in its words, the site owner's note or its stored answer.
@@ -438,6 +438,8 @@ export type SiteSearchResult =
   | ({ kind: 'devotional' | 'book' } & BookSearchResult)
   // A song of the Christian music: its id, title and author, and an excerpt of its words.
   | { kind: 'music'; id: string; title: string; author: string; text: string }
+  // A map: its id, title and verses, and an excerpt of its description.
+  | { kind: 'map'; id: string; title: string; verses_text: string; text: string }
 
 export interface SiteSearchGroup {
   kind: SiteSearchKind
@@ -944,4 +946,132 @@ export async function savePrayerListSubscription(sendWeekday: number, sendTime: 
 
 export async function deletePrayerListSubscription(): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/prayer-list-subscription`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// --- Maps (maps.py, map_marks.py) ---------------------------------------------------------------------------
+
+// A verse a map goes with; end_verse is the last verse of a range in the same chapter.
+export interface MapVerse {
+  book_number: number
+  chapter: number
+  verse: number
+  end_verse: number | null
+  label: string
+}
+
+export interface MapInfo {
+  id: string
+  title: string
+  description: string
+  source: string
+  keywords: string
+  verses_text: string
+  verses: MapVerse[]
+  // A picture, or a page of a PDF (pdf_page).
+  kind: 'image' | 'pdf'
+  file_type: string
+  file_size: number
+  pdf_page: number | null
+  // The size in pixels of the copy shown.
+  width: number
+  height: number
+  version: number
+}
+
+// The published maps by title; with a verse, only the maps linked to it.
+export async function fetchMaps(verse?: { book: number; chapter: number; verse: number }): Promise<MapInfo[]> {
+  const queryString = verse ? `?${new URLSearchParams({ book: String(verse.book), chapter: String(verse.chapter), verse: String(verse.verse) })}` : ''
+  return (await readJson<{ maps: MapInfo[] }>(await fetch(`${mlServiceUrl}/maps${queryString}`))).maps
+}
+
+// Where a map's picture is: the copy shown ("display"), the small one for the list, or the file as uploaded.
+export function mapFileAddress(map: { id: string; version: number }, which: 'display' | 'thumbnail' | 'original'): string {
+  return `${mlServiceUrl}/map-file/${encodeURIComponent(map.id)}/${which}?v=${map.version}`
+}
+
+export interface MapSearchResult {
+  id: string
+  title: string
+  verses_text: string
+  width: number
+  height: number
+  version: number
+  // An excerpt of the description with the words found between \u0001 and \u0002.
+  text: string
+}
+
+export interface MapSearchResponse {
+  query: string
+  terms: string[]
+  total: number
+  page: number
+  per_page: number
+  results: MapSearchResult[]
+}
+
+export async function searchMaps(
+  options: { query: string; matchMode: 'all' | 'any' | 'phrase'; page: number; perPage: number },
+  signal: AbortSignal,
+): Promise<MapSearchResponse> {
+  const queryString = new URLSearchParams({
+    query: options.query,
+    match_mode: options.matchMode,
+    page: String(options.page),
+    per_page: String(options.perPage),
+  })
+  return readJson(await fetch(`${mlServiceUrl}/search-maps?${queryString}`, { signal }))
+}
+
+// A member's own note, pin or route on a map. x and y (a pin) and each point of a route run from 0 to 1 across
+// and down the map. references: [start, end, "book:chapter:verse"] over the body, for each verse it names.
+export interface MapMark {
+  id: number
+  map_id: string
+  kind: 'note' | 'pin' | 'route'
+  x: number | null
+  y: number | null
+  points: [number, number][] | null
+  name: string
+  colour: string | null
+  body: string
+  // The logged-in member's own (only those can be changed), and who wrote it.
+  is_mine: boolean
+  author: string
+  // Who the member shared it with (their own marks only; [] on a mark shared with them).
+  shared_with: { email: string; name: string }[]
+  references: [number, number, string][]
+  created_at: string
+  updated_at: string
+}
+
+export interface MapMarkChanges {
+  kind?: 'note' | 'pin' | 'route'
+  x?: number | null
+  y?: number | null
+  points?: [number, number][] | null
+  name?: string
+  colour?: string | null
+  body: string
+  // The email addresses of the members to share it with (each another member allowed the maps).
+  shared_with?: string[]
+}
+
+export async function fetchMapMarks(mapId: string, signal?: AbortSignal): Promise<MapMark[]> {
+  const response = await fetch(`${mlServiceUrl}/maps/${encodeURIComponent(mapId)}/marks`, { credentials: 'include', signal })
+  return (await readJson<{ marks: MapMark[] }>(response)).marks
+}
+
+// Adds a mark (no id) or changes one of the member's own (its kind stays).
+export async function saveMapMark(mapId: string, markId: number | null, changes: MapMarkChanges): Promise<MapMark> {
+  const response = await fetch(markId === null ? `${mlServiceUrl}/maps/${encodeURIComponent(mapId)}/marks` : `${mlServiceUrl}/map-marks/${markId}`, {
+    method: markId === null ? 'POST' : 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(changes),
+  })
+  return (await readJson<{ mark: MapMark }>(response)).mark
+}
+
+export async function deleteMapMark(markId: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/map-marks/${markId}`, { method: 'DELETE', credentials: 'include' }))
 }

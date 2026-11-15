@@ -3011,3 +3011,361 @@ select:disabled {
 .verse-a-day-choice {
   margin: 0 0 0.75rem;
 }
+
+/* Maps (MapsPage.tsx, MapViewer.tsx, MapSearchPage.tsx). */
+.map-cards {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1.25rem;
+}
+
+.map-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.map-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.map-card-picture {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--code-bg);
+  cursor: zoom-in;
+}
+
+.map-card-picture img {
+  display: block;
+  width: 100%;
+  height: 11rem;
+  object-fit: cover;
+}
+
+.map-card-verses,
+.map-source {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.map-viewer {
+  text-align: left;
+}
+
+.map-viewer-top {
+  margin-bottom: 0.75rem;
+}
+
+.map-frame {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Full screen: the map over the whole window (Escape or "Leave full screen" returns). */
+.map-frame.is-full-screen {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  z-index: 1000;
+  border-radius: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-toolbar,
+.map-route-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.map-full-screen-button {
+  margin-left: auto;
+}
+
+.map-route-bar {
+  background: var(--code-bg);
+  font-size: 14px;
+}
+
+.map-canvas {
+  /* Most of whatever screen it is on (dvh follows a phone's browser bars), never a fixed size; the viewer
+     re-measures whenever the box changes (MapViewer.tsx). */
+  height: 75vh;
+  height: 75dvh;
+  min-height: 15rem;
+  background: #e9e6dc;
+}
+
+.map-frame.is-full-screen .map-canvas {
+  flex: 1;
+  height: auto;
+}
+
+.map-canvas.is-placing {
+  cursor: crosshair;
+}
+
+.map-canvas.is-placing .leaflet-interactive,
+.map-canvas.is-placing.leaflet-grab {
+  cursor: crosshair;
+}
+
+/* A pin: a round head with a point, drawn in CSS (no picture files). */
+.map-pin {
+  background: none;
+  border: 0;
+}
+
+.map-pin::before,
+.map-pin-symbol {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 0;
+  background: #c0392b;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: rotate(-45deg);
+}
+
+.map-pin.is-selected::before {
+  background: #1f6fb2;
+  width: 22px;
+  height: 22px;
+}
+
+.map-pin-symbol {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 0.15rem 0 0.25rem;
+  border-width: 1px;
+}
+
+.map-message {
+  margin: 0.5rem 0 0;
+  font-size: 14px;
+}
+
+.map-mark-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.map-mark-form h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.map-mark-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.map-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.map-details {
+  margin-top: 1rem;
+}
+
+.map-description {
+  white-space: pre-line;
+  margin: 0 0 0.75rem;
+}
+
+.map-verses {
+  margin: 0 0 0.5rem;
+}
+
+.map-download {
+  margin: 0.5rem 0 0;
+  font-size: 14px;
+}
+
+.map-layer {
+  margin-top: 1.5rem;
+}
+
+.map-layer h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.map-mark-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.map-mark {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.map-mark.is-selected {
+  border-color: #1f6fb2;
+}
+
+.map-mark-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.map-mark {
+  text-align: left;
+}
+
+.map-mark-date {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.map-mark-text {
+  margin: 0.4rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.map-route-swatch {
+  display: inline-block;
+  width: 1.25rem;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.map-search-result {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.map-search-picture {
+  width: 6rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  flex: none;
+}
+
+@media (max-width: 600px) {
+  .map-full-screen-button {
+    margin-left: 0;
+  }
+}
+
+/* Biblica's notice at the foot of each Maps page (MapsCredit.tsx). */
+.maps-credit {
+  margin: 2rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+
+/* Marks other members shared with this one (MapViewer.tsx). */
+.map-pin.is-others::before {
+  background: #2e8540;
+}
+
+.map-mark-author,
+.map-mark-shared {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.map-mark-shared {
+  margin: 0 0 0.4rem;
+}
+
+/* A point of a route being changed: dragged to move it. */
+.map-route-handle {
+  background: #fff;
+  border: 2px solid #1f6fb2;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: move;
+}
+
+.map-share {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  margin: 0;
+}
+
+.map-share legend {
+  padding: 0 0.25rem;
+}
+
+.map-share-hint {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.map-share-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.map-share input[type='email'] {
+  flex: 1;
+  min-width: 12rem;
+}
+
+/* Between two points of a route being changed: drag or click it to add a point there. */
+.map-route-handle.is-between {
+  background: rgba(255, 255, 255, 0.7);
+  border-width: 1px;
+  cursor: copy;
+}

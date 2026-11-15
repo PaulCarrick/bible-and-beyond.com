@@ -424,6 +424,8 @@ export interface AccountUser {
   phone_is_cell: boolean
   sms_opt_in: boolean
   sms_stopped: boolean
+  // An administrator allowed this account its own notes, pins and routes on the maps; off unless set in Drupal.
+  use_maps: boolean
 }
 
 // What the Set up account form sends.

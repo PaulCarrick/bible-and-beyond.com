@@ -214,7 +214,7 @@ bible_admin.bulk_upload:
   requirements:
     _permission: 'administer bibles'
     _csrf_request_header_token: 'TRUE'
-    collection: 'music|devotionals|books'
+    collection: 'music|devotionals|books|maps'
 
 bible_admin.music:
   path: '/admin/music'
@@ -250,6 +250,42 @@ bible_admin.music_change:
     _permission: 'administer bibles'
     action: 'publish|unpublish|delete'
     song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+# The maps: pictures or PDFs with their details and verses (maps.py), open to whoever may administer the Bibles.
+bible_admin.maps:
+  path: '/admin/maps'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\MapListController::build'
+    _title: 'Maps'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.map_upload:
+  path: '/admin/maps/upload'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MapForm'
+    _title: 'Upload a map'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.map_edit:
+  path: '/admin/maps/{map_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MapForm'
+    _title: 'Edit a map'
+  requirements:
+    _permission: 'administer bibles'
+    map_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+bible_admin.map_change:
+  path: '/admin/maps/{action}/{map_id}'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ChangeMapForm'
+    _title: 'Change a map'
+  requirements:
+    _permission: 'administer bibles'
+    action: 'publish|unpublish|delete'
+    map_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
 
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page

@@ -57,6 +57,8 @@ from passage_embeddings import PassageSearchProblem
 from faq_notes import owner_note_or_nothing
 from internet_archive import ArchiveProblem, search_archive
 from music import list_songs, search_music, song_file, song_words_file
+from maps import list_maps, map_file, search_maps
+from map_marks import MarkProblem, create_mark, delete_mark, list_marks, update_mark
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
   SubscriptionProblem,
@@ -517,7 +519,7 @@ def search_everything_on_the_site(
   request: Request,
   query: str = Query(min_length=1, max_length=500),
   match_mode: Literal["all", "any", "phrase", "ai"] = "all",
-  kind: Literal["bible", "commentary", "devotional", "book", "music", "faq"] | None = None,
+  kind: Literal["bible", "commentary", "devotional", "book", "music", "map", "faq"] | None = None,
   page: int = Query(default=1, ge=1, le=1000),
   per_page: int = Query(default=5, ge=1, le=25),
 ):
@@ -633,6 +635,44 @@ def search_the_music(
     return passage_embeddings.search_music(ai_query_vector(request, query), page, per_page)
   try:
     return search_music(query, match_mode, page, per_page)
+  except ValueError as error:
+    raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/maps")
+def maps_list(
+  book: int | None = Query(default=None, ge=1, le=66),
+  chapter: int | None = Query(default=None, ge=1, le=200),
+  verse: int | None = Query(default=None, ge=1, le=200),
+):
+  """The published maps by title, with their verses; with a verse, only the maps linked to it."""
+  return {"maps": list_maps(book=book, chapter=chapter, verse=verse)}
+
+
+@app.get("/map-file/{map_id}/{which}")
+def maps_file(map_id: str, which: Literal["display", "thumbnail", "original"]):
+  """A published map's picture: the WebP shown on the site ("display"), the small one for the list
+  ("thumbnail"), or the file as uploaded ("original", saved by the browser). Cached for a month: the page adds
+  ?v= with the map's version, which changes when the picture is replaced."""
+  found = map_file(map_id, which)
+  if found is None:
+    raise HTTPException(status_code=404, detail="That map was not found.")
+  path, media_type = found
+  headers = {"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"}
+  if which == "original":
+    return FileResponse(path, media_type=media_type, headers=headers, filename=path.name)
+  return FileResponse(path, media_type=media_type, headers=headers)
+
+
+@app.get("/search-maps")
+def search_the_maps(
+  query: str = Query(min_length=1, max_length=500),
+  match_mode: Literal["all", "any", "phrase"] = "all",
+  page: int = Query(default=1, ge=1, le=1000),
+  per_page: int = Query(default=25, ge=1, le=100),
+):
+  try:
+    return search_maps(query, match_mode, page, per_page)
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -1026,6 +1066,71 @@ def notes_delete(note_id: int, request: Request):
   try:
     delete_note(user["id"], note_id)
   except NoteProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": True}
+
+
+def maps_account(request: Request) -> dict:
+  """The logged-in account, if an administrator allowed it notes, pins and routes on the maps (use_maps); else
+  401 or 403."""
+  user = require_user(request, "Please log in to add notes, pins and routes to maps.")
+  if not user["use_maps"]:
+    raise HTTPException(status_code=403, detail="Your account cannot add notes, pins and routes to maps.")
+  return user
+
+
+class MapMarkRequest(BaseModel):
+  # note, pin or route (only when adding one: a change keeps the kind).
+  kind: Literal["note", "pin", "route"] = "note"
+  # A pin's place, from 0 to 1 across and down the map.
+  x: float | None = None
+  y: float | None = None
+  # A route's points, [[x, y], ...], each from 0 to 1.
+  points: list[list[float]] | None = Field(default=None, max_length=2000)
+  name: str = Field(default="", max_length=1000)
+  colour: str | None = Field(default=None, max_length=20)
+  body: str = Field(default="", max_length=20000)
+  # The email addresses of the members it is shared with (each another member allowed the maps); they see it
+  # read-only with the author's name. Left out (null), a change keeps who it is shared with.
+  shared_with: list[str] | None = Field(default=None, max_length=50)
+
+
+@app.get("/maps/{map_id}/marks")
+def map_marks_list(map_id: str, request: Request):
+  """The logged-in member's own notes, pins and routes on a map, then those other members shared with them
+  (read-only, with their names). Only members allowed the maps get any."""
+  user = maps_account(request)
+  try:
+    return {"marks": list_marks(user["id"], map_id)}
+  except MarkProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.post("/maps/{map_id}/marks")
+def map_marks_create(map_id: str, body: MapMarkRequest, request: Request):
+  user = maps_account(request)
+  try:
+    return {"mark": create_mark(user["id"], map_id, body.kind, body.model_dump())}
+  except MarkProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.put("/map-marks/{mark_id}")
+def map_marks_update(mark_id: int, body: MapMarkRequest, request: Request):
+  """Changes one of the member's own marks; another member's is 404."""
+  user = maps_account(request)
+  try:
+    return {"mark": update_mark(user["id"], mark_id, body.model_dump())}
+  except MarkProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.delete("/map-marks/{mark_id}")
+def map_marks_delete(mark_id: int, request: Request):
+  user = maps_account(request)
+  try:
+    delete_mark(user["id"], mark_id)
+  except MarkProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}
 

@@ -5,6 +5,7 @@ import {
   fetchCommentarySources,
   fetchCurrentUser,
   fetchDevotionals,
+  fetchMaps,
   fetchMusic,
   fetchOtherBooks,
   fetchSiteSettings,
@@ -13,7 +14,7 @@ import {
   logOut,
   resendVerification,
 } from './api'
-import type { MusicSong } from './api'
+import type { MapInfo, MusicSong } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
@@ -28,6 +29,8 @@ import CopyrightPage from './CopyrightPage'
 import BookSearchPage from './BookSearchPage'
 import MusicPage from './MusicPage'
 import MusicSearchPage from './MusicSearchPage'
+import MapsPage from './MapsPage'
+import MapSearchPage from './MapSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import TutorialPage from './TutorialPage'
@@ -43,6 +46,7 @@ import SiteHeader from './SiteHeader'
 import WelcomePage from './WelcomePage'
 import WelcomeSearch from './WelcomeSearch'
 import { readVerseAddress } from './verseAddress'
+import type { VerseInBible } from './verseAddress'
 import { addressFor, readPageHistoryState, viewForAddress } from './pageAddress'
 import type { PageHistoryState } from './pageAddress'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
@@ -94,6 +98,14 @@ function App() {
     const song = new URLSearchParams(window.location.search).get('song') ?? ''
     return viewForAddress(window.location.pathname) === 'music' && /^[a-z0-9-]{3,50}$/.test(song) ? { id: song, key: Date.now() } : null
   })
+  // The map a /maps?map=pauls-journeys address names, shown when the maps page opens (read here, before the
+  // address is tidied to /maps). The search pages' "Open this map" sets it too, with a new key each time.
+  const [mapFocus, setMapFocus] = useState<{ id: string; key: number } | null>(() => {
+    const map = new URLSearchParams(window.location.search).get('map') ?? ''
+    return viewForAddress(window.location.pathname) === 'maps' && /^[a-z0-9-]{3,50}$/.test(map) ? { id: map, key: Date.now() } : null
+  })
+  // The published maps; their sidebar group shows only when there are some.
+  const [maps, setMaps] = useState<MapInfo[]>([])
   // The published songs of the Christian music section; its sidebar group shows only when there are some.
   const [songs, setSongs] = useState<MusicSong[]>([])
   const [translations, setTranslations] = useState<Translation[]>([])
@@ -160,6 +172,9 @@ function App() {
     fetchMusic()
       .then(setSongs)
       .catch(() => setSongs([]))
+    fetchMaps()
+      .then(setMaps)
+      .catch(() => setMaps([]))
   }, [])
 
   // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
@@ -249,6 +264,17 @@ function App() {
     }
   }
 
+  // A verse link on a map: the Bible reader at that verse.
+  function openVerse(verse: VerseInBible) {
+    setDestination({ id: Date.now(), kind: 'bible', ...verse })
+    navigate('read')
+  }
+
+  function openMap(mapId: string) {
+    setMapFocus({ id: mapId, key: Date.now() })
+    navigate('maps')
+  }
+
   // Open a page: a new history entry (unless it is the page already shown), at the top.
   // Whether a reading named by a link belongs to the Other books (else it is a devotional's).
   function isOtherBook(id: string) {
@@ -319,6 +345,17 @@ function App() {
           },
         ]
       : []),
+    ...(maps.length > 0
+      ? [
+          {
+            heading: 'Maps',
+            entries: [
+              { view: 'maps' as View, label: 'View the maps' },
+              { view: 'searchMaps' as View, label: 'Search the maps' },
+            ],
+          },
+        ]
+      : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
     // Everyone may read Conversations and the Prayer Wall; only accounts an administrator allowed (use_conversations)
@@ -381,6 +418,7 @@ function App() {
                   devotionals={devotionals}
                   otherBooks={otherBooks}
                   songs={songs}
+                  maps={maps}
                   onNavigate={navigate}
                 />
               )}
@@ -397,6 +435,7 @@ function App() {
                   setMusicFocus({ id: songId, key: Date.now() })
                   navigate('music')
                 }}
+                onOpenMap={openMap}
                 onOpenFaq={(question) => {
                   setFaqRequest({ question, id: Date.now() })
                   navigate('faq')
@@ -440,7 +479,7 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
-              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} />}
+              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} hasMaps={maps.length > 0} />}
               {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
               {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
               {activeView === 'account' && <MyAccountPage key={user?.id ?? 0} user={user} isAccountKnown={isAccountKnown} onUserChanged={setUser} onNavigate={navigate} />}
@@ -513,6 +552,12 @@ function App() {
                       navigate('music')
                     }}
                   />
+                </>
+              )}
+              {maps.length > 0 && (
+                <>
+                  <MapsPage maps={maps} isHidden={activeView !== 'maps'} focus={mapFocus} onOpenVerse={openVerse} />
+                  <MapSearchPage isHidden={activeView !== 'searchMaps'} onOpen={openMap} />
                 </>
               )}
             </main>

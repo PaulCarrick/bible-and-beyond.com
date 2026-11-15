@@ -4,6 +4,7 @@ import CommentaryCredit from './CommentaryCredit'
 import CrossReferenceCredit from './CrossReferenceCredit'
 import DevotionalCredit from './DevotionalCredit'
 import StepBibleCredit from './StepBibleCredit'
+import MapsCredit from './MapsCredit'
 import type { CommentarySource, Copyright, DevotionalInfo } from './types'
 
 interface CopyrightPageProps {
@@ -73,6 +74,11 @@ function CopyrightPage({ onBack, devotionals = [], commentaries = [] }: Copyrigh
       <h3>Hebrew and Greek words</h3>
       <p>
         <StepBibleCredit /> Used under the Creative Commons Attribution 4.0 license.
+      </p>
+
+      <h3>Maps</h3>
+      <p>
+        <MapsCredit />
       </p>
 
       {fromFreeUseBibleApi.length > 0 && (

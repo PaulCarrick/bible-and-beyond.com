@@ -18,14 +18,15 @@ output_directory="$(cd "$(dirname "$0")" && pwd)/public-data"
 mkdir -p "$output_directory"
 
 # The tables that hold anything about a visitor: their structure is kept, their rows never.
-personal_tables=(users user_sessions account_tokens notes devotional_subscriptions playlists playlist_songs conversation_posts conversation_replies prayer_list_subscriptions verse_subscriptions)
+personal_tables=(users user_sessions account_tokens notes devotional_subscriptions playlists playlist_songs conversation_posts conversation_replies prayer_list_subscriptions verse_subscriptions map_marks map_mark_shares)
 # Fetched by each site from the owners (docker/web/fetch-owner-data.sh), never shipped.
 owner_tables=(original_words lexicon_entries devotionals devotional_sections devotional_entries)
 # This site's own stored FAQ answers from Gemini (each site makes its own with its own key), and its songs:
 # their files are in the music folder, not the database, and the recordings may not be ours to pass on. And the
 # embeddings of the AI search (hundreds of megabytes, made with this site's Google key; a site makes its own with
-# ml-service/scripts/embed_passages.py).
-site_tables=(faq_answers music_tracks passage_embeddings ai_search_cache)
+# ml-service/scripts/embed_passages.py). And the maps: their files are in the maps folder, which is not shipped,
+# and a map may not be ours to pass on.
+site_tables=(faq_answers music_tracks passage_embeddings ai_search_cache maps map_verses)
 # Commentaries whose owner (CCEL) asks not to be redistributed: their rows are taken out of the commentary
 # tables below, and each site fetches them itself.
 owner_commentaries=(wesley-notes)

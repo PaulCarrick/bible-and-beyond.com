@@ -19,6 +19,8 @@ interface WelcomeSearchProps {
   onOpenSong: (songId: string) => void
   // Show the answer to a question of the FAQ.
   onOpenFaq: (question: string) => void
+  // Show a map on the maps page.
+  onOpenMap: (mapId: string) => void
 }
 
 const perGroup = 5
@@ -31,10 +33,11 @@ const groupTitles: Record<SiteSearchKind, string> = {
   devotional: 'Devotionals',
   book: 'Other books',
   music: 'Christian media',
+  map: 'Maps',
   faq: 'FAQ',
 }
 
-const hitWords: Record<SiteSearchKind, string> = { bible: 'verse', commentary: 'note', devotional: 'reading', book: 'passage', music: 'song', faq: 'question' }
+const hitWords: Record<SiteSearchKind, string> = { bible: 'verse', commentary: 'note', devotional: 'reading', book: 'passage', music: 'song', map: 'map', faq: 'question' }
 
 function countLabel(kind: SiteSearchKind, total: number) {
   return `${total.toLocaleString()} ${hitWords[kind]}${total === 1 ? '' : 's'}`
@@ -43,7 +46,7 @@ function countLabel(kind: SiteSearchKind, total: number) {
 // The search form under the welcome cards: one search over the Bible (one Bible, so a verse is listed once), the
 // commentaries, the devotionals and the other books. The hits come in groups, a few of each with "Show more",
 // and each opens its reader at that place. It stays mounted, so the hits are still there after going Back.
-function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq }: WelcomeSearchProps) {
+function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpenMap }: WelcomeSearchProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
   const [matchMode, setMatchMode] = useState<MatchMode>('all')
@@ -180,6 +183,22 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq }: Welc
         ),
       }
     }
+    if (result.kind === 'map') {
+      return {
+        place: (
+          <>
+            <strong>{result.title}</strong>
+            {result.verses_text ? ` · ${result.verses_text}` : ''}
+          </>
+        ),
+        text: renderExcerpt(result.text),
+        link: (
+          <button type="button" className="link-button" onClick={() => onOpenMap(result.id)}>
+            Open this map
+          </button>
+        ),
+      }
+    }
     if (result.kind === 'music') {
       return {
         place: (
@@ -231,7 +250,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq }: Welc
       aria-labelledby={`${queryId}-heading`}
     >
       {isPage ? <h1 id={`${queryId}-heading`}>Search everything</h1> : <h2 id={`${queryId}-heading`}>Search everything</h2>}
-      <p>Search the Bible, the commentaries, the devotionals, the other books, the Christian media and the FAQ at once.</p>
+      <p>Search the Bible, the commentaries, the devotionals, the other books, the Christian media, the maps and the FAQ at once.</p>
       <form className="book-search-form" onSubmit={handleSubmit}>
         <label htmlFor={queryId} className="visually-hidden">
           Words to search for

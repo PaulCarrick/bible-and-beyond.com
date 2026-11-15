@@ -116,6 +116,12 @@ class SiteUserForm extends FormBase {
       '#default_value' => $user['use_conversations'] ?? FALSE,
       '#description' => $this->t('Lets this visitor read, write and search the members\' posts on the Conversations page (when logged in). Off unless turned on here.'),
     ];
+    $form['use_maps'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Maps: own notes, pins and routes'),
+      '#default_value' => $user['use_maps'] ?? FALSE,
+      '#description' => $this->t('Lets this visitor add their own notes, pins and routes to the maps (when logged in), and share them with other members who have this ticked. Off unless turned on here.'),
+    ];
     $form['see_private_prayers'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Gets private prayer requests'),
@@ -177,6 +183,7 @@ class SiteUserForm extends FormBase {
     $openAiQueries = (bool) $form_state->getValue('open_ai_queries');
     $useConversations = (bool) $form_state->getValue('use_conversations');
     $seePrivatePrayers = (bool) $form_state->getValue('see_private_prayers');
+    $useMaps = (bool) $form_state->getValue('use_maps');
     $profile = [
       'first_name' => trim((string) $form_state->getValue('first_name')),
       'last_name' => trim((string) $form_state->getValue('last_name')),
@@ -184,11 +191,11 @@ class SiteUserForm extends FormBase {
     ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile);
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps);
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps);
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email']]));

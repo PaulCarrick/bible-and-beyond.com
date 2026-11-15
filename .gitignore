@@ -55,6 +55,7 @@ ml-service/data/music/
 ml-service/data/site-icons/
 ml-service/data/library-images/
 ml-service/data/library-pages/
+ml-service/data/maps/
 
 # The production snapshot for the containers (personal data: accounts, notes, the email password; never commit)
 docker/snapshot/

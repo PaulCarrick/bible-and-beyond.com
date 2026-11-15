@@ -7,9 +7,9 @@ administrator, and the exit status is not 0.
     manage_users.py list [--query=part-of-an-address-or-name] [--page=1]
     manage_users.py get --id=7
     manage_users.py create --email=ann@example.com [--first-name=Ann] [--last-name=Lee] [--phone=...]
-                           [--email-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] --password-on-input
+                           [--email-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] --password-on-input
     manage_users.py update --id=7 [--email=...] [--first-name=...] [--last-name=...] [--phone=...]
-                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no]
+                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no] [--use-maps=yes|no]
                            [--password-on-input]
 
 An empty --first-name=, --last-name= or --phone= on update clears it; leaving the option out keeps it.
@@ -53,6 +53,7 @@ def parse_arguments():
   create.add_argument("--open-ai-queries", action="store_true")
   create.add_argument("--use-conversations", action="store_true")
   create.add_argument("--see-private-prayers", action="store_true")
+  create.add_argument("--use-maps", action="store_true")
   create.add_argument("--password-on-input", action="store_true")
   update = commands.add_parser("update")
   update.add_argument("--id", type=int, required=True)
@@ -64,6 +65,7 @@ def parse_arguments():
   update.add_argument("--open-ai-queries", type=yes_or_no)
   update.add_argument("--use-conversations", type=yes_or_no)
   update.add_argument("--see-private-prayers", type=yes_or_no)
+  update.add_argument("--use-maps", type=yes_or_no)
   update.add_argument("--password-on-input", action="store_true")
   return parser.parse_args()
 
@@ -92,6 +94,7 @@ def run(arguments) -> dict:
       phone=arguments.phone,
       use_conversations=arguments.use_conversations,
       see_private_prayers=arguments.see_private_prayers,
+      use_maps=arguments.use_maps,
     )
     return {"ok": True, "user": user}
   password = read_password() if arguments.password_on_input else None
@@ -106,6 +109,7 @@ def run(arguments) -> dict:
     phone=arguments.phone,
     use_conversations=arguments.use_conversations,
     see_private_prayers=arguments.see_private_prayers,
+    use_maps=arguments.use_maps,
   )
   return {"ok": True, "user": user}
 

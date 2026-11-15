@@ -116,7 +116,7 @@ def check_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str
 _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
-  users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL
+  users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps
 """
 
 
@@ -137,6 +137,8 @@ def _describe_user(row) -> dict:
     "phone_is_cell": row[8],
     "sms_opt_in": row[9],
     "sms_stopped": row[10],
+    # use_maps: an administrator allowed this account its own notes, pins and routes on the maps (map_marks.py).
+    "use_maps": row[11],
   }
 
 
