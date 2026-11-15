@@ -2856,3 +2856,75 @@ select:disabled {
 .music-reorder-list li.is-dragging .music-drag-handle {
   cursor: grabbing;
 }
+
+/* The privacy page (PrivacyPage.tsx): the date line and the table of outside services, which scrolls inside
+   the column on a phone rather than widening the page. */
+.privacy-page p,
+.privacy-page ul {
+  margin: 0 0 0.75rem;
+}
+
+.privacy-updated {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.privacy-table-wrapper {
+  overflow-x: auto;
+}
+
+.privacy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.privacy-table th,
+.privacy-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.privacy-table thead th {
+  color: var(--text-h);
+  border-bottom-width: 2px;
+}
+
+.privacy-table tbody th {
+  color: var(--text-h);
+  min-width: 9rem;
+}
+
+/* On a phone the three columns are too narrow to read, so each service becomes a block: its name, then
+   "What is sent" and "When", each with its label. */
+@media (max-width: 600px) {
+  .privacy-table thead {
+    display: none;
+  }
+
+  .privacy-table tr,
+  .privacy-table th,
+  .privacy-table td {
+    display: block;
+  }
+
+  .privacy-table tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .privacy-table th,
+  .privacy-table td {
+    padding: 0.15rem 0;
+    border-bottom: none;
+  }
+
+  .privacy-table td::before {
+    content: attr(data-label) ': ';
+    font-weight: 600;
+    color: var(--text-h);
+  }
+}

@@ -1,0 +1,167 @@
+import type { ReactNode } from 'react'
+import type { View } from './views'
+
+interface PrivacyPageProps {
+  onNavigate: (view: View) => void
+}
+
+// What is sent to each outside service and when. Keep it true when a service is added or removed
+// (see "Privacy page" in CLAUDE.md).
+const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[] = [
+  {
+    service: 'Google Gemini (AI)',
+    whatIsSent: 'The words of the question or search only: never your name or email address',
+    when: 'When you open an FAQ answer, ask your own question, or use an AI search',
+  },
+  {
+    service: 'Google reCAPTCHA',
+    whatIsSent: 'Information about your browser and device, so Google can tell people from spam robots',
+    when: 'On the Contact page only',
+  },
+  {
+    service: 'Google Ads (Google Tag Manager)',
+    whatIsSent: 'Which pages you visit, with Google’s cookies',
+    when: 'On every page of the site',
+  },
+  {
+    service: 'API.Bible',
+    whatIsSent:
+      'A report that a licensed Bible passage was shown, with a random number kept in your browser that does not identify you',
+    when: 'When you view the NIV, NASB or The Message (their licence requires it)',
+  },
+  {
+    service: 'Internet Archive',
+    whatIsSent: 'Your search words, sent by our server, not by your browser',
+    when: 'When you choose “Search the Internet Archive”',
+  },
+  {
+    service: 'Our email provider',
+    whatIsSent: 'Your email address and the message',
+    when: 'Contact messages, account emails and daily devotionals',
+  },
+]
+
+// The site's privacy and security statement (added 2026-11-15 at the owner's request; "Privacy" under About).
+function PrivacyPage({ onNavigate }: PrivacyPageProps) {
+  return (
+    <div className="welcome privacy-page">
+      <h1>Privacy and security</h1>
+      <p className="privacy-updated">Last updated: November 15, 2026</p>
+      <p>
+        Bible and Beyond is a non-commercial website. This page explains what we collect, who can see it, and what
+        we send to other services.
+      </p>
+
+      <h2>Our promise</h2>
+      <p>
+        <strong>
+          We do not sell your personal information, and we do not share or disclose it on purpose, except as
+          described on this page or when the law requires it.
+        </strong>
+      </p>
+
+      <h2>You do not need an account</h2>
+      <p>You can read, search and listen without an account or any personal information.</p>
+
+      <h2>What we keep if you set up an account</h2>
+      <ul>
+        <li>
+          <strong>Your email address and password.</strong> We never store your password itself, only a scrambled
+          version of it that cannot be turned back into the password.
+        </li>
+        <li>
+          <strong>Your first name, last name and phone number,</strong> if you choose to give them. All three are
+          optional.
+        </li>
+        <li>
+          <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
+        </li>
+        <li>
+          <strong>One login cookie</strong> that keeps you logged in. It is needed for the site to work, lasts 30
+          days, and is removed when you log out.
+        </li>
+      </ul>
+
+      <h2>What other people can see</h2>
+      <ul>
+        <li>
+          <strong>Conversations and Prayer Wall posts and replies are public.</strong> Anyone who visits the site
+          can read them, including people without an account, and your first and last name are shown with each
+          post. We ask search engines not to list those pages, but we cannot promise every search engine will
+          follow that request. Please do not post anything you want to keep private.
+        </li>
+        <li>
+          <strong>The site administrators</strong> can see account details, and can read and remove posts, so
+          they can run and protect the site.
+        </li>
+      </ul>
+
+      <h2>What we send to other services</h2>
+      <div className="privacy-table-wrapper">
+        <table className="privacy-table">
+          <thead>
+            <tr>
+              <th scope="col">Service</th>
+              <th scope="col">What is sent</th>
+              <th scope="col">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outsideServices.map((entry) => (
+              <tr key={entry.service}>
+                <th scope="row">{entry.service}</th>
+                <td data-label="What is sent">{entry.whatIsSent}</td>
+                <td data-label="When">{entry.when}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        These companies handle what they receive under their own privacy policies. Google’s is at{' '}
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
+          policies.google.com/privacy
+        </a>
+        .
+      </p>
+      <p>
+        <strong>About AI queries:</strong> we never put your name or email address in an AI request, and we do not
+        log what you typed. We keep a copy of AI answers so we do not have to ask again, but the search itself is
+        stored only as a scrambled code, not as words. Please do not type personal details into a question.
+      </p>
+
+      <h2>Security</h2>
+      <ul>
+        <li>The whole site uses an encrypted connection (HTTPS).</li>
+        <li>Passwords are stored only in scrambled form, and login cookies cannot be read by scripts on the page.</li>
+        <li>Limits on requests slow down anyone trying to guess passwords or flood the site with spam.</li>
+        <li>Backups are kept privately by the site owner.</li>
+      </ul>
+      <p>No website can promise perfect security, but we work to protect what you trust us with.</p>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li>You can stop daily emails with the link at the bottom of any email.</li>
+        <li>
+          To delete your account and everything stored with it, or to ask what we hold about you, use the{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
+            Contact
+          </button>{' '}
+          page.
+        </li>
+        <li>
+          You can block or delete cookies in your browser. The site still works without them, but you will not be
+          able to log in.
+        </li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>This site is not meant for children under 13, and we do not knowingly collect their information.</p>
+
+      <h2>Changes</h2>
+      <p>If we change this page, we will update the date at the top.</p>
+    </div>
+  )
+}
+
+export default PrivacyPage

@@ -762,7 +762,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false }: HelpPageProps)
           </button>
           ). Enter your name, your email address (so we can reply), a phone number if you like, and your message, and
           press <em>Send Message</em>. The form is protected from spam by Google reCAPTCHA, which works in the
-          background: there is no box to tick.
+          background: there is no box to tick. What the site keeps about you, and what it sends to other services, is
+          on the <PageLink onNavigate={onNavigate} view="privacy">Privacy</PageLink> page.
         </p>
         <Screenshot
           name="contact"
