@@ -174,6 +174,14 @@ def test_search_finds_title_keywords_description_and_a_verse(tmp_path):
   assert "test-map-journey" in ids("Acts 13:9")
   assert "test-map-journey" not in ids("Acts 15:1")
   assert "test-map-journey" not in ids("journey zebra")
+  # A search that is only verses finds the maps of those verses and nothing more: "Acts 1:6-10" has the words
+  # "Acts", "6" and "10" but is not a map of Acts 6:10.
+  maps.upload(picture(tmp_path), "map.png", "test-map-ascension", {**DETAILS, "title": "Acts 1:6-10", "verses": "Acts 1:6-10", "keywords": ""})
+  maps.set_published("test-map-ascension", True)
+  assert "test-map-ascension" in ids("Acts 1:7")
+  assert "test-map-ascension" not in ids("ACTS 6:10") and "test-map-ascension" not in ids("Acts 13:9")
+  assert ids("Acts 13:9; John 3:16")[:1] == ["test-map-journey"]
+  assert ids("Acts 6:99") == []
   assert "test-map-journey" in ids("journey zebra", "any")
 
 

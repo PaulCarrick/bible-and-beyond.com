@@ -456,11 +456,17 @@ def search_maps(query: str, match_mode: str, page: int, per_page: int) -> dict:
   """Search the published maps' titles, keywords, descriptions, verses and sources, best match first.
 
   The same matching as the songs (words in any form, all words, any word or an exact phrase). A query that names a
-  verse ("Acts 13:4") also finds the maps linked to that verse, first. Each result has an excerpt of the
+  verse ("Acts 13:4") also finds the maps linked to that verse, first; a query that is only verses ("Acts 6:10",
+  "Acts 6:10; John 3:16") finds only those maps, since its words and numbers would also match maps of other verses
+  ("Acts 1:6-10" has "Acts", "6" and "10"). Each result has an excerpt of the
   description (or the title), with the words found wrapped in \\u0001 and \\u0002.
   """
   named = parse_query_verses(query)
-  terms = parse_terms(query, match_mode)
+  only_verses = PATTERN.search(query) is not None and _only_verses(query)
+  terms = [] if only_verses else parse_terms(query, match_mode)
+  if only_verses and not named:
+    # Verses that do not exist (Acts 6:99): no map goes with them.
+    return {"query": query, "terms": [], "total": 0, "page": page, "per_page": per_page, "results": []}
   if not terms and not named:
     raise ValueError("Enter at least one word or phrase to search for.")
   joiner = " || " if match_mode == "any" else " && "
@@ -499,6 +505,12 @@ def search_maps(query: str, match_mode: str, page: int, per_page: int) -> dict:
       for map_id, title, verses_text, width, height, updated_at, excerpt in rows
     ],
   }
+
+
+def _only_verses(query: str) -> bool:
+  """Whether a search is nothing but verse references (with commas, semicolons or "and" between them)."""
+  rest = PATTERN.sub(" ", query)
+  return re.fullmatch(r"[\s,;&.]*((and)[\s,;&.]*)*", rest, re.IGNORECASE) is not None
 
 
 def parse_query_verses(query: str) -> list[tuple[int, int, int]]:
