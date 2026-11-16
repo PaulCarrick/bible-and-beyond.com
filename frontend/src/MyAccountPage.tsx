@@ -27,6 +27,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
   const [phoneIsCell, setPhoneIsCell] = useState(user?.phone_is_cell ?? false)
   const [sendViaEmail, setSendViaEmail] = useState(user?.send_via_email ?? true)
   const [sendViaSms, setSendViaSms] = useState(user?.send_via_sms ?? false)
+  const [sendMultimedia, setSendMultimedia] = useState(user?.send_multimedia ?? false)
   // The verse a day: undefined while loading.
   const [verseLoaded, setVerseLoaded] = useState<boolean | undefined>(undefined)
   const [verseADay, setVerseADay] = useState(false)
@@ -93,7 +94,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
     const hasPhone = phone.trim() !== ''
     try {
       const choice = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms)
-      const saved = await savePhone(phone, hasPhone && phoneIsCell, choice.sendViaEmail, choice.sendViaSms)
+      const saved = await savePhone(phone, hasPhone && phoneIsCell, choice.sendViaEmail, choice.sendViaSms, sendMultimedia)
       if (verseADay) {
         await saveVerseSubscription(verseTime, timeZone)
       } else if (verseLoaded) {
@@ -105,6 +106,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
       setPhoneIsCell(saved.phone_is_cell)
       setSendViaEmail(saved.send_via_email)
       setSendViaSms(saved.send_via_sms)
+      setSendMultimedia(saved.send_multimedia)
       setMessage(
         saved.sms_opt_in && !user?.sms_opt_in
           ? 'Saved. Texts are on: we have sent a text to confirm.'
@@ -149,9 +151,11 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
           phoneIsCell={phoneIsCell}
           sendViaEmail={sendViaEmail}
           sendViaSms={sendViaSms}
+          sendMultimedia={sendMultimedia}
           onPhoneIsCellChange={setPhoneIsCell}
           onSendViaEmailChange={setSendViaEmail}
           onSendViaSmsChange={setSendViaSms}
+          onSendMultimediaChange={setSendMultimedia}
         />
         {verseLoaded !== undefined && (
           <VerseADayChoice

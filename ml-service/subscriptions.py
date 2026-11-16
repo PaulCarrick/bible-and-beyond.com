@@ -20,6 +20,7 @@ from contact import MailUnavailable, load_mail_settings, send_email
 from devotionals import get_unit
 from search import connect
 from site_settings import get_public_settings
+import message_cards
 import sms
 
 logger = logging.getLogger("subscriptions")
@@ -207,7 +208,7 @@ def unsubscribe_with_token(token: str) -> str:
 # --- sending ---------------------------------------------------------------------------------------------
 
 
-def compose_email(settings: dict, address: str, name: str, reading: dict, token: str, is_last: bool) -> EmailMessage:
+def compose_email(settings: dict, address: str, name: str, reading: dict, token: str, is_last: bool, card=None) -> EmailMessage:
   title = get_public_settings()["title"]
   parts = [f"{name}: {reading['title']}", ""]
   for entry in reading["entries"]:
@@ -231,6 +232,9 @@ def compose_email(settings: dict, address: str, name: str, reading: dict, token:
   email["List-Unsubscribe"] = f"<{one_click}>"
   email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
   email.set_content("\n".join(parts) + "\n")
+  if card is not None:
+    # Send Multimedia Messages: the reading's opening words as a picture above the text (message_cards.py).
+    message_cards.attach_to_email(email, card, f"{name}: {reading['title']}")
   return email
 
 
@@ -252,7 +256,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       rows = connection.execute(
         """
         SELECT s.id, s.devotional_id, d.name, d.kind, s.send_time, s.timezone, s.next_section, s.next_unit,
-               s.last_sent_on, s.attempts_on, s.attempts, s.unsubscribe_token, u.email, u.id
+               s.last_sent_on, s.attempts_on, s.attempts, s.unsubscribe_token, u.email, u.id, u.send_multimedia
         FROM devotional_subscriptions s
         JOIN users u ON u.id = s.user_id
         JOIN devotionals d ON d.id = s.devotional_id AND d.is_published AND d.collection = 'devotionals'
@@ -262,7 +266,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       ).fetchall()
     settings = None
     for (sub_id, devotional_id, name, kind, send_time, zone_name, next_section, next_unit, last_sent_on,
-         attempts_on, attempts, token, address, user_id) in rows:
+         attempts_on, attempts, token, address, user_id, multimedia) in rows:
       if result["sent"] + result["failed"] >= EMAILS_PER_RUN:
         break
       try:
@@ -288,16 +292,18 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       if claimed is None:
         continue
       is_last = kind == "chapters" and reading["next"] is None
+      # Send Multimedia Messages: the reading's opening words over a picture (None without pictures).
+      card = message_cards.make_card(*message_cards.devotional_words(reading)) if multimedia else None
 
       def send_the_email():
         nonlocal settings
         if settings is None:
           settings = load_mail_settings()
-        send_email(settings, compose_email(settings, address, name, reading, token, is_last))
+        send_email(settings, compose_email(settings, address, name, reading, token, is_last, card))
 
       try:
         # By email, text or both, as the member chose (sms.deliver); a short text has a link to the reading.
-        sms.deliver(user_id, send_the_email, f"{name}: {reading['title']}. Read it at", sms.site_address("/devotionals"))
+        sms.deliver(user_id, send_the_email, f"{name}: {reading['title']}. Read it at", sms.site_address("/devotionals"), card)
       except Exception as problem:  # the mail server, drush or anything else: never stop the run, never lose the day
         logger.error("Devotional %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
         with connect() as connection:

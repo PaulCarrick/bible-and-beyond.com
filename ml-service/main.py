@@ -25,6 +25,7 @@ from accounts import (
   user_for_token,
   verify_email,
 )
+import message_cards
 import sms
 import verse_a_day
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
@@ -663,6 +664,19 @@ def maps_file(map_id: str, which: Literal["display", "thumbnail"]):
   return FileResponse(path, media_type=media_type, headers=headers)
 
 
+@app.get("/message-card/{name}")
+def message_card(name: str):
+  """A picture message card (message_cards.py): the verse or reading over a picture, under a random name that
+  only its message carries. Telnyx fetches it to send an MMS. Kept KEEP_DAYS days, then deleted."""
+  path = message_cards.card_file(name)
+  if path is None:
+    raise HTTPException(status_code=404, detail="That picture was not found.")
+  headers = {
+    "Cache-Control": "public, max-age=604800", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex",
+  }
+  return FileResponse(path, media_type="image/jpeg", headers=headers)
+
+
 @app.get("/search-maps")
 def search_the_maps(
   query: str = Query(min_length=1, max_length=500),
@@ -802,6 +816,8 @@ class RegisterRequest(BaseModel):
   phone_is_cell: bool = False
   send_via_email: bool = True
   send_via_sms: bool = False
+  # Send Multimedia Messages: the verse a day and the devotionals as a picture (message_cards.py).
+  send_multimedia: bool = False
   # A verse a day (verse_a_day.py): its time of day in the visitor's own time zone (an IANA name).
   verse_a_day: bool = False
   verse_time: str = "07:00"
@@ -840,7 +856,7 @@ def account_register(body: RegisterRequest, request: Request, response: Response
   try:
     created = create_account(
       body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone,
-      body.phone_is_cell, body.send_via_sms, body.send_via_email,
+      body.phone_is_cell, body.send_via_sms, body.send_via_email, body.send_multimedia,
     )
     user, token = log_in(body.email, body.password)
   except AccountProblem as problem:
@@ -861,6 +877,8 @@ class PhoneRequest(BaseModel):
   phone_is_cell: bool = False
   send_via_email: bool = True
   send_via_sms: bool = False
+  # Send Multimedia Messages; left as it is when not sent.
+  send_multimedia: bool | None = None
 
 
 @app.put("/account/phone")
@@ -870,7 +888,7 @@ def account_phone(body: PhoneRequest, request: Request, background: BackgroundTa
   user = require_user(request, "Please log in to change your account.")
   try:
     changed, welcome_number = update_phone(
-      user["id"], body.phone, body.phone_is_cell, body.send_via_sms, body.send_via_email
+      user["id"], body.phone, body.phone_is_cell, body.send_via_sms, body.send_via_email, body.send_multimedia
     )
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))

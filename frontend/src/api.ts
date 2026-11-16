@@ -568,6 +568,7 @@ export function registerAccount(account: NewAccount) {
     phone_is_cell: account.phoneIsCell,
     send_via_email: account.sendViaEmail,
     send_via_sms: account.sendViaSms,
+    send_multimedia: account.sendMultimedia,
     verse_a_day: account.verseADay,
     verse_time: account.verseTime,
     timezone: account.timezone,
@@ -601,12 +602,14 @@ export async function savePhone(
   phoneIsCell: boolean,
   sendViaEmail: boolean,
   sendViaSms: boolean,
+  sendMultimedia: boolean,
 ): Promise<AccountUser> {
   const user = await accountRequest('phone', 'PUT', {
     phone,
     phone_is_cell: phoneIsCell,
     send_via_email: sendViaEmail,
     send_via_sms: sendViaSms,
+    send_multimedia: sendMultimedia,
   })
   if (!user) {
     throw new Error('Please log in again.')

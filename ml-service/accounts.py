@@ -117,7 +117,7 @@ _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
   users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
-  users.send_via_email, users.send_via_sms
+  users.send_via_email, users.send_via_sms, users.send_multimedia
 """
 
 
@@ -143,6 +143,8 @@ def _describe_user(row) -> dict:
     # How the member's notices reach them (sms.deliver): by email, by text or both (at least one is on).
     "send_via_email": row[12],
     "send_via_sms": row[13],
+    # Send Multimedia Messages: the verse a day and the devotionals come as a picture (message_cards.py).
+    "send_multimedia": row[14],
   }
 
 
@@ -174,6 +176,7 @@ def create_account(
   phone_is_cell: bool = False,
   send_via_sms: bool = False,
   send_via_email: bool = True,
+  send_multimedia: bool = False,
 ) -> dict:
   email = normalize_email(email)
   first_name, last_name, phone = check_profile(first_name, last_name, phone)
@@ -186,13 +189,13 @@ def create_account(
         f"""
         INSERT INTO users
           (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_consent_at,
-           send_via_email, send_via_sms)
-        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END, %s, %s)
+           send_via_email, send_via_sms, send_multimedia)
+        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END, %s, %s, %s)
         RETURNING {_USER_COLUMNS}
         """,
         (
           email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, send_via_sms, send_via_sms,
-          send_via_email, send_via_sms,
+          send_via_email, send_via_sms, bool(send_multimedia),
         ),
       ).fetchone()
   except psycopg.errors.UniqueViolation:
@@ -201,7 +204,8 @@ def create_account(
 
 
 def update_phone(
-  user_id: int, phone: str, phone_is_cell: bool, send_via_sms: bool, send_via_email: bool = True
+  user_id: int, phone: str, phone_is_cell: bool, send_via_sms: bool, send_via_email: bool = True,
+  send_multimedia: bool | None = None,
 ) -> tuple[dict, str | None]:
   """Changes a member's phone number and how their notices reach them (the My account page). Returns the account
   and, when texts were just turned on (or moved to a new number), the number to send the welcome text to."""
@@ -215,12 +219,13 @@ def update_phone(
         sms_opt_in = %(opt_in)s,
         sms_consent_at = CASE WHEN %(opt_in)s THEN now() ELSE sms_consent_at END,
         sms_stopped_at = CASE WHEN %(opt_in)s THEN NULL ELSE sms_stopped_at END,
-        send_via_email = %(by_email)s, send_via_sms = %(opt_in)s
+        send_via_email = %(by_email)s, send_via_sms = %(opt_in)s,
+        send_multimedia = COALESCE(%(multimedia)s, send_multimedia)
       WHERE id = %(user)s RETURNING {_USER_COLUMNS}
       """,
       {
         "phone": phone, "cell": phone_is_cell, "number": sms_number, "opt_in": sms_opt_in, "by_email": send_via_email,
-        "user": user_id,
+        "multimedia": send_multimedia, "user": user_id,
       },
     ).fetchone()
   newly_on = sms_opt_in and (before is None or not before[0] or before[1] != sms_number)

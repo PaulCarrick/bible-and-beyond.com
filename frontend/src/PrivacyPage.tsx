@@ -36,7 +36,7 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
   },
   {
     service: 'Telnyx (text messages)',
-    whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, or your verse a day)',
+    whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, or your verse a day), and with picture messages the address of the picture',
     when: 'Only if you ticked “Send via SMS”; never otherwise',
   },
   {
@@ -76,8 +76,13 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         </li>
         <li>
           <strong>Your first name, last name and phone number,</strong> if you choose to give them. All three are
-          optional. We keep whether you want your messages by email, by text or both; if you ask for text messages, we
-          also keep when you agreed to them and whether you replied STOP.
+          optional. We keep whether you want your messages by email, by text or both, and as pictures; if you ask for
+          text messages, we also keep when you agreed to them and whether you replied STOP.
+        </li>
+        <li>
+          <strong>Picture messages,</strong> if you ask for them: each picture (a verse or a devotional&rsquo;s opening
+          words over a photograph; nothing about you) is kept on our server for seven days at an address that cannot be
+          guessed, so that the text message service can fetch it, and then deleted.
         </li>
         <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.

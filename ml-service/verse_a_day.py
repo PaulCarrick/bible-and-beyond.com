@@ -24,6 +24,7 @@ from accounts import site_link
 from contact import MailUnavailable, load_mail_settings, send_email
 from search import connect
 from site_settings import get_public_settings
+import message_cards
 import sms
 from subscriptions import ATTEMPTS_PER_DAY, EMAILS_PER_RUN, PAUSE_BETWEEN_EMAILS, check_timezone, parse_time
 
@@ -137,7 +138,7 @@ def verse_link(verse: dict) -> str:
 # --- sending -----------------------------------------------------------------------------------------------
 
 
-def compose_email(settings: dict, address: str, verse: dict, token: str) -> EmailMessage:
+def compose_email(settings: dict, address: str, verse: dict, token: str, card=None) -> EmailMessage:
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
@@ -163,6 +164,9 @@ def compose_email(settings: dict, address: str, verse: dict, token: str) -> Emai
     )
     + "\n"
   )
+  if card is not None:
+    # Send Multimedia Messages: the verse as a picture above the text (message_cards.py).
+    message_cards.attach_to_email(email, card, f"{verse['text']} {verse['reference']}")
   return email
 
 
@@ -179,7 +183,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
       rows = connection.execute(
         """
         SELECT s.id, s.send_time, s.timezone, s.last_sent_on, s.last_verse, s.attempts_on, s.attempts,
-               s.unsubscribe_token, u.email, u.id
+               s.unsubscribe_token, u.email, u.id, u.send_multimedia
         FROM verse_subscriptions s JOIN users u ON u.id = s.user_id
         WHERE u.email_verified_at IS NOT NULL
         ORDER BY s.id
@@ -187,7 +191,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
       ).fetchall()
       pool = verse_pool(connection) if rows else []
     settings = None
-    for sub_id, send_time, zone_name, last_sent_on, last_verse, attempts_on, attempts, token, address, user_id in rows:
+    for sub_id, send_time, zone_name, last_sent_on, last_verse, attempts_on, attempts, token, address, user_id, multimedia in rows:
       if result["sent"] + result["failed"] >= EMAILS_PER_RUN:
         break
       try:
@@ -212,15 +216,18 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
         ).fetchone()
       if claimed is None:
         continue
+      # Send Multimedia Messages: the verse over a picture, in the email and with the text (None without pictures).
+      card = message_cards.make_card(verse["text"], f"{verse['reference']} ({verse['translation']})") if multimedia else None
+
       def send_the_email():
         nonlocal settings
         if settings is None:
           settings = load_mail_settings()
-        send_email(settings, compose_email(settings, address, verse, token))
+        send_email(settings, compose_email(settings, address, verse, token, card))
 
       try:
         # By email, text or both, as the member chose (sms.deliver).
-        sms.deliver(user_id, send_the_email, f"{verse['reference']}: {verse['text']}", verse_link(verse))
+        sms.deliver(user_id, send_the_email, f"{verse['reference']}: {verse['text']}", verse_link(verse), card)
       except Exception as problem:  # never stop the run; try again at the next one
         logger.error("Verse %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
         with connect() as connection:

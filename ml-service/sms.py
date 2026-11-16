@@ -103,15 +103,20 @@ def _turn_off(number: str, reason: str) -> None:
   logger.info("Texts turned off for a member (%s)", reason)
 
 
-def send_text(number: str, text: str) -> bool:
-  """Sends one text. True when Telnyx took it. A number that replied STOP is turned off here too."""
+def send_text(number: str, text: str, media_url: str | None = None) -> bool:
+  """Sends one text, or a picture message (MMS) with the text when media_url is given (a public address Telnyx
+  fetches the picture from; message_cards.py). True when Telnyx took it. A number that replied STOP is turned
+  off here too."""
   if not is_configured():
     return False
+  message = {"from": get_setting("telnyx_from_number"), "to": number, "text": text}
+  if media_url:
+    message["media_urls"] = [media_url]
   try:
     response = httpx.post(
       TELNYX_MESSAGES,
       headers={"Authorization": f"Bearer {get_setting('telnyx_api_key')}"},
-      json={"from": get_setting("telnyx_from_number"), "to": number, "text": text},
+      json=message,
       timeout=TIMEOUT_SECONDS,
     )
   except httpx.HTTPError as problem:
@@ -158,10 +163,11 @@ def delivery_for_user(connection, user_id: int) -> tuple[bool, str | None]:
   return bool(by_email or number is None), number
 
 
-def deliver(user_id: int, send_the_email, words: str, link: str = "") -> dict:
+def deliver(user_id: int, send_the_email, words: str, link: str = "", picture=None) -> dict:
   """Sends one notice the way the member chose. send_the_email() sends the email and raises if it cannot. Raises
   when the notice reached the member by no way they chose, so the caller can try again; a text that fails beside
-  an email that went is only logged. Returns {"email": sent?, "text": sent?}."""
+  an email that went is only logged. With a picture (a message_cards.MessageCard) the text goes as an MMS with
+  it. Returns {"email": sent?, "text": sent?}."""
   with connect() as connection:
     by_email, number = delivery_for_user(connection, user_id)
   sent = {"email": False, "text": False}
@@ -170,7 +176,10 @@ def deliver(user_id: int, send_the_email, words: str, link: str = "") -> dict:
     sent["email"] = True
   if number:
     try:
-      sent["text"] = send_text(number, compose(words, link))
+      if picture is not None:
+        sent["text"] = send_text(number, compose(words, link), picture.url)
+      else:
+        sent["text"] = send_text(number, compose(words, link))
     except Exception as problem:
       logger.error("Text for member %s not sent: %s", user_id, type(problem).__name__)
     if not sent["text"] and not by_email:

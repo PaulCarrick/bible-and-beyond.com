@@ -13,6 +13,7 @@ ml-service/data/library-images/
 ml-service/data/library-pages/
 ml-service/data/maps/
 ml-service/data/verse-images/
+ml-service/data/message-cards/
 drupal/web/sites/*/settings.local.php
 drupal/web/sites/*/files/
 # Built or downloaded on this machine, rebuilt inside the image:

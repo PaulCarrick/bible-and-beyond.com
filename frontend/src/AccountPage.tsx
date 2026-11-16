@@ -29,6 +29,7 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const [phoneIsCell, setPhoneIsCell] = useState(false)
   const [sendViaEmail, setSendViaEmail] = useState(true)
   const [sendViaSms, setSendViaSms] = useState(false)
+  const [sendMultimedia, setSendMultimedia] = useState(false)
   const [verseADay, setVerseADay] = useState(false)
   const [verseTime, setVerseTime] = useState('07:00')
   const [timeZone, setTimeZone] = useState(ownTimeZone)
@@ -72,6 +73,7 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
                 phone,
                 phoneIsCell: phone.trim() !== '' && phoneIsCell,
                 ...deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms),
+                sendMultimedia,
                 verseADay,
                 verseTime,
                 timezone: timeZone,
@@ -171,9 +173,11 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
               phoneIsCell={phoneIsCell}
               sendViaEmail={sendViaEmail}
               sendViaSms={sendViaSms}
+              sendMultimedia={sendMultimedia}
               onPhoneIsCellChange={setPhoneIsCell}
               onSendViaEmailChange={setSendViaEmail}
               onSendViaSmsChange={setSendViaSms}
+              onSendMultimediaChange={setSendMultimedia}
             />
           )}
           {mode === 'register' && (

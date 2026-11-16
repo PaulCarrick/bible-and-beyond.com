@@ -789,6 +789,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           email.
         </p>
         <p>
+          <strong>Picture messages.</strong> Tick <em>Send Multimedia Messages</em> (in the same place) to get the
+          verse a day and the daily devotional as a picture: the verse, or the reading&rsquo;s opening words, written in
+          large lettering over a photograph chosen at random. The picture comes at the top of the email and, if you get
+          texts, as a picture message (MMS) with the text; your carrier may charge more for picture messages. The
+          prayer list and reply notices stay as words.
+        </p>
+        <p>
           <strong>Text messages.</strong> <em>Send via SMS</em> can be ticked only once you give a US or Canadian
           phone number (it is written as +1 (555) 123-4567 as you type) and tick <em>This is a cell (mobile)
           number</em>; until then it is greyed out. You get a welcome text to confirm. A text is short, with a link to

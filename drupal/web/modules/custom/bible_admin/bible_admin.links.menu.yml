@@ -76,7 +76,7 @@ bible_admin.maps:
 
 bible_admin.verse_images:
   title: 'Verse a day pictures'
-  description: 'Upload pictures for the verse a day picture messages; they are not shown on the site.'
+  description: 'Upload the backgrounds of the picture messages (verse a day and devotionals); they are not shown on the site.'
   route_name: bible_admin.verse_images
   parent: system.admin
   weight: -5

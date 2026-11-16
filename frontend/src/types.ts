@@ -427,6 +427,8 @@ export interface AccountUser {
   // How the member's notices reach them (Send via Email, Send via SMS on My account): one or both.
   send_via_email: boolean
   send_via_sms: boolean
+  // Send Multimedia Messages: the verse a day and the devotionals as a picture.
+  send_multimedia: boolean
   // An administrator allowed this account its own notes, pins and routes on the maps; off unless set in Drupal.
   use_maps: boolean
 }
@@ -443,6 +445,7 @@ export interface NewAccount {
   // How messages reach the member: one or both (SMS needs a cell number; ticking it is the consent to texts).
   sendViaEmail: boolean
   sendViaSms: boolean
+  sendMultimedia: boolean
   // A verse a day: its time of day and the visitor's time zone.
   verseADay: boolean
   verseTime: string

@@ -28,7 +28,7 @@ class VerseImageListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('Pictures for the verse a day. They are not shown on the site: members who choose picture messages (coming later) will get the verse written over one of these, chosen at random from those in use. PNG, JPEG or WebP, up to @size MB each. A picture is in use as soon as it is uploaded; take it out of use to keep it without it being chosen. Only upload pictures you have the right to use. The files are kept in the verse images folder (ml-service/data/verse-images).', [
+        '#value' => $this->t('Pictures for the verse a day. They are not shown on the site: members who tick Send Multimedia Messages get the verse a day and the daily devotional written over one of these, chosen at random from those in use, in their email and picture texts. PNG, JPEG or WebP, up to @size MB each. A picture is in use as soon as it is uploaded; take it out of use to keep it without it being chosen. Only upload pictures you have the right to use. The files are kept in the verse images folder (ml-service/data/verse-images).', [
           '@size' => (int) (BibleManager::MAX_VERSE_IMAGE_BYTES / 1048576),
         ]),
       ],
