@@ -81,6 +81,12 @@ bible_admin.verse_images:
   parent: system.admin
   weight: -5
 
+bible_admin.guide:
+  title: 'Admin guide'
+  description: 'How to use the pages of this site: Bibles, books, music, maps, groups, users, settings and backups, with pictures.'
+  route_name: bible_admin.guide
+  parent: system.admin
+
 bible_admin.groups:
   title: 'Groups'
   description: 'Your groups of people: add and remove members, and send them a message, a verse card or a picture message by email and text.'

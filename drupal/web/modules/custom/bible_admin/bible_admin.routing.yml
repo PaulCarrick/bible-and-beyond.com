@@ -421,6 +421,16 @@ bible_admin.group_send:
     group_id: '\d+'
     kind: 'message|verse|picture'
 
+# The Admin guide (AdminGuideController, help/admin-guide.yml): open to anyone who can use one of this module's
+# screens; each of its sections shows only to those who can use that screen.
+bible_admin.guide:
+  path: '/admin/guide'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\AdminGuideController::build'
+    _title: 'Admin guide'
+  requirements:
+    _permission: 'administer bibles+administer site settings+administer site users+administer faq notes+administer backups+lead groups+administer groups'
+
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page
 # is driven by js/backup.js through the JSON routes below; the ones that change anything are POST only and

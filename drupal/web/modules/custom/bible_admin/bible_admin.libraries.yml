@@ -33,3 +33,8 @@ bulk_upload:
   dependencies:
     - core/drupal
     - core/once
+
+admin_guide:
+  css:
+    component:
+      css/admin-guide.css: {}

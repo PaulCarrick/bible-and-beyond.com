@@ -1,0 +1,285 @@
+# The Admin guide (/admin/guide; AdminGuideController). One section per screen of this module, in the order of the
+# contents. "permissions": the section shows only to someone with one of them (none: to everyone who can open the
+# guide). A picture is <img data-guide="name" alt="...">, for help/images/name.webp, taken from a local copy of
+# the site with made-up people (example.org) only. Keep each section true when its screen changes, and retake its
+# picture.
+
+intro: |
+  <p>How to use the pages that run the Bible and Beyond website: the Bibles, books, music and maps on the public
+  site, the pictures for messages, your groups, the members' accounts and posts, the settings, and backups. Drupal's
+  own pages (Content, Structure, Appearance and the like) are not covered here. Each section shows the screen as it
+  looks, with made-up people; click a picture to see it full size. You see only the sections for the pages you are
+  allowed to use.</p>
+
+sections:
+  - id: getting-around
+    title: Getting around
+    body: |
+      <p>Everything is in the menu on the left, in alphabetical order. The pages of this site are Admin guide (this
+      page), Backup and restore, Bibles, Christian music, Commentaries, Conversations and Prayer Wall, Devotionals,
+      FAQ notes, Groups, Maps, Other books, Site settings, Site users and Verse a day pictures. The others (Content,
+      Structure, Appearance and so on) belong to Drupal itself and are rarely needed.</p>
+      <figure><img data-guide="admin-menu" alt="The Administration page: the menu on the left in alphabetical order, starting with Admin guide, and the same list in the middle with a line about each page"><figcaption>The menu, and the Administration page that lists the same pages.</figcaption></figure>
+      <p><strong>Who sees what</strong> depends on the roles of your Drupal account (People, then Edit beside a name, then Roles):</p>
+      <ul>
+        <li><strong>Administrator</strong>: everything, Drupal included.</li>
+        <li><strong>Website administrator</strong>: every page of this site, but nothing of Drupal's own. Give this to the people who run the website.</li>
+        <li><strong>Bible administrator</strong>: Bibles, Commentaries, Devotionals, Other books, Christian music, Maps and Verse a day pictures, and on Site settings only the verse-window numbers.</li>
+        <li><strong>Group leader</strong>: only Groups, and only the groups they made (for example a deacon and the people in their care).</li>
+      </ul>
+      <p>To add someone, use People, then Add user: give them a user name, an email address (replies to their group
+      emails go there) and a first password, tick the role, and tell them the password privately. The site cannot
+      email it to them.</p>
+
+  - id: bibles
+    title: Bibles
+    permissions: ['administer bibles']
+    body: |
+      <p>The Bibles on the public site. Only <strong>published</strong> ones appear in the reader and the search; a
+      new one stays <strong>hidden</strong> until you publish it. The NIV, NASB and The Message come from API.Bible and
+      are not listed here. Click a column heading to sort the list; click again to reverse it.</p>
+      <figure><img data-guide="bibles" alt="The Bibles page: Upload a Bible and Site settings buttons, and a table of the Bibles with their code, name, language, licence, verses, status and a Hide button"><figcaption>The Bibles, with Hide (or Publish) and, in the arrow beside it, Delete.</figcaption></figure>
+      <p><strong>To add a Bible:</strong> click <em>Upload a Bible</em>, choose its text file (the Berean tab format or
+      an eBible <code>_vpl.txt</code> file), and give it a short code (such as KJV), its name, language and licence.
+      The next page is a <strong>check</strong>: the format found, how many books and verses, a few sample verses and
+      any warnings. Confirm to import it, or cancel. Uploading a code that is already there replaces its text and
+      keeps it published or hidden as it was.</p>
+      <figure><img data-guide="bible-upload" alt="Upload a Bible: the file, the code, name, language and licence, and the options"><figcaption>Upload a Bible. The check page comes next; nothing changes until you confirm.</figcaption></figure>
+      <p><strong>Publish, Hide and Delete</strong> each ask first. The last published Bible cannot be hidden or
+      deleted, so the site always has one.</p>
+
+  - id: books
+    title: Commentaries, Devotionals and Other books
+    permissions: ['administer bibles']
+    body: |
+      <p>These three pages work the same way. Each lists what the public site has, with its status and how many notes,
+      readings or chapters it holds.</p>
+      <figure><img data-guide="commentaries" alt="The Commentaries page: Upload a commentary, and a table of the commentaries with short name, source, number of notes and status"><figcaption>Commentaries. Devotionals and Other books look the same.</figcaption></figure>
+      <ul>
+        <li><strong>Publish / Hide</strong>: a hidden one disappears from the public site everywhere (the lists, the
+        searches, the reader) until you publish it again. Nothing is deleted.</li>
+        <li><strong>Edit</strong> (in the arrow menu): change its name, author and translator, where it came from (and
+        the address), its credit line and its <strong>keywords</strong> (words a visitor might search for that are not
+        in the text), without uploading it again.</li>
+        <li><strong>Refresh</strong>: for the ones the site knows how to fetch, downloads it again from its source in the
+        background (a few minutes).</li>
+        <li><strong>Delete</strong>: removes the text. Members' notes on it stay.</li>
+      </ul>
+      <figure><img data-guide="devotionals" alt="The Devotionals page, with the daily and chapter devotionals"><figcaption>Devotionals: daily ones (a reading for each date) and ones read chapter by chapter.</figcaption></figure>
+      <figure><img data-guide="books" alt="The Other books page with its drop area and list of books"><figcaption>Other books: books read a chapter at a time, such as Wesley's sermons or the Apostles' Creed.</figcaption></figure>
+      <p><strong>To upload one:</strong> click <em>Upload</em>. A <strong>PDF, Word document or EPUB ebook</strong> can be
+      uploaded as it is (its headings, bold, lists and pictures are kept); a scanned PDF is read by text recognition, so
+      check its words in the preview. A spreadsheet saved as tab-separated text works too, as the page explains. Give
+      it an id, a name, the author and where it came from, and for a devotional whether it is <em>daily</em> or <em>by
+      chapter</em>. The next page shows a <strong>preview</strong>; confirm to import it. It stays hidden until you
+      publish it. Only upload text that is in the public domain or that you have permission to publish.</p>
+      <figure><img data-guide="library-upload" alt="Upload a devotional: the file format explained, the PDF, Word and ebook notes, and the file field"><figcaption>Upload a devotional. The two boxes at the top explain the file formats.</figcaption></figure>
+      <figure><img data-guide="library-edit" alt="Edit the details of a book: name, author, source, credit and keywords"><figcaption>Edit the details, without uploading the text again.</figcaption></figure>
+
+  - id: music
+    title: Christian music
+    permissions: ['administer bibles']
+    body: |
+      <p>The songs and talks of the site's Christian media pages: an MP3 or MP4 file each, with the title, author,
+      words and keywords. A new song is hidden until you publish it, and the media section appears on the
+      site only once one is published.</p>
+      <figure><img data-guide="music" alt="The Christian music page with the drop area for several files and the list of songs"><figcaption>Christian music, with the drop area for several files at once (see below) and the list.</figcaption></figure>
+      <p><strong>Upload a song</strong> (or <em>Edit</em> one): the file, its title and author, keywords (words a
+      visitor might search for), and the words: typed in, or taken from a PDF, Word document or ebook, and if you
+      have one, <strong>the words as a PDF or picture</strong> (a scan of the hymnal page, shown in place of the typed
+      words).</p>
+      <figure><img data-guide="music-edit" alt="Edit a song: title, author, file, words, words file and keywords"><figcaption>Edit a song. A new file is optional when editing.</figcaption></figure>
+
+  - id: maps
+    title: Maps
+    permissions: ['administer bibles']
+    body: |
+      <p>Maps for the site's Maps pages: a picture (PNG, JPEG, WebP, GIF or TIFF) or one page of a PDF each, with a
+      title, a description, where it came from, keywords and the <strong>Bible verses</strong> it goes with. A new map
+      is hidden until you publish it.</p>
+      <figure><img data-guide="maps" alt="The Maps page: the drop area and a table with the map's title, verses, keywords, kind, size and status"><figcaption>Maps. The link under each title is its address on the site.</figcaption></figure>
+      <p><strong>Upload a map</strong> or <strong>Edit</strong>: type the verses as references separated by semicolons,
+      such as <em>Acts 13:4-14; Acts 14:26</em>. If one is not understood, the map is not saved and the message says
+      which. For a PDF, choose the page to show. Only upload maps that are in the public domain or that you have
+      permission to publish, and put the credit in <em>Where it came from</em>.</p>
+      <figure><img data-guide="map-edit" alt="Edit a map: file, page of a PDF, title, description, where it came from, keywords and verses"><figcaption>Edit a map.</figcaption></figure>
+      <p><strong>Delete</strong> also removes the members' own notes, pins and routes on that map; the question
+      before it says how many.</p>
+
+  - id: several
+    title: Uploading several files at once
+    permissions: ['administer bibles']
+    body: |
+      <p>Christian music, Maps, Devotionals, Other books and Verse a day pictures have a box at the top for many files
+      at once: drop them on it, or click <em>choose files</em>, then <em>Upload</em>. Each file becomes a new item
+      named after the file; one whose name is already there is skipped, never replaced. Each line says how its file
+      went. Tick <em>Publish them when uploaded</em> to publish them straight away; otherwise they are hidden until you
+      publish them. For devotionals and books, fill in the author and where they came from first (they apply to all of
+      them). Add the details of each afterwards with Edit.</p>
+      <figure><img data-guide="bulk-upload" alt="The drop area: Drop song files here or choose files, Publish them when uploaded, and Upload and Clear buttons"><figcaption>The drop area (here on Christian music).</figcaption></figure>
+
+  - id: verse-pictures
+    title: Verse a day pictures
+    permissions: ['administer bibles']
+    body: |
+      <p>The background pictures for every picture the site makes: the <em>Send Multimedia Messages</em> verse a day
+      and devotional, Verse of the day and Devotional of the day on the site, <em>Download Card</em> in the search
+      results, and a group's verse cards and picture messages. One is chosen at random each time. They are not shown
+      on the site on their own.</p>
+      <figure><img data-guide="verse-images" alt="Verse a day pictures: the drop area and four pictures with their name, type, size, upload date and status"><figcaption>Verse a day pictures.</figcaption></figure>
+      <p>Drop PNG, JPEG or WebP pictures on the box (up to 25 MB each). A picture is <strong>in use</strong> as soon
+      as it is uploaded. <em>Take out of use</em> keeps it but stops it being chosen; <em>Delete</em> removes it.
+      Calm pictures with space in the middle work best: the words are written over the middle in large white letters
+      with a dark outline. Only upload pictures you have the right to use.</p>
+
+  - id: groups
+    title: Groups
+    permissions: ['lead groups', 'administer groups']
+    body: |
+      <p>Groups of people you look after (the people in a deacon's care, a family, a class), and the messages you
+      send them. A Group leader sees only the groups they made; a Website administrator sees all of them, with the
+      leader of each.</p>
+      <figure><img data-guide="groups" alt="Groups: Make a group, and a table of groups with members and last message"><figcaption>Your groups. Click a name to open it.</figcaption></figure>
+      <p><strong>Make a group</strong>: give it a name (it appears in the emails) and, if you like, notes that only you
+      see. You are its leader, and <strong>replies to its emails come to the email address of your Drupal
+      account</strong>.</p>
+      <figure><img data-guide="group" alt="A group's page: who leads it, three send buttons, the Scheduled table, the members with how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
+      <h3>Members</h3>
+      <p><strong>Add a member</strong> starts with <em>People with an account on the site</em>: everyone with an
+      account who is not in the group yet. Tick as many as you like and click <em>Add</em>. They get your messages the
+      way each chose on the site's My account page: by email, by text, or both. Someone who has not confirmed their
+      email address yet gets nothing until they do; the list says so.</p>
+      <figure><img data-guide="group-member-add" alt="Add a member: Who to add, with People with an account on the site chosen and a list of accounts to tick"><figcaption>Adding site accounts: tick everyone to add.</figcaption></figure>
+      <p>For someone <strong>without an account</strong>, choose <em>Someone without an account</em>: their email
+      address, name and (for your reference) phone appear. They get emails only, never texts, as nobody has their
+      agreement to texts. <em>Add and add another</em> keeps the form open for the next person. On the group's page,
+      <em>Edit</em> changes such a person's details, and <em>Remove</em> takes anyone out of the group (their account,
+      if any, stays).</p>
+      <figure><img data-guide="group-member-contact" alt="Add a member with Someone without an account chosen: email, name and phone"><figcaption>Adding someone without an account.</figcaption></figure>
+      <h3>Sending</h3>
+      <p>Every message goes to each member separately, showing <strong>only your address</strong> as the one it is
+      to, so no member sees anyone else's address. Each email has a link that stops that person's messages from this
+      group (other groups are not affected). You get one copy of each, which says how many it reached. The page then
+      says how many were emailed and texted, and the <em>Sent</em> table keeps a record (never who).</p>
+      <ul>
+        <li><strong>Send a message</strong>: a subject and your words. No picture. A text is a short version.</li>
+        <li><strong>Send a verse card</strong>: a well-known Bible verse chosen at random, written over one of the
+        verse a day pictures. Not the one you want? <em>Pick another verse</em>. In the email the verse is a link to it
+        on the site; members who get texts get it as a picture message.</li>
+        <li><strong>Send a picture message</strong>: your own words (up to 400 characters) written over a random
+        picture. Click <em>Make the picture</em> to see it first, <em>Make another picture</em> for a different one, then
+        send.</li>
+      </ul>
+      <figure><img data-guide="group-send-message" alt="Send a message: subject and message, and Send to the 4 members"><figcaption>Send a message. The button says how many it goes to.</figcaption></figure>
+      <figure><img data-guide="group-send-verse" alt="Send a verse card: the card shown, with Pick another verse and Send"><figcaption>Send a verse card.</figcaption></figure>
+      <figure><img data-guide="group-send-picture" alt="Send a picture message: subject, words, the picture made, Make another picture and Send"><figcaption>Send a picture message, after Make the picture.</figcaption></figure>
+      <h3>Scheduled emails</h3>
+      <p><strong>Add a scheduled email</strong> sends a message, a verse card (a new random verse each time) or a
+      picture message (your words on a new picture each time) by itself, at a time you choose:</p>
+      <ul>
+        <li>once, on a date;</li>
+        <li>every week, on a day of the week;</li>
+        <li>every month, on a day of the month (29, 30 or 31 means the last day in a shorter month);</li>
+        <li>every month, on the first, second, third, fourth or last of a weekday (such as the first Monday).</li>
+      </ul>
+      <p>Choose the time and the time zone (yours, to start). It goes within five minutes of that time. The
+      <em>Scheduled</em> table shows when each goes next and how the last one went, with <em>Edit</em> and
+      <em>Remove</em>. A one-time email shows <em>Done</em> once it has gone.</p>
+      <figure><img data-guide="group-schedule" alt="Add a scheduled email: what to send, and When: repeat, which, day of the week, time and time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
+      <h3>Changing the group or its leader</h3>
+      <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a
+      <strong>Leader</strong> list there (or follows <em>Change the leader</em> on the group's page) to give the group to
+      someone else who can lead groups; it then belongs to them, and replies go to their address. <em>Delete the
+      group</em> removes it with its members and record (their site accounts stay).</p>
+      <figure><img data-guide="group-edit" alt="Change a group: name, Leader and notes"><figcaption>Change the group, as a Website administrator sees it (with Leader).</figcaption></figure>
+      <p>Members can also send a <strong>prayer request</strong> to their group, or to its leader only, from the
+      Prayer Wall. It arrives with their name; replying answers them. Such requests show in the Sent table as
+      <em>Prayer Wall</em>, with the subject only.</p>
+
+  - id: conversations
+    title: Conversations and Prayer Wall
+    permissions: ['administer site users']
+    body: |
+      <p>Every post on the public site's Conversations and Prayer Wall pages, newest first, with a search (title,
+      text, author's name or address) and <em>Show</em> to see one of the two. The <em>Where</em> column says which, and
+      for a prayer request whether it is private, anonymous, on the prayer list email or answered. Here you always see
+      the real author, even of an anonymous request.</p>
+      <figure><img data-guide="conversations" alt="Conversations and Prayer Wall: search, Show, and a table of posts with their beginning, author, where, dates and replies"><figcaption>Conversations and Prayer Wall.</figcaption></figure>
+      <p><strong>Read and delete</strong> shows the whole post with its replies. Delete a reply with the link under it,
+      or the whole post (with its replies) with the button; both ask first. The author is not told.</p>
+      <figure><img data-guide="conversation-post" alt="A post with its replies and the delete buttons"><figcaption>One post, with its replies.</figcaption></figure>
+      <p>Who may write is set per member on Site users (<em>Conversations</em>); anyone may read.</p>
+
+  - id: faq-notes
+    title: FAQ notes
+    permissions: ['administer faq notes']
+    body: |
+      <p>Your own notes, shown in a box under the AI's answer on the FAQ page, one note per question.</p>
+      <figure><img data-guide="faq-notes" alt="FAQ notes: Add a note, and a table of questions with the start of each note"><figcaption>FAQ notes.</figcaption></figure>
+      <p><strong>Add a note</strong> (or Edit): choose the question (those with a note already are left out) and write
+      the note in the editor: headings, bold, italic, underline, superscript (for verse numbers), links, lists and
+      quotations. A link can go to a verse on the site (copy its address from the Bible reader), another FAQ answer,
+      a page of the site, or another website. Links to a verse or another website open in a new tab.</p>
+      <figure><img data-guide="faq-note-edit" alt="Edit a FAQ note: the question and the note in the editor"><figcaption>Edit a FAQ note.</figcaption></figure>
+
+  - id: site-users
+    title: Site users
+    permissions: ['administer site users']
+    body: |
+      <p>The accounts of the public site's visitors (not the people who use these admin pages). Newest first, 50 a
+      page, with a search on the address or name, and for each its phone, whether the address is confirmed, what it is
+      allowed and how many notes it has.</p>
+      <figure><img data-guide="site-users" alt="Site users: search, Add a site user, and a table of accounts with their address, name, phone and flags"><figcaption>Site users.</figcaption></figure>
+      <p><strong>Add a site user</strong> or <strong>Edit</strong>:</p>
+      <ul>
+        <li>The email address (they log in with it), names and phone. Changing the phone turns their text messages off:
+        only the member can turn texts on, on their My account page, as texts need their own agreement.</li>
+        <li><em>Email address confirmed</em>: the daily emails and texts go only to a confirmed address. Tick it only
+        if you know the address is theirs.</li>
+        <li><em>Open AI queries</em> (their own questions on the FAQ page), <em>Conversations</em> (writing on
+        Conversations and the Prayer Wall) and <em>Maps</em> (their own notes, pins and routes): off unless ticked
+        here.</li>
+        <li><em>Gets private prayer requests</em>: for the site's own administrators, whose weekly prayer list email
+        then holds the private requests too.</li>
+        <li>A password, twice (8 to 128 characters). Left empty when editing, it stays as it is; a new one logs them
+        out everywhere. The site cannot email it: tell them privately.</li>
+      </ul>
+      <figure><img data-guide="site-user-edit" alt="Edit a site user: address, names, phone, the checkboxes and the password"><figcaption>Edit a site user.</figcaption></figure>
+      <p><strong>Delete</strong> asks first, and says how many notes and daily emails go with the account.</p>
+
+  - id: site-settings
+    title: Site settings
+    permissions: ['administer bibles', 'administer site settings']
+    body: |
+      <p>The options of the public site, on one screen; <em>Save configuration</em> at the bottom. A Bible
+      administrator sees only the verse-window numbers.</p>
+      <figure><img data-guide="site-settings-1" alt="The site: title, copyright line, header emblem and browser-tab icon"><figcaption><em>The site</em>: the title (top of every page), the copyright line (the footer), and the two icons.</figcaption></figure>
+      <p><strong>The site</strong>: the <em>Title</em> beside the emblem at the top of every page, the
+      <em>Copyright</em> line at the foot, and the <em>Header emblem</em> and <em>Browser-tab icon</em>: upload a
+      picture to replace one, or <em>Go back to the site's own icon</em>.</p>
+      <figure><img data-guide="site-settings-4" alt="Show in Context: verses before and after"><figcaption><em>Show in Context</em>: how many verses before and after.</figcaption></figure>
+      <figure><img data-guide="site-settings-5" alt="Related Verses: how many to show"><figcaption><em>Related Verses</em>: how many cross references to list.</figcaption></figure>
+      <p><strong>Email server</strong>: what the site sends its email through (the contact form, account links, the
+      daily emails, group messages): the server, port, user name and password, and the contact form's addresses and
+      subject. The password is never shown: leave it empty to keep it, or type a new one.</p>
+      <figure><img data-guide="site-settings-6" alt="Email server: host, port, user name, password, authentication, domain, From and To addresses and subject"><figcaption><em>Email server</em> (made-up values).</figcaption></figure>
+      <p><strong>Keys of outside services</strong>: Google Gemini (the FAQ answers), API.Bible (the NIV, NASB and The
+      Message), Google reCAPTCHA (the contact form), <strong>Telnyx</strong> (text messages: the key, the number texts
+      come from and the public key) and the folder the song files are kept in. A saved key is never shown again:
+      leave its box empty to keep it.</p>
+      <figure><img data-guide="site-settings-10" alt="Telnyx: API key, number and public key"><figcaption><em>Telnyx</em>, for text messages.</figcaption></figure>
+
+  - id: backup
+    title: Backup and restore
+    permissions: ['administer backups']
+    body: |
+      <p>A copy of the whole site in one zip file, saved on your own computer; nothing is kept on the server. Tick
+      what to include: <em>Database</em> (the Bibles, books, songs' details, members' accounts, notes and groups, the
+      settings, Drupal's own database and the service keys) and <em>Files</em> (the song files, maps, pictures and
+      Drupal's uploads). The zip holds members' details and the keys: keep it private.</p>
+      <figure><img data-guide="backup" alt="Backup and restore: what to include, a note, Back up to a folder, and Restore from a backup zip"><figcaption>Backup and restore.</figcaption></figure>
+      <p><strong>Back up</strong>: add a note if you like (such as "Before the move"), then <em>Back up to a
+      folder</em>. Chrome and Edge let you choose the folder; other browsers download the zip.</p>
+      <p><strong>Restore</strong> replaces what is here with the backup: anything added since is lost, and you then
+      log in with an account and password from the backup. Choose the zip and type <strong>RESTORE</strong> to
+      confirm. Back up first if you may want the site as it is now.</p>

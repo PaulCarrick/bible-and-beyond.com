@@ -1,0 +1,46 @@
+/* The Admin guide (AdminGuideController, help/admin-guide.yml). */
+.admin-guide-contents ol {
+  columns: 2 18rem;
+  column-gap: 2rem;
+  margin: 0 0 2rem;
+}
+
+.admin-guide-contents li {
+  break-inside: avoid;
+  margin-bottom: 0.25rem;
+}
+
+.admin-guide-section {
+  max-width: 62rem;
+  margin-bottom: 2.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #d3d4d9;
+}
+
+.admin-guide-section p,
+.admin-guide-section li {
+  line-height: 1.55;
+}
+
+.admin-guide-section figure {
+  margin: 1rem 0 1.5rem;
+}
+
+.admin-guide-section figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.875rem;
+  color: #55565b;
+}
+
+.admin-guide-picture img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #d3d4d9;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+}
+
+.admin-guide-top {
+  font-size: 0.875rem;
+}
