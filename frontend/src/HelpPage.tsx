@@ -774,6 +774,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
       <section id="help-verse-a-day" tabIndex={-1} className="help-section">
         <h2>A verse a day and text messages</h2>
         <p>
+          <strong>Verse of the day and Devotional of the day.</strong> Under <em>Today</em> in the sidebar (no
+          account needed), <em>Verse of the day</em> shows a well-known Bible verse chosen at random, and{' '}
+          <em>Devotional of the day</em> today&rsquo;s reading from one of the daily devotionals (the evening reading
+          after 5 pm), each written over a photograph. <em>Download the picture</em> saves it to share;{' '}
+          <em>Show another</em> makes a new one; and a button opens the verse in the Bible or the whole reading.
+        </p>
+        <p>
           <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}
           <em>My account</em>, and choose a time of day and your time zone. Each day at that time (within five minutes)
           you get one Bible verse from the Berean Standard Bible, chosen at random from about 1,500 of the best-known

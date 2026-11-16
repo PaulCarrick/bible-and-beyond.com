@@ -34,6 +34,7 @@ import MapSearchPage from './MapSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import TutorialPage from './TutorialPage'
+import DayCardPage from './DayCardPage'
 import PrivacyPage from './PrivacyPage'
 import MyAccountPage from './MyAccountPage'
 import DevotionalsTab from './DevotionalsTab'
@@ -304,6 +305,16 @@ function App() {
         { view: 'searchAll', label: 'Search everything' },
       ],
     },
+    // A picture of a random verse, and of today's reading of a daily devotional (DayCardPage.tsx).
+    {
+      heading: 'Today',
+      entries: [
+        { view: 'verseOfTheDay' as View, label: 'Verse of the day' },
+        ...(devotionals.some((devotional) => devotional.kind === 'daily')
+          ? [{ view: 'devotionalOfTheDay' as View, label: 'Devotional of the day' }]
+          : []),
+      ],
+    },
     {
       heading: 'Bible',
       entries: [
@@ -484,6 +495,17 @@ function App() {
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} hasMaps={maps.length > 0} />}
               {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
               {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
+              {(activeView === 'verseOfTheDay' || activeView === 'devotionalOfTheDay') && (
+                <DayCardPage
+                  key={activeView}
+                  kind={activeView === 'verseOfTheDay' ? 'verse' : 'devotional'}
+                  onOpenVerse={openVerse}
+                  onOpenReading={(devotional, section, unit) => {
+                    setDestination({ id: Date.now(), kind: 'devotional', devotional, section, unit })
+                    navigate('devotionals')
+                  }}
+                />
+              )}
               {activeView === 'account' && <MyAccountPage key={user?.id ?? 0} user={user} isAccountKnown={isAccountKnown} onUserChanged={setUser} onNavigate={navigate} />}
               {activeView === 'copyright' && (
                 <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />

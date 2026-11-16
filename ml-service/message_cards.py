@@ -138,14 +138,29 @@ def _draw_lines(card, lines: list[tuple[str, object, int]], top: int) -> int:
   return y
 
 
-def render(background_path: Path, text: str, caption: str = ""):
-  """The card as a Pillow picture: the background covering it, darkened a little, the words as large as fit,
-  the caption (a reference) under them, and the site's name at the foot."""
+def plain_background():
+  """A deep blue background, lighter at the top, for when no verse a day picture is in use."""
   from PIL import Image
 
-  with Image.open(background_path) as picture:
-    picture.load()
-    card = _cover(picture, WIDTH, HEIGHT)
+  top, bottom = (54, 84, 140), (14, 24, 52)
+  column = Image.new("RGB", (1, HEIGHT))
+  for y in range(HEIGHT):
+    share = y / (HEIGHT - 1)
+    column.putpixel((0, y), tuple(round(a + (b - a) * share) for a, b in zip(top, bottom)))
+  return column.resize((WIDTH, HEIGHT))
+
+
+def render(background, text: str, caption: str = ""):
+  """The card as a Pillow picture: the background (a file's path, or a Pillow picture) covering it, darkened a
+  little, the words as large as fit, the caption (a reference) under them, and the site's name at the foot."""
+  from PIL import Image
+
+  if isinstance(background, Image.Image):
+    card = _cover(background, WIDTH, HEIGHT)
+  else:
+    with Image.open(background) as picture:
+      picture.load()
+      card = _cover(picture, WIDTH, HEIGHT)
   # A gentle dark veil over the whole picture, so white words read on light pictures too.
   card = Image.blend(card, Image.new("RGB", card.size, (0, 0, 0)), 0.28)
 
@@ -231,15 +246,22 @@ def attach_to_email(email, card: MessageCard, alternative_text: str) -> None:
 # --- what goes on the card ---------------------------------------------------------------------------------
 
 REFERENCE_LINE = re.compile(r"^[1-3]?\s?[A-Z][A-Za-z. ]+\s\d+:\d+(?:[-–,]\s?\d+)*\.?$")
+TRAILING_REFERENCE = re.compile(r"^(.*\S)\s*—\s*((?:[1-3]\s?)?[A-Za-z]+\.?\s\d+:\d+(?:\s?[-–,]\s?\d+)*)\.?$", re.DOTALL)
 
 
-def devotional_words(reading: dict) -> tuple[str, str]:
+def devotional_words(reading: dict, entry_index: int = 0) -> tuple[str, str]:
   """The words and caption for a devotional reading's card: its opening verse and reference when it starts with
-  one (Morning and Evening, Daily Light), else its opening paragraph and the reading's title."""
-  entry = reading["entries"][0]
+  one (Morning and Evening, Daily Light), else its opening paragraph and the reading's title. entry_index picks
+  the evening reading of a day that has two."""
+  entry = reading["entries"][entry_index]
   paragraphs = [paragraph.strip() for paragraph in entry["text"].split("\n\n") if paragraph.strip()]
   if len(paragraphs) >= 2 and REFERENCE_LINE.match(paragraphs[1]):
     return paragraphs[0], paragraphs[1].rstrip(".")
+  # Daily Light: "Fellow citizens with the saints.—EPH. 2:19." on one line.
+  joined = TRAILING_REFERENCE.match(paragraphs[0]) if paragraphs else None
+  if joined:
+    book = " ".join(word.capitalize() if word.isalpha() or word.rstrip(".").isalpha() else word for word in joined.group(2).split(" "))
+    return joined.group(1), book
   first = paragraphs[0] if paragraphs else reading["title"]
   if len(first) > 400:
     first = first[:400].rsplit(" ", 1)[0] + "…"

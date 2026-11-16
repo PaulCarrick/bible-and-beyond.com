@@ -3011,6 +3011,37 @@ select:disabled {
   margin: -0.25rem 0 0.75rem;
 }
 
+/* Verse of the day and Devotional of the day (DayCardPage.tsx): the picture at most 540 wide, with its buttons. */
+.day-card {
+  margin: 1rem 0;
+}
+
+.day-card img {
+  display: block;
+  width: 100%;
+  max-width: 540px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
+}
+
+.day-card.is-loading img {
+  opacity: 0.5;
+}
+
+.day-card figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.day-card-actions {
+  flex-wrap: wrap;
+}
+
+.day-card-actions a.primary-button {
+  text-decoration: none;
+}
+
 /* "How should we send you messages?": Send via Email and Send via SMS (TextMessageChoices.tsx). */
 .delivery-choices {
   margin: 0.25rem 0 0;

@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import date
 from typing import Literal
 
 import psycopg
@@ -25,6 +26,7 @@ from accounts import (
   user_for_token,
   verify_email,
 )
+import day_cards
 import message_cards
 import sms
 import verse_a_day
@@ -675,6 +677,30 @@ def message_card(name: str):
     "Cache-Control": "public, max-age=604800", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex",
   }
   return FileResponse(path, media_type="image/jpeg", headers=headers)
+
+
+@app.get("/day-card/verse")
+def day_card_verse():
+  """Verse of the day: a random well-known verse as a picture (day_cards.py), made anew each time, inline."""
+  try:
+    return day_cards.verse_card()
+  except day_cards.DayCardProblem as problem:
+    raise HTTPException(status_code=404, detail=str(problem))
+
+
+@app.get("/day-card/devotional")
+def day_card_devotional(
+  day: date = Query(description="The visitor's own date, YYYY-MM-DD."),
+  hour: int = Query(default=8, ge=0, le=23, description="The visitor's own hour: the evening reading from 17."),
+):
+  """Devotional of the day: today's reading of a daily devotional as a picture (day_cards.py), inline."""
+  # The visitor's date is at most a day either side of the server's (time zones).
+  if abs((day - date.today()).days) > 1:
+    raise HTTPException(status_code=422, detail="That is not today's date.")
+  try:
+    return day_cards.devotional_card(day, hour)
+  except day_cards.DayCardProblem as problem:
+    raise HTTPException(status_code=404, detail=str(problem))
 
 
 @app.get("/search-maps")

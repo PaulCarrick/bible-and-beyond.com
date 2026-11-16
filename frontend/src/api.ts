@@ -575,6 +575,27 @@ export function registerAccount(account: NewAccount) {
   })
 }
 
+// Verse of the day and Devotional of the day (DayCardPage.tsx): a new picture each time, inline as a data:
+// address. The devotional is today's reading in the visitor's own date, the evening one from 5 pm.
+export interface DayCard {
+  words: string
+  caption: string
+  image: string
+  verse?: { translation: string; book: number; chapter: number; verse: number }
+  reading?: { devotional: string; name: string; section: number; unit: number; title: string; heading: string }
+}
+
+export async function fetchDayCard(kind: 'verse' | 'devotional', signal: AbortSignal): Promise<DayCard> {
+  let query = ''
+  if (kind === 'devotional') {
+    const now = new Date()
+    const day = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
+    query = `?day=${day}&hour=${now.getHours()}`
+  }
+  const response = await fetch(`${mlServiceUrl}/day-card/${kind}${query}`, { signal })
+  return readJson<DayCard>(response)
+}
+
 // The verse a day (logged-in members): null when the member does not get it.
 export async function fetchVerseSubscription(signal: AbortSignal): Promise<VerseSubscription | null> {
   const response = await fetch(`${mlServiceUrl}/verse-subscription`, { credentials: 'include', signal })
