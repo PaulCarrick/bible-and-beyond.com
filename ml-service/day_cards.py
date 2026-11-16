@@ -64,6 +64,32 @@ def verse_card(chooser=random) -> dict:
   }
 
 
+def chosen_verse_card(translation: str, book: int, chapter: int, verse: int, chooser=random) -> dict:
+  """The card of one verse, as "Download Card" under a search result asks for (added 2026-11-16): its text in
+  that Bible, if the Bible is stored here and published (the licensed Bibles never are: their text must not be
+  changed or kept), on a random picture."""
+  with connect() as connection:
+    row = connection.execute(
+      """
+      SELECT verses.text, books.name, translations.code FROM verses
+      JOIN translations ON translations.id = verses.translation_id AND translations.is_published
+      JOIN books ON books.number = verses.book_number
+      WHERE translations.code = %s AND verses.book_number = %s AND verses.chapter = %s AND verses.verse = %s
+      """,
+      (translation, book, chapter, verse),
+    ).fetchone()
+  if row is None:
+    raise DayCardProblem("That verse was not found in a Bible on this site.")
+  text, book_name, code = row[0].strip(), row[1], row[2]
+  caption = f"{book_name} {chapter}:{verse} ({code})"
+  return {
+    "words": text,
+    "caption": caption,
+    "image": _picture(text, caption, chooser),
+    "verse": {"translation": code, "book": book, "chapter": chapter, "verse": verse},
+  }
+
+
 def _daily_devotionals() -> list[str]:
   with connect() as connection:
     rows = connection.execute(

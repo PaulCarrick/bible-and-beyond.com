@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import ContextWindow from './ContextWindow'
+import DownloadCardButton from './DownloadCardButton'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
 import { useVerseWindows } from './useVerseWindows'
@@ -441,6 +442,7 @@ function SearchResults({
                         Commentaries
                         <span className="visually-hidden"> on {result.reference}</span>
                       </button>
+                      <DownloadCardButton verse={verseOf(result)} reference={result.reference} />
                       <button
                         type="button"
                         className="link-button context-link"

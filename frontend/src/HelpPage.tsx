@@ -315,7 +315,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           <PageLink onNavigate={onNavigate} view="bible">Search the Bible</PageLink>: type words or a phrase and press{' '}
           <em>Search for keyword or phrase</em>. The results are listed in Bible order, with your words in bold. Under
           each verse are links to Show in Context, Full Chapter, Other Translations, Related Verses, Original Words,
-          Commentaries and Notes, the same as in the verse menu. Click the <em>Verse</em> or <em>Contents</em> heading
+          Commentaries and Notes, the same as in the verse menu, and <em>Download Card</em>, which saves the verse as a
+          picture (the words over a photograph, as on <em>Verse of the day</em>) to share. Click the <em>Verse</em> or <em>Contents</em> heading
           of the list to sort the results by it, and <em>Clear Sort</em> to go back to Bible order.
         </p>
         <p>Open <strong>Search Options</strong> under the results to change how and where the search looks:</p>

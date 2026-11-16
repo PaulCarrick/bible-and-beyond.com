@@ -92,3 +92,22 @@ def test_the_opening_verse_and_reference_are_found(text, words, caption):
   from message_cards import devotional_words
 
   assert devotional_words({"title": "November 16", "entries": [{"heading": "", "text": text}]}) == (words, caption)
+
+
+def test_download_card_makes_the_chosen_verse_in_its_bible():
+  answer = client.get("/day-card/verse", params={"translation": "KJV", "book": 43, "chapter": 3, "verse": 16})
+  assert answer.status_code == 200
+  card = answer.json()
+  assert card["caption"] == "John 3:16 (KJV)" and card["words"].startswith("For God so loved the world")
+  assert card["verse"] == {"translation": "KJV", "book": 43, "chapter": 3, "verse": 16}
+  assert picture_of(card).size == (1080, 1350)
+
+
+def test_download_card_refuses_a_licensed_bible_or_a_verse_that_does_not_exist():
+  for parameters in (
+    {"translation": "NIV", "book": 43, "chapter": 3, "verse": 16},
+    {"translation": "KJV", "book": 43, "chapter": 3, "verse": 99},
+  ):
+    answer = client.get("/day-card/verse", params=parameters)
+    assert answer.status_code == 404 and "not found" in answer.json()["detail"]
+  assert client.get("/day-card/verse", params={"translation": "KJV", "book": 67, "chapter": 1, "verse": 1}).status_code == 422

@@ -596,6 +596,17 @@ export async function fetchDayCard(kind: 'verse' | 'devotional', signal: AbortSi
   return readJson<DayCard>(response)
 }
 
+// "Download Card" under a search result (DownloadCardButton.tsx): that verse's card, in a Bible stored here.
+export async function fetchVerseCard(verse: { translation: string; book: number; chapter: number; verse: number }): Promise<DayCard> {
+  const parameters = new URLSearchParams({
+    translation: verse.translation,
+    book: String(verse.book),
+    chapter: String(verse.chapter),
+    verse: String(verse.verse),
+  })
+  return readJson<DayCard>(await fetch(`${mlServiceUrl}/day-card/verse?${parameters}`))
+}
+
 // The verse a day (logged-in members): null when the member does not get it.
 export async function fetchVerseSubscription(signal: AbortSignal): Promise<VerseSubscription | null> {
   const response = await fetch(`${mlServiceUrl}/verse-subscription`, { credentials: 'include', signal })

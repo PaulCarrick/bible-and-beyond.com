@@ -680,9 +680,17 @@ def message_card(name: str):
 
 
 @app.get("/day-card/verse")
-def day_card_verse():
-  """Verse of the day: a random well-known verse as a picture (day_cards.py), made anew each time, inline."""
+def day_card_verse(
+  translation: str | None = Query(default=None, max_length=20),
+  book: int | None = Query(default=None, ge=1, le=66),
+  chapter: int | None = Query(default=None, ge=1, le=150),
+  verse: int | None = Query(default=None, ge=1, le=176),
+):
+  """Verse of the day: a random well-known verse as a picture (day_cards.py), made anew each time, inline. With
+  translation, book, chapter and verse, that verse instead ("Download Card" under a search result)."""
   try:
+    if translation and book and chapter and verse:
+      return day_cards.chosen_verse_card(translation, book, chapter, verse)
     return day_cards.verse_card()
   except day_cards.DayCardProblem as problem:
     raise HTTPException(status_code=404, detail=str(problem))
