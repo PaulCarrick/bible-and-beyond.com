@@ -305,16 +305,6 @@ function App() {
         { view: 'searchAll', label: 'Search everything' },
       ],
     },
-    // A picture of a random verse, and of today's reading of a daily devotional (DayCardPage.tsx).
-    {
-      heading: 'Today',
-      entries: [
-        { view: 'verseOfTheDay' as View, label: 'Verse of the day' },
-        ...(devotionals.some((devotional) => devotional.kind === 'daily')
-          ? [{ view: 'devotionalOfTheDay' as View, label: 'Devotional of the day' }]
-          : []),
-      ],
-    },
     {
       heading: 'Bible',
       entries: [
@@ -371,6 +361,16 @@ function App() {
       : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
+    // A picture of a random verse, and of today's reading of a daily devotional (DayCardPage.tsx).
+    {
+      heading: 'Today',
+      entries: [
+        { view: 'verseOfTheDay' as View, label: 'Verse of the day' },
+        ...(devotionals.some((devotional) => devotional.kind === 'daily')
+          ? [{ view: 'devotionalOfTheDay' as View, label: 'Devotional of the day' }]
+          : []),
+      ],
+    },
     // Everyone may read Conversations and the Prayer Wall; only accounts an administrator allowed (use_conversations)
     // may write. The two keep their posts apart (a board on each post).
     {
