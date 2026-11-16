@@ -869,6 +869,29 @@ class BibleManager {
     return $member;
   }
 
+  /**
+   * The site's accounts not in the group yet (id, name, email, confirmed), for the Add a member list.
+   */
+  public function listGroupCandidates(int $groupId): array {
+    $this->getGroup($groupId);
+    return $this->run(['candidates', '--group=' . $groupId], 'manage_groups.py')['accounts'];
+  }
+
+  /**
+   * Adds the site accounts ticked in the list. Returns the members added.
+   */
+  public function addGroupAccounts(int $groupId, array $userIds): array {
+    $group = $this->getGroup($groupId);
+    $members = $this->run(['add-accounts', '--group=' . $groupId], 'manage_groups.py', $this->groupInput(['user_ids' => array_values($userIds)]))['members'];
+    $this->logger->notice('@user added @count site accounts to the group “@name” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@count' => count($members),
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+    ]);
+    return $members;
+  }
+
   public function updateGroupMember(int $groupId, int $memberId, array $details): array {
     $group = $this->getGroup($groupId);
     $member = $this->run(['update-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details))['member'];

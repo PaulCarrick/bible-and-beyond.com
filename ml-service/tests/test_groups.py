@@ -110,6 +110,24 @@ def test_members_are_accounts_by_address_or_contacts_by_name():
   assert ann["id"]
 
 
+def test_site_accounts_are_listed_and_added_several_at_once():
+  group = new_group()
+  ann, bob, cat = account("ann"), account("bob"), account("cat", verified=False)
+  candidates = {each["email"]: each for each in groups.list_candidates(group["id"])}
+  assert {f"ann@{DOMAIN}", f"bob@{DOMAIN}", f"cat@{DOMAIN}"} <= set(candidates)
+  assert candidates[f"ann@{DOMAIN}"]["name"] == "Ann Member" and candidates[f"cat@{DOMAIN}"]["confirmed"] is False
+  added = groups.add_accounts(group["id"], [ann["id"], str(bob["id"]), ann["id"]])
+  assert sorted(member["name"] for member in added) == ["Ann Member", "Bob Member"] and all(member["is_account"] for member in added)
+  # Those in the group are no longer listed, and adding one again does nothing.
+  remaining = {each["email"] for each in groups.list_candidates(group["id"])}
+  assert f"ann@{DOMAIN}" not in remaining and f"cat@{DOMAIN}" in remaining
+  assert groups.add_accounts(group["id"], [ann["id"]]) == []
+  with pytest.raises(GroupProblem, match="tick"):
+    groups.add_accounts(group["id"], [])
+  assert groups.add_accounts(group["id"], [987654321]) == []  # no such account
+  assert cat["id"]
+
+
 def test_a_message_goes_by_each_members_choice(outbox):
   group = new_group()
   account("ann", texts=True)  # email and text

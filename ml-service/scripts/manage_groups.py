@@ -10,6 +10,8 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
                                                        (--set-owner: the group moves to that leader)
     manage_groups.py delete --group=ID
     manage_groups.py add-member --group=ID             input {email, name, phone}
+    manage_groups.py candidates --group=ID             the site's accounts not in the group yet
+    manage_groups.py add-accounts --group=ID           input {user_ids: [...]}: those accounts
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
     manage_groups.py remove-member --group=ID --member=ID
     manage_groups.py preview-verse                     a random verse card (its name, picture and verse)
@@ -39,7 +41,7 @@ def parse_arguments(arguments=None):
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("list").add_argument("--owner", type=int)
-  for name in ("get", "delete", "add-member", "add-schedule"):
+  for name in ("get", "delete", "add-member", "add-schedule", "candidates", "add-accounts"):
     commands.add_parser(name).add_argument("--group", type=int, required=True)
   save = commands.add_parser("save")
   save.add_argument("--group", type=int)
@@ -98,6 +100,10 @@ def run(arguments) -> dict:
     return {"ok": True, "member": groups.update_member(arguments.group, arguments.member, read_input())}
   if command == "remove-member":
     return {"ok": True, "member": groups.remove_member(arguments.group, arguments.member)}
+  if command == "candidates":
+    return {"ok": True, "accounts": groups.list_candidates(arguments.group)}
+  if command == "add-accounts":
+    return {"ok": True, "members": groups.add_accounts(arguments.group, read_input().get("user_ids") or [])}
   if command == "add-schedule":
     details = read_input()
     return {"ok": True, "schedule": group_schedules.add_schedule(arguments.group, details, str(details.get("created_by", "")))}

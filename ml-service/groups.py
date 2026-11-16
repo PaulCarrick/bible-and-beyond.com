@@ -238,6 +238,54 @@ def add_member(group_id: int, details: dict) -> dict:
   return next(member for member in list_members(group_id) if member["id"] == member_id)
 
 
+def list_candidates(group_id: int) -> list[dict]:
+  """The site's accounts that are not in the group yet, by name (the Add a member list; the owner's request,
+  2026-11-16: "an easy way of adding site users from a multi-select list")."""
+  get_group(group_id)
+  with connect() as connection:
+    rows = connection.execute(
+      """
+      SELECT u.id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), u.email,
+             u.email_verified_at IS NOT NULL
+      FROM users u
+      WHERE NOT EXISTS (SELECT 1 FROM group_members m WHERE m.group_id = %s AND m.user_id = u.id)
+      ORDER BY lower(COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email)), u.id
+      """,
+      (group_id,),
+    ).fetchall()
+  return [{"id": row[0], "name": row[1], "email": row[2], "confirmed": row[3]} for row in rows]
+
+
+def add_accounts(group_id: int, user_ids: list) -> list[dict]:
+  """Adds site accounts by their ids (ticked in the list). One already in the group, or no longer on the site,
+  is passed over. Returns the members added."""
+  get_group(group_id)
+  try:
+    wanted = sorted({int(user_id) for user_id in user_ids})
+  except (TypeError, ValueError):
+    raise GroupProblem("Please tick the people to add.")
+  if not wanted:
+    raise GroupProblem("Please tick the people to add.")
+  added = []
+  with connect() as connection:
+    present = connection.execute("SELECT count(*) FROM group_members WHERE group_id = %s", (group_id,)).fetchone()[0]
+    if present + len(wanted) > MAX_MEMBERS:
+      raise GroupProblem(f"A group can have at most {MAX_MEMBERS} members.")
+    for user_id in wanted:
+      row = connection.execute(
+        """
+        INSERT INTO group_members (group_id, user_id, stop_token)
+        SELECT %s, id, %s FROM users WHERE id = %s
+          AND NOT EXISTS (SELECT 1 FROM group_members WHERE group_id = %s AND user_id = %s)
+        RETURNING id
+        """,
+        (group_id, secrets.token_urlsafe(24), user_id, group_id, user_id),
+      ).fetchone()
+      if row:
+        added.append(row[0])
+  return [member for member in list_members(group_id) if member["id"] in added]
+
+
 def update_member(group_id: int, member_id: int, details: dict) -> dict:
   """Changes a contact's name, address and phone. An account member's details are their own (My account)."""
   with connect() as connection:

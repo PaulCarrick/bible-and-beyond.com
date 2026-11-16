@@ -12,8 +12,12 @@ use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Adds a member to a group by email address (the site account with it, else a contact with the name typed),
- * or changes a contact's name, address and phone.
+ * Adds members to a group, or changes a contact's name, address and phone.
+ *
+ * Adding (the owner's request, 2026-11-16): "People with an account on the site" (the default) is a list of the
+ * site's accounts not in the group yet, any number ticked at once; "Someone without an account" shows the
+ * email, name and phone fields, needed only then. An address typed there that does belong to an account adds
+ * that account.
  */
 class GroupMemberForm extends FormBase {
 
@@ -54,11 +58,7 @@ class GroupMemberForm extends FormBase {
     $form_state->set('group_id', (int) $group['id']);
 
     if ($member === NULL) {
-      $form['intro'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'p',
-        '#value' => $this->t('Adding to “@group”. If the address belongs to an account on the site, that account is added and the name and phone here are not needed: they get your messages the way they chose on My account (email, text or both). Anyone else is added as a contact with the name you type, and gets email only.', ['@group' => $group['name']]),
-      ];
+      return $this->buildAddForm($form, $form_state, $group);
     }
     $form['email'] = [
       '#type' => 'email',
@@ -94,6 +94,104 @@ class GroupMemberForm extends FormBase {
     return $form;
   }
 
+  /**
+   * The add form: site accounts from a list, or someone without an account.
+   */
+  protected function buildAddForm(array $form, FormStateInterface $form_state, array $group): array {
+    try {
+      $candidates = $this->manager->listGroupCandidates((int) $group['id']);
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($exception->getMessage());
+      $candidates = [];
+    }
+    $options = [];
+    foreach ($candidates as $account) {
+      $options[(int) $account['id']] = ($account['name'] !== '' ? $account['name'] . ' (' . $account['email'] . ')' : $account['email'])
+        . ($account['confirmed'] ? '' : ' — ' . $this->t('has not confirmed their address yet'));
+    }
+    $whoIs = fn (string $who) => ['visible' => [':input[name="who"]' => ['value' => $who]]];
+
+    $form['intro'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $this->t('Adding to “@group”. People with an account get your messages the way they chose on My account (email, text or both). Someone without an account gets email only.', ['@group' => $group['name']]),
+    ];
+    $form['who'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Who to add'),
+      '#options' => [
+        'accounts' => $this->t('People with an account on the site'),
+        'contact' => $this->t('Someone without an account'),
+      ],
+      '#default_value' => $options ? 'accounts' : 'contact',
+      '#required' => TRUE,
+    ];
+    $form['accounts'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Tick everyone to add'),
+      '#options' => $options,
+      '#description' => $options ? $this->t('Everyone with an account who is not in the group yet, by name.') : $this->t('Everyone with an account is in the group already.'),
+      '#prefix' => '<div class="group-candidates" style="max-height: 26em; overflow: auto; border: 1px solid #d3d4d9; border-radius: 4px; padding: 0 1em;">',
+      '#suffix' => '</div>',
+      '#states' => $whoIs('accounts'),
+    ];
+    $form['contact'] = [
+      '#type' => 'container',
+      '#states' => $whoIs('contact'),
+    ];
+    $form['contact']['email'] = [
+      '#type' => 'email',
+      '#title' => $this->t('Email address'),
+      '#states' => ['required' => [':input[name="who"]' => ['value' => 'contact']]],
+    ];
+    $form['contact']['name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Name'),
+      '#maxlength' => 200,
+      '#states' => ['required' => [':input[name="who"]' => ['value' => 'contact']]],
+    ];
+    $form['contact']['phone'] = [
+      '#type' => 'tel',
+      '#title' => $this->t('Phone (optional, for your reference)'),
+      '#maxlength' => 40,
+      '#description' => $this->t('Someone without an account is never texted: texts go only to site accounts whose owners asked for them.'),
+    ];
+    $form['actions'] = ['#type' => 'actions'];
+    $form['actions']['submit'] = ['#type' => 'submit', '#value' => $this->t('Add')];
+    $form['actions']['another'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Add and add another'),
+      '#submit' => ['::submitAndAnother'],
+      '#states' => $whoIs('contact'),
+    ];
+    $form['actions']['cancel'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Cancel'),
+      '#url' => Url::fromRoute('bible_admin.group', ['group_id' => $group['id']]),
+      '#attributes' => ['class' => ['button']],
+    ];
+    return $form;
+  }
+
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    if ($form_state->get('member_id') !== NULL) {
+      return;
+    }
+    if ($form_state->getValue('who') === 'accounts') {
+      if (!array_filter((array) $form_state->getValue('accounts'))) {
+        $form_state->setErrorByName('accounts', $this->t('Tick at least one person to add.'));
+      }
+      return;
+    }
+    if (trim((string) $form_state->getValue('email')) === '') {
+      $form_state->setErrorByName('email', $this->t('The email address is needed.'));
+    }
+    if (trim((string) $form_state->getValue('name')) === '') {
+      $form_state->setErrorByName('name', $this->t('The name is needed.'));
+    }
+  }
+
   private function save(FormStateInterface $form_state): ?array {
     $groupId = (int) $form_state->get('group_id');
     $memberId = $form_state->get('member_id');
@@ -115,6 +213,22 @@ class GroupMemberForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+    if ($form_state->get('member_id') === NULL && $form_state->getValue('who') === 'accounts') {
+      $groupId = (int) $form_state->get('group_id');
+      try {
+        $members = $this->manager->addGroupAccounts($groupId, array_keys(array_filter((array) $form_state->getValue('accounts'))));
+      }
+      catch (BibleManagerException $exception) {
+        $this->messenger()->addError($exception->getMessage());
+        $form_state->setRebuild();
+        return;
+      }
+      $this->messenger()->addStatus($this->formatPlural(count($members), 'Added @names.', 'Added @count people: @names.', [
+        '@names' => implode(', ', array_map(fn ($member) => $member['name'] ?: $member['email'], $members)),
+      ]));
+      $form_state->setRedirect('bible_admin.group', ['group_id' => $groupId]);
+      return;
+    }
     $member = $this->save($form_state);
     if ($member === NULL) {
       return;
