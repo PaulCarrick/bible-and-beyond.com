@@ -15,3 +15,19 @@ declare(strict_types=1);
 function bible_admin_cron(): void {
   \Drupal::service('bible_admin.manager')->removeStaleUploads();
 }
+
+/**
+ * Implements hook_menu_links_discovered_alter().
+ *
+ * Sorts the entries of the admin menu (everything under Administration: this module's pages and Drupal's own,
+ * such as Structure, Appearance and People) alphabetically by title, at the owner's request (2026-11-16). Done
+ * by weight, so a site's own changes to the menu (Structure > Menus) still win.
+ */
+function bible_admin_menu_links_discovered_alter(array &$links): void {
+  $children = array_filter($links, fn (array $link) => ($link['parent'] ?? '') === 'system.admin');
+  uasort($children, fn (array $first, array $second) => strnatcasecmp((string) $first['title'], (string) $second['title']));
+  $weight = -50;
+  foreach (array_keys($children) as $id) {
+    $links[$id]['weight'] = $weight++;
+  }
+}

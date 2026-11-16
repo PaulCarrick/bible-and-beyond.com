@@ -138,12 +138,22 @@ class GroupController extends ControllerBase {
       '#cache' => ['max-age' => 0],
       'description' => $group['description'] !== '' ? ['#type' => 'html_tag', '#tag' => 'p', '#value' => $group['description'], '#attributes' => ['style' => 'white-space: pre-wrap;']] : [],
       'leader' => [
-        '#type' => 'html_tag',
-        '#tag' => 'p',
-        '#value' => $this->t('Led by @name. Replies to its emails go to @address.', [
-          '@name' => $group['owner_name'] ?: $this->t('(no name)'),
-          '@address' => $group['owner_email'] ?: $this->t('(no address: set one on your Drupal account)'),
-        ]),
+        '#type' => 'container',
+        '#attributes' => ['class' => ['group-leader'], 'style' => 'margin: 1em 0;'],
+        'line' => [
+          '#markup' => $this->t('Led by @name. Replies to its emails go to @address.', [
+            '@name' => $group['owner_name'] ?: $this->t('(no name)'),
+            '@address' => $group['owner_email'] ?: $this->t('(no address: set one on your Drupal account)'),
+          ]),
+        ],
+        // Those who administer all groups can give it another leader (on Change the group; the owner asked for
+        // the link here, 2026-11-16, as the choice was easy to miss there).
+        'change' => $this->currentUser()->hasPermission('administer groups') ? [
+          '#prefix' => ' ',
+          '#type' => 'link',
+          '#title' => $this->t('Change the leader'),
+          '#url' => Url::fromRoute('bible_admin.group_edit', $id, ['fragment' => 'edit-leader']),
+        ] : [],
       ],
       'send_heading' => ['#type' => 'html_tag', '#tag' => 'h2', '#value' => $this->t('Send to the group')],
       'send_note' => [
