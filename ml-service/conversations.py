@@ -411,23 +411,35 @@ def compose_reply_email(from_address: str, reply_id: int) -> EmailMessage | None
 
 
 def send_reply_email(reply_id: int) -> None:
-  """Emails a new reply to its post's author, if they asked. Run after the reply is saved and answered; a failure
-  is logged (never the address or text) and goes no further."""
+  """Tells a post's author about a new reply, if they asked for replies: by email, text or both, as they chose
+  (sms.deliver). Run after the reply is saved and answered; a failure is logged (never the address or text) and
+  goes no further."""
   try:
-    # Ask first whether one should go (a reply needs none most of the time), then fetch the mail settings.
+    # Ask first whether one should go (a reply needs none most of the time); the mail settings only if emailed.
     if compose_reply_email("", reply_id) is None:
       return
-    settings = load_mail_settings()
-    email = compose_reply_email(settings["from_address"], reply_id)
-    if email is not None:
-      send_email(settings, email)
+    notice = _reply_notice(reply_id)
+    if notice is None:
+      return
+    author_id, words = notice
+
+    def send_the_email():
+      # Nothing tries a reply notice again, so a failed email is only logged and the text (if chosen) still goes.
+      try:
+        settings = load_mail_settings()
+        email = compose_reply_email(settings["from_address"], reply_id)
+        if email is not None:
+          send_email(settings, email)
+      except Exception as problem:
+        logger.error("Reply email for reply %s not sent: %s: %s", reply_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+
+    sms.deliver(author_id, send_the_email, words, sms.site_address("/conversations"))
   except Exception as problem:
-    logger.error("Reply email for reply %s not sent: %s: %s", reply_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
-  _text_reply(reply_id)
+    logger.error("Reply notice for reply %s not sent: %s: %s", reply_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
 
 
-def _text_reply(reply_id: int) -> None:
-  """The reply as a short text too, if the post's author asked for replies and for texts (sms.py)."""
+def _reply_notice(reply_id: int) -> tuple[int, str] | None:
+  """The post's author and the reply as the words of a short text."""
   with connect() as connection:
     row = connection.execute(
       f"""
@@ -439,9 +451,10 @@ def _text_reply(reply_id: int) -> None:
       """,
       (reply_id,),
     ).fetchone()
-  if row:
-    author_id, post_title, replier, text = row
-    sms.text_user(author_id, f"{replier} replied to “{post_title}”: {text}", sms.site_address("/conversations"))
+  if row is None:
+    return None
+  author_id, post_title, replier, text = row
+  return author_id, f"{replier} replied to “{post_title}”: {text}"
 
 
 def update_reply(user_id: int, reply_id: int, body: str) -> dict:

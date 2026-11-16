@@ -37,7 +37,7 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
   {
     service: 'Telnyx (text messages)',
     whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, or your verse a day)',
-    when: 'Only if you ticked “Send me text messages”; never otherwise',
+    when: 'Only if you ticked “Send via SMS”; never otherwise',
   },
   {
     service: 'Our email provider',
@@ -51,7 +51,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
   return (
     <div className="welcome privacy-page">
       <h1>Privacy and security</h1>
-      <p className="privacy-updated">Last updated: November 15, 2026</p>
+      <p className="privacy-updated">Last updated: November 16, 2026</p>
       <p>
         Bible and Beyond is a non-commercial website. This page explains what we collect, who can see it, and what
         we send to other services.
@@ -76,7 +76,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         </li>
         <li>
           <strong>Your first name, last name and phone number,</strong> if you choose to give them. All three are
-          optional. If you ask for text messages, we also keep when you agreed to them and whether you replied STOP.
+          optional. We keep whether you want your messages by email, by text or both; if you ask for text messages, we
+          also keep when you agreed to them and whether you replied STOP.
         </li>
         <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
@@ -160,7 +161,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
       <ul>
         <li>You can stop devotional, verse a day, prayer list or reply emails with the link at the bottom of any email.</li>
         <li>
-          You can stop text messages by replying STOP to any text, or by unticking them on your My account page. Your
+          You can stop text messages by replying STOP to any text, or by unticking <em>Send via SMS</em> on your My account page. Your
           mobile carrier may charge for texts you receive.
         </li>
         <li>

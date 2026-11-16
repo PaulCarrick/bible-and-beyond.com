@@ -566,7 +566,8 @@ export function registerAccount(account: NewAccount) {
     last_name: account.lastName,
     phone: account.phone,
     phone_is_cell: account.phoneIsCell,
-    sms_opt_in: account.smsOptIn,
+    send_via_email: account.sendViaEmail,
+    send_via_sms: account.sendViaSms,
     verse_a_day: account.verseADay,
     verse_time: account.verseTime,
     timezone: account.timezone,
@@ -593,9 +594,20 @@ export async function deleteVerseSubscription(): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/verse-subscription`, { method: 'DELETE', credentials: 'include' }))
 }
 
-// Changes the logged-in member's phone number and text choices (the My account page).
-export async function savePhone(phone: string, phoneIsCell: boolean, smsOptIn: boolean): Promise<AccountUser> {
-  const user = await accountRequest('phone', 'PUT', { phone, phone_is_cell: phoneIsCell, sms_opt_in: smsOptIn })
+// Changes the logged-in member's phone number and how their messages reach them: Send via Email, Send via SMS
+// (the My account page).
+export async function savePhone(
+  phone: string,
+  phoneIsCell: boolean,
+  sendViaEmail: boolean,
+  sendViaSms: boolean,
+): Promise<AccountUser> {
+  const user = await accountRequest('phone', 'PUT', {
+    phone,
+    phone_is_cell: phoneIsCell,
+    send_via_email: sendViaEmail,
+    send_via_sms: sendViaSms,
+  })
   if (!user) {
     throw new Error('Please log in again.')
   }

@@ -797,9 +797,11 @@ class RegisterRequest(BaseModel):
   first_name: str = ""
   last_name: str = ""
   phone: str = ""
-  # The phone is a cell number; the member asks for text messages (sms.py). Texts need both.
+  # The phone is a cell number (sms.py). How notices reach the member: "Send via Email", "Send via SMS" (one or
+  # both; texts need a cell number, and ticking SMS is the consent to texts).
   phone_is_cell: bool = False
-  sms_opt_in: bool = False
+  send_via_email: bool = True
+  send_via_sms: bool = False
   # A verse a day (verse_a_day.py): its time of day in the visitor's own time zone (an IANA name).
   verse_a_day: bool = False
   verse_time: str = "07:00"
@@ -838,7 +840,7 @@ def account_register(body: RegisterRequest, request: Request, response: Response
   try:
     created = create_account(
       body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone,
-      body.phone_is_cell, body.sms_opt_in,
+      body.phone_is_cell, body.send_via_sms, body.send_via_email,
     )
     user, token = log_in(body.email, body.password)
   except AccountProblem as problem:
@@ -857,16 +859,19 @@ def account_register(body: RegisterRequest, request: Request, response: Response
 class PhoneRequest(BaseModel):
   phone: str = Field(default="", max_length=200)
   phone_is_cell: bool = False
-  sms_opt_in: bool = False
+  send_via_email: bool = True
+  send_via_sms: bool = False
 
 
 @app.put("/account/phone")
 def account_phone(body: PhoneRequest, request: Request, background: BackgroundTasks):
-  """Changes the logged-in member's phone number and text choices (the My account page). Turning texts on sends
-  a welcome text that says how to stop."""
+  """Changes the logged-in member's phone number and how their notices reach them, by email, text or both (the
+  My account page). Turning texts on sends a welcome text that says how to stop."""
   user = require_user(request, "Please log in to change your account.")
   try:
-    changed, welcome_number = update_phone(user["id"], body.phone, body.phone_is_cell, body.sms_opt_in)
+    changed, welcome_number = update_phone(
+      user["id"], body.phone, body.phone_is_cell, body.send_via_sms, body.send_via_email
+    )
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   if welcome_number:

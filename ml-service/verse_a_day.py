@@ -212,12 +212,17 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
         ).fetchone()
       if claimed is None:
         continue
-      try:
+      def send_the_email():
+        nonlocal settings
         if settings is None:
           settings = load_mail_settings()
         send_email(settings, compose_email(settings, address, verse, token))
+
+      try:
+        # By email, text or both, as the member chose (sms.deliver).
+        sms.deliver(user_id, send_the_email, f"{verse['reference']}: {verse['text']}", verse_link(verse))
       except Exception as problem:  # never stop the run; try again at the next one
-        logger.error("Verse email %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+        logger.error("Verse %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
         with connect() as connection:
           tries = (attempts + 1) if attempts_on == today else 1
           connection.execute(
@@ -229,7 +234,6 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
       with connect() as connection:
         connection.execute("UPDATE verse_subscriptions SET attempts_on = NULL, attempts = 0 WHERE id = %s", (sub_id,))
       result["sent"] += 1
-      sms.text_user(user_id, f"{verse['reference']}: {verse['text']}", verse_link(verse))
       if pause:
         time.sleep(pause)
     lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))

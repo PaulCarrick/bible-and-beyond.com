@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { forgotPassword, logIn, registerAccount, resetPassword } from './api'
+import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
 import { ownTimeZone } from './timeZones'
@@ -26,7 +27,8 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [phoneIsCell, setPhoneIsCell] = useState(false)
-  const [smsOptIn, setSmsOptIn] = useState(false)
+  const [sendViaEmail, setSendViaEmail] = useState(true)
+  const [sendViaSms, setSendViaSms] = useState(false)
   const [verseADay, setVerseADay] = useState(false)
   const [verseTime, setVerseTime] = useState('07:00')
   const [timeZone, setTimeZone] = useState(ownTimeZone)
@@ -69,7 +71,7 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
                 lastName,
                 phone,
                 phoneIsCell: phone.trim() !== '' && phoneIsCell,
-                smsOptIn: phone.trim() !== '' && phoneIsCell && smsOptIn,
+                ...deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms),
                 verseADay,
                 verseTime,
                 timezone: timeZone,
@@ -167,9 +169,11 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
             <TextMessageChoices
               phone={phone}
               phoneIsCell={phoneIsCell}
-              smsOptIn={smsOptIn}
+              sendViaEmail={sendViaEmail}
+              sendViaSms={sendViaSms}
               onPhoneIsCellChange={setPhoneIsCell}
-              onSmsOptInChange={setSmsOptIn}
+              onSendViaEmailChange={setSendViaEmail}
+              onSendViaSmsChange={setSendViaSms}
             />
           )}
           {mode === 'register' && (

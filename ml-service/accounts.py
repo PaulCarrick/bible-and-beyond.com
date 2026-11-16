@@ -116,7 +116,8 @@ def check_profile(first_name: str, last_name: str, phone: str) -> tuple[str, str
 _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
-  users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps
+  users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
+  users.send_via_email, users.send_via_sms
 """
 
 
@@ -139,6 +140,9 @@ def _describe_user(row) -> dict:
     "sms_stopped": row[10],
     # use_maps: an administrator allowed this account its own notes, pins and routes on the maps (map_marks.py).
     "use_maps": row[11],
+    # How the member's notices reach them (sms.deliver): by email, by text or both (at least one is on).
+    "send_via_email": row[12],
+    "send_via_sms": row[13],
   }
 
 
@@ -149,6 +153,17 @@ def _sms_choices(phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[boo
     raise AccountProblem(str(problem)) from problem
 
 
+def _delivery_choices(
+  phone: str, phone_is_cell: bool, send_via_email: bool, send_via_sms: bool
+) -> tuple[bool, str | None, bool, bool]:
+  """(phone_is_cell, sms_number, send_via_email, send_via_sms) to save for the phone number and the checkboxes
+  "This is a cell number", "Send via Email" and "Send via SMS". Send via SMS needs a US or Canadian cell number
+  (refused otherwise); its tick is also the consent to texts (sms_opt_in). With texts off, email is always on, so
+  a member is never left with no way to be reached."""
+  phone_is_cell, sms_number, send_via_sms = _sms_choices(phone, phone_is_cell, send_via_sms)
+  return phone_is_cell, sms_number, bool(send_via_email or not send_via_sms), send_via_sms
+
+
 def create_account(
   email: str,
   password: str,
@@ -157,11 +172,12 @@ def create_account(
   last_name: str = "",
   phone: str = "",
   phone_is_cell: bool = False,
-  sms_opt_in: bool = False,
+  send_via_sms: bool = False,
+  send_via_email: bool = True,
 ) -> dict:
   email = normalize_email(email)
   first_name, last_name, phone = check_profile(first_name, last_name, phone)
-  phone_is_cell, sms_number, sms_opt_in = _sms_choices(phone, phone_is_cell, sms_opt_in)
+  phone_is_cell, sms_number, send_via_email, send_via_sms = _delivery_choices(phone, phone_is_cell, send_via_email, send_via_sms)
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   try:
@@ -169,22 +185,28 @@ def create_account(
       row = connection.execute(
         f"""
         INSERT INTO users
-          (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_consent_at)
-        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END)
+          (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_consent_at,
+           send_via_email, send_via_sms)
+        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END, %s, %s)
         RETURNING {_USER_COLUMNS}
         """,
-        (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_opt_in),
+        (
+          email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, send_via_sms, send_via_sms,
+          send_via_email, send_via_sms,
+        ),
       ).fetchone()
   except psycopg.errors.UniqueViolation:
     raise AccountProblem("An account with that email address already exists. Please log in.", 409)
   return _describe_user(row)
 
 
-def update_phone(user_id: int, phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[dict, str | None]:
-  """Changes a member's phone number and text choices (the My account page). Returns the account and, when texts
-  were just turned on (or moved to a new number), the number to send the welcome text to."""
+def update_phone(
+  user_id: int, phone: str, phone_is_cell: bool, send_via_sms: bool, send_via_email: bool = True
+) -> tuple[dict, str | None]:
+  """Changes a member's phone number and how their notices reach them (the My account page). Returns the account
+  and, when texts were just turned on (or moved to a new number), the number to send the welcome text to."""
   _, _, phone = check_profile("", "", phone)
-  phone_is_cell, sms_number, sms_opt_in = _sms_choices(phone, phone_is_cell, sms_opt_in)
+  phone_is_cell, sms_number, send_via_email, sms_opt_in = _delivery_choices(phone, phone_is_cell, send_via_email, send_via_sms)
   with connect() as connection:
     before = connection.execute("SELECT sms_opt_in, sms_number FROM users WHERE id = %s", (user_id,)).fetchone()
     row = connection.execute(
@@ -192,10 +214,14 @@ def update_phone(user_id: int, phone: str, phone_is_cell: bool, sms_opt_in: bool
       UPDATE users SET phone = NULLIF(%(phone)s, ''), phone_is_cell = %(cell)s, sms_number = %(number)s,
         sms_opt_in = %(opt_in)s,
         sms_consent_at = CASE WHEN %(opt_in)s THEN now() ELSE sms_consent_at END,
-        sms_stopped_at = CASE WHEN %(opt_in)s THEN NULL ELSE sms_stopped_at END
+        sms_stopped_at = CASE WHEN %(opt_in)s THEN NULL ELSE sms_stopped_at END,
+        send_via_email = %(by_email)s, send_via_sms = %(opt_in)s
       WHERE id = %(user)s RETURNING {_USER_COLUMNS}
       """,
-      {"phone": phone, "cell": phone_is_cell, "number": sms_number, "opt_in": sms_opt_in, "user": user_id},
+      {
+        "phone": phone, "cell": phone_is_cell, "number": sms_number, "opt_in": sms_opt_in, "by_email": send_via_email,
+        "user": user_id,
+      },
     ).fetchone()
   newly_on = sms_opt_in and (before is None or not before[0] or before[1] != sms_number)
   return _describe_user(row), sms_number if newly_on else None

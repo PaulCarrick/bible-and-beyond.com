@@ -1,45 +1,87 @@
+import { canSendViaSms, deliveryChoice } from './deliveryChoice'
+
 interface TextMessageChoicesProps {
-  // The phone number typed above; the choices show only once there is one.
+  // The phone number typed above.
   phone: string
   phoneIsCell: boolean
-  smsOptIn: boolean
+  sendViaEmail: boolean
+  sendViaSms: boolean
   onPhoneIsCellChange: (value: boolean) => void
-  onSmsOptInChange: (value: boolean) => void
+  onSendViaEmailChange: (value: boolean) => void
+  onSendViaSmsChange: (value: boolean) => void
 }
 
-// The two checkboxes under a phone number (the sign-up form and the My account page; the owner's request,
-// 2026-11-15): "This is a cell number", then, once ticked, "Send me text messages" with the warning that texts can
-// cost. The server checks again (sms.py): texts only to a US or Canadian cell number.
-function TextMessageChoices({ phone, phoneIsCell, smsOptIn, onPhoneIsCellChange, onSmsOptInChange }: TextMessageChoicesProps) {
-  if (phone.trim() === '') {
-    return null
-  }
+// Under the phone number (the sign-up form and the My account page): "This is a cell (mobile) number" once a
+// number is typed (2026-11-15), then how the member's messages reach them (2026-11-16, the owner's request):
+// "Send via Email" and "Send via SMS", one or both. SMS is disabled until there is a cell number; ticking it is
+// the consent to texts, so the carrier warning and STOP/HELP sit under it. The box that is the only one ticked
+// cannot be unticked. The server checks again (accounts.py, sms.py): texts only to a US or Canadian cell number.
+function TextMessageChoices({
+  phone,
+  phoneIsCell,
+  sendViaEmail,
+  sendViaSms,
+  onPhoneIsCellChange,
+  onSendViaEmailChange,
+  onSendViaSmsChange,
+}: TextMessageChoicesProps) {
+  const hasPhone = phone.trim() !== ''
+  const smsAllowed = canSendViaSms(phone, phoneIsCell)
+  const shown = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms)
   return (
     <div className="prayer-options text-message-choices">
-      <label className="inline-label">
-        <input
-          type="checkbox"
-          checked={phoneIsCell}
-          onChange={(event) => {
-            onPhoneIsCellChange(event.target.checked)
-            if (!event.target.checked) {
-              onSmsOptInChange(false)
-            }
-          }}
-        />
-        This is a cell (mobile) number
-      </label>
-      {phoneIsCell && (
+      {hasPhone && (
         <label className="inline-label">
-          <input type="checkbox" checked={smsOptIn} onChange={(event) => onSmsOptInChange(event.target.checked)} />
-          Send me text (SMS) messages
-          <small>
-            The devotionals, verse a day, prayer list and reply notices you get by email will also be texted to this number, as a short
-            message with a link. <strong>Your mobile carrier may charge you for text messages</strong> (message and data
-            rates may apply). Reply STOP to any text to stop them, or HELP for help. US and Canadian numbers only.
-          </small>
+          <input type="checkbox" checked={phoneIsCell} onChange={(event) => onPhoneIsCellChange(event.target.checked)} />
+          This is a cell (mobile) number
         </label>
       )}
+      <fieldset className="prayer-options delivery-choices">
+        <legend>How should we send you messages?</legend>
+        <p className="delivery-choices-note">
+          The devotionals, the verse a day, the prayer list and replies to your posts come the way you choose here.
+          Emails about your account (confirming your address, resetting your password) always come by email.
+        </p>
+        <label className="inline-label">
+          <input
+            type="checkbox"
+            checked={shown.sendViaEmail}
+            disabled={!shown.sendViaSms}
+            onChange={(event) => onSendViaEmailChange(event.target.checked)}
+          />
+          Send via Email
+        </label>
+        <label className="inline-label">
+          <input
+            type="checkbox"
+            checked={shown.sendViaSms}
+            disabled={!smsAllowed || !shown.sendViaEmail}
+            onChange={(event) => {
+              onSendViaSmsChange(event.target.checked)
+              if (!event.target.checked) {
+                onSendViaEmailChange(true)
+              }
+            }}
+          />
+          Send via SMS
+          {smsAllowed ? (
+            <small>
+              A short text message with a link, to the number above. <strong>Your mobile carrier may charge you for
+              text messages</strong> (message and data rates may apply). Reply STOP to any text to stop them, or HELP
+              for help. US and Canadian numbers only.
+            </small>
+          ) : (
+            <small>
+              {hasPhone
+                ? 'Tick “This is a cell (mobile) number” to choose SMS.'
+                : 'Add a cell (mobile) phone number above to choose SMS.'}
+            </small>
+          )}
+        </label>
+        {smsAllowed && shown.sendViaEmail !== shown.sendViaSms && (
+          <p className="delivery-choices-note">At least one must be ticked: to switch, tick the other one first.</p>
+        )}
+      </fieldset>
     </div>
   )
 }

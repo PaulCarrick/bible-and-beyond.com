@@ -50,7 +50,7 @@ def register(name="ann", phone="555 234 5678", cell=True, texts=True):
     "/account/register",
     json={
       "email": f"{name}@{DOMAIN}", "password": PASSWORD, "password_confirmation": PASSWORD,
-      "first_name": name.title(), "last_name": "Test", "phone": phone, "phone_is_cell": cell, "sms_opt_in": texts,
+      "first_name": name.title(), "last_name": "Test", "phone": phone, "phone_is_cell": cell, "send_via_sms": texts,
     },
   )
   return response
@@ -95,15 +95,15 @@ def test_texts_need_a_cell_number_that_can_be_texted(texts):
 
 def test_my_account_turns_texts_on_and_off(texts):
   register(texts=False)
-  user = client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "sms_opt_in": True}).json()["user"]
+  user = client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "send_via_sms": True}).json()["user"]
   assert user["sms_opt_in"] and user["phone"] == "+1 (555) 234-5678" and len(texts) == 1
   # Saving again with no change sends no second welcome.
-  client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "sms_opt_in": True})
+  client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "send_via_sms": True})
   assert len(texts) == 1
-  user = client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "sms_opt_in": False}).json()["user"]
+  user = client.put("/account/phone", json={"phone": "5552345678", "phone_is_cell": True, "send_via_sms": False}).json()["user"]
   assert user["sms_opt_in"] is False
   client.cookies.clear()
-  assert client.put("/account/phone", json={"phone": "", "phone_is_cell": False, "sms_opt_in": False}).status_code == 401
+  assert client.put("/account/phone", json={"phone": "", "phone_is_cell": False, "send_via_sms": False}).status_code == 401
 
 
 def signed(event: dict, when: float | None = None) -> tuple[bytes, dict]:
@@ -188,10 +188,11 @@ def test_the_prayer_list_is_texted_as_well_as_emailed(texts, monkeypatch):
 
 def test_an_unconfirmed_address_gets_no_texts(texts):
   user_id = register().json()["user"]["id"]
-  texts.clear()
-  assert sms.text_user(user_id, "hello") is False
+  with connect() as connection:
+    assert sms.delivery_for_user(connection, user_id) == (True, None)
   confirm(user_id)
-  assert sms.text_user(user_id, "hello") is True
+  with connect() as connection:
+    assert sms.delivery_for_user(connection, user_id) == (True, "+15552345678")
 
 
 def test_a_long_text_is_cut():

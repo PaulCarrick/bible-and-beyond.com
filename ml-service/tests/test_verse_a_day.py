@@ -24,7 +24,8 @@ def sent(monkeypatch):
   monkeypatch.setattr(accounts, "send_plain_message", lambda address, subject, text: None)
   monkeypatch.setattr(verse_a_day, "load_mail_settings", lambda: {"from_address": "site@example.test"})
   monkeypatch.setattr(verse_a_day, "send_email", lambda settings, email: outbox["emails"].append(email))
-  monkeypatch.setattr(sms, "text_user", lambda user_id, words, link="": outbox["texts"].append((user_id, words, link)) or True)
+  monkeypatch.setattr(sms, "is_configured", lambda: True)
+  monkeypatch.setattr(sms, "send_text", lambda number, text: outbox["texts"].append((number, text)) or True)
   monkeypatch.setenv("SITE_URL", "https://site.example")
 
   def clear():
@@ -94,8 +95,9 @@ def test_my_account_turns_it_on_changes_and_stops():
 
 
 def test_it_is_sent_once_a_day_at_the_members_time_by_email_and_text(sent):
-  user_id = register().json()["user"]["id"]
+  user_id = register(phone="555 234 5678", phone_is_cell=True, send_via_sms=True).json()["user"]["id"]
   confirm(user_id)
+  sent["texts"].clear()  # the welcome text
   verse_a_day.save_subscription(user_id, "07:00", "UTC", now=at(1, 12))
   assert verse_a_day.send_due(at(2, 6, 59), pause=0)["sent"] == 0
   assert verse_a_day.send_due(at(2, 7, 1), pause=0, chooser=random.Random(3))["sent"] == 1
@@ -105,7 +107,7 @@ def test_it_is_sent_once_a_day_at_the_members_time_by_email_and_text(sent):
   text = email.get_content()
   assert "(BSB)" in text and "https://site.example/?read=BSB&book=" in text
   assert email["List-Unsubscribe"].startswith("<https://site.example/api/subscriptions/unsubscribe?token=")
-  assert sent["texts"][0][0] == user_id and "read=BSB" in sent["texts"][0][2]
+  assert sent["texts"][0][0] == "+15552345678" and "read=BSB" in sent["texts"][0][1]
   # The next day, another verse.
   assert verse_a_day.send_due(at(3, 7, 1), pause=0)["sent"] == 1
   assert sent["emails"][1]["Subject"] != email["Subject"]

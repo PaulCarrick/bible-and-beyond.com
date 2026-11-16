@@ -224,12 +224,21 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       if not requests:
         result["empty"] += 1
         continue
-      try:
+      def send_the_email():
+        nonlocal settings
         if settings is None:
           settings = load_mail_settings()
         send_email(settings, compose_email(settings, address, requests, token, zone))
+
+      # A text is short: the count and the titles, with a link.
+      count = len(requests)
+      titles = "; ".join(request["title"] for request in requests)
+      words = f"{count} new prayer {'request' if count == 1 else 'requests'} this week: {titles}."
+      try:
+        # By email, text or both, as the member chose (sms.deliver).
+        sms.deliver(user_id, send_the_email, words, sms.site_address("/prayer-wall"))
       except Exception as problem:  # never stop the run; the requests stay for the next try
-        logger.error("Prayer list email %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+        logger.error("Prayer list %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
         with connect() as connection:
           tries = (attempts + 1) if attempts_on == today else 1
           connection.execute(
@@ -243,10 +252,6 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
           "UPDATE prayer_list_subscriptions SET sent_through = %s, attempts_on = NULL, attempts = 0 WHERE id = %s", (now, sub_id)
         )
       result["sent"] += 1
-      # A short text too, if the member asked for texts: the count and the titles, with a link.
-      count = len(requests)
-      titles = "; ".join(request["title"] for request in requests)
-      sms.text_user(user_id, f"{count} new prayer {'request' if count == 1 else 'requests'} this week: {titles}.", sms.site_address("/prayer-wall"))
       if pause:
         time.sleep(pause)
     lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))

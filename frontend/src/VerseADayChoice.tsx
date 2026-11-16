@@ -11,8 +11,8 @@ interface VerseADayChoiceProps {
 }
 
 // "Send me a verse a day" (the sign-up form and the My account page; the owner's request, 2026-11-15), with its
-// time of day and time zone once ticked. The verse comes by email, and by text too for members who asked for
-// texts (verse_a_day.py).
+// time of day and time zone once ticked. The verse comes by email, text or both, as the member chose under "How
+// should we send you messages?" (verse_a_day.py, sms.deliver).
 function VerseADayChoice({ isOn, sendTime, timeZone, onIsOnChange, onSendTimeChange, onTimeZoneChange }: VerseADayChoiceProps) {
   const zones = useMemo(() => allTimeZones(), [])
   return (
@@ -21,7 +21,7 @@ function VerseADayChoice({ isOn, sendTime, timeZone, onIsOnChange, onSendTimeCha
         <input type="checkbox" checked={isOn} onChange={(event) => onIsOnChange(event.target.checked)} />
         Send me a verse a day
         <small>
-          A Bible verse chosen at random from well-known passages, each day by email (and by text if you asked for texts
+          A Bible verse chosen at random from well-known passages, each day by email, text or both (as you chose
           above), with a link to read it in context.
         </small>
       </label>

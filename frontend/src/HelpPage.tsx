@@ -709,14 +709,15 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <h2>Accounts (optional)</h2>
         <p>
           You do not need an account to read or search anything. An account lets you write notes, make playlists,
-          receive a devotional, a verse a day or the prayer list by email (and by text if you like) and, on request,
+          receive a devotional, a verse a day or the prayer list by email, by text or both and, on request,
           ask your own questions in the FAQ, write in Conversations and on the Prayer Wall, and mark the maps.
         </p>
         <ul className="welcome-tips">
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
             the page and enter your email address and a password twice (at least 8 characters). Your first
-            name, last name and phone number are optional. On the same form you can choose texts and a verse a day
+            name, last name and phone number are optional. On the same form you can choose how your messages are sent
+            (email, text or both) and a verse a day
             (see{' '}
             <button type="button" className="link-button" onClick={() => goToSection('help-verse-a-day')}>
               A verse a day and text messages
@@ -744,7 +745,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           </li>
           <li>
             <strong>My account.</strong> Click your address at the top right to open it. There you can change your
-            phone number and your text and verse-a-day choices (press <em>Save</em>), and change your password.
+            phone number, how your messages are sent (<em>Send via Email</em>, <em>Send via SMS</em>, or both) and your
+            verse-a-day choice (press <em>Save</em>), and change your password.
           </li>
           <li>
             <strong>Your address</strong> is used only for the site&rsquo;s own emails (the confirmation link, a password
@@ -775,20 +777,27 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}
           <em>My account</em>, and choose a time of day and your time zone. Each day at that time (within five minutes)
           you get one Bible verse from the Berean Standard Bible, chosen at random from about 1,500 of the best-known
-          verses and never the same two days running, by email, with a link to read it in context. If you asked for
-          texts, it comes by text too. It starts once your email address is confirmed. To stop it, untick the box on My
+          verses and never the same two days running, with a link to read it in context. It comes by email, by text
+          or both, as you chose (see below). It starts once your email address is confirmed. To stop it, untick the box on My
           account and press <em>Save</em>, or use the link at the foot of any of its emails.
         </p>
         <p>
-          <strong>Text messages.</strong> If you give a US or Canadian phone number (it is written as +1 (555)
-          123-4567 as you type), tick <em>This is a cell (mobile) number</em> and then <em>Send me text (SMS)
-          messages</em>, when you set up your account or later on My account. You get a welcome text to confirm.
-          From then on, everything you get by email (the daily devotional, the verse a day, the weekly prayer list and
-          reply notices) also comes as a short text with a link; the emails still come too. Texts need a confirmed
-          email address. Your mobile carrier may charge for texts (message and data rates may apply). Reply{' '}
-          <strong>STOP</strong> to any text to end them (<strong>START</strong> turns them back on), or{' '}
-          <strong>HELP</strong> for help; or untick the box on My account. The emails about your account (confirming
-          your address, a password reset) are never texted.
+          <strong>Email, text or both.</strong> Under <em>How should we send you messages?</em> (when you set up your
+          account, or later on My account) tick <em>Send via Email</em>, <em>Send via SMS</em> or both. The daily
+          devotional, the verse a day, the weekly prayer list and reply notices then come that way. At least one stays
+          ticked: to switch from one to the other, tick the new one first, then untick the old one. Everyone starts with
+          email.
+        </p>
+        <p>
+          <strong>Text messages.</strong> <em>Send via SMS</em> can be ticked only once you give a US or Canadian
+          phone number (it is written as +1 (555) 123-4567 as you type) and tick <em>This is a cell (mobile)
+          number</em>; until then it is greyed out. You get a welcome text to confirm. A text is short, with a link to
+          the full reading, verse, list or reply. Texts need a confirmed email address. Your mobile carrier may charge
+          for texts (message and data rates may apply). Reply <strong>STOP</strong> to any text to end them
+          (<strong>START</strong> turns them back on), or <strong>HELP</strong> for help; or untick{' '}
+          <em>Send via SMS</em> on My account. If you chose texts only and they stop (you replied STOP), your messages
+          come by email until you turn texts back on, so you miss nothing. The emails about your account (confirming
+          your address, a password reset) always come by email and are never texted.
         </p>
       </section>
 
@@ -910,7 +919,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           <strong>The prayer list by email:</strong> anyone with an account and a confirmed email address can open{' '}
           <em>Email me the prayer list each week</em> at the top of the Prayer Wall and choose a day, a time and a time
           zone. Once a week you get the requests members chose to email in the past week, leaving out answered ones (none
-          is sent in a week with no new requests). If you asked for texts, a short text with a link comes too. Each
+          is sent in a week with no new requests). It comes by email, by text (a short text with a link) or both, as you
+          chose on My account. Each
           email has a link to stop them, or use <em>Stop the emails</em> in the same place.
         </p>
         <Screenshot

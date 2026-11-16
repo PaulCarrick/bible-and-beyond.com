@@ -1,9 +1,12 @@
 """Text messages (SMS) through Telnyx, for members who asked for them (added 2026-11-15 at the owner's request).
 
-A member with a cell number who ticked "Send me text messages" (users.sms_opt_in) gets a short text, with a link,
-for each devotional, weekly prayer list and reply notice they also get by email; the email still goes. Texts go
-only to US and Canadian numbers (the site sends from a toll-free number) and only while the member's email address
-is confirmed, as the emails do.
+Each member chooses how the devotional, verse a day, weekly prayer list and reply notices reach them: "Send via
+Email" and "Send via SMS" (users.send_via_email, send_via_sms; migration 041), one or both. Ticking Send via SMS on a
+cell number is also the consent to texts (users.sms_opt_in). A text is short, with a link. Texts go only to US and
+Canadian numbers (the site sends from a toll-free number) and only while the member's email address is confirmed,
+as the emails do. When a member chose texts only but cannot be texted (they replied STOP, or texting is not set up
+on this site), the notice goes by email instead, so nothing is lost (delivery_for_user, deliver). The account
+emails (confirm the address, reset the password) always go by email.
 
 STOP is handled here as well as by Telnyx: a reply of STOP (or STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT) reaches
 the webhook (POST /sms/webhook, signed by Telnyx with the public key on the Site settings screen), which turns the
@@ -138,17 +141,41 @@ def number_for_user(connection, user_id: int) -> str | None:
   return row[0] if row else None
 
 
-def text_user(user_id: int, words: str, link: str = "") -> bool:
-  """Texts a member, if they asked for texts. Never raises: a text is always on top of an email."""
-  try:
-    if not is_configured():
-      return False
-    with connect() as connection:
-      number = number_for_user(connection, user_id)
-    return number is not None and send_text(number, compose(words, link))
-  except Exception as problem:
-    logger.error("Text for member %s not sent: %s", user_id, type(problem).__name__)
-    return False
+class TextNotSent(Exception):
+  """A notice the member gets only by text could not be texted (the caller tries again later)."""
+
+
+def delivery_for_user(connection, user_id: int) -> tuple[bool, str | None]:
+  """How a notice reaches a member: (send it by email?, the number to text it to, or None). Email when they chose
+  it, or when they chose texts but cannot be texted now (STOP, no number, texting not set up here)."""
+  row = connection.execute(
+    "SELECT send_via_email, send_via_sms FROM users WHERE id = %s", (user_id,)
+  ).fetchone()
+  if row is None:
+    return False, None
+  by_email, by_text = row
+  number = number_for_user(connection, user_id) if by_text and is_configured() else None
+  return bool(by_email or number is None), number
+
+
+def deliver(user_id: int, send_the_email, words: str, link: str = "") -> dict:
+  """Sends one notice the way the member chose. send_the_email() sends the email and raises if it cannot. Raises
+  when the notice reached the member by no way they chose, so the caller can try again; a text that fails beside
+  an email that went is only logged. Returns {"email": sent?, "text": sent?}."""
+  with connect() as connection:
+    by_email, number = delivery_for_user(connection, user_id)
+  sent = {"email": False, "text": False}
+  if by_email:
+    send_the_email()
+    sent["email"] = True
+  if number:
+    try:
+      sent["text"] = send_text(number, compose(words, link))
+    except Exception as problem:
+      logger.error("Text for member %s not sent: %s", user_id, type(problem).__name__)
+    if not sent["text"] and not by_email:
+      raise TextNotSent("The text could not be sent.")
+  return sent
 
 
 def site_address(path: str = "") -> str:
@@ -159,7 +186,8 @@ def site_address(path: str = "") -> str:
 
 
 def check_choices(phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[bool, str | None, bool]:
-  """(phone_is_cell, sms_number, sms_opt_in) to save for a phone number and the two checkboxes."""
+  """(phone_is_cell, sms_number, sms_opt_in) to save for a phone number, "This is a cell number" and "Send via
+  SMS" (whose tick is the consent to texts)."""
   phone = (phone or "").strip()
   if not phone:
     return False, None, False
@@ -176,7 +204,7 @@ def welcome_text(number: str) -> None:
   send_text(
     number,
     compose(
-      "You will get texts for the devotionals, verse a day, prayer list and replies you get by email. Message and data rates may apply. Reply HELP for help.",
+      "You will get texts for the devotionals, verse a day, prayer list and replies you asked for. Message and data rates may apply. Reply HELP for help.",
     ),
   )
 
@@ -222,7 +250,7 @@ def handle_webhook(body: bytes) -> str:
     with connect() as connection:
       restarted = connection.execute(
         """
-        UPDATE users SET sms_opt_in = true, sms_stopped_at = NULL
+        UPDATE users SET sms_opt_in = true, sms_stopped_at = NULL, send_via_sms = true
         WHERE sms_number = %s AND sms_consent_at IS NOT NULL AND phone_is_cell RETURNING id
         """,
         (number,),

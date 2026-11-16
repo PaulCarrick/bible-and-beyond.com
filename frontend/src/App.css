@@ -3011,6 +3011,27 @@ select:disabled {
   margin: -0.25rem 0 0.75rem;
 }
 
+/* "How should we send you messages?": Send via Email and Send via SMS (TextMessageChoices.tsx). */
+.delivery-choices {
+  margin: 0.25rem 0 0;
+}
+
+.delivery-choices legend {
+  padding: 0;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.delivery-choices-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.delivery-choices label:has(input:disabled) {
+  color: var(--muted-text, inherit);
+}
+
 /* The time of day and time zone under "Send me a verse a day" (VerseADayChoice.tsx). */
 .verse-a-day-time {
   display: flex;

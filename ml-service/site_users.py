@@ -167,7 +167,9 @@ def update_user(
         number = texting_number(value)
         if number is None or number != texting_number(current["phone"]):
           # A new number has not been agreed to for texts: the member turns them on again on My account.
-          changes.append("phone_is_cell = false, sms_number = NULL, sms_opt_in = false")
+          changes.append(
+            "phone_is_cell = false, sms_number = NULL, sms_opt_in = false, send_via_sms = false, send_via_email = true"
+          )
   if password:
     _checked_password(password)
     changes.append("password_hash = %s")

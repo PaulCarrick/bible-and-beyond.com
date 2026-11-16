@@ -288,12 +288,18 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
       if claimed is None:
         continue
       is_last = kind == "chapters" and reading["next"] is None
-      try:
+
+      def send_the_email():
+        nonlocal settings
         if settings is None:
           settings = load_mail_settings()
         send_email(settings, compose_email(settings, address, name, reading, token, is_last))
+
+      try:
+        # By email, text or both, as the member chose (sms.deliver); a short text has a link to the reading.
+        sms.deliver(user_id, send_the_email, f"{name}: {reading['title']}. Read it at", sms.site_address("/devotionals"))
       except Exception as problem:  # the mail server, drush or anything else: never stop the run, never lose the day
-        logger.error("Devotional email %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+        logger.error("Devotional %s not sent: %s: %s", sub_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
         with connect() as connection:
           # Try again at the next run, until today's tries are used up.
           tries = (attempts + 1) if attempts_on == today else 1
@@ -315,8 +321,6 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
         else:
           connection.execute("UPDATE devotional_subscriptions SET attempts_on = NULL, attempts = 0 WHERE id = %s", (sub_id,))
       result["sent"] += 1
-      # The same reading as a short text with a link, if the member asked for texts (never stops the run).
-      sms.text_user(user_id, f"{name}: {reading['title']}. Read it at", sms.site_address("/devotionals"))
       if pause:
         time.sleep(pause)
     lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))

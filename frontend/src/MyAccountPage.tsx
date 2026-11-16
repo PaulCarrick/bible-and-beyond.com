@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSubscription } from './api'
 import ChangePasswordSection from './ChangePasswordSection'
+import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
 import { ownTimeZone } from './timeZones'
@@ -18,12 +19,14 @@ interface MyAccountPageProps {
 }
 
 // My account (added 2026-11-15 with text messages, the owner's request): the logged-in member's address, their
-// phone number with the two text message checkboxes, and the verse a day, which they can change here. Opened from their address in the
+// phone number with "This is a cell number", how their messages reach them (Send via Email, Send via SMS; added
+// 2026-11-16) and the verse a day, which they can change here. Opened from their address in the
 // header. Below them, a section of its own changes the password (ChangePasswordSection).
 function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAccountPageProps) {
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [phoneIsCell, setPhoneIsCell] = useState(user?.phone_is_cell ?? false)
-  const [smsOptIn, setSmsOptIn] = useState(user?.sms_opt_in ?? false)
+  const [sendViaEmail, setSendViaEmail] = useState(user?.send_via_email ?? true)
+  const [sendViaSms, setSendViaSms] = useState(user?.send_via_sms ?? false)
   // The verse a day: undefined while loading.
   const [verseLoaded, setVerseLoaded] = useState<boolean | undefined>(undefined)
   const [verseADay, setVerseADay] = useState(false)
@@ -89,7 +92,8 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
     setErrorMessage('')
     const hasPhone = phone.trim() !== ''
     try {
-      const saved = await savePhone(phone, hasPhone && phoneIsCell, hasPhone && phoneIsCell && smsOptIn)
+      const choice = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms)
+      const saved = await savePhone(phone, hasPhone && phoneIsCell, choice.sendViaEmail, choice.sendViaSms)
       if (verseADay) {
         await saveVerseSubscription(verseTime, timeZone)
       } else if (verseLoaded) {
@@ -99,7 +103,8 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
       onUserChanged(saved)
       setPhone(saved.phone)
       setPhoneIsCell(saved.phone_is_cell)
-      setSmsOptIn(saved.sms_opt_in)
+      setSendViaEmail(saved.send_via_email)
+      setSendViaSms(saved.send_via_sms)
       setMessage(
         saved.sms_opt_in && !user?.sms_opt_in
           ? 'Saved. Texts are on: we have sent a text to confirm.'
@@ -121,8 +126,9 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
       </p>
       {user.sms_stopped && !user.sms_opt_in && (
         <p className="account-note">
-          You replied STOP to one of our texts, so texts are off. Tick <em>Send me text messages</em> below to turn them
-          back on (you may also need to reply START to our number).
+          You replied STOP to one of our texts, so texts are off and your messages come by email for now. Save
+          with <em>Send via SMS</em> ticked below to turn texts back on (you may also need to reply START to our
+          number).
         </p>
       )}
       <form className="contact-form" onSubmit={handleSubmit}>
@@ -141,9 +147,11 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
         <TextMessageChoices
           phone={phone}
           phoneIsCell={phoneIsCell}
-          smsOptIn={smsOptIn}
+          sendViaEmail={sendViaEmail}
+          sendViaSms={sendViaSms}
           onPhoneIsCellChange={setPhoneIsCell}
-          onSmsOptInChange={setSmsOptIn}
+          onSendViaEmailChange={setSendViaEmail}
+          onSendViaSmsChange={setSendViaSms}
         />
         {verseLoaded !== undefined && (
           <VerseADayChoice
@@ -155,7 +163,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
             onTimeZoneChange={setTimeZone}
           />
         )}
-        {!user.email_verified && (smsOptIn || verseADay) && (
+        {!user.email_verified && (sendViaSms || verseADay) && (
           <p className="account-note">
             Texts and the verse a day start once you have confirmed your email address, as the other emails do.
           </p>
