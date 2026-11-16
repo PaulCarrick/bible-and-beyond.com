@@ -214,7 +214,7 @@ bible_admin.bulk_upload:
   requirements:
     _permission: 'administer bibles'
     _csrf_request_header_token: 'TRUE'
-    collection: 'music|devotionals|books|maps'
+    collection: 'music|devotionals|books|maps|verse-images'
 
 bible_admin.music:
   path: '/admin/music'
@@ -286,6 +286,26 @@ bible_admin.map_change:
     _permission: 'administer bibles'
     action: 'publish|unpublish|delete'
     map_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+# The verse a day pictures (verse_images.py): uploaded here, never shown on the site; a later picture message of
+# the verse a day will use one chosen at random. Open to whoever may administer the Bibles.
+bible_admin.verse_images:
+  path: '/admin/verse-images'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\VerseImageListController::build'
+    _title: 'Verse a day pictures'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.verse_image_change:
+  path: '/admin/verse-images/{action}/{image_id}'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ChangeVerseImageForm'
+    _title: 'Change a picture'
+  requirements:
+    _permission: 'administer bibles'
+    action: 'use|unuse|delete'
+    image_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
 
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page

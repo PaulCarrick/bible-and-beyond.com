@@ -767,6 +767,83 @@ class BibleManager {
   }
 
   /**
+   * Largest verse a day picture, in bytes (verse_images.MAX_FILE_BYTES).
+   */
+  public const MAX_VERSE_IMAGE_BYTES = 25 * 1024 * 1024;
+
+  /**
+   * The extensions a verse a day picture may have (verse_images.EXTENSIONS).
+   */
+  public const VERSE_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+
+  /**
+   * Every verse a day picture, newest first.
+   *
+   * @return array
+   *   Each has id, title, file_name, media_type, file_size, width, height, in_use, created_at, file_present
+   *   and thumbnail (a data: address, or NULL).
+   */
+  public function listVerseImages(): array {
+    return $this->run(['list'], 'manage_verse_images.py')['images'];
+  }
+
+  /**
+   * One verse a day picture (without its thumbnail).
+   */
+  public function getVerseImage(string $imageId): array {
+    return $this->run(['get', '--id=' . $imageId], 'manage_verse_images.py')['image'];
+  }
+
+  /**
+   * Saves an uploaded picture as a new verse a day picture, in use at once. The file waits in the private
+   * upload folder only while the tool copies it.
+   */
+  public function saveVerseImage(string $imageId, string $title, UploadedFile $file): array {
+    $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+    if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+      throw new BibleManagerException('The upload could not be saved.');
+    }
+    try {
+      $extension = strtolower($file->getClientOriginalExtension());
+      $file->move($directory, 'upload.' . $extension);
+      $image = $this->run(
+        ['upload', $directory . '/upload.' . $extension, '--name=upload.' . $extension, '--id=' . $imageId, '--title=' . $title],
+        'manage_verse_images.py',
+      )['image'];
+    }
+    finally {
+      $this->fileSystem->deleteRecursive($directory);
+    }
+    $this->logVerseImage('uploaded', $image);
+    return $image;
+  }
+
+  /**
+   * Puts a picture back in use, takes it out of use (kept, never chosen) or deletes it with its files.
+   */
+  public function changeVerseImage(string $action, string $imageId): array {
+    if (!in_array($action, ['use', 'unuse', 'delete'], TRUE)) {
+      throw new BibleManagerException('Unknown action.');
+    }
+    $image = $this->run([$action, '--id=' . $imageId], 'manage_verse_images.py')['image'];
+    $this->logVerseImage(match ($action) {
+      'use' => 'put in use',
+      'unuse' => 'took out of use',
+      default => 'deleted',
+    }, $image);
+    return $image;
+  }
+
+  private function logVerseImage(string $change, array $image): void {
+    $this->logger->notice('@user @change the verse a day picture “@title” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@title' => $image['title'],
+      '@id' => $image['id'],
+    ]);
+  }
+
+  /**
    * The FAQ questions, grouped as on the FAQ page: each group has heading and questions (number, question).
    */
   public function listFaqQuestions(): array {

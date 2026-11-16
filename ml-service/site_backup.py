@@ -24,6 +24,7 @@ Two parts, chosen with the page's two checkboxes (for a backup, and again for a 
             files/library-images/...         the pictures of PDF and Word uploads (document_import.py)
             files/library-pages/...          the pages of PDFs kept with "Preserve original pages"
             files/maps/...                   the maps as uploaded and the copies the site shows (maps.py)
+            files/verse-images/...           the verse a day pictures and their thumbnails (verse_images.py)
 
 and manifest.json (when it was taken, the note, which parts it holds, a few counts). The zip holds personal
 data (accounts, password hashes) and the service keys: keep it private.
@@ -62,6 +63,7 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 import document_import
 import maps
+import verse_images
 import site_icons
 from search import connect
 from service_settings import get_setting, settings_path
@@ -81,6 +83,7 @@ ICONS = "files/icons/"
 LIBRARY_IMAGES = "files/library-images/"
 LIBRARY_PAGES = "files/library-pages/"
 MAPS = "files/maps/"
+VERSE_IMAGES = "files/verse-images/"
 # Small files of ml-service/data that are part of the site (the service settings file itself can live
 # elsewhere, see settings_path()).
 DATA_FILES = ["api_bible_usage.json"]
@@ -101,6 +104,7 @@ COUNTED_TABLES = {
   "Daily emails": "devotional_subscriptions",
   "Songs": "music_tracks",
   "Maps": "maps",
+  "Verse a day pictures": "verse_images",
   "FAQ notes": "faq_notes",
 }
 
@@ -375,6 +379,7 @@ def take_backup(parts: dict, note: str = "", report=lambda message: None) -> Pat
         manifest["counts"]["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
         manifest["counts"]["Original pages of PDFs"] = _add_folder(archive, document_import.pages_folder(), LIBRARY_PAGES)
         manifest["counts"]["Map files"] = _add_folder(archive, maps.maps_folder(), MAPS)
+        manifest["counts"]["Verse a day picture files"] = _add_folder(archive, verse_images.images_folder(), VERSE_IMAGES)
       archive.writestr("manifest.json", json.dumps(manifest, indent=2))
     partial.rename(target)
   except BaseException:
@@ -528,6 +533,8 @@ def restore_backup(path: Path, wanted: dict, report=lambda message: None) -> str
       _extract_folder(archive, LIBRARY_PAGES, document_import.pages_folder())
       # The maps as uploaded and the copies made from them (older backups have none).
       _extract_folder(archive, MAPS, maps.maps_folder())
+      # The verse a day pictures (older backups have none).
+      _extract_folder(archive, VERSE_IMAGES, verse_images.images_folder())
 
     if database:
       report("Restoring Drupal's database ...")

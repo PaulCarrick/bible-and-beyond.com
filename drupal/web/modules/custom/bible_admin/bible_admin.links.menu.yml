@@ -74,6 +74,13 @@ bible_admin.maps:
   parent: system.admin
   weight: -5
 
+bible_admin.verse_images:
+  title: 'Verse a day pictures'
+  description: 'Upload pictures for the verse a day picture messages; they are not shown on the site.'
+  route_name: bible_admin.verse_images
+  parent: system.admin
+  weight: -5
+
 bible_admin.backup:
   title: 'Backup and restore'
   description: 'Save the databases and the files of the site as a zip in a folder on your computer, or restore them from one.'

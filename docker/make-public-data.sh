@@ -25,8 +25,8 @@ owner_tables=(original_words lexicon_entries devotionals devotional_sections dev
 # their files are in the music folder, not the database, and the recordings may not be ours to pass on. And the
 # embeddings of the AI search (hundreds of megabytes, made with this site's Google key; a site makes its own with
 # ml-service/scripts/embed_passages.py). And the maps: their files are in the maps folder, which is not shipped,
-# and a map may not be ours to pass on.
-site_tables=(faq_answers music_tracks passage_embeddings ai_search_cache maps map_verses)
+# and a map may not be ours to pass on. Likewise the verse a day pictures (verse_images.py).
+site_tables=(faq_answers music_tracks passage_embeddings ai_search_cache maps map_verses verse_images)
 # Commentaries whose owner (CCEL) asks not to be redistributed: their rows are taken out of the commentary
 # tables below, and each site fetches them itself.
 owner_commentaries=(wesley-notes)

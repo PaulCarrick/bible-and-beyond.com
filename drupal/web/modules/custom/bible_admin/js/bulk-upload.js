@@ -50,7 +50,9 @@
     const maxFiles = Number(area.dataset.maxFiles);
     const maxBytes = Number(area.dataset.maxBytes);
     // Songs and maps take only the files (their details are added with Edit); books and devotionals need more.
-    const isMusic = collection === 'music' || collection === 'maps';
+    const isMusic = collection === 'music' || collection === 'maps' || collection === 'verse-images';
+    // The verse a day pictures are never shown on the site, so there is nothing to publish: each is in use at once.
+    const isPublishable = collection !== 'verse-images';
     const prefix = `bulk-${collection}`;
     let chosen = [];
     let isBusy = false;
@@ -90,9 +92,11 @@
       inputs.whole = whole.input;
       options.append(whole.wrapper);
     }
-    const publish = checkbox(`${prefix}-publish`, `Publish them when uploaded (otherwise each new ${one} is hidden until you publish it)`);
-    inputs.publish = publish.input;
-    options.append(publish.wrapper);
+    if (isPublishable) {
+      const publish = checkbox(`${prefix}-publish`, `Publish them when uploaded (otherwise each new ${one} is hidden until you publish it)`);
+      inputs.publish = publish.input;
+      options.append(publish.wrapper);
+    }
 
     const uploadButton = element('button', { type: 'button', className: 'button button--primary', text: 'Upload', disabled: true });
     const clearButton = element('button', { type: 'button', className: 'button', text: 'Clear', disabled: true });
@@ -146,7 +150,7 @@
       return new Promise((resolve) => {
         const data = new FormData();
         data.append('file', item.file);
-        data.append('publish', inputs.publish.checked ? '1' : '0');
+        data.append('publish', inputs.publish?.checked ? '1' : '0');
         if (!isMusic) {
           data.append('author', inputs.author.value);
           data.append('source_name', inputs.source.value);
@@ -210,7 +214,7 @@
         if (answer.ok) {
           counts.uploaded += 1;
           item.row.className = 'is-done';
-          item.status.textContent = `Uploaded as “${answer.name}” (${answer.id})${answer.published ? ', published' : ', hidden'}`;
+          item.status.textContent = `Uploaded as “${answer.name}” (${answer.id})${isPublishable ? (answer.published ? ', published' : ', hidden') : ''}`;
         }
         else if (answer.skipped) {
           counts.skipped += 1;
