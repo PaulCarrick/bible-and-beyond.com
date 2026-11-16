@@ -73,6 +73,16 @@ def test_groups_belong_to_their_leader():
     groups.save_group(None, {"name": " "}, OWNER, "", "")
 
 
+def test_an_administrator_can_give_a_group_another_leader():
+  group = new_group("Care list")
+  # A plain save keeps the leader (the names given are those Drupal sends: the leader's own).
+  kept = groups.save_group(group["id"], {"name": "Care list"}, OWNER, "Deacon Dave", "dave@example.org")
+  assert (kept["owner_uid"], kept["owner_email"]) == (OWNER, "dave@example.org")
+  moved = groups.save_group(group["id"], {"name": "Care list"}, OWNER + 1, "Deacon Danne", "danne@example.org", set_owner=True)
+  assert (moved["owner_uid"], moved["owner_name"], moved["owner_email"]) == (OWNER + 1, "Deacon Danne", "danne@example.org")
+  assert [each["id"] for each in groups.list_groups(OWNER + 1)] == [group["id"]] and groups.list_groups(OWNER) == []
+
+
 def test_members_are_accounts_by_address_or_contacts_by_name():
   group = new_group()
   ann = account("ann", texts=True)

@@ -6,7 +6,8 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
 
     manage_groups.py list [--owner=UID]                every group, or one leader's
     manage_groups.py get --group=ID                    a group with its members and latest messages
-    manage_groups.py save [--group=ID] --owner=UID     input {name, description, owner_name, owner_email}
+    manage_groups.py save [--group=ID] --owner=UID [--set-owner]   input {name, description, owner_name, owner_email}
+                                                       (--set-owner: the group moves to that leader)
     manage_groups.py delete --group=ID
     manage_groups.py add-member --group=ID             input {email, name, phone}
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
@@ -37,6 +38,7 @@ def parse_arguments(arguments=None):
   save = commands.add_parser("save")
   save.add_argument("--group", type=int)
   save.add_argument("--owner", type=int, required=True)
+  save.add_argument("--set-owner", action="store_true")
   for name in ("update-member", "remove-member"):
     member = commands.add_parser(name)
     member.add_argument("--group", type=int, required=True)
@@ -73,7 +75,8 @@ def run(arguments) -> dict:
   if command == "save":
     details = read_input()
     group = groups.save_group(
-      arguments.group, details, arguments.owner, str(details.get("owner_name", "")), str(details.get("owner_email", ""))
+      arguments.group, details, arguments.owner, str(details.get("owner_name", "")), str(details.get("owner_email", "")),
+      set_owner=arguments.set_owner,
     )
     return {"ok": True, "group": group}
   if command == "delete":

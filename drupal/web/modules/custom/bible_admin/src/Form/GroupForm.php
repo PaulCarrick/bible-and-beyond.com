@@ -6,20 +6,37 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Makes a group (led by the user making it) or changes its name and description.
+ * Makes a group (led by the user making it) or changes its name and description; someone who administers all
+ * groups can also give it another leader (the owner's request, 2026-11-16).
  */
 class GroupForm extends FormBase {
 
-  public function __construct(protected BibleManager $manager) {}
+  public function __construct(protected BibleManager $manager, protected EntityTypeManagerInterface $entityTypes) {}
 
   public static function create(ContainerInterface $container): static {
-    return new static($container->get('bible_admin.manager'));
+    return new static($container->get('bible_admin.manager'), $container->get('entity_type.manager'));
+  }
+
+  /**
+   * The Drupal users who can lead groups (active, with "lead groups" or "administer groups"), by name, and the
+   * group's own leader in any case.
+   */
+  protected function leaderOptions(int $currentLeader): array {
+    $options = [];
+    foreach ($this->entityTypes->getStorage('user')->loadByProperties(['status' => 1]) as $user) {
+      if ($user->id() && ((int) $user->id() === $currentLeader || $user->hasPermission('lead groups') || $user->hasPermission('administer groups'))) {
+        $options[(int) $user->id()] = $user->getDisplayName() . ($user->getEmail() ? ' (' . $user->getEmail() . ')' : '');
+      }
+    }
+    natcasesort($options);
+    return $options;
   }
 
   public function getFormId(): string {
@@ -47,9 +64,19 @@ class GroupForm extends FormBase {
       '#required' => TRUE,
       '#description' => $this->t('Shown in the subject of verse cards and at the foot of every email, such as “Smith family care group”.'),
     ];
+    if ($group !== NULL && $this->currentUser()->hasPermission('administer groups')) {
+      $form['leader'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Leader'),
+        '#options' => $this->leaderOptions((int) $group['owner_uid']),
+        '#default_value' => (int) $group['owner_uid'],
+        '#required' => TRUE,
+        '#description' => $this->t('The group moves to the person chosen: only they (and those who administer all groups) see it, and replies to its emails go to their address. The list holds the Drupal users who can lead groups; give someone the Group leader role to add them.'),
+      ];
+    }
     $form['description'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Notes (only you see them)'),
+      '#title' => $this->t('Notes (only the leader and those who administer all groups see them)'),
       '#default_value' => $group['description'] ?? '',
       '#rows' => 3,
       '#maxlength' => 2000,
@@ -68,7 +95,9 @@ class GroupForm extends FormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $groupId = $form_state->get('group_id');
     try {
-      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), (string) $form_state->getValue('description'));
+      $leaderId = $form_state->getValue('leader');
+      $leader = $leaderId ? $this->entityTypes->getStorage('user')->load((int) $leaderId) : NULL;
+      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), (string) $form_state->getValue('description'), $leader);
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

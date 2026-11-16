@@ -114,9 +114,12 @@ def get_group(group_id: int) -> dict:
   return group
 
 
-def save_group(group_id: int | None, details: dict, owner_uid: int, owner_name: str, owner_email: str) -> dict:
+def save_group(
+  group_id: int | None, details: dict, owner_uid: int, owner_name: str, owner_email: str, set_owner: bool = False
+) -> dict:
   """Makes a group (group_id None) or changes its name and description. The owner is set when it is made, and
-  their name and address (the Reply-To of its emails) are brought up to date on every change."""
+  their name and address (the Reply-To of its emails) are brought up to date on every change. With set_owner
+  (an administrator choosing another leader; Drupal checks who may) the group moves to the owner given."""
   name = _one_line(details.get("name", ""), "group's name", NAME_LIMIT)
   description = (details.get("description") or "").strip()[:DESCRIPTION_LIMIT]
   with connect() as connection:
@@ -137,6 +140,11 @@ def save_group(group_id: int | None, details: dict, owner_uid: int, owner_name: 
       ).fetchone()
       if changed is None:
         raise GroupProblem("That group does not exist (it may have been deleted).")
+      if set_owner:
+        connection.execute(
+          "UPDATE member_groups SET owner_uid = %s, owner_name = %s, owner_email = %s WHERE id = %s",
+          (owner_uid, owner_name, owner_email, group_id),
+        )
   return get_group(group_id)
 
 

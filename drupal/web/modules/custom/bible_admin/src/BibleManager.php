@@ -6,6 +6,7 @@ namespace Drupal\bible_admin;
 
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Site\Settings;
 use Psr\Log\LoggerInterface;
@@ -796,24 +797,58 @@ class BibleManager {
   }
 
   /**
-   * Makes a group (led by this user) or changes one's name and description.
+   * Makes a group (led by this user) or changes one's name and description. $leader, from someone who may
+   * administer all groups, moves the group to that Drupal user (who must be able to lead groups): its emails'
+   * Reply-To becomes their address.
    */
-  public function saveGroup(?int $groupId, string $name, string $description): array {
-    $ownerId = (int) $this->currentUser->id();
+  public function saveGroup(?int $groupId, string $name, string $description, ?AccountInterface $leader = NULL): array {
+    $owner = $this->currentUser;
+    $previous = NULL;
     if ($groupId !== NULL) {
-      $ownerId = (int) $this->getGroup($groupId)['owner_uid'];
+      $previous = $this->getGroup($groupId);
     }
-    $arguments = ['save', '--owner=' . $ownerId];
+    $moving = $leader !== NULL && $previous !== NULL && (int) $leader->id() !== (int) $previous['owner_uid'];
+    if ($moving) {
+      if (!$this->currentUser->hasPermission('administer groups')) {
+        throw new BibleManagerException('Only those who administer all groups can change a group\'s leader.');
+      }
+      if (!$leader->hasPermission('lead groups') && !$leader->hasPermission('administer groups')) {
+        throw new BibleManagerException('That person cannot lead groups: give them the Group leader role first.');
+      }
+      $owner = $leader;
+    }
+    $arguments = ['save', '--owner=' . ($previous !== NULL && !$moving ? (int) $previous['owner_uid'] : (int) $owner->id())];
     if ($groupId !== NULL) {
       $arguments[] = '--group=' . $groupId;
+    }
+    if ($moving) {
+      $arguments[] = '--set-owner';
+    }
+    // The leader's name and address (the Reply-To) are refreshed from the leader's own account: the new leader's,
+    // or the current user's when they lead the group; an administrator editing someone else's group keeps the
+    // leader's as they are.
+    $ownerName = $owner->getDisplayName();
+    $ownerEmail = (string) $owner->getEmail();
+    if ($previous !== NULL && !$moving && (int) $previous['owner_uid'] !== (int) $this->currentUser->id()) {
+      $ownerName = $previous['owner_name'];
+      $ownerEmail = $previous['owner_email'];
     }
     $group = $this->run($arguments, 'manage_groups.py', $this->groupInput([
       'name' => $name,
       'description' => $description,
-      'owner_name' => $this->currentUser->getDisplayName(),
-      'owner_email' => (string) $this->currentUser->getEmail(),
+      'owner_name' => $ownerName,
+      'owner_email' => $ownerEmail,
     ]))['group'];
     $this->logGroup($groupId === NULL ? 'made' : 'changed', $group);
+    if ($moving) {
+      $this->logger->notice('@user made @leader the leader of the group “@name” (@id), instead of @before.', [
+        '@user' => $this->currentUser->getAccountName(),
+        '@leader' => $leader->getAccountName(),
+        '@name' => $group['name'],
+        '@id' => $group['id'],
+        '@before' => $previous['owner_name'],
+      ]);
+    }
     return $group;
   }
 
