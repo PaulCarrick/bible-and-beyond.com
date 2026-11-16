@@ -25,6 +25,7 @@ const sections = [
   { id: 'help-maps', title: 'Maps' },
   { id: 'help-faq', title: 'FAQ: questions about the faith' },
   { id: 'help-accounts', title: 'Accounts (optional)' },
+  { id: 'help-verse-a-day', title: 'A verse a day and text messages' },
   { id: 'help-notes', title: 'Your notes' },
   { id: 'help-conversations', title: 'Conversations' },
   { id: 'help-prayer-wall', title: 'Prayer Wall' },
@@ -108,15 +109,17 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
       <h1>Help</h1>
       <p>
         Bible and Beyond is free. You can read and search everything on it without an account and without logging in.
-        If you set up an account and log in, you can also write your own notes, have a devotional emailed to you each
-        day, make music playlists, and ask to be allowed to put your own questions to the FAQ or to write in Conversations and on
-        the Prayer Wall. This guide shows each part of the site.
+        If you set up an account and log in, you can also write your own notes, have a devotional or a Bible verse sent
+        to you each day (by email, and by text message if you like), get the prayer list each week, make music
+        playlists, and ask to be allowed to put your own questions to the FAQ, to write in Conversations and on the
+        Prayer Wall, or to mark the maps with your own pins, routes and notes. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
       <p>
         Prefer to watch? The{' '}
         <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
-        is an eleven-minute narrated tour of the whole site.
+        is an eleven-minute narrated tour of the site. It was made before the maps, the verse a day and the text
+        messages were added; this guide covers them.
       </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
@@ -137,25 +140,27 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <p>
           Every page has the same three parts. At the top is the <strong>header</strong>: click the name or the round
           emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the top right are{' '}
-          <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address,{' '}
-          <em>My notes</em> and <em>Log out</em> there instead. On the left is the <strong>menu</strong>: Welcome and
-          Search everything at the top, then groups for the Bible, the commentaries, the devotionals, the other books,
-          Christian media, questions (the FAQ), members (Conversations and the Prayer Wall) and about (this Help page,
-          the tutorial video and Contact). The groups start closed to keep the menu short: click a group&rsquo;s name to
-          open it and see its pages, and click it again to close it. The group of the page you are on opens by itself.
-          On a phone the menu is hidden behind the menu button in the header.
+          <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address (click it to
+          open <em>My account</em>), <em>My notes</em> and <em>Log out</em> there instead. On the left is the{' '}
+          <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
+          the devotionals, the other books, Christian media, maps, questions (the FAQ), members (Conversations and the
+          Prayer Wall) and about (this Help page, the tutorial video, Contact and Privacy). The groups start closed to
+          keep the menu short: a small arrow (▶) beside a group&rsquo;s name shows it is closed. Click the name to open
+          it and see its pages (the arrow turns down), and click it again to close it. The group of the page you are on
+          opens by itself. On a phone the menu is hidden behind the menu button in the header.
         </p>
         <p>
           The Welcome page has a card for each part of the site, listing what is on it now (the Bibles, the
-          commentaries, the devotionals and the other books), with buttons that open it. Each page has its own address,
+          commentaries, the devotionals, the other books, the media and the maps), with buttons that open it, and below
+          them the latest post in Conversations. Each page has its own address,
           so you can bookmark it or share it, and the browser&rsquo;s Back button takes you back to where you were. A
           page keeps what you typed and how far you scrolled while you look at another one.
         </p>
         <Screenshot
           name="welcome"
           width={1152}
-          height={1300}
-          alt="The Welcome page with the menu on the left, its groups closed, and cards for the Bible, the commentaries, the devotionals, the other books and Christian media"
+          height={1560}
+          alt="The Welcome page with the menu on the left, its groups closed, cards for the Bible, the commentaries, the devotionals, the other books, Christian media and the maps, and the latest Conversations post"
           caption="The Welcome page: the header, the menu on the left (click a group to open it), and a card for each part of the site."
         />
       </section>
@@ -575,15 +580,39 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             Press <em>Open this map</em> to see one: drag it to move about, and zoom in and out with the + and − buttons,
             the mouse wheel or a pinch on a phone. <em>Full screen</em> gives it the whole window (Escape or{' '}
             <em>Leave full screen</em> returns). Under the map are what it shows, where it came from, and the verses it
-            goes with; click a verse to read it in the Bible (with Shift, Ctrl or Cmd held, in a new tab).
+            goes with; click a verse to read it in the Bible (with Shift, Ctrl or Cmd held, in a new tab), and Back
+            returns to the map.
           </p>
+          <Screenshot
+            name="maps"
+            width={1152}
+            height={720}
+            alt="View the maps: a card for each map with a small picture, its verses and an Open this map button"
+            caption="View the maps: each map with its verses."
+          />
+          <Screenshot
+            name="map-open"
+            width={1152}
+            height={1250}
+            alt="A map of Palestine in the time of Jesus, open with zoom buttons and Full screen, showing a member's pins, a blue route and a dotted red route shared by another member"
+            caption="An open map, with a member's own pins and route (solid) and a route another member shared (dotted)."
+          />
           <p>
             <PageLink onNavigate={onNavigate} view="searchMaps">Search the maps</PageLink> finds a map by its title, description,
-            keywords or verses; type a verse such as <em>Acts 13:4</em> to find the maps that go with it. Search
+            keywords or verses; type a verse such as <em>Acts 13:4</em> to find only the maps that go with it. Search
             everything lists maps too.
           </p>
+          <Screenshot
+            name="map-search"
+            width={1152}
+            height={700}
+            alt="Search the maps for Galilee, finding Palestine in the time of Jesus with the word in bold and Open this map"
+            caption="Searching the maps for “Galilee”."
+          />
           <p>
-            <strong>Your own notes, pins and routes</strong> (for members an administrator has invited): on an open map,{' '}
+            <strong>Your own notes, pins and routes</strong> (when you are logged in, for members an administrator has
+            invited: ask through the <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form, giving the
+            email address of your account): on an open map,{' '}
             <em>Drop a pin</em> and then click or tap the place, and write a note for it if you wish; <em>Trace a route</em>{' '}
             and click or tap each point in turn (<em>Undo the last point</em> takes one back), then <em>Finish the
             route</em>, name it and choose its colour; <em>Add a note</em> writes a note on the whole map. A verse in a
@@ -592,14 +621,29 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             of its points to move it; drag one of the small pale points between two to add a point there (or click it to
             add one halfway); right-click a point (long-press on a phone) to take it out; and <em>Add points at the
             end</em> and <em>Remove the last point</em> change its ends. Your pins and
-            routes are kept as places on the map, not as a copy of it.
+            routes are kept as places on the map, not as a copy of it. Each map you have marked is also listed on{' '}
+            <PageLink onNavigate={onNavigate} view="notes">My notes</PageLink>.
           </p>
+          <Screenshot
+            name="map-marks"
+            width={1152}
+            height={1150}
+            alt="Your notes, pins and routes under a map: three pins, a route and a note, each with Show on the map, Edit and Delete, and a route under Shared with you"
+            caption="Under the map: your pins, routes and notes, and what other members have shared with you."
+          />
           <p>
             <strong>Sharing.</strong> Only you see your notes, pins and routes unless you share one: under{' '}
             <em>Share with</em> type the email address of another member who can use the maps and press <em>Add</em>
             (add as many as you like), then save. They see it under <em>Shared with you</em>, drawn dotted on the map,
             with your name; they cannot change it. Remove someone there to stop sharing with them.
           </p>
+          <Screenshot
+            name="map-mark-edit"
+            width={1152}
+            height={1100}
+            alt="Changing a route: its points shown on the map to drag, and a form with its name, colour, note, Add points at the end, Remove the last point and Share with"
+            caption="Changing a route: drag its points on the map, and change its name, colour, note and who it is shared with."
+          />
         </section>
       )}
 
@@ -665,14 +709,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
       <section id="help-accounts" tabIndex={-1} className="help-section">
         <h2>Accounts (optional)</h2>
         <p>
-          You do not need an account to read or search anything. An account lets you write notes, receive a devotional
-          by email each day and, on request, ask your own questions in the FAQ.
+          You do not need an account to read or search anything. An account lets you write notes, make playlists,
+          receive a devotional, a verse a day or the prayer list by email (and by text if you like) and, on request,
+          ask your own questions in the FAQ, write in Conversations and on the Prayer Wall, and mark the maps.
         </p>
         <ul className="welcome-tips">
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
             the page and enter your email address and a password twice (at least 8 characters). Your first
-            name, last name and phone number are optional. You are logged in at once.
+            name, last name and phone number are optional. On the same form you can choose texts and a verse a day
+            (see{' '}
+            <button type="button" className="link-button" onClick={() => goToSection('help-verse-a-day')}>
+              A verse a day and text messages
+            </button>
+            ). You are logged in at once.
           </li>
           <li>
             <strong>Confirming your address.</strong> We email you a link; click it within three days. Notes work
@@ -694,26 +744,53 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             logged in.
           </li>
           <li>
+            <strong>My account.</strong> Click your address at the top right to open it. There you can change your
+            phone number and your text and verse-a-day choices (press <em>Save</em>), and change your password.
+          </li>
+          <li>
             <strong>Your address</strong> is used only for the site&rsquo;s own emails (the confirmation link, a password
-            reset and any daily devotional you choose). Your name and phone number are kept with your account; only
-            the site&rsquo;s administrators can see them.
-          </li>
-          <li>
-            <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up the account, or later on{' '}
-            <em>My account</em>, and choose a time. Each day you get one Bible verse (BSB), chosen at random from
-            well-known passages and never the same two days running, by email, with a link to read it in context; and by
-            text too if you asked for texts. It starts once your address is confirmed, and every email has a link to stop
-            it.
-          </li>
-          <li>
-            <strong>Text messages.</strong> If you give a US or Canadian phone number (it is shown as +1 (555) 123-4567),
-            tick <em>This is a cell (mobile) number</em> and then <em>Send me text (SMS) messages</em>, when you set up
-            the account or later on <em>My account</em> (click your address at the top right). The devotionals, prayer
-            list, reply notices and verse a day you get by email are then also sent as a short text with a link; the emails still
-            come. Your mobile carrier may charge for texts. Reply STOP to any text to end them (START turns them back
-            on), or HELP for help.
+            reset, and any devotional, verse a day, prayer list or reply notices you choose). Your name and phone number
+            are kept with your account; only the site&rsquo;s administrators can see them. The{' '}
+            <PageLink onNavigate={onNavigate} view="privacy">Privacy</PageLink> page says what is kept and why.
           </li>
         </ul>
+        <Screenshot
+          name="sign-up"
+          width={1152}
+          height={1340}
+          alt="The Set up account form with a phone number, the cell number and text message boxes ticked, and Send me a verse a day ticked with a time and time zone"
+          caption="Setting up an account, with texts and a verse a day chosen."
+        />
+        <Screenshot
+          name="my-account"
+          width={1152}
+          height={1240}
+          alt="My account: the phone number with texts and a verse a day chosen and a Save button, then Change your password"
+          caption="My account: your phone, texts and verse a day, and changing your password."
+        />
+      </section>
+
+      <section id="help-verse-a-day" tabIndex={-1} className="help-section">
+        <h2>A verse a day and text messages</h2>
+        <p>
+          <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}
+          <em>My account</em>, and choose a time of day and your time zone. Each day at that time (within five minutes)
+          you get one Bible verse from the Berean Standard Bible, chosen at random from about 1,500 of the best-known
+          verses and never the same two days running, by email, with a link to read it in context. If you asked for
+          texts, it comes by text too. It starts once your email address is confirmed. To stop it, untick the box on My
+          account and press <em>Save</em>, or use the link at the foot of any of its emails.
+        </p>
+        <p>
+          <strong>Text messages.</strong> If you give a US or Canadian phone number (it is written as +1 (555)
+          123-4567 as you type), tick <em>This is a cell (mobile) number</em> and then <em>Send me text (SMS)
+          messages</em>, when you set up your account or later on My account. You get a welcome text to confirm.
+          From then on, everything you get by email (the daily devotional, the verse a day, the weekly prayer list and
+          reply notices) also comes as a short text with a link; the emails still come too. Texts need a confirmed
+          email address. Your mobile carrier may charge for texts (message and data rates may apply). Reply{' '}
+          <strong>STOP</strong> to any text to end them (<strong>START</strong> turns them back on), or{' '}
+          <strong>HELP</strong> for help; or untick the box on My account. The emails about your account (confirming
+          your address, a password reset) are never texted.
+        </p>
       </section>
 
       <section id="help-notes" tabIndex={-1} className="help-section">
@@ -816,18 +893,33 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           a prayer is answered, tick <em>Answered</em> beside Edit and Delete under your request (no need to edit it):
           everyone then sees it marked &ldquo;Answered&rdquo;, and it is left out of the prayer list emails.
         </p>
-        <p>
-          <strong>The prayer list by email:</strong> anyone with an account and a confirmed email address can open{' '}
-          <em>Email me the prayer list each week</em> at the top of the Prayer Wall and choose a day, a time and a time
-          zone. Once a week you get the requests members chose to email in the past week, leaving out answered ones (none
-          is sent in a week with no new requests). Each email has a link to stop them.
-        </p>
         <Screenshot
           name="prayer-wall"
           width={1152}
           height={900}
-          alt="The Prayer Wall with two prayer requests by members, one with a reply"
-          caption="The Prayer Wall: prayer requests and praises, newest first, with replies."
+          alt="The Prayer Wall with prayer requests by members: one posted anonymously, one marked Answered, and one with a reply"
+          caption="The Prayer Wall: prayer requests and praises, newest first, with replies; one posted anonymously and one marked Answered."
+        />
+        <Screenshot
+          name="prayer-request-form"
+          width={1152}
+          height={1100}
+          alt="Share a prayer request: a title, the text, and the Post anonymously, Private and Email this request to the prayer list choices"
+          caption="Sharing a prayer request, with its three choices under the text."
+        />
+        <p>
+          <strong>The prayer list by email:</strong> anyone with an account and a confirmed email address can open{' '}
+          <em>Email me the prayer list each week</em> at the top of the Prayer Wall and choose a day, a time and a time
+          zone. Once a week you get the requests members chose to email in the past week, leaving out answered ones (none
+          is sent in a week with no new requests). If you asked for texts, a short text with a link comes too. Each
+          email has a link to stop them, or use <em>Stop the emails</em> in the same place.
+        </p>
+        <Screenshot
+          name="prayer-list-email"
+          width={828}
+          height={517}
+          alt="Email me the prayer list each week, open, with a day of the week, a time of day, a time zone and an Email it to me each week button"
+          caption="Choosing a day and time to receive the prayer list each week."
         />
       </section>
 
@@ -835,11 +927,12 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <h2>Contact</h2>
         <p>
           Use the <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> form for questions, corrections, suggestions, or to ask
-          for your own FAQ questions to be turned on (see{' '}
+          for something to be turned on for your account: your own FAQ questions (see{' '}
           <button type="button" className="link-button" onClick={() => goToSection('help-faq')}>
             FAQ
           </button>
-          ). Enter your name, your email address (so we can reply), a phone number if you like, and your message, and
+          ), writing in Conversations and on the Prayer Wall, or your own pins, routes and notes on the maps. Give the
+          email address of your account. Enter your name, your email address (so we can reply), a phone number if you like, and your message, and
           press <em>Send Message</em>. The form is protected from spam by Google reCAPTCHA, which works in the
           background: there is no box to tick. What the site keeps about you, and what it sends to other services, is
           on the <PageLink onNavigate={onNavigate} view="privacy">Privacy</PageLink> page.

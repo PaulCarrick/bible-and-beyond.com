@@ -129,7 +129,7 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
               onChange={(event) => setEmailToPrayerList(event.target.checked)}
             />
             Email this request to the prayer list
-            <small>It goes in the next daily email to everyone who signed up for the prayer list.</small>
+            <small>It goes in the next weekly email to everyone who signed up for the prayer list.</small>
           </label>
         </fieldset>
       )}
