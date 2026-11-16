@@ -297,7 +297,7 @@ def build_email(settings: dict, values: dict) -> EmailMessage:
   return email
 
 
-def send_email(settings: dict, email: EmailMessage) -> None:
+def send_email(settings: dict, email: EmailMessage, recipients: list[str] | None = None) -> None:
   host = settings["smtp_host"]
   port = int(settings["smtp_port"])
   authentication = settings.get("smtp_authentication", "login")
@@ -319,7 +319,9 @@ def send_email(settings: dict, email: EmailMessage) -> None:
           # Use the method the administrator chose rather than whichever the server lists first.
           connection.esmtp_features["auth"] = authentication.upper()
         connection.login(username, password)
-      connection.send_message(email)
+      # recipients: who it is really delivered to, when that is not who its To shows (a group email: To shows the
+      # leader, and each member gets it as a hidden recipient, so no member's address is shown; groups.py).
+      connection.send_message(email, to_addrs=recipients) if recipients else connection.send_message(email)
   except (OSError, smtplib.SMTPException) as error:
     raise MailUnavailable(f"the message could not be sent: {type(error).__name__}")
 

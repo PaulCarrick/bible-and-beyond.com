@@ -1,4 +1,5 @@
-"""Send the daily devotional emails, the prayer list emails and the verses a day that are due. A systemd timer runs this every few minutes.
+"""Send the daily devotional emails, the prayer list emails, the verses a day and the groups' scheduled messages
+(group_schedules.py) that are due. A systemd timer runs this every few minutes.
 
     .venv/bin/python scripts/send_devotional_emails.py
 
@@ -16,6 +17,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
+import group_schedules  # noqa: E402
 import prayer_list  # noqa: E402
 import verse_a_day  # noqa: E402
 from subscriptions import send_due  # noqa: E402
@@ -29,7 +31,9 @@ def main() -> int:
   print(f"prayer list: sent {prayers['sent']}, failed {prayers['failed']}, nothing new {prayers['empty']}" + (" (another run was sending)" if prayers["already_running"] else ""))
   verses = verse_a_day.send_due()
   print(f"verse a day: sent {verses['sent']}, failed {verses['failed']}" + (" (another run was sending)" if verses["already_running"] else ""))
-  return 1 if result["failed"] or prayers["failed"] or verses["failed"] else 0
+  scheduled = group_schedules.send_due()
+  print(f"group schedules: sent {scheduled['sent']}, failed {scheduled['failed']}, too late {scheduled['late']}" + (" (another run was sending)" if scheduled["already_running"] else ""))
+  return 1 if result["failed"] or prayers["failed"] or verses["failed"] or scheduled["failed"] else 0
 
 
 if __name__ == "__main__":

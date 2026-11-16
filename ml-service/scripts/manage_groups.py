@@ -15,6 +15,11 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
     manage_groups.py preview-verse                     a random verse card (its name, picture and verse)
     manage_groups.py preview-picture                   input {text}: the words on a random picture
     manage_groups.py send --group=ID --kind=message|verse|picture   input {subject, text, card, verse, sent_by}
+    manage_groups.py add-schedule --group=ID           input {kind, subject, text, repeat, on_date, day_of_month,
+                                                       weekday, week_of_month, send_time, timezone, created_by}
+    manage_groups.py get-schedule --group=ID --schedule=ID
+    manage_groups.py update-schedule --group=ID --schedule=ID   input as add-schedule
+    manage_groups.py remove-schedule --group=ID --schedule=ID
 """
 
 import argparse
@@ -25,6 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import group_schedules  # noqa: E402
 import groups  # noqa: E402
 from groups import GroupProblem  # noqa: E402
 
@@ -33,7 +39,7 @@ def parse_arguments(arguments=None):
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("list").add_argument("--owner", type=int)
-  for name in ("get", "delete", "add-member"):
+  for name in ("get", "delete", "add-member", "add-schedule"):
     commands.add_parser(name).add_argument("--group", type=int, required=True)
   save = commands.add_parser("save")
   save.add_argument("--group", type=int)
@@ -43,6 +49,10 @@ def parse_arguments(arguments=None):
     member = commands.add_parser(name)
     member.add_argument("--group", type=int, required=True)
     member.add_argument("--member", type=int, required=True)
+  for name in ("get-schedule", "update-schedule", "remove-schedule"):
+    schedule = commands.add_parser(name)
+    schedule.add_argument("--group", type=int, required=True)
+    schedule.add_argument("--schedule", type=int, required=True)
   commands.add_parser("preview-verse")
   commands.add_parser("preview-picture")
   send = commands.add_parser("send")
@@ -71,6 +81,7 @@ def run(arguments) -> dict:
   if command == "get":
     group = groups.get_group(arguments.group)
     group["sent"] = groups.list_sent(arguments.group)
+    group["schedules"] = group_schedules.list_schedules(arguments.group)
     return {"ok": True, "group": group}
   if command == "save":
     details = read_input()
@@ -87,6 +98,15 @@ def run(arguments) -> dict:
     return {"ok": True, "member": groups.update_member(arguments.group, arguments.member, read_input())}
   if command == "remove-member":
     return {"ok": True, "member": groups.remove_member(arguments.group, arguments.member)}
+  if command == "add-schedule":
+    details = read_input()
+    return {"ok": True, "schedule": group_schedules.add_schedule(arguments.group, details, str(details.get("created_by", "")))}
+  if command == "get-schedule":
+    return {"ok": True, "schedule": group_schedules.get_schedule(arguments.group, arguments.schedule)}
+  if command == "update-schedule":
+    return {"ok": True, "schedule": group_schedules.update_schedule(arguments.group, arguments.schedule, read_input())}
+  if command == "remove-schedule":
+    return {"ok": True, "schedule": group_schedules.remove_schedule(arguments.group, arguments.schedule)}
   if command == "preview-verse":
     return {"ok": True, "preview": groups.preview_verse()}
   if command == "preview-picture":

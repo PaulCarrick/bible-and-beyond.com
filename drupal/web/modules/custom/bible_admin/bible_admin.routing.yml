@@ -382,6 +382,35 @@ bible_admin.group_member_remove:
     group_id: '\d+'
     member_id: '\d+'
 
+bible_admin.group_schedule_add:
+  path: '/admin/groups/{group_id}/schedules/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupScheduleForm'
+    _title: 'Add a scheduled email'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+
+bible_admin.group_schedule_edit:
+  path: '/admin/groups/{group_id}/schedules/{schedule_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupScheduleForm'
+    _title: 'Change a scheduled email'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    schedule_id: '\d+'
+
+bible_admin.group_schedule_remove:
+  path: '/admin/groups/{group_id}/schedules/{schedule_id}/remove'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\RemoveGroupScheduleForm'
+    _title: 'Remove a scheduled email'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    schedule_id: '\d+'
+
 bible_admin.group_send:
   path: '/admin/groups/{group_id}/send/{kind}'
   defaults:

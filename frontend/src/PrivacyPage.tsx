@@ -89,8 +89,10 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           group on our administration pages, by your email address. If you have an account here, they see your name,
           address and phone and how you chose to get messages, and their messages reach you that way. If you do not,
           we keep the name, address and phone they typed, and send you their messages by email only. We keep what was
-          sent and how many it reached, not to whom. Every group email has a link to stop that group&rsquo;s messages,
-          and replies go to the leader.
+          sent and how many it reached, not to whom. Each of you gets your own copy, addressed to the leader: your
+          address is never shown to the others in the group. Every group email has a link to stop that group&rsquo;s
+          messages, and replies go to the leader. A leader can also schedule messages to go on a date or every week or
+          month.
         </li>
         <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.

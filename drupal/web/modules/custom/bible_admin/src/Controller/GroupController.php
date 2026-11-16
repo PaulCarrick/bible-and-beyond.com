@@ -73,6 +73,37 @@ class GroupController extends ControllerBase {
     return $build;
   }
 
+  /**
+   * The group's scheduled messages: when, what, the next time, how the last one went, Edit and Remove.
+   */
+  private function scheduleTable(array $group): array {
+    $rows = [];
+    foreach ($group['schedules'] ?? [] as $schedule) {
+      $parameters = ['group_id' => $group['id'], 'schedule_id' => $schedule['id']];
+      $what = match ($schedule['kind']) {
+        'verse' => $this->t('Verse card'),
+        'picture' => $this->t('Picture message: @subject', ['@subject' => $schedule['subject']]),
+        default => $this->t('Message: @subject', ['@subject' => $schedule['subject']]),
+      };
+      $rows[] = [
+        ['data' => ['#plain_text' => $schedule['description']]],
+        ['data' => ['#plain_text' => (string) $what]],
+        ['data' => ['#plain_text' => $schedule['next_run_local'] ?? (string) $this->t('Done (it was sent once)')]],
+        ['data' => ['#plain_text' => $schedule['last_result'] ?: '—']],
+        ['data' => ['#type' => 'operations', '#links' => [
+          ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.group_schedule_edit', $parameters)],
+          ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_schedule_remove', $parameters)],
+        ]]],
+      ];
+    }
+    return [
+      '#type' => 'table',
+      '#header' => [$this->t('When'), $this->t('What'), $this->t('Next'), $this->t('Last time'), $this->t('Operations')],
+      '#rows' => $rows,
+      '#empty' => $this->t('Nothing scheduled. Use "Add a scheduled email" to send on a date, or every week or month.'),
+    ];
+  }
+
   public function title(string $group_id): string {
     try {
       return $this->manager->getGroup((int) $group_id)['name'];
@@ -127,6 +158,13 @@ class GroupController extends ControllerBase {
         'verse' => $button((string) $this->t('Send a verse card'), 'bible_admin.group_send', $id + ['kind' => 'verse']),
         'picture' => $button((string) $this->t('Send a picture message'), 'bible_admin.group_send', $id + ['kind' => 'picture']),
       ],
+      'schedule_heading' => ['#type' => 'html_tag', '#tag' => 'h2', '#value' => $this->t('Scheduled')],
+      'schedule_actions' => [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['form-actions']],
+        'add' => $button((string) $this->t('Add a scheduled email'), 'bible_admin.group_schedule_add', $id, TRUE),
+      ],
+      'schedules' => $this->scheduleTable($group),
       'members_heading' => ['#type' => 'html_tag', '#tag' => 'h2', '#value' => $this->t('Members (@count)', ['@count' => count($group['members'])])],
       'member_actions' => [
         '#type' => 'container',

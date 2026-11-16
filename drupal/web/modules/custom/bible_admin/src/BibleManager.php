@@ -919,6 +919,48 @@ class BibleManager {
   }
 
   /**
+   * Adds a scheduled message to a group (group_schedules.py): kind, subject, text, repeat, on_date, day_of_month,
+   * weekday, week_of_month, send_time ("HH:MM") and timezone. Returns it with its description and next time.
+   */
+  public function addGroupSchedule(int $groupId, array $details): array {
+    $group = $this->getGroup($groupId);
+    $details['created_by'] = $this->currentUser->getAccountName();
+    $schedule = $this->run(['add-schedule', '--group=' . $groupId], 'manage_groups.py', $this->groupInput($details))['schedule'];
+    $this->logSchedule('scheduled', $schedule, $group);
+    return $schedule;
+  }
+
+  public function getGroupSchedule(int $groupId, int $scheduleId): array {
+    $this->getGroup($groupId);
+    return $this->run(['get-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py')['schedule'];
+  }
+
+  public function updateGroupSchedule(int $groupId, int $scheduleId, array $details): array {
+    $group = $this->getGroup($groupId);
+    $schedule = $this->run(['update-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py', $this->groupInput($details))['schedule'];
+    $this->logSchedule('changed the scheduled', $schedule, $group);
+    return $schedule;
+  }
+
+  public function removeGroupSchedule(int $groupId, int $scheduleId): array {
+    $group = $this->getGroup($groupId);
+    $schedule = $this->run(['remove-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py')['schedule'];
+    $this->logSchedule('removed the scheduled', $schedule, $group);
+    return $schedule;
+  }
+
+  private function logSchedule(string $change, array $schedule, array $group): void {
+    $this->logger->notice('@user @change @kind for the group “@name” (@id): @when.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@kind' => $schedule['kind'],
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+      '@when' => $schedule['description'],
+    ]);
+  }
+
+  /**
    * A send to a whole group: up to 500 members, one email at a time.
    */
   private const GROUP_SEND_TIMEOUT_SECONDS = 600;

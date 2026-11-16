@@ -32,7 +32,12 @@ def outbox(monkeypatch):
   monkeypatch.setattr(sms, "is_configured", lambda: True)
   monkeypatch.setattr(sms, "send_text", lambda number, text, media_url=None: sent["texts"].append((number, text, media_url)) or True)
   monkeypatch.setattr(groups, "load_mail_settings", lambda: {"from_address": "site@example.test"})
-  monkeypatch.setattr(groups, "send_email", lambda settings, email: sent["emails"].append(email))
+  # Each email with who it is really delivered to (its hidden recipients), kept as X-Delivered-To for the tests.
+  def fake_send(settings, email, recipients=None):
+    email["X-Delivered-To"] = ", ".join(recipients or [])
+    sent["emails"].append(email)
+
+  monkeypatch.setattr(groups, "send_email", fake_send)
   monkeypatch.setenv("SITE_URL", "https://site.example")
 
   def clear():
@@ -117,10 +122,18 @@ def test_a_message_goes_by_each_members_choice(outbox):
   outbox["texts"].clear()
   counts = groups.send(group["id"], "message", {"subject": "Potluck Sunday", "text": "Bring a dish."}, "dave", pause=0)
   assert counts == {"emailed": 3, "texted": 1, "skipped": 1, "failed": 0}
-  addresses = sorted(email["To"] for email in outbox["emails"])
-  assert addresses == sorted([f"ann@{DOMAIN}", f"bob@{DOMAIN}", "pat@example.org"])
+  delivered = [email["X-Delivered-To"] for email in outbox["emails"]]
+  # Each member as a hidden recipient of their own copy, then one copy for the leader.
+  assert sorted(delivered[:3]) == sorted([f"ann@{DOMAIN}", f"bob@{DOMAIN}", "pat@example.org"]) and delivered[3] == "dave@example.org"
   email = outbox["emails"][0]
   assert email["Subject"] == "Potluck Sunday" and email["Reply-To"] == "dave@example.org"
+  # The To shows the leader; no member's address is anywhere in any email (headers or text) but the delivery.
+  for each in outbox["emails"]:
+    assert each["To"] == "dave@example.org" and each["Bcc"] is None and each["Cc"] is None
+    shown = each.as_string().replace(f"X-Delivered-To: {each['X-Delivered-To']}", "")
+    assert DOMAIN not in shown and "pat@example.org" not in shown
+  leader_copy = outbox["emails"][3].get_content()
+  assert "your copy as the group's leader: it went to 3 members" in leader_copy and "To stop messages" not in leader_copy
   assert "Bring a dish." in email.get_content() and "To stop messages from this group" in email.get_content()
   assert not email.is_multipart()  # no picture
   assert outbox["texts"][0][0] == "+15552345678" and "Bring a dish." in outbox["texts"][0][1] and outbox["texts"][0][2] is None
@@ -178,8 +191,8 @@ def test_one_failure_does_not_stop_the_others(outbox, monkeypatch):
   groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
   groups.add_member(group["id"], {"email": "sam@example.org", "name": "Sam"})
 
-  def flaky(settings, email):
-    if email["To"] == "pat@example.org":
+  def flaky(settings, email, recipients=None):
+    if recipients == ["pat@example.org"]:
       raise groups.MailUnavailable("down")
     outbox["emails"].append(email)
 

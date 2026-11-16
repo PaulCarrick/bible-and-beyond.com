@@ -20,7 +20,12 @@ Three kinds of message go to every member who has not stopped them:
   (preview_picture), sent the same way.
 
 Every email has the leader's address as Reply-To, so replies go to them, and a stop link (and one-click header)
-that stops that member's messages from that group only (the devotionals' unsubscribe endpoint handles it). What
+that stops that member's messages from that group only (the devotionals' unsubscribe endpoint handles it).
+**No member's address is ever shown** (the owner's request, 2026-11-16: "the recipients of all emails should be
+on the bcc ... the leader can be the visible send to"): each email's To is the leader (the site's own address
+if the leader has none) and the member is only its hidden recipient (send_email's recipients, the SMTP envelope;
+there is no Bcc header to leak). Each member still gets their own copy, so their stop link is theirs alone. The
+leader gets one copy of each send, marked as theirs, with how many it went to. What
 was sent is kept in group_messages with counts, never with the addresses.
 """
 
@@ -306,29 +311,34 @@ def preview_picture(text: str) -> dict:
 # --- sending -----------------------------------------------------------------------------------------------
 
 
-def compose_email(settings: dict, group: dict, address: str, token: str, subject: str, text: str, verse: dict | None, card) -> EmailMessage:
+def compose_email(
+  settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0
+) -> EmailMessage:
+  """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
+  address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
+  it went to)."""
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
   email["Subject"] = subject
   email["From"] = settings["from_address"]
-  email["To"] = address
+  email["To"] = group["owner_email"] or settings["from_address"]
   if group["owner_email"]:
     email["Reply-To"] = group["owner_email"]
-  one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + token
-  email["List-Unsubscribe"] = f"<{one_click}>"
-  email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+  if token:
+    one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + token
+    email["List-Unsubscribe"] = f"<{one_click}>"
+    email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
   if verse:
     lines = [verse["text"], verse["caption"], "", f"Read it in context: {verse_a_day.verse_link(verse['verse'])}"]
   else:
     lines = [text]
   sender = group["owner_name"] or "the group's leader"
-  lines += [
-    "",
-    "--",
-    f"Sent by {sender} to the group “{group['name']}” through {title}: {site}",
-    f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}",
-  ]
+  lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
+  if token:
+    lines.append(f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}")
+  else:
+    lines.append(f"This is your copy as the group's leader: it went to {reached} member{'s' if reached != 1 else ''}, each as a hidden recipient.")
   email.set_content("\n".join(lines) + "\n")
   if verse:
     message_cards.attach_to_email(email, card, f"{verse['text']} {verse['caption']}", link=verse_a_day.verse_link(verse["verse"]), linked_lines=2)
@@ -376,6 +386,8 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
       (group_id,),
     ).fetchall()
   counts = {"emailed": 0, "texted": 0, "skipped": 0, "failed": 0}
+  # Members reached by email, text or both (for the leader's copy).
+  reached = 0
   settings = None
   for user_id, address, token, stopped, confirmed in members:
     if stopped or not confirmed:
@@ -386,22 +398,34 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
       nonlocal settings
       if settings is None:
         settings = load_mail_settings()
-      send_email(settings, compose_email(settings, group, address, token, subject, text, verse, card))
+      # The member is the hidden recipient; the To shows the leader.
+      send_email(settings, compose_email(settings, group, token, subject, text, verse, card), [address])
 
     try:
       if user_id is None:
         # A contact: email only (nobody has their agreement to texts).
         send_the_email()
         counts["emailed"] += 1
+        reached += 1
       else:
         sent = sms.deliver(user_id, send_the_email, words, link, card)
         counts["emailed"] += int(sent["email"])
         counts["texted"] += int(sent["text"])
+        reached += int(sent["email"] or sent["text"])
     except Exception as problem:  # one member's failure never stops the others
       logger.error("Group %s message not sent to a member: %s: %s", group_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
       counts["failed"] += 1
     if pause:
       time.sleep(pause)
+
+  # The leader's own copy, once per send (never one per member).
+  if group["owner_email"] and reached:
+    try:
+      if settings is None:
+        settings = load_mail_settings()
+      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached), [group["owner_email"]])
+    except Exception as problem:
+      logger.error("Group %s leader's copy not sent: %s", group_id, type(problem).__name__)
 
   with connect() as connection:
     connection.execute(

@@ -1,0 +1,297 @@
+"""Scheduled group messages (added 2026-11-16 at the owner's request: "Add a scheduled email" on a group's page,
+"at a specific day of the month or a date like the first Monday of the month ... a time as well ... the message
+to be set ... edited or removed").
+
+A schedule sends one of the group's three kinds (groups.py) to the whole group: a message (subject and words),
+a verse card (a new random verse each time) or a picture message (the leader's words on a new random picture
+each time), by email and text as each member chose. When:
+
+- once: on a date;
+- weekly: every week on a weekday;
+- monthly_day: every month on a day (1 to 31; a day the month does not have means its last day);
+- monthly_weekday: every month on the first, second, third, fourth or last (5) of a weekday;
+
+at a time of day in a time zone (the leader's own Drupal time zone to start). next_run_at keeps the next time in
+UTC. The five-minute job (scripts/send_devotional_emails.py) sends what is due: each schedule is claimed (its
+next time moved on) before it is sent, so nothing goes twice; a run missed by more than LATE_LIMIT (the job was
+not running) is skipped, not sent late. What was sent is recorded in group_messages like a send from the page.
+"""
+
+import calendar
+import logging
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+import groups
+from groups import GroupProblem
+from search import connect
+from subscriptions import SubscriptionProblem, check_timezone, parse_time
+
+logger = logging.getLogger("group_schedules")
+
+REPEATS = ("once", "weekly", "monthly_day", "monthly_weekday")
+WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+WEEKS = {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "last"}
+LATE_LIMIT = timedelta(hours=6)
+LOCK_NUMBER = 7281004
+MAX_SCHEDULES_PER_GROUP = 50
+
+
+# --- when ----------------------------------------------------------------------------------------------------
+
+
+def _day_in_month(year: int, month: int, schedule: dict) -> int:
+  """The day of the month a monthly schedule falls on in that month."""
+  last = calendar.monthrange(year, month)[1]
+  if schedule["repeat"] == "monthly_day":
+    return min(schedule["day_of_month"], last)
+  weekday, week = schedule["weekday"], schedule["week_of_month"]
+  if week == 5:
+    day = last
+    while date(year, month, day).weekday() != weekday:
+      day -= 1
+    return day
+  first = date(year, month, 1).weekday()
+  return 1 + (weekday - first) % 7 + 7 * (week - 1)
+
+
+def next_occurrence(schedule: dict, after: datetime) -> datetime | None:
+  """The first time the schedule falls strictly after `after` (UTC), or None when a one-time message's time has
+  passed."""
+  zone = ZoneInfo(schedule["timezone"])
+  send_time = schedule["send_time"]
+  local_after = after.astimezone(zone)
+
+  def at(day: date) -> datetime:
+    return datetime.combine(day, send_time, tzinfo=zone).astimezone(timezone.utc)
+
+  if schedule["repeat"] == "once":
+    moment = at(schedule["on_date"])
+    return moment if moment > after else None
+  if schedule["repeat"] == "weekly":
+    day = local_after.date() + timedelta(days=(schedule["weekday"] - local_after.weekday()) % 7)
+    while at(day) <= after:
+      day += timedelta(days=7)
+    return at(day)
+  year, month = local_after.year, local_after.month
+  for _ in range(14):
+    moment = at(date(year, month, _day_in_month(year, month, schedule)))
+    if moment > after:
+      return moment
+    year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+  return None
+
+
+def describe(schedule: dict) -> str:
+  """The schedule in words, such as "Every month on the first Monday at 9:00 AM (America/Chicago)"."""
+  clock = schedule["send_time"].strftime("%I:%M %p").lstrip("0")
+  zone = f"({schedule['timezone']})"
+  if schedule["repeat"] == "once":
+    return f"Once, on {schedule['on_date'].strftime('%A, %B %-d, %Y')} at {clock} {zone}"
+  if schedule["repeat"] == "weekly":
+    return f"Every {WEEKDAYS[schedule['weekday']]} at {clock} {zone}"
+  if schedule["repeat"] == "monthly_day":
+    day = schedule["day_of_month"]
+    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    note = " (the last day in shorter months)" if day > 28 else ""
+    return f"Every month on the {day}{suffix}{note} at {clock} {zone}"
+  return f"Every month on the {WEEKS[schedule['week_of_month']]} {WEEKDAYS[schedule['weekday']]} at {clock} {zone}"
+
+
+# --- keeping them --------------------------------------------------------------------------------------------
+
+COLUMNS = (
+  "id, group_id, kind, subject, text, repeat, on_date, day_of_month, weekday, week_of_month, send_time, timezone, "
+  "next_run_at, last_run_at, last_result, created_by"
+)
+
+
+def _row(row) -> dict:
+  schedule = dict(zip([name.strip() for name in COLUMNS.split(",")], row))
+  return schedule
+
+
+def _public(schedule: dict) -> dict:
+  """A schedule as the tool answers it (dates as text, the words for the page)."""
+  return {
+    "id": schedule["id"],
+    "group_id": schedule["group_id"],
+    "kind": schedule["kind"],
+    "subject": schedule["subject"],
+    "text": schedule["text"],
+    "repeat": schedule["repeat"],
+    "on_date": schedule["on_date"].isoformat() if schedule["on_date"] else None,
+    "day_of_month": schedule["day_of_month"],
+    "weekday": schedule["weekday"],
+    "week_of_month": schedule["week_of_month"],
+    "send_time": schedule["send_time"].strftime("%H:%M"),
+    "timezone": schedule["timezone"],
+    "description": describe(schedule),
+    "next_run_at": schedule["next_run_at"].isoformat() if schedule["next_run_at"] else None,
+    "next_run_local": schedule["next_run_at"].astimezone(ZoneInfo(schedule["timezone"])).strftime("%a %b %-d, %Y %-I:%M %p") if schedule["next_run_at"] else None,
+    "last_run_at": schedule["last_run_at"].isoformat() if schedule["last_run_at"] else None,
+    "last_result": schedule["last_result"],
+    "created_by": schedule["created_by"],
+  }
+
+
+def list_schedules(group_id: int) -> list[dict]:
+  with connect() as connection:
+    rows = connection.execute(
+      f"SELECT {COLUMNS} FROM group_schedules WHERE group_id = %s ORDER BY next_run_at NULLS LAST, id", (group_id,)
+    ).fetchall()
+  return [_public(_row(row)) for row in rows]
+
+
+def _get(schedule_id: int, group_id: int) -> dict:
+  with connect() as connection:
+    row = connection.execute(f"SELECT {COLUMNS} FROM group_schedules WHERE id = %s AND group_id = %s", (schedule_id, group_id)).fetchone()
+  if row is None:
+    raise GroupProblem("That scheduled message is not in this group (it may have been removed).")
+  return _row(row)
+
+
+def _int(details: dict, name: str, low: int, high: int, label: str) -> int:
+  try:
+    value = int(details.get(name))
+  except (TypeError, ValueError):
+    raise GroupProblem(f"Please choose the {label}.")
+  if not low <= value <= high:
+    raise GroupProblem(f"Please choose the {label}.")
+  return value
+
+
+def check(details: dict, now: datetime) -> dict:
+  """The schedule's fields, checked, with its next time; raises GroupProblem with a message for the leader."""
+  kind = details.get("kind")
+  if kind not in groups.KINDS:
+    raise GroupProblem("Please choose what to send.")
+  repeat = details.get("repeat")
+  if repeat not in REPEATS:
+    raise GroupProblem("Please choose when it goes.")
+  try:
+    send_time = parse_time(str(details.get("send_time", "")))
+    check_timezone(str(details.get("timezone", "")))
+  except SubscriptionProblem as problem:
+    raise GroupProblem(str(problem)) from problem
+  schedule = {
+    "kind": kind, "subject": "", "text": "", "repeat": repeat, "on_date": None, "day_of_month": None, "weekday": None,
+    "week_of_month": None, "send_time": send_time, "timezone": str(details["timezone"]),
+  }
+  if kind == "message":
+    schedule["subject"] = groups._one_line(details.get("subject", ""), "subject", groups.SUBJECT_LIMIT)
+    schedule["text"] = groups._text(details.get("text", ""), "message", groups.MESSAGE_LIMIT)
+  elif kind == "picture":
+    schedule["subject"] = groups._one_line(details.get("subject", ""), "subject", groups.SUBJECT_LIMIT)
+    schedule["text"] = groups._text(details.get("text", ""), "words for the picture", groups.PICTURE_TEXT_LIMIT)
+  if repeat == "once":
+    try:
+      schedule["on_date"] = date.fromisoformat(str(details.get("on_date", "")))
+    except ValueError:
+      raise GroupProblem("Please choose the date.")
+  elif repeat == "weekly":
+    schedule["weekday"] = _int(details, "weekday", 0, 6, "day of the week")
+  elif repeat == "monthly_day":
+    schedule["day_of_month"] = _int(details, "day_of_month", 1, 31, "day of the month")
+  else:
+    schedule["weekday"] = _int(details, "weekday", 0, 6, "day of the week")
+    schedule["week_of_month"] = _int(details, "week_of_month", 1, 5, "week of the month")
+  schedule["next_run_at"] = next_occurrence(schedule, now)
+  if schedule["next_run_at"] is None:
+    raise GroupProblem("That date and time have already passed.")
+  return schedule
+
+
+FIELDS = ("kind", "subject", "text", "repeat", "on_date", "day_of_month", "weekday", "week_of_month", "send_time", "timezone", "next_run_at")
+
+
+def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | None = None) -> dict:
+  groups.get_group(group_id)
+  schedule = check(details, now or datetime.now(timezone.utc))
+  with connect() as connection:
+    if connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group_id,)).fetchone()[0] >= MAX_SCHEDULES_PER_GROUP:
+      raise GroupProblem(f"A group can have at most {MAX_SCHEDULES_PER_GROUP} scheduled messages.")
+    schedule_id = connection.execute(
+      f"INSERT INTO group_schedules (group_id, created_by, {', '.join(FIELDS)}) VALUES (%s, %s, {', '.join(['%s'] * len(FIELDS))}) RETURNING id",
+      (group_id, created_by, *[schedule[name] for name in FIELDS]),
+    ).fetchone()[0]
+  return _public(_get(schedule_id, group_id))
+
+
+def update_schedule(group_id: int, schedule_id: int, details: dict, now: datetime | None = None) -> dict:
+  """Replaces a schedule's message and timing; its next time is worked out again from now."""
+  _get(schedule_id, group_id)
+  schedule = check(details, now or datetime.now(timezone.utc))
+  with connect() as connection:
+    connection.execute(
+      f"UPDATE group_schedules SET {', '.join(f'{name} = %s' for name in FIELDS)}, updated_at = now() WHERE id = %s",
+      (*[schedule[name] for name in FIELDS], schedule_id),
+    )
+  return _public(_get(schedule_id, group_id))
+
+
+def remove_schedule(group_id: int, schedule_id: int) -> dict:
+  schedule = _public(_get(schedule_id, group_id))
+  with connect() as connection:
+    connection.execute("DELETE FROM group_schedules WHERE id = %s", (schedule_id,))
+  return schedule
+
+
+def get_schedule(group_id: int, schedule_id: int) -> dict:
+  return _public(_get(schedule_id, group_id))
+
+
+# --- sending -------------------------------------------------------------------------------------------------
+
+
+def _details_for(schedule: dict) -> dict:
+  """What groups.send needs, made at send time: a new random verse card, or the words on a new random picture."""
+  if schedule["kind"] == "verse":
+    preview = groups.preview_verse()
+    return {"card": preview["card"], "verse": preview["verse"]}
+  if schedule["kind"] == "picture":
+    preview = groups.preview_picture(schedule["text"])
+    return {"subject": schedule["subject"], "text": schedule["text"], "card": preview["card"]}
+  return {"subject": schedule["subject"], "text": schedule["text"]}
+
+
+def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_MEMBERS) -> dict:
+  """Sends every scheduled message that is due. Returns how many were sent, skipped (too late) and failed."""
+  now = now or datetime.now(timezone.utc)
+  result = {"sent": 0, "late": 0, "failed": 0, "already_running": False}
+  with connect() as lock_connection:
+    if not lock_connection.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_NUMBER,)).fetchone()[0]:
+      result["already_running"] = True
+      return result
+    with connect() as connection:
+      rows = connection.execute(
+        f"SELECT {COLUMNS} FROM group_schedules WHERE next_run_at IS NOT NULL AND next_run_at <= %s ORDER BY next_run_at, id", (now,)
+      ).fetchall()
+    for row in rows:
+      schedule = _row(row)
+      due = schedule["next_run_at"]
+      following = next_occurrence(schedule, max(now, due))
+      # Claim it first (its next time moved on), so no other run sends it again.
+      with connect() as connection:
+        claimed = connection.execute(
+          "UPDATE group_schedules SET next_run_at = %s, last_run_at = %s WHERE id = %s AND next_run_at = %s RETURNING id",
+          (following, now, schedule["id"], due),
+        ).fetchone()
+      if claimed is None:
+        continue
+      if now - due > LATE_LIMIT:
+        outcome = f"Skipped: it was due {due:%Y-%m-%d %H:%M} UTC but the sender was not running then."
+        result["late"] += 1
+      else:
+        try:
+          counts = groups.send(schedule["group_id"], schedule["kind"], _details_for(schedule), f"schedule ({schedule['created_by']})", pause=pause)
+          outcome = f"{counts['emailed']} emailed, {counts['texted']} texted" + (f", {counts['skipped']} skipped" if counts["skipped"] else "") + (f", {counts['failed']} failed" if counts["failed"] else "")
+          result["sent"] += 1
+        except Exception as problem:  # never stop the run
+          logger.error("Scheduled message %s not sent: %s", schedule["id"], type(problem).__name__)
+          outcome = f"Not sent: {problem}" if isinstance(problem, GroupProblem) else "Not sent (the details are in the server's log)."
+          result["failed"] += 1
+      with connect() as connection:
+        connection.execute("UPDATE group_schedules SET last_result = %s WHERE id = %s", (outcome, schedule["id"]))
+    lock_connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_NUMBER,))
+  return result
