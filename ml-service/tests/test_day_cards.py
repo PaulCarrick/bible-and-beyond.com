@@ -82,6 +82,10 @@ def test_without_a_daily_devotional_the_page_says_so(monkeypatch):
     ("Fellow citizens with the saints.—EPH. 2:19.\n\nMore.", "Fellow citizens with the saints.", "Eph. 2:19"),
     ("I press toward the mark.—PHI. 3:13,14.\n\nMore.", "I press toward the mark.", "Phi. 3:13,14"),
     ("“The Lord is my portion.”\n\nLamentations 3:24\n\nMore.", "“The Lord is my portion.”", "Lamentations 3:24"),
+    ("Love is of God; and every one that loveth is born of God — I John 4:7\n\nMore.", "Love is of God; and every one that loveth is born of God", "I John 4:7"),
+    ('"No weapon that is formed against thee shall prosper" Isa. 54:17\n\nMore.', '"No weapon that is formed against thee shall prosper"', "Isa. 54:17"),
+    ("“Be ready in the morning... come up with thee.” (Exod. 34:2, 3.)\n\nMore.", "“Be ready in the morning... come up with thee.”", "Exod. 34:2, 3"),
+    ("He that followeth Me walketh not in darkness.\n\nMore.", "He that followeth Me walketh not in darkness.", "November 16"),
   ],
 )
 def test_the_opening_verse_and_reference_are_found(text, words, caption):

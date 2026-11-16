@@ -246,7 +246,15 @@ def attach_to_email(email, card: MessageCard, alternative_text: str) -> None:
 # --- what goes on the card ---------------------------------------------------------------------------------
 
 REFERENCE_LINE = re.compile(r"^[1-3]?\s?[A-Z][A-Za-z. ]+\s\d+:\d+(?:[-–,]\s?\d+)*\.?$")
-TRAILING_REFERENCE = re.compile(r"^(.*\S)\s*—\s*((?:[1-3]\s?)?[A-Za-z]+\.?\s\d+:\d+(?:\s?[-–,]\s?\d+)*)\.?$", re.DOTALL)
+# A verse with its reference at the end of the same paragraph, as the daily devotionals write it:
+#   Daily Light                    Fellow citizens with the saints.—EPH. 2:19.
+#   Daily Strength for Daily Needs  Love is of God ... knoweth God — I John 4:7
+#   Faith's Checkbook               "No weapon ... shalt condemn" Isa. 54:17
+#   Streams in the Desert           “Be ready in the morning ... with thee.” (Exod. 34:2, 3.)
+TRAILING_REFERENCE = re.compile(
+  r"^(.*?\S)\s*(?:—\s*|\s)\(?((?:(?:[1-3]|I{1,3})\s?)?[A-Za-z]+\.?\s\d+:\d+(?:\s?[-–,]\s?\d+)*)\.?\)?\.?$",
+  re.DOTALL,
+)
 
 
 def devotional_words(reading: dict, entry_index: int = 0) -> tuple[str, str]:
@@ -260,8 +268,12 @@ def devotional_words(reading: dict, entry_index: int = 0) -> tuple[str, str]:
   # Daily Light: "Fellow citizens with the saints.—EPH. 2:19." on one line.
   joined = TRAILING_REFERENCE.match(paragraphs[0]) if paragraphs else None
   if joined:
-    book = " ".join(word.capitalize() if word.isalpha() or word.rstrip(".").isalpha() else word for word in joined.group(2).split(" "))
-    return joined.group(1), book
+    # "EPH. 2:19" as "Eph. 2:19"; "I John 4:7" stays.
+    reference = " ".join(
+      word.capitalize() if len(word.rstrip(".")) > 1 and word.rstrip(".").isalpha() and word.isupper() else word
+      for word in joined.group(2).split(" ")
+    )
+    return joined.group(1), reference
   first = paragraphs[0] if paragraphs else reading["title"]
   if len(first) > 400:
     first = first[:400].rsplit(" ", 1)[0] + "…"
