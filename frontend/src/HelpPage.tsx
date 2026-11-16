@@ -778,7 +778,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           account needed), <em>Verse of the day</em> shows a well-known Bible verse chosen at random, and{' '}
           <em>Devotional of the day</em> today&rsquo;s reading from one of the daily devotionals (the evening reading
           after 5 pm), each written over a photograph. <em>Download the picture</em> saves it to share;{' '}
-          <em>Show another</em> makes a new one; and a button opens the verse in the Bible or the whole reading.
+          <em>Show another</em> makes a new one; and a button opens the verse in the Bible or the whole reading. On the
+          verse, the picture and its reference are links to the verse in the Bible too. In the verse a day email the
+          verse, its reference and its picture are links to the verse on the site, and its text message carries the
+          link.
         </p>
         <p>
           <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}

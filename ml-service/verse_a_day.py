@@ -164,9 +164,9 @@ def compose_email(settings: dict, address: str, verse: dict, token: str, card=No
     )
     + "\n"
   )
-  if card is not None:
-    # Send Multimedia Messages: the verse as a picture above the text (message_cards.py).
-    message_cards.attach_to_email(email, card, f"{verse['text']} {verse['reference']}")
+  # An HTML version in which the verse and its reference (the first two lines) are links to the verse on the
+  # site, and, with Send Multimedia Messages, the verse as a picture above them, a link too (message_cards.py).
+  message_cards.attach_to_email(email, card, f"{verse['text']} {verse['reference']}", link=verse_link(verse), linked_lines=2)
   return email
 
 

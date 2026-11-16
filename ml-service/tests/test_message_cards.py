@@ -161,8 +161,10 @@ def test_the_verse_a_day_comes_as_a_picture_by_email_and_mms(outbox, tmp_path, m
     # The plain text is still there for mail programs that want it.
     assert "Read it in context" in email.get_body(("plain",)).get_content()
     assert media_url and media_url.startswith("https://site.example/api/message-card/")
+    # The picture is a link to the verse.
+    assert '<a href="https://site.example/?read=BSB&amp;book=' in html.get_content().split("<img")[0]
   else:
-    assert not email.is_multipart() and media_url is None
+    assert not [part for part in email.walk() if part.get_content_type() == "image/jpeg"] and media_url is None
   assert number == "+15552345678" and "read=BSB" in text
 
 
@@ -171,7 +173,24 @@ def test_with_no_picture_a_multimedia_member_still_gets_the_plain_verse(outbox, 
   user = register(send_multimedia=True)
   verse_a_day.save_subscription(user["id"], "07:00", "UTC", now=at(1, 12))
   assert verse_a_day.send_due(at(2, 7, 1), pause=0)["sent"] == 1
-  assert not outbox["emails"][0].is_multipart()
+  assert not [part for part in outbox["emails"][0].walk() if part.get_content_type() == "image/jpeg"]
+
+
+def test_the_verse_and_its_reference_are_links_to_the_verse_on_the_site(outbox):
+  user = register()
+  verse_a_day.save_subscription(user["id"], "07:00", "UTC", now=at(1, 12))
+  assert verse_a_day.send_due(at(2, 7, 1), pause=0, chooser=random.Random(5))["sent"] == 1
+  email = outbox["emails"][0]
+  plain = email.get_body(("plain",)).get_content()
+  verse_text, reference = plain.split("\n")[:2]
+  link = next(line for line in plain.split("\n") if line.startswith("Read it in context: ")).split(": ", 1)[1]
+  html = email.get_body(("html",)).get_content()
+  from html import escape
+
+  assert f'<a href="{escape(link)}" style="color:#1d3f8a;">{escape(verse_text)}</a>' in html
+  assert f'<a href="{escape(link)}" style="color:#1d3f8a;">{escape(reference)}</a>' in html
+  # The other addresses (the stop link) are links too.
+  assert html.count("<a href=") >= 4
 
 
 def test_telnyx_is_sent_the_picture_address(monkeypatch):

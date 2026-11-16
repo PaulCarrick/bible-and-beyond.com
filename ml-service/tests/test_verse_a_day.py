@@ -104,7 +104,7 @@ def test_it_is_sent_once_a_day_at_the_members_time_by_email_and_text(sent):
   assert verse_a_day.send_due(at(2, 9), pause=0)["sent"] == 0
   email = sent["emails"][0]
   assert email["Subject"].startswith("Your verse for today: ") and email["To"] == f"ann@{DOMAIN}"
-  text = email.get_content()
+  text = email.get_body(("plain",)).get_content()
   assert "(BSB)" in text and "https://site.example/?read=BSB&book=" in text
   assert email["List-Unsubscribe"].startswith("<https://site.example/api/subscriptions/unsubscribe?token=")
   assert sent["texts"][0][0] == "+15552345678" and "read=BSB" in sent["texts"][0][1]

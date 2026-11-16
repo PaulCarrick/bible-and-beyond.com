@@ -226,21 +226,53 @@ def make_card(text: str, caption: str = "", chooser=None) -> MessageCard | None:
 # --- the email ----------------------------------------------------------------------------------------------
 
 
-def attach_to_email(email, card: MessageCard, alternative_text: str) -> None:
-  """Makes a plain-text email (set_content already called) show the card above its text: an HTML part with the
-  picture inline (cid:) and the same text, the plain part kept for mail programs that want it."""
+WEB_ADDRESS = re.compile(r"https?://[^\s<>\"]+")
+
+
+def _linked(text: str) -> str:
+  """Plain text as HTML, with every web address in it a link."""
   from html import escape
 
-  plain = email.get_content()
+  parts, start = [], 0
+  for found in WEB_ADDRESS.finditer(text):
+    address = found.group(0).rstrip(".,)")
+    parts += [escape(text[start:found.start()]), f'<a href="{escape(address)}">{escape(address)}</a>']
+    start = found.start() + len(address)
+  return "".join(parts + [escape(text[start:])])
+
+
+def attach_to_email(email, card: MessageCard | None, alternative_text: str = "", link: str | None = None, linked_lines: int = 0) -> None:
+  """Adds an HTML version to a plain-text email (set_content already called), the plain part kept for mail
+  programs that want it. With a card, the picture comes first (inline, cid:). With a link, the picture and the
+  first linked_lines lines of the text (the verse and its reference) are links to it (the owner's request,
+  2026-11-16: the verse a link to the verse on the site). Every web address in the rest is a link too."""
+  from html import escape
+
+  lines = email.get_content().split("\n")
+  lead, rest = lines[:linked_lines], "\n".join(lines[linked_lines:])
+  picture = ""
+  if card is not None:
+    picture = (
+      f'<img src="cid:{card.content_id}" alt="{escape(alternative_text)}" width="540" '
+      'style="max-width:100%;height:auto;border-radius:8px;border:0;">'
+    )
+    if link:
+      picture = f'<a href="{escape(link)}">{picture}</a>'
+    picture = f"<p>{picture}</p>"
+  lead_html = "".join(
+    f'<p style="margin:0 0 4px;font-size:18px;"><a href="{escape(link)}" style="color:#1d3f8a;">{escape(line)}</a></p>'
+    for line in lead
+    if line.strip() and link
+  )
   email.add_alternative(
-    f"""<!doctype html><html><body style="margin:0;padding:16px;font-family:Georgia,serif;">
-<p><img src="cid:{card.content_id}" alt="{escape(alternative_text)}" width="540" style="max-width:100%;height:auto;border-radius:8px;"></p>
-<div style="white-space:pre-wrap;font-size:16px;line-height:1.5;">{escape(plain)}</div>
+    f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;font-family:Georgia,serif;">
+{picture}{lead_html}<div style="white-space:pre-wrap;font-size:16px;line-height:1.5;">{_linked(rest)}</div>
 </body></html>""",
     subtype="html",
   )
-  html_part = email.get_payload()[-1]
-  html_part.add_related(card.path.read_bytes(), "image", "jpeg", cid=f"<{card.content_id}>", filename="verse.jpg")
+  if card is not None:
+    html_part = email.get_payload()[-1]
+    html_part.add_related(card.path.read_bytes(), "image", "jpeg", cid=f"<{card.content_id}>", filename="verse.jpg")
 
 
 # --- what goes on the card ---------------------------------------------------------------------------------

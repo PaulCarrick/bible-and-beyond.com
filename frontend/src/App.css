@@ -3025,6 +3025,15 @@ select:disabled {
   box-shadow: 0 2px 12px rgb(0 0 0 / 0.25);
 }
 
+.day-card a {
+  display: block;
+  max-width: 540px;
+}
+
+.day-card figcaption a {
+  display: inline;
+}
+
 .day-card.is-loading img {
   opacity: 0.5;
 }

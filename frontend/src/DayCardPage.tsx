@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { fetchDayCard } from './api'
 import type { DayCard } from './api'
+import { verseAddress, wantsNewTab } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 
 interface DayCardPageProps {
@@ -14,7 +16,9 @@ interface DayCardPageProps {
 // a large script over a random verse a day picture), with Download and a button to read it in full. The verse
 // is chosen at random each time; the devotional is today's reading of a daily devotional chosen at random (the
 // evening reading from 5 pm). Show another asks for a new one. The picture comes inline (a data: address), so
-// Download saves exactly what is shown.
+// Download saves exactly what is shown. On the verse, the picture and its reference are links to the verse in the
+// Bible reader (2026-11-16, the owner's request): a plain click opens it here, Ctrl, Cmd or the middle button a
+// new tab, as any link.
 function DayCardPage({ kind, onOpenVerse, onOpenReading }: DayCardPageProps) {
   const [card, setCard] = useState<DayCard | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
@@ -56,6 +60,29 @@ function DayCardPage({ kind, onOpenVerse, onOpenReading }: DayCardPageProps) {
   const title = kind === 'verse' ? 'Verse of the day' : 'Devotional of the day'
   const fileName = kind === 'verse' ? 'verse-of-the-day.jpg' : 'devotional-of-the-day.jpg'
   const reading = card?.reading
+  const verse = card?.verse
+
+  // The picture or the reference as a link to the verse, when there is one.
+  function linkToVerse(content: ReactNode, label: string) {
+    if (!verse) {
+      return content
+    }
+    return (
+      <a
+        href={verseAddress(verse.translation, verse.book, verse.chapter, verse.verse)}
+        title={label}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          if (!wantsNewTab(event)) {
+            event.preventDefault()
+            onOpenVerse(verse)
+          }
+        }}
+      >
+        {content}
+      </a>
+    )
+  }
+
   return (
     <div className="day-card-page">
       <h1>{title}</h1>
@@ -71,11 +98,14 @@ function DayCardPage({ kind, onOpenVerse, onOpenReading }: DayCardPageProps) {
       )}
       {card && (
         <figure className={isLoading ? 'day-card is-loading' : 'day-card'}>
-          <img src={card.image} alt={`${card.words} ${card.caption}`} width={540} height={675} />
+          {linkToVerse(
+            <img src={card.image} alt={`${card.words} ${card.caption}`} width={540} height={675} />,
+            `Read ${card.caption} in the Bible`,
+          )}
           <figcaption>
             {reading
               ? `${reading.name}, ${reading.title}${reading.heading ? ` (${reading.heading})` : ''}`
-              : card.caption}
+              : linkToVerse(card.caption, `Read ${card.caption} in the Bible`)}
           </figcaption>
         </figure>
       )}
