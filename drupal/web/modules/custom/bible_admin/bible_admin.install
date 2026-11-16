@@ -70,3 +70,31 @@ function bible_admin_update_11002(): string {
   }
   return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
 }
+
+/**
+ * Adds the Group leader role (the Groups page, own groups only) and lets Website administrators lead and see all
+ * groups.
+ *
+ * New sites get the role from config/install; this adds it to sites that had the module already.
+ */
+function bible_admin_update_11003(): string {
+  $done = [];
+  if (!Role::load('group_leader')) {
+    $role = Role::create(['id' => 'group_leader', 'label' => 'Group leader', 'weight' => 6]);
+    foreach (['access administration pages', 'access navigation', 'lead groups', 'view the administration theme'] as $permission) {
+      $role->grantPermission($permission);
+    }
+    $role->save();
+    $done[] = 'added the Group leader role';
+  }
+  $role = Role::load('website_administrator');
+  $missing = $role ? array_filter(['lead groups', 'administer groups'], fn ($permission) => !$role->hasPermission($permission)) : [];
+  if ($missing) {
+    foreach ($missing as $permission) {
+      $role->grantPermission($permission);
+    }
+    $role->save();
+    $done[] = 'let Website administrators lead and see all groups';
+  }
+  return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
+}

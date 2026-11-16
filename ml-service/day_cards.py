@@ -64,10 +64,9 @@ def verse_card(chooser=random) -> dict:
   }
 
 
-def chosen_verse_card(translation: str, book: int, chapter: int, verse: int, chooser=random) -> dict:
-  """The card of one verse, as "Download Card" under a search result asks for (added 2026-11-16): its text in
-  that Bible, if the Bible is stored here and published (the licensed Bibles never are: their text must not be
-  changed or kept), on a random picture."""
+def find_verse(translation: str, book: int, chapter: int, verse: int) -> dict | None:
+  """One verse in a published Bible stored here: text, reference, caption ("John 3:16 (KJV)") and where it is;
+  None when there is none (the licensed Bibles never are: their text must not be changed or kept)."""
   with connect() as connection:
     row = connection.execute(
       """
@@ -79,14 +78,27 @@ def chosen_verse_card(translation: str, book: int, chapter: int, verse: int, cho
       (translation, book, chapter, verse),
     ).fetchone()
   if row is None:
-    raise DayCardProblem("That verse was not found in a Bible on this site.")
+    return None
   text, book_name, code = row[0].strip(), row[1], row[2]
-  caption = f"{book_name} {chapter}:{verse} ({code})"
   return {
-    "words": text,
-    "caption": caption,
-    "image": _picture(text, caption, chooser),
+    "text": text,
+    "reference": f"{book_name} {chapter}:{verse}",
+    "caption": f"{book_name} {chapter}:{verse} ({code})",
     "verse": {"translation": code, "book": book, "chapter": chapter, "verse": verse},
+  }
+
+
+def chosen_verse_card(translation: str, book: int, chapter: int, verse: int, chooser=random) -> dict:
+  """The card of one verse, as "Download Card" under a search result asks for (added 2026-11-16): its text in
+  that Bible, if the Bible is stored here and published, on a random picture."""
+  found = find_verse(translation, book, chapter, verse)
+  if found is None:
+    raise DayCardProblem("That verse was not found in a Bible on this site.")
+  return {
+    "words": found["text"],
+    "caption": found["caption"],
+    "image": _picture(found["text"], found["caption"], chooser),
+    "verse": found["verse"],
   }
 
 

@@ -182,6 +182,22 @@ def render(background, text: str, caption: str = ""):
   return card
 
 
+def card_from_name(name: str) -> MessageCard | None:
+  """A card saved earlier (a group's preview), to send; None when it is gone (older than KEEP_DAYS) or the name
+  is not one of ours."""
+  path = card_file(name)
+  if path is None:
+    return None
+  return MessageCard(path, site_address(f"/api/message-card/{name}"), f"card-{name[:16]}@bible-and-beyond")
+
+
+def data_address(card: MessageCard) -> str:
+  """The card as a data: address, to show it in a page."""
+  import base64
+
+  return "data:image/jpeg;base64," + base64.b64encode(card.path.read_bytes()).decode()
+
+
 def remove_old_cards(now: float | None = None) -> int:
   """Deletes cards older than KEEP_DAYS. Returns how many."""
   limit = (now or time.time()) - KEEP_DAYS * 24 * 60 * 60
@@ -200,14 +216,15 @@ def site_address(path: str) -> str:
   return os.environ.get("SITE_URL", "https://bible-and-beyond.com").rstrip("/") + path
 
 
-def make_card(text: str, caption: str = "", chooser=None) -> MessageCard | None:
-  """Draws a card over a picture chosen at random and saves it. None when there is no picture in use or the
-  drawing fails (logged; the message then goes without a picture)."""
+def make_card(text: str, caption: str = "", chooser=None, plain_if_none: bool = False) -> MessageCard | None:
+  """Draws a card over a picture chosen at random and saves it. None when there is no picture in use (unless
+  plain_if_none: then on the plain deep-blue background) or the drawing fails (logged; the message then goes
+  without a picture)."""
   try:
     chosen = verse_images.random_image(chooser) if chooser else verse_images.random_image()
-    if chosen is None:
+    if chosen is None and not plain_if_none:
       return None
-    _, background = chosen
+    background = chosen[1] if chosen else plain_background()
     card = render(background, text, caption)
     folder = cards_folder()
     folder.mkdir(parents=True, exist_ok=True)

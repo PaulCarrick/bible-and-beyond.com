@@ -1,0 +1,16 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - bible_admin
+    - navigation
+    - system
+id: group_leader
+label: 'Group leader'
+weight: 6
+is_admin: false
+permissions:
+  - 'access administration pages'
+  - 'access navigation'
+  - 'lead groups'
+  - 'view the administration theme'

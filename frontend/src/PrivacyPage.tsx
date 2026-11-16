@@ -85,6 +85,14 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           guessed, so that the text message service can fetch it, and then deleted.
         </li>
         <li>
+          <strong>Groups.</strong> A church leader who looks after a group of people (a deacon, say) can add you to their
+          group on our administration pages, by your email address. If you have an account here, they see your name,
+          address and phone and how you chose to get messages, and their messages reach you that way. If you do not,
+          we keep the name, address and phone they typed, and send you their messages by email only. We keep what was
+          sent and how many it reached, not to whom. Every group email has a link to stop that group&rsquo;s messages,
+          and replies go to the leader.
+        </li>
+        <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
         </li>
         <li>
@@ -164,7 +172,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
 
       <h2>Your choices</h2>
       <ul>
-        <li>You can stop devotional, verse a day, prayer list or reply emails with the link at the bottom of any email.</li>
+        <li>You can stop devotional, verse a day, prayer list, reply or group emails with the link at the bottom of any email.</li>
         <li>
           You can stop text messages by replying STOP to any text, or by unticking <em>Send via SMS</em> on your My account page. Your
           mobile carrier may charge for texts you receive.

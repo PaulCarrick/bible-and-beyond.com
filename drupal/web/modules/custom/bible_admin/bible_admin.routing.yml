@@ -307,6 +307,91 @@ bible_admin.verse_image_change:
     action: 'use|unuse|delete'
     image_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
 
+# Groups (groups.py): a leader's groups of people and the messages sent to them. "lead groups" (a Group leader:
+# only their own groups) or "administer groups" (all of them); each group page also checks that the group is the
+# user's own (GroupAccess) unless they administer all groups.
+bible_admin.groups:
+  path: '/admin/groups'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\GroupController::list'
+    _title: 'Groups'
+  requirements:
+    _permission: 'lead groups+administer groups'
+
+bible_admin.group_add:
+  path: '/admin/groups/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupForm'
+    _title: 'Make a group'
+  requirements:
+    _permission: 'lead groups+administer groups'
+
+bible_admin.group:
+  path: '/admin/groups/{group_id}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\GroupController::view'
+    _title_callback: '\Drupal\bible_admin\Controller\GroupController::title'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+
+bible_admin.group_edit:
+  path: '/admin/groups/{group_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupForm'
+    _title: 'Change a group'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+
+bible_admin.group_delete:
+  path: '/admin/groups/{group_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteGroupForm'
+    _title: 'Delete a group'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+
+bible_admin.group_member_add:
+  path: '/admin/groups/{group_id}/members/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupMemberForm'
+    _title: 'Add a member'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+
+bible_admin.group_member_edit:
+  path: '/admin/groups/{group_id}/members/{member_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupMemberForm'
+    _title: 'Change a member'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    member_id: '\d+'
+
+bible_admin.group_member_remove:
+  path: '/admin/groups/{group_id}/members/{member_id}/remove'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\RemoveGroupMemberForm'
+    _title: 'Remove a member'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    member_id: '\d+'
+
+bible_admin.group_send:
+  path: '/admin/groups/{group_id}/send/{kind}'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupSendForm'
+    _title: 'Send to the group'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    kind: 'message|verse|picture'
+
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page
 # is driven by js/backup.js through the JSON routes below; the ones that change anything are POST only and

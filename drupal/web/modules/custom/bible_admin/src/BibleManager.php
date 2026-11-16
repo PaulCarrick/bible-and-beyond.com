@@ -767,6 +767,141 @@ class BibleManager {
   }
 
   /**
+   * The groups this user may see: their own (Group leader), or every group (with "administer groups").
+   */
+  public function listGroups(): array {
+    $arguments = ['list'];
+    if (!$this->currentUser->hasPermission('administer groups')) {
+      $arguments[] = '--owner=' . (int) $this->currentUser->id();
+    }
+    return $this->run($arguments, 'manage_groups.py')['groups'];
+  }
+
+  /**
+   * Whether this user may see and message a group: its leader, or anyone who administers all groups.
+   */
+  public function mayManageGroup(array $group): bool {
+    return (int) $group['owner_uid'] === (int) $this->currentUser->id() || $this->currentUser->hasPermission('administer groups');
+  }
+
+  /**
+   * One group with its members and latest messages. Throws if this user may not manage it.
+   */
+  public function getGroup(int $groupId): array {
+    $group = $this->run(['get', '--group=' . $groupId], 'manage_groups.py')['group'];
+    if (!$this->mayManageGroup($group)) {
+      throw new BibleManagerException('That group is not one of yours.');
+    }
+    return $group;
+  }
+
+  /**
+   * Makes a group (led by this user) or changes one's name and description.
+   */
+  public function saveGroup(?int $groupId, string $name, string $description): array {
+    $ownerId = (int) $this->currentUser->id();
+    if ($groupId !== NULL) {
+      $ownerId = (int) $this->getGroup($groupId)['owner_uid'];
+    }
+    $arguments = ['save', '--owner=' . $ownerId];
+    if ($groupId !== NULL) {
+      $arguments[] = '--group=' . $groupId;
+    }
+    $group = $this->run($arguments, 'manage_groups.py', $this->groupInput([
+      'name' => $name,
+      'description' => $description,
+      'owner_name' => $this->currentUser->getDisplayName(),
+      'owner_email' => (string) $this->currentUser->getEmail(),
+    ]))['group'];
+    $this->logGroup($groupId === NULL ? 'made' : 'changed', $group);
+    return $group;
+  }
+
+  public function deleteGroup(int $groupId): array {
+    $this->getGroup($groupId);
+    $group = $this->run(['delete', '--group=' . $groupId], 'manage_groups.py')['group'];
+    $this->logGroup('deleted', $group);
+    return $group;
+  }
+
+  /**
+   * Adds a member by address: the site account with it, else a contact with the name (and phone) given.
+   */
+  public function addGroupMember(int $groupId, array $details): array {
+    $group = $this->getGroup($groupId);
+    $member = $this->run(['add-member', '--group=' . $groupId], 'manage_groups.py', $this->groupInput($details))['member'];
+    $this->logGroup('added a member to', $group);
+    return $member;
+  }
+
+  public function updateGroupMember(int $groupId, int $memberId, array $details): array {
+    $group = $this->getGroup($groupId);
+    $member = $this->run(['update-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details))['member'];
+    $this->logGroup('changed a member of', $group);
+    return $member;
+  }
+
+  public function removeGroupMember(int $groupId, int $memberId): array {
+    $group = $this->getGroup($groupId);
+    $member = $this->run(['remove-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py')['member'];
+    $this->logGroup('removed a member from', $group);
+    return $member;
+  }
+
+  /**
+   * A random well-known verse as a card: card (its saved name), image (a data: address), words, caption, verse.
+   */
+  public function previewGroupVerse(): array {
+    return $this->run(['preview-verse'], 'manage_groups.py')['preview'];
+  }
+
+  /**
+   * The leader's words over a random verse a day picture: card, image and words.
+   */
+  public function previewGroupPicture(string $text): array {
+    return $this->run(['preview-picture'], 'manage_groups.py', $this->groupInput(['text' => $text]))['preview'];
+  }
+
+  /**
+   * Sends a message, a verse card or a picture message to every member of a group who has not stopped them.
+   * Returns the counts: emailed, texted, skipped and failed. A big group takes a while (one email at a time).
+   */
+  public function sendToGroup(int $groupId, string $kind, array $details): array {
+    $group = $this->getGroup($groupId);
+    $details['sent_by'] = $this->currentUser->getAccountName();
+    $counts = $this->run(['send', '--group=' . $groupId, '--kind=' . $kind], 'manage_groups.py', $this->groupInput($details), self::GROUP_SEND_TIMEOUT_SECONDS)['counts'];
+    $this->logger->notice('@user sent a @kind to the group “@name” (@id): @emailed emailed, @texted texted, @skipped skipped, @failed failed.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@kind' => $kind,
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+      '@emailed' => $counts['emailed'],
+      '@texted' => $counts['texted'],
+      '@skipped' => $counts['skipped'],
+      '@failed' => $counts['failed'],
+    ]);
+    return $counts;
+  }
+
+  /**
+   * A send to a whole group: up to 500 members, one email at a time.
+   */
+  private const GROUP_SEND_TIMEOUT_SECONDS = 600;
+
+  private function groupInput(array $details): string {
+    return json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+  }
+
+  private function logGroup(string $change, array $group): void {
+    $this->logger->notice('@user @change the group “@name” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+    ]);
+  }
+
+  /**
    * Largest verse a day picture, in bytes (verse_images.MAX_FILE_BYTES).
    */
   public const MAX_VERSE_IMAGE_BYTES = 25 * 1024 * 1024;

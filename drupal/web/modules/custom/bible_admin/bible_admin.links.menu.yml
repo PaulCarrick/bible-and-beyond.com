@@ -81,6 +81,13 @@ bible_admin.verse_images:
   parent: system.admin
   weight: -5
 
+bible_admin.groups:
+  title: 'Groups'
+  description: 'Your groups of people: add and remove members, and send them a message, a verse card or a picture message by email and text.'
+  route_name: bible_admin.groups
+  parent: system.admin
+  weight: -6
+
 bible_admin.backup:
   title: 'Backup and restore'
   description: 'Save the databases and the files of the site as a zip in a folder on your computer, or restore them from one.'

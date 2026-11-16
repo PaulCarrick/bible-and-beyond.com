@@ -15,8 +15,10 @@ is_admin: false
 permissions:
   - 'access administration pages'
   - 'access navigation'
+  - 'administer groups'
   - 'administer bibles'
   - 'administer faq notes'
+  - 'lead groups'
   - 'administer site settings'
   - 'administer site users'
   - 'use text format faq_note'

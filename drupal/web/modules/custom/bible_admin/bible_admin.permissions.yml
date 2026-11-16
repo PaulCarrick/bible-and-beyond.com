@@ -22,3 +22,13 @@ administer backups:
   title: 'Back up and restore the whole site'
   description: 'Save a backup zip of the databases (with the service keys) and the files (the music and Drupal''s files) to a folder on one''s own computer, and restore one. Restoring the database replaces Drupal''s too, its administrators included.'
   restrict access: true
+
+lead groups:
+  title: 'Lead groups'
+  description: 'Make groups of people (site accounts or anyone by email), and email or text messages, verse cards and picture messages to them. Each leader sees only the groups they made.'
+  restrict access: true
+
+administer groups:
+  title: 'Administer all groups'
+  description: 'See, change and message every group, whoever made it (with Lead groups, or on its own).'
+  restrict access: true

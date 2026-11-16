@@ -200,6 +200,13 @@ def unsubscribe_with_token(token: str) -> str:
       # And the verse a day (verse_a_day.py).
       if connection.execute("DELETE FROM verse_subscriptions WHERE unsubscribe_token = %s RETURNING id", (token,)).fetchone():
         return "the verse a day"
+      # And a group's messages (groups.py): only that member, only that group. Imported here: groups imports
+      # verse_a_day, which imports this module.
+      import groups
+
+      group_name = groups.stop_with_token(connection, token)
+      if group_name is not None:
+        return f"messages from the group “{group_name}”"
       raise SubscriptionProblem("This link is not valid, or the emails have already been stopped.", 404)
     found = connection.execute("SELECT name FROM devotionals WHERE id = %s", (row[0],)).fetchone()
   return found[0] if found else row[0]
