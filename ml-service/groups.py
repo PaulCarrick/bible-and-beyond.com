@@ -486,6 +486,114 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
   return counts
 
 
+def send_prayer_request(
+  group_id: int, share_with: str, author_id: int, author_name: str, author_email: str, title: str, text: str,
+  pause: float = PAUSE_BETWEEN_MEMBERS,
+) -> dict:
+  """A Prayer Wall request its author chose to email to their group ("Email <group>": every member but the author,
+  each the way they chose, as a group message) or to its leader ("Email <group> leader": the leader's address
+  only). Sent at once; the request is private on the site. Reply-To is the author, so answers go to them; the To
+  shows the leader and members are hidden recipients, as for every group email. Recorded in the group's Sent
+  table (the subject only: the request is private). Returns the counts."""
+  group = get_group(group_id)
+  title_line = get_public_settings()["title"]
+  site = site_link("").rstrip("?")
+  subject = f"Prayer request from {author_name}: {title}"[:SUBJECT_LIMIT]
+  to_whom = f"the group “{group['name']}”" if share_with == "group" else f"you, the leader of “{group['name']}”"
+
+  def compose(settings: dict, token: str | None) -> EmailMessage:
+    email = EmailMessage()
+    email["Subject"] = subject
+    email["From"] = settings["from_address"]
+    email["To"] = group["owner_email"] or settings["from_address"]
+    if author_email:
+      email["Reply-To"] = author_email
+    lines = [
+      text.strip(),
+      "",
+      "--",
+      f"{author_name} sent this prayer request from the Prayer Wall of {title_line} to {to_whom}. It is private on "
+      "the site. Reply to this email to answer them.",
+      site,
+    ]
+    if token:
+      one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + token
+      email["List-Unsubscribe"] = f"<{one_click}>"
+      email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+      lines.append(f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}")
+    email.set_content("\n".join(lines) + "\n")
+    return email
+
+  counts = {"emailed": 0, "texted": 0, "skipped": 0, "failed": 0}
+  settings = None
+
+  def mail_settings() -> dict:
+    nonlocal settings
+    if settings is None:
+      settings = load_mail_settings()
+    return settings
+
+  if share_with == "leader":
+    if not group["owner_email"]:
+      counts["skipped"] = 1
+    else:
+      try:
+        send_email(mail_settings(), compose(mail_settings(), None), [group["owner_email"]])
+        counts["emailed"] = 1
+      except Exception as problem:
+        logger.error("Prayer request to group %s's leader not sent: %s", group_id, type(problem).__name__)
+        counts["failed"] = 1
+  else:
+    with connect() as connection:
+      members = connection.execute(
+        """
+        SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
+               m.user_id IS NULL OR u.email_verified_at IS NOT NULL
+        FROM group_members m LEFT JOIN users u ON u.id = m.user_id
+        WHERE m.group_id = %s AND m.user_id IS DISTINCT FROM %s ORDER BY m.id
+        """,
+        (group_id, author_id),
+      ).fetchall()
+    for user_id, address, token, stopped, confirmed in members:
+      if stopped or not confirmed:
+        counts["skipped"] += 1
+        continue
+
+      def send_the_email(address=address, token=token):
+        send_email(mail_settings(), compose(mail_settings(), token), [address])
+
+      try:
+        if user_id is None:
+          send_the_email()
+          counts["emailed"] += 1
+        else:
+          sent = sms.deliver(user_id, send_the_email, f"Prayer request from {author_name}: {title}. {text}")
+          counts["emailed"] += int(sent["email"])
+          counts["texted"] += int(sent["text"])
+      except Exception as problem:
+        logger.error("Prayer request to group %s not sent to a member: %s", group_id, type(problem).__name__)
+        counts["failed"] += 1
+      if pause:
+        time.sleep(pause)
+    # The leader's copy, as for every message to the group.
+    if group["owner_email"] and counts["emailed"] + counts["texted"]:
+      try:
+        send_email(mail_settings(), compose(mail_settings(), None), [group["owner_email"]])
+      except Exception as problem:
+        logger.error("Prayer request: group %s leader's copy not sent: %s", group_id, type(problem).__name__)
+
+  with connect() as connection:
+    connection.execute(
+      """
+      INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed, texted, skipped, failed)
+      VALUES (%s, 'message', %s, '', %s, %s, %s, %s, %s)
+      """,
+      (group_id, subject + (" (to the leader)" if share_with == "leader" else ""), f"Prayer Wall ({author_name})",
+       counts["emailed"], counts["texted"], counts["skipped"], counts["failed"]),
+    )
+  return counts
+
+
 def list_sent(group_id: int, limit: int = 20) -> list[dict]:
   """The group's latest messages, newest first."""
   with connect() as connection:

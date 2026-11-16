@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { saveConversationPost } from './api'
+import type { FormEvent, ReactNode } from 'react'
+import { fetchMyGroups, saveConversationPost } from './api'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
 import type { ConversationBoard, ConversationPost } from './types'
@@ -17,19 +17,48 @@ interface ConversationPostFormProps {
 // The limits the server keeps (conversations.py).
 const titleLimit = 200
 
+// The Prayer Wall's one choice of who sees a request (the owner's request, 2026-11-16, in place of three
+// checkboxes): Public, Post anonymously, Private, Add to the prayer list email, and, for each group the member is
+// in, "Email <group>" and "Email <group> leader" (sent at once; the request becomes private).
+type Sharing = 'public' | 'anonymous' | 'private' | 'prayer_list' | `group:${number}` | `leader:${number}`
+
+function sharingOf(post?: ConversationPost): Sharing {
+  if (post?.share_with && post.share_group_id) {
+    return `${post.share_with}:${post.share_group_id}`
+  }
+  if (post?.is_private) {
+    return 'private'
+  }
+  if (post?.email_to_prayer_list) {
+    return 'prayer_list'
+  }
+  return post?.is_anonymous ? 'anonymous' : 'public'
+}
+
 // A title and the text of a post, in the editor shared with notes and the contact form. On the Prayer Wall it
-// also has three choices, all off to start: anonymous, private, and email to the prayer list (not with private).
+// also has the choice of who sees it (Sharing), Public to start.
 function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel }: ConversationPostFormProps) {
   const isPrayer = (post?.board ?? board) === 'prayer'
   const [title, setTitle] = useState(post?.title ?? '')
-  const [isAnonymous, setIsAnonymous] = useState(post?.is_anonymous ?? false)
-  const [isPrivate, setIsPrivate] = useState(post?.is_private ?? false)
-  const [emailToPrayerList, setEmailToPrayerList] = useState(post?.email_to_prayer_list ?? false)
+  const [sharing, setSharing] = useState<Sharing>(sharingOf(post))
+  // The groups the member is in, for the "Email <group>" choices (empty when in none).
+  const [groups, setGroups] = useState<{ id: number; name: string }[]>([])
   const [emailReplies, setEmailReplies] = useState(post?.email_replies ?? false)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editorReference = useRef<RichTextEditorHandle>(null)
   const labelId = useId()
+
+  useEffect(() => {
+    if (!isPrayer) {
+      return
+    }
+    const controller = new AbortController()
+    fetchMyGroups(controller.signal)
+      .then(setGroups)
+      .catch(() => setGroups([]))
+    return () => controller.abort()
+  }, [isPrayer])
 
   // The editor is made when the form is; fill it with the post as it is.
   useEffect(() => {
@@ -55,17 +84,19 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
     setIsSaving(true)
     setErrorMessage('')
     try {
+      const [kind, groupId] = sharing.split(':')
+      const sharesWithGroup = isPrayer && (kind === 'group' || kind === 'leader')
       const saved = await saveConversationPost(post?.id ?? null, title.trim(), editor.getHtml(), post?.board ?? board, {
-        isAnonymous: isPrayer && isAnonymous,
-        isPrivate: isPrayer && isPrivate,
-        emailToPrayerList: isPrayer && emailToPrayerList && !isPrivate,
+        isAnonymous: isPrayer && sharing === 'anonymous',
+        isPrivate: isPrayer && (sharing === 'private' || sharesWithGroup),
+        emailToPrayerList: isPrayer && sharing === 'prayer_list',
         emailReplies: !isPrayer && emailReplies,
+        shareWith: sharesWithGroup ? (kind as 'group' | 'leader') : null,
+        shareGroupId: sharesWithGroup ? Number(groupId) : null,
       })
       if (!post) {
         setTitle('')
-        setIsAnonymous(false)
-        setIsPrivate(false)
-        setEmailToPrayerList(false)
+        setSharing('public')
         setEmailReplies(false)
         editor.clear()
       }
@@ -97,41 +128,26 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         </div>
       )}
       {isPrayer && (
-        <fieldset className="prayer-options">
-          <legend className="visually-hidden">Who sees this request</legend>
-          <label className="inline-label">
-            <input type="checkbox" checked={isAnonymous} onChange={(event) => setIsAnonymous(event.target.checked)} />
-            Post anonymously
-            <small>Your name is not shown; it says “Anonymous”.</small>
+        <div className="prayer-options">
+          <label className="contact-field">
+            Who sees this request
+            <select value={sharing} onChange={(event) => setSharing(event.target.value as Sharing)}>
+              <option value="public">Public</option>
+              <option value="anonymous">Post anonymously</option>
+              <option value="private">Private</option>
+              <option value="prayer_list">Add to the prayer list email</option>
+              {groups.map((group) => [
+                <option key={`group-${group.id}`} value={`group:${group.id}`}>
+                  Email {group.name}
+                </option>,
+                <option key={`leader-${group.id}`} value={`leader:${group.id}`}>
+                  Email {group.name} leader
+                </option>,
+              ])}
+            </select>
           </label>
-          <label className="inline-label">
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              onChange={(event) => {
-                setIsPrivate(event.target.checked)
-                if (event.target.checked) {
-                  setEmailToPrayerList(false)
-                }
-              }}
-            />
-            Private
-            <small>
-              Nobody else can see it on the Prayer Wall, but <strong>the site owner and administrators can read it</strong>
-              , and it is sent to them in their weekly prayer list email. It is not emailed to anyone else.
-            </small>
-          </label>
-          <label className="inline-label">
-            <input
-              type="checkbox"
-              checked={emailToPrayerList && !isPrivate}
-              disabled={isPrivate}
-              onChange={(event) => setEmailToPrayerList(event.target.checked)}
-            />
-            Email this request to the prayer list
-            <small>It goes in the next weekly email to everyone who signed up for the prayer list.</small>
-          </label>
-        </fieldset>
+          <small className="prayer-sharing-note">{sharingNote(sharing, groups)}</small>
+        </div>
       )}
       {errorMessage && (
         <p className="error" role="alert">
@@ -148,6 +164,31 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
       </div>
     </form>
   )
+}
+
+// What each choice means, under the list.
+function sharingNote(sharing: Sharing, groups: { id: number; name: string }[]): ReactNode {
+  const [kind, groupId] = sharing.split(':')
+  const groupName = groups.find((group) => group.id === Number(groupId))?.name ?? 'the group'
+  switch (kind) {
+    case 'anonymous':
+      return 'Everyone can read it, but your name is not shown; it says “Anonymous”.'
+    case 'private':
+      return (
+        <>
+          Nobody else can see it on the Prayer Wall, but <strong>the site owner and administrators can read it</strong>,
+          and it is sent to them in their weekly prayer list email. It is not emailed to anyone else.
+        </>
+      )
+    case 'prayer_list':
+      return 'Everyone can read it, and it goes in the next weekly email to everyone who signed up for the prayer list.'
+    case 'group':
+      return `Emailed now to everyone in ${groupName}, with your name; replies come to your email address. It is private on the Prayer Wall (the site owner and administrators can read it).`
+    case 'leader':
+      return `Emailed now to the leader of ${groupName} only, with your name; replies come to your email address. It is private on the Prayer Wall (the site owner and administrators can read it).`
+    default:
+      return 'Everyone can read it on the Prayer Wall, with your name.'
+  }
 }
 
 export default ConversationPostForm

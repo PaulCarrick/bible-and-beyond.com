@@ -527,6 +527,12 @@ export interface ConversationPost {
   answered_at: string | null
   // Conversations only, and true only for its author: new replies by others are emailed to the author.
   email_replies: boolean
+  // Prayer Wall, for its author only: emailed to a group ("group") or its leader ("leader"), the group and its
+  // name, and when the email went (null while it is on its way).
+  share_with?: 'group' | 'leader' | null
+  share_group_id?: number | null
+  share_group_name?: string | null
+  shared_at?: string | null
   // Members' replies to it, oldest first.
   replies: ConversationReply[]
 }
@@ -577,6 +583,9 @@ export interface PostOptions {
   isPrivate: boolean
   emailToPrayerList: boolean
   emailReplies: boolean
+  // Prayer Wall: email it to a group the member is in, or to its leader (sent at once; the post is private).
+  shareWith?: 'group' | 'leader' | null
+  shareGroupId?: number | null
 }
 
 export interface DevotionalSubscription {

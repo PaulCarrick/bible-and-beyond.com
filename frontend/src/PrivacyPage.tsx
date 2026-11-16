@@ -92,7 +92,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           sent and how many it reached, not to whom. Each of you gets your own copy, addressed to the leader: your
           address is never shown to the others in the group. Every group email has a link to stop that group&rsquo;s
           messages, and replies go to the leader. A leader can also schedule messages to go on a date or every week or
-          month.
+          month. If you choose to email a prayer request to your group or its leader, it goes to them with your name
+          and your email address (so they can reply), and is private on the Prayer Wall.
         </li>
         <li>
           <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.

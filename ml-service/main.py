@@ -81,8 +81,11 @@ from conversations import (
   delete_post,
   delete_reply,
   list_posts,
+  my_groups,
   send_reply_email,
+  send_shared_request,
   set_answered,
+  share_is_due,
   update_post,
   update_reply,
 )
@@ -1229,6 +1232,10 @@ class ConversationPostRequest(BaseModel):
   email_to_prayer_list: bool = False
   # Conversations only (refused on the Prayer Wall): email each new reply by someone else to the author.
   email_replies: bool = False
+  # Prayer Wall: "Email <group>" ("group") or "Email <group> leader" ("leader") for a group the member is in; sent
+  # at once and makes the request private.
+  share_with: str | None = Field(default=None, max_length=10)
+  share_group_id: int | None = None
 
 
 def conversations_account(request: Request) -> dict:
@@ -1266,33 +1273,44 @@ def conversations_list(
   return {**result, "can_post": member is not None}
 
 
+@app.get("/my-groups")
+def my_groups_list(request: Request):
+  """The groups the logged-in member is in, for the Prayer Wall's "Email <group>" choices."""
+  user = require_user(request, "Please log in.")
+  return {"groups": my_groups(user["id"])}
+
+
 @app.post("/conversations")
-def conversations_create(body: ConversationPostRequest, request: Request):
+def conversations_create(body: ConversationPostRequest, request: Request, background: BackgroundTasks):
   user = conversations_account(request)
   try:
-    return {
-      "post": create_post(
-        user["id"], body.title, body.body, body.board, body.is_anonymous, body.is_private, body.email_to_prayer_list,
-        body.email_replies,
-      )
-    }
+    post = create_post(
+      user["id"], body.title, body.body, body.board, body.is_anonymous, body.is_private, body.email_to_prayer_list,
+      body.email_replies, body.share_with, body.share_group_id,
+    )
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  # A request for a group or its leader goes at once, after the answer (the page never waits for the mail server).
+  if share_is_due(post["id"]):
+    background.add_task(send_shared_request, post["id"])
+  return {"post": post}
 
 
 @app.put("/conversations/{post_id}")
-def conversations_update(post_id: int, body: ConversationPostRequest, request: Request):
-  """Changes one of the member's own posts; anyone else's is "not found"."""
+def conversations_update(post_id: int, body: ConversationPostRequest, request: Request, background: BackgroundTasks):
+  """Changes one of the member's own posts; anyone else's is "not found". Choosing a group or its leader that it
+  was not emailed to before emails it."""
   user = conversations_account(request)
   try:
-    return {
-      "post": update_post(
-        user["id"], post_id, body.title, body.body, body.is_anonymous, body.is_private, body.email_to_prayer_list,
-        body.email_replies,
-      )
-    }
+    post = update_post(
+      user["id"], post_id, body.title, body.body, body.is_anonymous, body.is_private, body.email_to_prayer_list,
+      body.email_replies, body.share_with, body.share_group_id,
+    )
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  if share_is_due(post["id"]):
+    background.add_task(send_shared_request, post["id"])
+  return {"post": post}
 
 
 class AnsweredRequest(BaseModel):

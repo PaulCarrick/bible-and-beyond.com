@@ -52,7 +52,9 @@ _COLUMNS = f"""
   conversation_posts.id, conversation_posts.user_id, conversation_posts.title, conversation_posts.body,
   conversation_posts.created_at, conversation_posts.updated_at, {_AUTHOR}, conversation_posts.board,
   conversation_posts.is_anonymous, conversation_posts.is_private, conversation_posts.email_to_prayer_list,
-  conversation_posts.answered_at, conversation_posts.email_replies
+  conversation_posts.answered_at, conversation_posts.email_replies, conversation_posts.share_with,
+  conversation_posts.share_group_id, (SELECT name FROM member_groups WHERE id = conversation_posts.share_group_id),
+  conversation_posts.shared_at
 """
 # What a viewer may see: every post but the private ones of others.
 _VISIBLE = "(NOT conversation_posts.is_private OR conversation_posts.user_id = %(viewer)s)"
@@ -91,6 +93,12 @@ def _row_to_post(row, viewer_id: int) -> dict:
     "answered_at": row[11].isoformat() if row[11] else None,
     # Whether new replies are emailed to the author (told only to the author).
     "email_replies": row[12] and row[1] == viewer_id,
+    # Emailed to a group or its leader (Prayer Wall; told only to the author): "group" or "leader", the group and
+    # its name, and when the email went.
+    "share_with": row[13] if row[1] == viewer_id else None,
+    "share_group_id": row[14] if row[1] == viewer_id else None,
+    "share_group_name": row[15] if row[1] == viewer_id else None,
+    "shared_at": row[16].isoformat() if row[16] and row[1] == viewer_id else None,
     "replies": [],
   }
 
@@ -149,6 +157,36 @@ def _checked_options(board: str, is_anonymous: bool, is_private: bool, email_to_
   return is_anonymous, is_private, email_to_prayer_list
 
 
+def _checked_share(connection, user_id: int, board: str, share_with: str | None, share_group_id: int | None) -> tuple[str | None, int | None]:
+  """"Email <group>" or "Email <group> leader" (Prayer Wall only): the author must be in the group (as their site
+  account). Returns (share_with, share_group_id), or (None, None) when not shared."""
+  if not share_with:
+    return None, None
+  if board != "prayer":
+    raise ConversationProblem("Only Prayer Wall requests can be emailed to a group.")
+  if share_with not in ("group", "leader"):
+    raise ConversationProblem("Please choose who sees this request.")
+  found = connection.execute(
+    "SELECT 1 FROM group_members WHERE group_id = %s AND user_id = %s", (share_group_id, user_id)
+  ).fetchone() if share_group_id else None
+  if found is None:
+    raise ConversationProblem("You are not in that group.")
+  return share_with, int(share_group_id)
+
+
+def my_groups(user_id: int) -> list[dict]:
+  """The groups a member is in (as their site account), for the Prayer Wall's "Email <group>" choices."""
+  with connect() as connection:
+    rows = connection.execute(
+      """
+      SELECT g.id, g.name FROM member_groups g JOIN group_members m ON m.group_id = g.id
+      WHERE m.user_id = %s ORDER BY lower(g.name), g.id
+      """,
+      (user_id,),
+    ).fetchall()
+  return [{"id": row[0], "name": row[1]} for row in rows]
+
+
 def _checked_email_replies(board: str, email_replies: bool) -> bool:
   if email_replies and board != "conversations":
     raise ConversationProblem("Only Conversations posts can have their replies emailed.")
@@ -176,8 +214,13 @@ def create_post(
   is_private: bool = False,
   email_to_prayer_list: bool = False,
   email_replies: bool = False,
+  share_with: str | None = None,
+  share_group_id: int | None = None,
 ) -> dict:
   board = _checked_board(board)
+  if share_with:
+    # Emailing a group or its leader makes the request private (the owner's request, 2026-11-16).
+    is_anonymous, is_private, email_to_prayer_list = False, True, False
   is_anonymous, is_private, email_to_prayer_list = _checked_options(board, is_anonymous, is_private, email_to_prayer_list)
   email_replies = _checked_email_replies(board, email_replies)
   title = _checked_title(title)
@@ -186,16 +229,18 @@ def create_post(
     count = connection.execute("SELECT count(*) FROM conversation_posts WHERE user_id = %s", (user_id,)).fetchone()[0]
     if count >= MAX_POSTS_PER_USER:
       raise ConversationProblem(f"You have reached the limit of {MAX_POSTS_PER_USER} posts. Please delete some first.")
+    share_with, share_group_id = _checked_share(connection, user_id, board, share_with, share_group_id)
     post_id = connection.execute(
       """
       INSERT INTO conversation_posts
         (user_id, title, body, body_text, board, is_anonymous, is_private, email_to_prayer_list, listed_at,
-         email_replies, reply_email_token)
-      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END, %s, CASE WHEN %s THEN %s END) RETURNING id
+         email_replies, reply_email_token, share_with, share_group_id)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END, %s, CASE WHEN %s THEN %s END, %s, %s) RETURNING id
       """,
       (
         user_id, title, cleaned["html"], cleaned["text"], board, is_anonymous, is_private, email_to_prayer_list,
         email_to_prayer_list or is_private, email_replies, email_replies, secrets.token_urlsafe(24),
+        share_with, share_group_id,
       ),
     ).fetchone()[0]
     return _get(connection, post_id, user_id)
@@ -274,6 +319,8 @@ def update_post(
   is_private: bool = False,
   email_to_prayer_list: bool = False,
   email_replies: bool = False,
+  share_with: str | None = None,
+  share_group_id: int | None = None,
 ) -> dict:
   """Replaces the title, text and Prayer Wall choices (or, on Conversations, "email me replies") of one of the
   member's own posts. Turning the email on puts
@@ -285,8 +332,11 @@ def update_post(
     found = connection.execute("SELECT board FROM conversation_posts WHERE id = %s AND user_id = %s", (post_id, user_id)).fetchone()
     if found is None:
       raise ConversationProblem("That post was not found.", 404)
+    if share_with:
+      is_anonymous, is_private, email_to_prayer_list = False, True, False
     is_anonymous, is_private, email_to_prayer_list = _checked_options(found[0], is_anonymous, is_private, email_to_prayer_list)
     email_replies = _checked_email_replies(found[0], email_replies)
+    share_with, share_group_id = _checked_share(connection, user_id, found[0], share_with, share_group_id)
     connection.execute(
       """
       UPDATE conversation_posts SET title = %(title)s, body = %(html)s, body_text = %(text)s, updated_at = now(),
@@ -298,16 +348,57 @@ def update_post(
         END,
         email_to_prayer_list = %(email)s,
         email_replies = %(replies)s,
-        reply_email_token = CASE WHEN %(replies)s THEN COALESCE(reply_email_token, %(token)s) ELSE reply_email_token END
+        reply_email_token = CASE WHEN %(replies)s THEN COALESCE(reply_email_token, %(token)s) ELSE reply_email_token END,
+        -- A new choice of group or leader is emailed again; the same one is not.
+        shared_at = CASE WHEN share_with IS NOT DISTINCT FROM %(share)s AND share_group_id IS NOT DISTINCT FROM %(group)s
+                         THEN shared_at END,
+        share_with = %(share)s, share_group_id = %(group)s
       WHERE id = %(post)s AND user_id = %(user)s
       """,
       {
         "title": title, "html": cleaned["html"], "text": cleaned["text"], "anonymous": is_anonymous,
         "private": is_private, "email": email_to_prayer_list, "replies": email_replies,
         "token": secrets.token_urlsafe(24), "post": post_id, "user": user_id,
+        "share": share_with, "group": share_group_id,
       },
     )
     return _get(connection, post_id, user_id)
+
+
+def share_is_due(post_id: int) -> bool:
+  """Whether a request chose a group or its leader and has not been emailed to them yet."""
+  with connect() as connection:
+    row = connection.execute(
+      "SELECT share_with IS NOT NULL AND share_group_id IS NOT NULL AND shared_at IS NULL FROM conversation_posts WHERE id = %s",
+      (post_id,),
+    ).fetchone()
+  return bool(row and row[0])
+
+
+def send_shared_request(post_id: int) -> dict | None:
+  """Emails a Prayer Wall request to the group or the group's leader its author chose (run after it is saved, as a
+  background task, so the page never waits). Marks it sent first, so it never goes twice. Returns the counts."""
+  import groups
+
+  with connect() as connection:
+    row = connection.execute(
+      f"""
+      UPDATE conversation_posts SET shared_at = now()
+      WHERE id = %s AND share_with IS NOT NULL AND share_group_id IS NOT NULL AND shared_at IS NULL
+      RETURNING share_group_id, share_with, user_id, title, body_text,
+        (SELECT {_AUTHOR} FROM users WHERE users.id = conversation_posts.user_id),
+        (SELECT email FROM users WHERE users.id = conversation_posts.user_id)
+      """,
+      (post_id,),
+    ).fetchone()
+  if row is None:
+    return None
+  group_id, share_with, author_id, title, text, author_name, author_email = row
+  try:
+    return groups.send_prayer_request(group_id, share_with, author_id, author_name, author_email, title, text)
+  except Exception as problem:
+    logger.error("Prayer request %s not emailed to its group: %s", post_id, type(problem).__name__)
+    return None
 
 
 def set_answered(user_id: int, post_id: int, answered: bool) -> dict:

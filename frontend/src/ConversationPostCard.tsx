@@ -97,6 +97,8 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canR
           {post.is_mine && (post.is_anonymous || post.is_private || post.email_to_prayer_list || post.email_replies) && (
             <p className="prayer-post-options">
               {[
+                post.share_with &&
+                  `Emailed ${post.shared_at ? '' : '(on its way) '}to ${post.share_group_name ?? 'a group'}${post.share_with === 'leader' ? ' leader' : ''}`,
                 post.is_private && 'Private: only you and the site owner and administrators can see it',
                 post.is_anonymous && 'Posted anonymously',
                 post.email_to_prayer_list && 'Emailed to the prayer list',

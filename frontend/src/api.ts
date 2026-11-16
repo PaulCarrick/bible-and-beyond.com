@@ -784,9 +784,17 @@ export async function saveConversationPost(
       is_private: options.isPrivate,
       email_to_prayer_list: options.emailToPrayerList,
       email_replies: options.emailReplies,
+      share_with: options.shareWith ?? null,
+      share_group_id: options.shareGroupId ?? null,
     }),
   })
   return (await readJson<{ post: ConversationPost }>(response)).post
+}
+
+// The groups the logged-in member is in (the Prayer Wall's "Email <group>" choices).
+export async function fetchMyGroups(signal?: AbortSignal): Promise<{ id: number; name: string }[]> {
+  const response = await fetch(`${mlServiceUrl}/my-groups`, { credentials: 'include', signal })
+  return (await readJson<{ groups: { id: number; name: string }[] }>(response)).groups
 }
 
 // Marks one of the visitor's own Prayer Wall requests answered or not (a checkbox on the post, without editing it).

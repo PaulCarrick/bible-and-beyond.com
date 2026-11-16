@@ -911,11 +911,16 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           you share, with your name, so leave out what others would not want made public.
         </p>
         <p>
-          Under a request&rsquo;s text are three choices, all off unless you tick them. <em>Post anonymously</em> shows
-          &ldquo;Anonymous&rdquo; instead of your name. <em>Private</em> keeps the request off the Prayer Wall for
-          everyone but you; the site owner and administrators can still read it, and it is sent to them (and nobody
-          else) in their prayer list email. <em>Email this request to the prayer
-          list</em> sends it to everyone who gets the prayer list by email. You can change them later with Edit. When
+          Under a request&rsquo;s text, <em>Who sees this request</em> offers one choice. <em>Public</em> (the usual)
+          shows it to everyone with your name. <em>Post anonymously</em> shows &ldquo;Anonymous&rdquo; instead of your
+          name. <em>Private</em> keeps the request off the Prayer Wall for everyone but you; the site owner and
+          administrators can still read it, and it is sent to them (and nobody else) in their prayer list email.{' '}
+          <em>Add to the prayer list email</em> sends it to everyone who gets the prayer list by email. If a church
+          leader has added you to a group, there are two more for each group: <em>Email</em> and the group&rsquo;s name
+          sends it at once to everyone in that group, and <em>Email</em>, the group&rsquo;s name and{' '}
+          <em>leader</em> sends it to its leader only; either way it carries your name, replies come to your email
+          address, and the request becomes private on the Prayer Wall. You can change the choice later with Edit (a
+          group or leader chosen again is not emailed twice). When
           a prayer is answered, tick <em>Answered</em> beside Edit and Delete under your request (no need to edit it):
           everyone then sees it marked &ldquo;Answered&rdquo;, and it is left out of the prayer list emails.
         </p>
