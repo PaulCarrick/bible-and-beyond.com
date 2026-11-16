@@ -118,8 +118,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
       <p>
         Prefer to watch? The{' '}
         <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
-        is an eleven-minute narrated tour of the site. It was made before the maps, the verse a day and the text
-        messages were added; this guide covers them.
+        is a fifteen-minute narrated tour of the whole site, including the maps, the verse a day and text messages.
       </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
