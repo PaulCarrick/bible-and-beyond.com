@@ -4,16 +4,17 @@ interface TutorialPageProps {
   onNavigate: (view: View) => void
 }
 
-// The narrated tour of the site, a video of about fourteen and a half minutes (remade 2026-11-15). The video file is too large for git: it lives in
+// The narrated tour of the site, a video of about sixteen minutes (remade 2026-11-17). The video file is too large for git: it lives in
 // public/tutorial/ on the server only (see "Tutorial video" in CLAUDE.md). The poster and captions are committed.
 function TutorialPage({ onNavigate }: TutorialPageProps) {
   return (
     <div className="welcome tutorial-page">
       <h1>Tutorial video</h1>
       <p>
-        A fifteen-minute tour of Bible and Beyond: reading and searching the Bible, the commentaries, the devotionals,
-        the other books, the media and the maps, searching the Internet Archive, the FAQ, and what a free account adds:
-        notes, daily emails, a verse a day, text messages, playlists and My account, and on request AI search, your own
+        A sixteen-minute tour of Bible and Beyond: reading and searching the Bible, the commentaries, the devotionals,
+        the other books, the media and the maps, searching the Internet Archive, the FAQ, the verse and devotional of the
+        day, and what a free account adds (set up with an email address or a cell phone number): notes, lists of search
+        results, daily emails, a verse a day, text messages, playlists and My account, and on request AI search, your own
         questions, posting in Conversations and on the Prayer Wall, and your own pins and routes on the maps. Press play to start;
         the button at the bottom right shows it full screen, and CC turns the captions on or off.
       </p>
