@@ -96,7 +96,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           and your email address (so they can reply), and is private on the Prayer Wall.
         </li>
         <li>
-          <strong>Your notes, playlists and daily-email choices.</strong> Notes and playlists are private to you.
+          <strong>Your notes, playlists, lists and daily-email choices.</strong> Notes, playlists and the lists of search
+          results you save are private to you.
         </li>
         <li>
           <strong>Your notes, pins and routes on the maps,</strong> if an administrator has let your account add them:

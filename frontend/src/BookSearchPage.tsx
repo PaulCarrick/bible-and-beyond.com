@@ -5,6 +5,10 @@ import ArchiveResults from './ArchiveResults'
 import { searchOtherBooks } from './api'
 import type { BookSearchOptions, BookSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
+import { bookItem } from './listItems'
+import { useListPicks } from './listPicks'
+import ListSaveBox from './ListSaveBox'
+import ListTick from './ListTick'
 import type { DevotionalInfo } from './types'
 
 interface BookSearchPageProps {
@@ -22,6 +26,9 @@ const perPage = 25
 function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
+  // Chapters ticked for a list (My lists).
+  const listPicks = useListPicks()
+  const { user: listMember } = useContext(AccountContext)
   const [matchMode, setMatchMode] = useState<BookSearchOptions['matchMode']>('all')
   const [book, setBook] = useState('')
   const [sortBy, setSortBy] = useState<'' | 'order'>('')
@@ -182,7 +189,10 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
             </p>
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
-                <li key={`${result.book}-${result.section}-${result.unit}-${result.text.slice(0, 20)}`} className="result book-result">
+                <li
+                  key={`${result.book}-${result.section}-${result.unit}-${result.text.slice(0, 20)}`}
+                  className={listMember ? 'result book-result has-list-tick' : 'result book-result'}
+                >
                   <div className="book-result-place">
                     <strong>{result.book_name}</strong>
                     {[result.section_title !== result.book_name ? result.section_title : '', result.unit_title, result.heading]
@@ -194,9 +204,11 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
                   <button type="button" className="link-button" onClick={() => onOpen(result.book, result.section, result.unit)}>
                     Read this chapter
                   </button>
+                  <ListTick item={bookItem(result, 'book')} picks={listPicks} />
                 </li>
               ))}
             </ul>
+            <ListSaveBox picks={listPicks} />
             {pageCount > 1 && shown && (
               <nav className="pagination" aria-label="Result pages">
                 <button type="button" disabled={response.page <= 1 || isSearching} onClick={() => run({ ...shown, page: 1 })}>

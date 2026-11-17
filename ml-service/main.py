@@ -28,6 +28,7 @@ from accounts import (
 )
 import day_cards
 import message_cards
+import saved_lists
 import sms
 import verse_a_day
 from api_bible import API_BIBLES, ApiBibleError, list_copyrights, search_api_bible
@@ -1379,6 +1380,71 @@ class PlaylistRequest(BaseModel):
   name: str = Field(max_length=1000)
   # The songs in the order they play, by id.
   song_ids: list[str] = Field(max_length=1000)
+
+
+class ListSaveRequest(BaseModel):
+  # A new list's name (when list_id is not given), or the list to add to.
+  name: str = Field(default="", max_length=500)
+  list_id: int | None = None
+  # The ticked entries as the search showed them: kind, title, source, text and target (where to open it).
+  items: list[dict] = Field(default_factory=list, max_length=200)
+
+
+class ListRenameRequest(BaseModel):
+  name: str = Field(max_length=500)
+
+
+def _lists_call(work):
+  try:
+    return work()
+  except saved_lists.ListProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.get("/lists")
+def lists_index(request: Request):
+  """The logged-in member's lists (My lists), most recently changed first, with how many entries each holds."""
+  user = require_user(request, "Please log in to use lists.")
+  return {"lists": saved_lists.list_lists(user["id"])}
+
+
+@app.get("/lists/{list_id}")
+def lists_get(list_id: int, request: Request):
+  user = require_user(request, "Please log in to use lists.")
+  return {"list": _lists_call(lambda: saved_lists.get_list(user["id"], list_id))}
+
+
+@app.post("/lists")
+def lists_save(body: ListSaveRequest, request: Request):
+  """Saves ticked search results into a new list, or adds them to one of the member's lists."""
+  user = require_user(request, "Please log in to use lists.")
+  return _lists_call(lambda: saved_lists.save_items(user["id"], body.list_id, body.name, body.items))
+
+
+@app.put("/lists/{list_id}")
+def lists_rename(list_id: int, body: ListRenameRequest, request: Request):
+  user = require_user(request, "Please log in to use lists.")
+  return {"list": _lists_call(lambda: saved_lists.rename_list(user["id"], list_id, body.name))}
+
+
+@app.delete("/lists/{list_id}")
+def lists_delete(list_id: int, request: Request):
+  user = require_user(request, "Please log in to use lists.")
+  _lists_call(lambda: saved_lists.delete_list(user["id"], list_id))
+  return {"deleted": True}
+
+
+@app.delete("/lists/{list_id}/items/{item_id}")
+def lists_remove_item(list_id: int, item_id: int, request: Request):
+  user = require_user(request, "Please log in to use lists.")
+  return {"list": _lists_call(lambda: saved_lists.remove_item(user["id"], list_id, item_id))}
+
+
+@app.post("/lists/{list_id}/note")
+def lists_copy_to_note(list_id: int, request: Request):
+  """Copy to notes: one note holding the whole list, on its first verse (or other entry that can carry a note)."""
+  user = require_user(request, "Please log in to use lists.")
+  return {"note": _lists_call(lambda: saved_lists.copy_to_note(user["id"], list_id))}
 
 
 @app.get("/playlists")

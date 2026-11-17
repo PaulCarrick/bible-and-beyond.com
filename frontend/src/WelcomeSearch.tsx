@@ -5,6 +5,10 @@ import ArchiveResults from './ArchiveResults'
 import { searchEverything } from './api'
 import type { SiteSearchGroup, SiteSearchKind, SiteSearchResult } from './api'
 import { highlight, renderExcerpt } from './highlight'
+import { siteItem } from './listItems'
+import { useListPicks } from './listPicks'
+import ListSaveBox from './ListSaveBox'
+import ListTick from './ListTick'
 import type { Destination } from './types'
 import { verseButtonProps } from './verseAddress'
 import type { View } from './views'
@@ -49,6 +53,9 @@ function countLabel(kind: SiteSearchKind, total: number) {
 function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpenMap }: WelcomeSearchProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
+  // Results ticked for a list (My lists), from any group, kept through Show more and other searches.
+  const listPicks = useListPicks()
+  const { user: listMember } = useContext(AccountContext)
   const [matchMode, setMatchMode] = useState<MatchMode>('all')
   const [searched, setSearched] = useState<{ query: string; matchMode: MatchMode } | null>(null)
   const [groups, setGroups] = useState<SiteSearchGroup[]>([])
@@ -315,10 +322,11 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpen
             {group.results.map((result, index) => {
               const hit = renderHit(group, result)
               return (
-                <li key={index} className="result book-result">
+                <li key={index} className={listMember ? 'result book-result has-list-tick' : 'result book-result'}>
                   <div className="book-result-place">{hit.place}</div>
                   <p className="book-result-text">{hit.text}</p>
                   {hit.link}
+                  <ListTick item={siteItem(result, group.kind)} picks={listPicks} />
                 </li>
               )
             })}
@@ -330,6 +338,7 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpen
           )}
         </div>
       ))}
+      <ListSaveBox picks={listPicks} />
     </section>
   )
 }

@@ -27,6 +27,7 @@ const sections = [
   { id: 'help-accounts', title: 'Accounts (optional)' },
   { id: 'help-verse-a-day', title: 'A verse a day and text messages' },
   { id: 'help-notes', title: 'Your notes' },
+  { id: 'help-lists', title: 'My lists' },
   { id: 'help-conversations', title: 'Conversations' },
   { id: 'help-prayer-wall', title: 'Prayer Wall' },
   { id: 'help-contact', title: 'Contact' },
@@ -111,7 +112,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         Bible and Beyond is free. You can read and search everything on it without an account and without logging in.
         If you set up an account and log in, you can also write your own notes, have a devotional or a Bible verse sent
         to you each day (by email, and by text message if you like), get the prayer list each week, make music
-        playlists, and ask to be allowed to put your own questions to the FAQ, to write in Conversations and on the
+        playlists, keep lists of search results, and ask to be allowed to put your own questions to the FAQ, to write in Conversations and on the
         Prayer Wall, or to mark the maps with your own pins, routes and notes. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
@@ -140,7 +141,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           Every page has the same three parts. At the top is the <strong>header</strong>: click the name or the round
           emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the top right are{' '}
           <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address (click it to
-          open <em>My account</em>), <em>My notes</em> and <em>Log out</em> there instead. On the left is the{' '}
+          open <em>My account</em>), <em>My notes</em>, <em>My lists</em> and <em>Log out</em> there instead. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
           the devotionals, the other books, Christian media, maps, questions (the FAQ), members (Conversations and the
           Prayer Wall) and about (this Help page, the tutorial video, Contact and Privacy). The groups start closed to
@@ -709,7 +710,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
       <section id="help-accounts" tabIndex={-1} className="help-section">
         <h2>Accounts (optional)</h2>
         <p>
-          You do not need an account to read or search anything. An account lets you write notes, make playlists,
+          You do not need an account to read or search anything. An account lets you write notes, make playlists, save lists of search results,
           receive a devotional, a verse a day or the prayer list by email, by text or both and, on request,
           ask your own questions in the FAQ, write in Conversations and on the Prayer Wall, and mark the maps.
         </p>
@@ -852,6 +853,25 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           alt="The My notes page with four notes and the form to add a note on a Bible verse"
           caption="My notes, with a note on a verse, a reading and a commentary note, and the form to add one."
         />
+      </section>
+
+      <section id="help-lists" tabIndex={-1} className="help-section">
+        <h2>My lists</h2>
+        <p>
+          When you are logged in, every search (Search everything, the Bible, the commentaries, the other books, the
+          media and the maps) has a checkbox at the right of each result. Tick the ones you want to keep, such as the
+          verses for a lesson or a hard week; a box appears under the results. Choose <em>A new list</em> and give it a
+          name, or choose one of your lists to add to, and press <em>Save</em> (<em>Cancel</em> clears the ticks). An
+          entry already in the list is not added twice.
+        </p>
+        <p>
+          <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (at the top of the page, beside My notes)
+          shows your lists. Choose one to see its entries as the search showed them (the search is not run again), each
+          with a link to open it (<em>Read in the Bible</em>, <em>Read the note</em>, <em>Play this song</em> and so on)
+          and <em>Remove from the list</em>. You can <em>Rename</em> a list or <em>Delete the list</em> (you are asked
+          first). <em>Copy to notes</em> puts the whole list into one note, on its first verse, commentary note or
+          reading, so you can add your own thoughts to it in My notes. Your lists are yours alone.
+        </p>
       </section>
 
       <section id="help-conversations" tabIndex={-1} className="help-section">

@@ -20,6 +20,8 @@ import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
 import { chooseContextTranslation } from './contextTranslation'
 import NotesPage from './NotesPage'
+import MyListsPage from './MyListsPage'
+import type { SavedListEntry } from './api'
 import ConversationsPage from './ConversationsPage'
 import AccountPage from './AccountPage'
 import UnsubscribePage from './UnsubscribePage'
@@ -267,6 +269,31 @@ function App() {
     }
   }
 
+  // An entry of My lists, opened where it came from.
+  function openListEntry(entry: SavedListEntry) {
+    const id = Date.now()
+    const target = entry.target
+    if (entry.kind === 'bible') {
+      setDestination({ id, kind: 'bible', translation: target.translation ?? '', book: target.book ?? 1, chapter: target.chapter ?? 1, verse: target.verse ?? 1 })
+      navigate('read')
+    } else if (entry.kind === 'commentary') {
+      setDestination({ id, kind: 'commentary', commentary: target.commentary ?? '', book: target.book ?? 1, chapter: target.chapter ?? 1, verse: target.verse ?? 1 })
+      navigate('browse')
+    } else if (entry.kind === 'devotional' || entry.kind === 'book') {
+      const devotional = target.devotional ?? ''
+      setDestination({ id, kind: 'devotional', devotional, section: target.section ?? 0, unit: target.unit ?? 1 })
+      navigate(isOtherBook(devotional) ? 'books' : 'devotionals')
+    } else if (entry.kind === 'music') {
+      setMusicFocus({ id: target.song ?? '', key: id })
+      navigate('music')
+    } else if (entry.kind === 'map') {
+      openMap(target.map ?? '')
+    } else {
+      setFaqRequest({ question: target.question ?? entry.title, id })
+      navigate('faq')
+    }
+  }
+
   // A verse link on a map: the Bible reader at that verse.
   function openVerse(verse: VerseInBible) {
     setDestination({ id: Date.now(), kind: 'bible', ...verse })
@@ -403,6 +430,7 @@ function App() {
           user={user}
           onSetUpAccount={() => navigate('register')}
           onShowNotes={() => navigate('notes')}
+          onShowLists={() => navigate('lists')}
           onShowAccount={() => navigate('account')}
           onLogIn={() => navigate('login')}
           onLogOut={() => {
@@ -476,6 +504,7 @@ function App() {
               <ConversationsPage key={user?.id ?? 'logged-out'} isHidden={activeView !== 'conversations'} />
               <ConversationsPage key={`prayer-${user?.id ?? 'logged-out'}`} board="prayer" isHidden={activeView !== 'prayerWall'} />
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
+              {activeView === 'lists' && <MyListsPage key={`lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'verify' && emailLink && (
                 <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />

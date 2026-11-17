@@ -3447,3 +3447,81 @@ select:disabled {
   color: var(--text);
   font-size: 13px;
 }
+
+/* My lists (ListTick.tsx, ListSaveBox.tsx): a member's checkbox at the top right of each search result, as for
+   playlists, and the box under the results that saves the ticked ones in a list. */
+.result.has-list-tick {
+  position: relative;
+  padding-right: 2.25rem;
+}
+
+.list-tick {
+  position: absolute;
+  top: 1rem;
+  right: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.list-save {
+  margin: 1rem 0;
+}
+
+.list-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.list-save-count {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 600;
+}
+
+.list-save-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.list-save-message {
+  margin: 0.5rem 0 0;
+}
+
+/* My lists page (MyListsPage.tsx). */
+.my-lists-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.my-lists-index button.is-chosen {
+  font-weight: 700;
+  border-color: var(--link, #1a6ebd);
+}
+
+.my-list-entry {
+  position: relative;
+}
+
+.my-list-entry .book-result-source {
+  color: var(--muted-text, #666);
+}
+
+.my-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}

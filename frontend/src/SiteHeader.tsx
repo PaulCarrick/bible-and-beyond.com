@@ -14,6 +14,7 @@ interface SiteHeaderProps {
   user: AccountUser | null
   onSetUpAccount: () => void
   onShowNotes: () => void
+  onShowLists: () => void
   // The My account page (phone number and texts).
   onShowAccount: () => void
   onLogIn: () => void
@@ -21,7 +22,7 @@ interface SiteHeaderProps {
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onShowLists, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -64,6 +65,9 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
             </button>
             <button type="button" className="link-button" onClick={onShowNotes}>
               My notes
+            </button>
+            <button type="button" className="link-button" onClick={onShowLists}>
+              My lists
             </button>
             <button type="button" className="link-button" onClick={onLogOut}>
               Log out

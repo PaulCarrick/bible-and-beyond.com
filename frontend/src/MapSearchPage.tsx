@@ -1,8 +1,13 @@
-import { useId, useRef, useState } from 'react'
+import { useContext, useId, useRef, useState } from 'react'
+import { AccountContext } from './AccountContext'
 import type { FormEvent } from 'react'
 import { mapFileAddress, searchMaps } from './api'
 import type { MapSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
+import { mapItem } from './listItems'
+import { useListPicks } from './listPicks'
+import ListSaveBox from './ListSaveBox'
+import ListTick from './ListTick'
 import MapsCredit from './MapsCredit'
 
 interface MapSearchPageProps {
@@ -28,6 +33,9 @@ const perPage = 25
 function MapSearchPage({ isHidden, onOpen }: MapSearchPageProps) {
   const queryId = useId()
   const [query, setQuery] = useState('')
+  // Maps ticked for a list (My lists).
+  const listPicks = useListPicks()
+  const { user: listMember } = useContext(AccountContext)
   const [matchMode, setMatchMode] = useState<MatchMode>('all')
   const [response, setResponse] = useState<MapSearchResponse | null>(null)
   const [shown, setShown] = useState<Search | null>(null)
@@ -107,7 +115,7 @@ function MapSearchPage({ isHidden, onOpen }: MapSearchPageProps) {
             </p>
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
-                <li key={result.id} className="result book-result map-search-result">
+                <li key={result.id} className={listMember ? 'result book-result map-search-result has-list-tick' : 'result book-result map-search-result'}>
                   <img className="map-search-picture" src={mapFileAddress(result, 'thumbnail')} alt="" loading="lazy" />
                   <div>
                     <div className="book-result-place">
@@ -119,9 +127,11 @@ function MapSearchPage({ isHidden, onOpen }: MapSearchPageProps) {
                       Open this map
                     </button>
                   </div>
+                  <ListTick item={mapItem(result)} picks={listPicks} />
                 </li>
               ))}
             </ul>
+            <ListSaveBox picks={listPicks} />
             {pageCount > 1 && shown && (
               <nav className="pagination" aria-label="Result pages">
                 <button type="button" disabled={response.page <= 1 || isSearching} onClick={() => run({ ...shown, page: response.page - 1 })}>

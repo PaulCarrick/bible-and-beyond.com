@@ -1,0 +1,237 @@
+"""My lists (added 2026-11-17 at the owner's request): a member ticks results in any search (the Bible, the
+commentaries, the devotionals, the other books, the media, the maps, the FAQ in Search everything) and saves them as
+a named list, or adds them to one they have. My lists (beside My notes) shows each list with its entries as the
+search showed them; the search is never run again. "Copy to notes" makes one note holding the whole list, on the
+list's first entry that can carry a note (a verse, a commentary note, a reading or a chapter).
+
+An entry is kept as given: its kind, a title ("John 3:16"), a source ("BSB", a commentary's name, a book's name),
+the text the search showed, and where to open it (target). Only Bibles stored on this site may be saved: the
+licensed ones (NIV, NASB, The Message) must not have their text kept, so they are refused.
+"""
+
+import html
+import re
+
+import psycopg
+from psycopg.types.json import Jsonb
+
+from notes import NoteProblem, create_note
+from search import connect
+
+NAME_LIMIT = 100
+TITLE_LIMIT = 300
+SOURCE_LIMIT = 200
+TEXT_LIMIT = 5000
+MAX_LISTS_PER_USER = 200
+MAX_ITEMS_PER_LIST = 500
+MAX_ITEMS_PER_SAVE = 200
+# Plain text only: markup and control characters (the searches' highlight markers among them) are taken out.
+TAGS = re.compile(r"<[^>]*>")
+CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# What each kind's target holds, and its type.
+TARGETS = {
+  "bible": {"translation": str, "book": int, "chapter": int, "verse": int},
+  "commentary": {"commentary": str, "book": int, "chapter": int, "verse": int},
+  "devotional": {"devotional": str, "section": int, "unit": int},
+  "book": {"devotional": str, "section": int, "unit": int},
+  "music": {"song": str},
+  "map": {"map": str},
+  "faq": {"question": str},
+}
+# The note a list is copied into, kept under the notes' own limit of 10,000 characters of text.
+NOTE_TEXT_ROOM = 9000
+
+
+class ListProblem(Exception):
+  """The request cannot be done; the text says why and is fit to show the member."""
+
+  def __init__(self, message: str, status_code: int = 422):
+    super().__init__(message)
+    self.status_code = status_code
+
+
+def _plain(value, limit: int) -> str:
+  text = CONTROL.sub("", TAGS.sub("", str(value or ""))).replace("\r\n", "\n").strip()
+  return text[:limit]
+
+
+def _name(name: str) -> str:
+  name = " ".join(_plain(name, NAME_LIMIT * 2).split())
+  if not name:
+    raise ListProblem("Please give the list a name.")
+  return name[:NAME_LIMIT]
+
+
+def _checked_item(connection, item: dict) -> dict:
+  kind = item.get("kind")
+  if kind not in TARGETS:
+    raise ListProblem("That cannot be saved in a list.")
+  given = item.get("target") or {}
+  target = {}
+  for field, kind_of in TARGETS[kind].items():
+    value = given.get(field)
+    if kind_of is int:
+      if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 100000:
+        raise ListProblem("An entry could not be read; please search again.")
+    else:
+      value = _plain(value, 500)
+      if not value:
+        raise ListProblem("An entry could not be read; please search again.")
+    target[field] = value
+  if kind == "bible":
+    stored = connection.execute(
+      "SELECT 1 FROM translations WHERE code = %s AND is_published", (target["translation"],)
+    ).fetchone()
+    if stored is None:
+      raise ListProblem(f"Verses of the {target['translation']} cannot be saved in a list (only the Bibles kept on this site can).")
+  key = kind + ":" + ":".join(str(target[field]) for field in TARGETS[kind])
+  title = _plain(item.get("title"), TITLE_LIMIT)
+  if not title:
+    raise ListProblem("An entry could not be read; please search again.")
+  return {"kind": kind, "key": key, "title": title, "source": _plain(item.get("source"), SOURCE_LIMIT), "text": _plain(item.get("text"), TEXT_LIMIT), "target": target}
+
+
+def _describe_list(row) -> dict:
+  return {"id": row[0], "name": row[1], "count": row[2], "created_at": row[3].isoformat(), "updated_at": row[4].isoformat()}
+
+
+LIST_COLUMNS = "l.id, l.name, (SELECT count(*) FROM saved_list_items i WHERE i.list_id = l.id), l.created_at, l.updated_at"
+
+
+def list_lists(user_id: int) -> list[dict]:
+  """The member's lists, most recently changed first."""
+  with connect() as connection:
+    rows = connection.execute(
+      f"SELECT {LIST_COLUMNS} FROM saved_lists l WHERE l.user_id = %s ORDER BY l.updated_at DESC, l.id DESC", (user_id,)
+    ).fetchall()
+  return [_describe_list(row) for row in rows]
+
+
+def _owned(connection, user_id: int, list_id: int):
+  row = connection.execute(f"SELECT {LIST_COLUMNS} FROM saved_lists l WHERE l.id = %s AND l.user_id = %s", (list_id, user_id)).fetchone()
+  if row is None:
+    raise ListProblem("That list was not found.", 404)
+  return row
+
+
+def get_list(user_id: int, list_id: int) -> dict:
+  """One of the member's lists with its entries, in the order they were added."""
+  with connect() as connection:
+    found = _describe_list(_owned(connection, user_id, list_id))
+    rows = connection.execute(
+      "SELECT id, kind, title, source, text, target, added_at FROM saved_list_items WHERE list_id = %s ORDER BY position, id",
+      (list_id,),
+    ).fetchall()
+  found["items"] = [
+    {"id": row[0], "kind": row[1], "title": row[2], "source": row[3], "text": row[4], "target": row[5], "added_at": row[6].isoformat()}
+    for row in rows
+  ]
+  return found
+
+
+def save_items(user_id: int, list_id: int | None, name: str, items: list) -> dict:
+  """Saves ticked entries: into a new list called name (list_id None), or added to one of the member's lists. An
+  entry the list has already is left as it is. Returns the list and how many were added."""
+  if not isinstance(items, list) or not items:
+    raise ListProblem("Please tick what to save.")
+  if len(items) > MAX_ITEMS_PER_SAVE:
+    raise ListProblem(f"At most {MAX_ITEMS_PER_SAVE} entries can be saved at once.")
+  with connect() as connection:
+    checked = [_checked_item(connection, item if isinstance(item, dict) else {}) for item in items]
+    if list_id is None:
+      name = _name(name)
+      if connection.execute("SELECT count(*) FROM saved_lists WHERE user_id = %s", (user_id,)).fetchone()[0] >= MAX_LISTS_PER_USER:
+        raise ListProblem(f"You have reached the limit of {MAX_LISTS_PER_USER} lists. Please delete some first.")
+      if connection.execute("SELECT 1 FROM saved_lists WHERE user_id = %s AND lower(name) = lower(%s)", (user_id, name)).fetchone():
+        raise ListProblem(f"You already have a list called “{name}”: choose it to add to it, or give the new one another name.")
+      list_id = connection.execute("INSERT INTO saved_lists (user_id, name) VALUES (%s, %s) RETURNING id", (user_id, name)).fetchone()[0]
+    else:
+      _owned(connection, user_id, list_id)
+    present, last = connection.execute(
+      "SELECT count(*), COALESCE(max(position), 0) FROM saved_list_items WHERE list_id = %s", (list_id,)
+    ).fetchone()
+    added = 0
+    for item in checked:
+      if present + added >= MAX_ITEMS_PER_LIST:
+        raise ListProblem(f"A list can hold at most {MAX_ITEMS_PER_LIST} entries.")
+      row = connection.execute(
+        """
+        INSERT INTO saved_list_items (list_id, position, kind, item_key, title, source, text, target)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (list_id, item_key) DO NOTHING RETURNING id
+        """,
+        (list_id, last + added + 1, item["kind"], item["key"], item["title"], item["source"], item["text"], Jsonb(item["target"])),
+      ).fetchone()
+      added += row is not None
+    connection.execute("UPDATE saved_lists SET updated_at = now() WHERE id = %s", (list_id,))
+  return {"list": get_list(user_id, list_id), "added": added}
+
+
+def rename_list(user_id: int, list_id: int, name: str) -> dict:
+  name = _name(name)
+  with connect() as connection:
+    _owned(connection, user_id, list_id)
+    try:
+      connection.execute("UPDATE saved_lists SET name = %s, updated_at = now() WHERE id = %s", (name, list_id))
+    except psycopg.errors.UniqueViolation:
+      raise ListProblem(f"You already have a list called “{name}”.")
+  return get_list(user_id, list_id)
+
+
+def delete_list(user_id: int, list_id: int) -> None:
+  with connect() as connection:
+    _owned(connection, user_id, list_id)
+    connection.execute("DELETE FROM saved_lists WHERE id = %s", (list_id,))
+
+
+def remove_item(user_id: int, list_id: int, item_id: int) -> dict:
+  with connect() as connection:
+    _owned(connection, user_id, list_id)
+    removed = connection.execute("DELETE FROM saved_list_items WHERE id = %s AND list_id = %s RETURNING id", (item_id, list_id)).fetchone()
+    if removed is None:
+      raise ListProblem("That entry is not in the list.", 404)
+    connection.execute("UPDATE saved_lists SET updated_at = now() WHERE id = %s", (list_id,))
+  return get_list(user_id, list_id)
+
+
+# --- Copy to notes -------------------------------------------------------------------------------------------
+
+
+def _note_place(item: dict) -> tuple | None:
+  """Where a note on this entry goes (notes.create_note's item), or None for an entry that cannot carry one."""
+  target = item["target"]
+  if item["kind"] == "bible":
+    return ("bible_verse", target["translation"], target["book"], target["chapter"], target["verse"], None, None)
+  if item["kind"] == "commentary":
+    return ("commentary", target["commentary"], target["book"], target["chapter"], target["verse"], None, None)
+  if item["kind"] in ("devotional", "book"):
+    return ("devotional", target["devotional"], None, None, None, target["section"], target["unit"])
+  return None
+
+
+def copy_to_note(user_id: int, list_id: int) -> dict:
+  """One note holding the whole list (its name and every entry), on the list's first entry that can carry a note
+  (the owner's choice). A very long list is cut to fit a note, saying how many more are in the list."""
+  found = get_list(user_id, list_id)
+  place = next((_note_place(item) for item in found["items"] if _note_place(item)), None)
+  if place is None:
+    raise ListProblem("A note needs a verse, a commentary note, a reading or a chapter to go on, and this list has none.")
+  parts = [f"<p><strong>My list “{html.escape(found['name'])}”</strong></p>", "<ul>"]
+  room = NOTE_TEXT_ROOM - len(found["name"])
+  shown = 0
+  for item in found["items"]:
+    words = f"{item['title']}" + (f" ({item['source']})" if item["source"] else "") + (f": {item['text']}" if item["text"] else "")
+    if len(words) > room:
+      break
+    room -= len(words)
+    source = f" ({html.escape(item['source'])})" if item["source"] else ""
+    text = f": {html.escape(item['text'])}" if item["text"] else ""
+    parts.append(f"<li><strong>{html.escape(item['title'])}</strong>{source}{text}</li>")
+    shown += 1
+  parts.append("</ul>")
+  if shown < len(found["items"]):
+    more = len(found["items"]) - shown
+    parts.append(f"<p>…and {more} more {'entry' if more == 1 else 'entries'} in the list.</p>")
+  try:
+    return create_note(user_id, *place, "".join(parts))
+  except NoteProblem as problem:
+    raise ListProblem(str(problem)) from problem

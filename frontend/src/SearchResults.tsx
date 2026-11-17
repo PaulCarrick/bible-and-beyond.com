@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import ContextWindow from './ContextWindow'
 import DownloadCardButton from './DownloadCardButton'
+import { bibleItem, commentaryItem } from './listItems'
+import { useListPicks } from './listPicks'
+import ListSaveBox from './ListSaveBox'
+import ListTick from './ListTick'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
 import { useVerseWindows } from './useVerseWindows'
@@ -149,6 +153,10 @@ function SearchResults({
 
   const isLicensed = response?.source === 'api_bible'
   const windows = useVerseWindows(response, !isLoading)
+  // Results ticked for a list (My lists): the verses of the Bibles kept here and commentary notes, never a licensed
+  // Bible's (its text must not be kept).
+  const listPicks = useListPicks()
+  const canPick = response?.source === 'local' || response?.source === 'commentary'
   const showContext = windows.isShowing
   const currentView = windows.currentView
 
@@ -344,7 +352,7 @@ function SearchResults({
           <ol ref={listReference} className={isLoading ? 'result-list is-loading' : 'result-list'}>
             {response?.results.map((result) => (
               <li
-                className="result"
+                className={canPick ? 'result has-list-tick' : 'result'}
                 key={`${result.translation}-${result.book_number}-${result.chapter}-${result.verse}`}
               >
                 <span className="reference">
@@ -454,9 +462,11 @@ function SearchResults({
                     </div>
                   )}
                 </div>
+                {canPick && <ListTick item={response.source === 'commentary' ? commentaryItem(result) : bibleItem(result)} picks={listPicks} />}
               </li>
             ))}
           </ol>
+          <ListSaveBox picks={listPicks} />
 
           {isLicensed && response?.copyright && (
             <p className="citation" ref={citationReference}>

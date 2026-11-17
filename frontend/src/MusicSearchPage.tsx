@@ -6,6 +6,9 @@ import { fetchPlaylists, searchMusic } from './api'
 import type { MusicSearchResponse, Playlist } from './api'
 import { renderExcerpt } from './highlight'
 import PlaylistSaveBox from './PlaylistSaveBox'
+import { songItem } from './listItems'
+import { useListPicks } from './listPicks'
+import ListSaveBox from './ListSaveBox'
 
 interface MusicSearchPageProps {
   isHidden: boolean
@@ -49,6 +52,16 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   const [archiveSearch, setArchiveSearch] = useState<{ query: string; id: number } | null>(null)
   // Songs ticked for a playlist, in the order they were ticked, and the visitor's playlists (for the save box).
   const [tickedIds, setTickedIds] = useState<string[]>([])
+  // The same ticks also save to a list (My lists; 2026-11-17): one checkbox per song, two ways to save. Saving or
+  // cancelling either way clears both.
+  const songPicks = useListPicks()
+  const listPicks = {
+    ...songPicks,
+    clear: () => {
+      songPicks.clear()
+      setTickedIds([])
+    },
+  }
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [playlistName, setPlaylistName] = useState('')
   const userId = user?.id ?? null
@@ -176,12 +189,13 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
           onNameChange={setPlaylistName}
           onSaved={(playlist) => {
             setPlaylists((current) => [...current.filter((entry) => entry.id !== playlist.id), playlist])
-            setTickedIds([])
+            listPicks.clear()
           }}
-          onClear={() => setTickedIds([])}
+          onClear={listPicks.clear}
           afterSaving="Play it from Your playlists on the Listen to the media page."
         />
       )}
+      {user && <ListSaveBox picks={listPicks} />}
       {archiveSearch && <ArchiveResults query={archiveSearch.query} kind="audio" searchId={archiveSearch.id} />}
       <div>
         {errorMessage && <p className="error">{errorMessage}</p>}
@@ -191,7 +205,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
             <p className="book-search-count">
               {response.total === 0 ? 'Nothing was found.' : `${response.total.toLocaleString()} ${response.total === 1 ? 'song' : 'songs'} found`}
             </p>
-            {user && response.results.length > 0 && <p className="music-tick-heading">Tick songs for a playlist</p>}
+            {user && response.results.length > 0 && <p className="music-tick-heading">Tick songs for a playlist or a list</p>}
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
                 <li key={result.id} className={user ? 'result book-result music-search-result' : 'result book-result'}>
@@ -211,7 +225,10 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
                       type="checkbox"
                       className="music-tick"
                       checked={tickedIds.includes(result.id)}
-                      onChange={(event) => toggleTick(result.id, event.target.checked)}
+                      onChange={(event) => {
+                        toggleTick(result.id, event.target.checked)
+                        songPicks.toggle(songItem(result), event.target.checked)
+                      }}
                       aria-label={`Add ${result.title} to a playlist`}
                       title="Tick to add this song to a playlist"
                     />

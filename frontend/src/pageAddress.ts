@@ -28,6 +28,7 @@ const addresses: Record<View, string> = {
   account: '/account',
   copyright: '/copyright',
   notes: '/notes',
+  lists: '/lists',
   conversations: '/conversations',
   prayerWall: '/prayer-wall',
   register: '/register',

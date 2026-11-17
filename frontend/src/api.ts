@@ -35,6 +35,7 @@ import type {
   Translation,
   VerseContext,
 } from './types'
+import type { ListItem, ListItemKind, ListItemTarget } from './listItems'
 
 const mlServiceUrl = import.meta.env.VITE_ML_SERVICE_URL ?? 'http://localhost:8000'
 
@@ -1139,4 +1140,68 @@ export async function saveMapMark(mapId: string, markId: number | null, changes:
 
 export async function deleteMapMark(markId: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/map-marks/${markId}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// My lists (saved_lists.py): the logged-in member's lists of search results.
+export interface SavedListSummary {
+  id: number
+  name: string
+  count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SavedListEntry {
+  id: number
+  kind: ListItemKind
+  title: string
+  source: string
+  text: string
+  target: ListItemTarget
+  added_at: string
+}
+
+export interface SavedList extends SavedListSummary {
+  items: SavedListEntry[]
+}
+
+async function listRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const response = await fetch(`${mlServiceUrl}/lists${path}`, {
+    method,
+    credentials: 'include',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  return readJson<T>(response)
+}
+
+export async function fetchLists(): Promise<SavedListSummary[]> {
+  return (await listRequest<{ lists: SavedListSummary[] }>('')).lists
+}
+
+export async function fetchList(id: number): Promise<SavedList> {
+  return (await listRequest<{ list: SavedList }>(`/${id}`)).list
+}
+
+// Saves ticked entries into a new list (name) or one the member has (listId). Returns the list and how many were added.
+export async function saveToList(items: ListItem[], target: { name: string } | { listId: number }): Promise<{ list: SavedList; added: number }> {
+  const body = 'listId' in target ? { list_id: target.listId, items } : { name: target.name, items }
+  return listRequest<{ list: SavedList; added: number }>('', 'POST', body)
+}
+
+export async function renameList(id: number, name: string): Promise<SavedList> {
+  return (await listRequest<{ list: SavedList }>(`/${id}`, 'PUT', { name })).list
+}
+
+export async function deleteList(id: number): Promise<void> {
+  await listRequest(`/${id}`, 'DELETE')
+}
+
+export async function removeListEntry(listId: number, entryId: number): Promise<SavedList> {
+  return (await listRequest<{ list: SavedList }>(`/${listId}/items/${entryId}`, 'DELETE')).list
+}
+
+// Copy to notes: one note holding the whole list, on its first verse (or other entry that can carry a note).
+export async function copyListToNote(id: number): Promise<Note> {
+  return (await listRequest<{ note: Note }>(`/${id}/note`, 'POST')).note
 }
