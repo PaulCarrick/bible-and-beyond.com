@@ -1,0 +1,13 @@
+# The text format of the editor in the "Email a member" box on a group's page. It has no filters because Drupal
+# never displays these messages: the ML service cleans them with the contact form's allowlist (groups.email_member,
+# contact.check_rich_text) before they are emailed.
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - bible_admin
+name: 'Group email'
+format: group_email
+weight: 21
+filters: {  }

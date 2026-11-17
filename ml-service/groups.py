@@ -41,7 +41,9 @@ import message_cards
 import sms
 import verse_a_day
 from accounts import AccountProblem, normalize_email, site_link
-from contact import CONTROL_CHARACTERS, MailUnavailable, load_mail_settings, send_email
+from html import escape
+
+from contact import CONTROL_CHARACTERS, ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from search import connect
 from site_settings import get_public_settings
 
@@ -195,8 +197,9 @@ def list_members(group_id: int) -> list[dict]:
     ).fetchall()
     return [
       {
-        "id": row[0], "is_account": row[1] is not None, "stopped": row[2] is not None, "name": row[3],
-        "email": row[4], "phone": row[5], "receives": _how(connection, row[1], row[6], row[2] is not None),
+        "id": row[0], "is_account": row[1] is not None, "user_id": row[1], "stopped": row[2] is not None,
+        "confirmed": row[1] is None or bool(row[6]), "name": row[3], "email": row[4], "phone": row[5],
+        "receives": _how(connection, row[1], row[6], row[2] is not None),
       }
       for row in rows
     ]
@@ -360,11 +363,13 @@ def preview_picture(text: str) -> dict:
 
 
 def compose_email(
-  settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0
+  settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
+  personal: bool = False, html: str | None = None,
 ) -> EmailMessage:
   """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
-  it went to)."""
+  it went to). personal: a message to that one member (email_member), said so at the foot. html: the message
+  as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot."""
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
@@ -382,12 +387,21 @@ def compose_email(
   else:
     lines = [text]
   sender = group["owner_name"] or "the group's leader"
-  lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
+  if personal:
+    lines += ["", "--", f"Sent by {sender} to you alone, as a member of the group “{group['name']}”, through {title}: {site}"]
+  else:
+    lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
   if token:
     lines.append(f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}")
   else:
     lines.append(f"This is your copy as the group's leader: it went to {reached} member{'s' if reached != 1 else ''}, each as a hidden recipient.")
   email.set_content("\n".join(lines) + "\n")
+  if html is not None:
+    foot = "".join(f"<p>{escape(line)}</p>" for line in lines[len(lines) - lines[::-1].index("--"):])
+    if token:
+      stop = site_link("unsubscribe=" + token)
+      foot = foot.replace(escape(stop), f'<a href="{escape(stop)}">{escape(stop)}</a>')
+    email.add_alternative(f"<html><body>{html}<hr>{foot}</body></html>", subtype="html")
   if verse:
     message_cards.attach_to_email(email, card, f"{verse['text']} {verse['caption']}", link=verse_a_day.verse_link(verse["verse"]), linked_lines=2)
   elif card is not None:
@@ -484,6 +498,59 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
       (group_id, kind, subject, text, sent_by, counts["emailed"], counts["texted"], counts["skipped"], counts["failed"]),
     )
   return counts
+
+
+def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None) -> dict:
+  """A message from the leader to **one member** (the Email link in the group's member list; added 2026-11-17 at
+  the owner's request). By email only, to that member alone, in the form of every group email: From the site,
+  To the leader (the member is the hidden recipient), Reply-To the leader, the member's own stop link. Refused
+  for a member who stopped the group's messages or whose site address is not confirmed yet (a group send skips
+  them too). No leader's copy. Recorded in the group's Sent table as a message "to one member" (never who).
+  html (from the Drupal box's editor, CKEditor 5) is cleaned like the contact form's messages
+  (contact.check_rich_text: only its allowed tags, links only http(s) or mailto, no attributes) and sent as HTML
+  with a plain-text copy; without it, text is sent as plain text. Returns the member (id, name)."""
+  if html is not None:
+    try:
+      cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message")
+    except ContactProblem as problem:
+      raise GroupProblem(str(problem)) from problem
+    html, text = cleaned["html"], cleaned["text"]
+  else:
+    text = _text(text, "message", MESSAGE_LIMIT)
+  group = get_group(group_id)
+  with connect() as connection:
+    row = connection.execute(
+      """
+      SELECT COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
+             m.user_id IS NULL OR u.email_verified_at IS NOT NULL
+      FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = %s AND m.group_id = %s
+      """,
+      (member_id, group_id),
+    ).fetchone()
+  if row is None:
+    raise GroupProblem("That member is not in the group (they may have been removed).")
+  address, token, stopped, confirmed = row
+  if stopped:
+    raise GroupProblem("This member stopped the group's messages, so nothing can be sent to them.")
+  if not confirmed:
+    raise GroupProblem("This member has not confirmed their email address yet, so nothing can be sent to them.")
+  sender = group["owner_name"] or "your group's leader"
+  subject = f"A message from {sender} ({group['name']})"
+  try:
+    settings = load_mail_settings()
+    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html), [address])
+  except MailUnavailable as problem:
+    raise GroupProblem(f"The email could not be sent: {problem}") from problem
+  except Exception as problem:
+    logger.error("Group %s message to member %s not sent: %s", group_id, member_id, type(problem).__name__)
+    raise GroupProblem("The email could not be sent; try again later.") from problem
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1)",
+      (group_id, subject + " (to one member)", text, sent_by),
+    )
+  member = next(member for member in group["members"] if member["id"] == member_id)
+  return {"id": member["id"], "name": member["name"]}
 
 
 def send_prayer_request(

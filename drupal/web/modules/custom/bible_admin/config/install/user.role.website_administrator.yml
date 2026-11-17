@@ -3,6 +3,7 @@ status: true
 dependencies:
   config:
     - filter.format.faq_note
+    - filter.format.group_email
   module:
     - bible_admin
     - filter
@@ -22,4 +23,5 @@ permissions:
   - 'administer site settings'
   - 'administer site users'
   - 'use text format faq_note'
+  - 'use text format group_email'
   - 'view the administration theme'

@@ -907,6 +907,26 @@ class BibleManager {
   }
 
   /**
+   * Emails the leader's words to one member of the group only (the Email link in the member list). Returns the
+   * member's id and name. Throws if this user may not manage the group, or the member stopped the group's
+   * messages or has not confirmed their address.
+   */
+  public function emailGroupMember(int $groupId, int $memberId, array $message): array {
+    $group = $this->getGroup($groupId);
+    // $message: html (from the editor; the ML service cleans it) or text (the plain box).
+    $details = array_intersect_key($message, ['html' => TRUE, 'text' => TRUE]);
+    $details['sent_by'] = $this->currentUser->getAccountName();
+    $member = $this->run(['email-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details))['member'];
+    $this->logger->notice('@user emailed member @member of the group “@name” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@member' => $member['id'],
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+    ]);
+    return $member;
+  }
+
+  /**
    * A random well-known verse as a card: card (its saved name), image (a data: address), words, caption, verse.
    */
   public function previewGroupVerse(): array {

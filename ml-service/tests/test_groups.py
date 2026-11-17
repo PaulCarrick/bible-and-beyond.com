@@ -4,6 +4,7 @@ their rows after."""
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -218,6 +219,96 @@ def test_one_failure_does_not_stop_the_others(outbox, monkeypatch):
   assert groups.send(group["id"], "message", {"subject": "Hi", "text": "Hello"}, "dave", pause=0) == {"emailed": 1, "texted": 0, "skipped": 0, "failed": 1}
 
 
+def test_one_member_can_be_emailed_alone(outbox):
+  group = new_group()
+  bob = account("bob")
+  account("ann", texts=True)
+  account("cat", verified=False)
+  for name in ("ann", "bob", "cat"):
+    groups.add_member(group["id"], {"email": f"{name}@{DOMAIN}"})
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  members = {member["email"]: member for member in groups.get_group(group["id"])["members"]}
+  # The list gives the account's id (for the Site users link) and whether the address is confirmed.
+  assert members[f"bob@{DOMAIN}"]["user_id"] == bob["id"] and members["pat@example.org"]["user_id"] is None
+  assert members[f"cat@{DOMAIN}"]["confirmed"] is False and members["pat@example.org"]["confirmed"] is True
+  outbox["texts"].clear()
+
+  answer = groups.email_member(group["id"], members[f"bob@{DOMAIN}"]["id"], "  Hello Bob,\r\nsee you Sunday.  ", "dave")
+  assert answer == {"id": members[f"bob@{DOMAIN}"]["id"], "name": "Bob Member"}
+  # One email, delivered to Bob alone: no other member, no leader's copy, no text (even to Ann, who takes texts).
+  assert [email["X-Delivered-To"] for email in outbox["emails"]] == [f"bob@{DOMAIN}"] and outbox["texts"] == []
+  email = outbox["emails"][0]
+  assert email["To"] == "dave@example.org" and email["Reply-To"] == "dave@example.org" and email["Bcc"] is None
+  assert email["Subject"] == "A message from Deacon Dave (Deacon group)"
+  text = email.get_content()
+  assert "Hello Bob,\nsee you Sunday." in text and "to you alone" in text and "To stop messages from this group" in text
+  assert DOMAIN not in email.as_string().replace(f"X-Delivered-To: {email['X-Delivered-To']}", "")
+  sent = groups.list_sent(group["id"])[0]
+  assert sent["subject"].endswith("(to one member)") and sent["emailed"] == 1 and "bob" not in sent["subject"].lower()
+
+  # A contact gets it too; the words are plain text, sent as typed (nothing in them is markup).
+  outbox["emails"].clear()
+  groups.email_member(group["id"], members["pat@example.org"]["id"], "<b>Hi</b> & welcome", "dave")
+  assert outbox["emails"][0]["X-Delivered-To"] == "pat@example.org" and not outbox["emails"][0].is_multipart()
+  assert "<b>Hi</b> & welcome" in outbox["emails"][0].get_content()
+
+  # Refused: an unconfirmed address, a stopped member, an empty message, a member of another group.
+  outbox["emails"].clear()
+  with pytest.raises(GroupProblem, match="not confirmed"):
+    groups.email_member(group["id"], members[f"cat@{DOMAIN}"]["id"], "Hi", "dave")
+  with connect() as connection:
+    connection.execute("UPDATE group_members SET stopped_at = now() WHERE id = %s", (members["pat@example.org"]["id"],))
+  with pytest.raises(GroupProblem, match="stopped"):
+    groups.email_member(group["id"], members["pat@example.org"]["id"], "Hi", "dave")
+  with pytest.raises(GroupProblem, match="message is needed"):
+    groups.email_member(group["id"], members[f"bob@{DOMAIN}"]["id"], "   ", "dave")
+  other = new_group("Other")
+  with pytest.raises(GroupProblem, match="not in the group"):
+    groups.email_member(other["id"], members[f"bob@{DOMAIN}"]["id"], "Hi", "dave")
+  assert outbox["emails"] == []
+
+
+def test_a_member_email_from_the_editor_is_cleaned_html_with_a_text_copy(outbox):
+  group = new_group()
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  member_id = groups.get_group(group["id"])["members"][0]["id"]
+  html = (
+    '<h2>Sunday</h2><p>Hi <strong>Pat</strong>, <s>old</s> see <a href="https://site.example/x" onclick="evil()">this</a>'
+    ' and <a href="javascript:alert(1)">that</a>.</p><script>alert(1)</script><ul><li>One</li></ul>'
+    '<p style="color:red"><img src="https://tracker.example/p.gif">Bye</p>'
+  )
+  groups.email_member(group["id"], member_id, "", "dave", html=html)
+  email = outbox["emails"][0]
+  assert email["X-Delivered-To"] == "pat@example.org" and email.is_multipart()
+  plain = email.get_body(("plain",)).get_content()
+  sent_html = email.get_body(("html",)).get_content()
+  assert "Hi Pat, old see this and that." in plain and "To stop messages from this group" in plain
+  # Kept: the editor's formatting and the safe link. Dropped: the script, the handler, the javascript: link,
+  # the style and the picture.
+  assert "<h2>Sunday</h2>" in sent_html and "<strong>Pat</strong>" in sent_html and "<s>old</s>" in sent_html
+  assert re.search(r'<a href="https://site\.example/x"[^>]*>this</a>', sent_html) and "<li>One</li>" in sent_html
+  assert ">that</a>" not in sent_html and " and that." in sent_html
+  for gone in ("script", "onclick", "javascript:", "style=", "<img", "tracker.example"):
+    assert gone not in sent_html
+  assert "to you alone" in sent_html and 'href="https://site.example/?unsubscribe=' in sent_html
+  assert groups.list_sent(group["id"])[0]["text"].startswith("Sunday")
+  with pytest.raises(GroupProblem, match="write something"):
+    groups.email_member(group["id"], member_id, "", "dave", html="<p> </p><img src='x'>")
+
+
+def test_emailing_a_member_says_so_when_mail_is_off(outbox, monkeypatch):
+  import contact
+
+  group = new_group()
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  member_id = groups.get_group(group["id"])["members"][0]["id"]
+  monkeypatch.setattr(groups, "load_mail_settings", contact.load_mail_settings)
+  monkeypatch.setenv("OUTGOING_EMAIL", "off")
+  with pytest.raises(GroupProblem, match="OUTGOING_EMAIL=off"):
+    groups.email_member(group["id"], member_id, "Hi", "dave")
+  assert outbox["emails"] == [] and groups.list_sent(group["id"]) == []
+
+
 def test_deleting_a_group_keeps_the_accounts():
   group = new_group()
   ann = account("ann")
@@ -246,3 +337,12 @@ def test_the_tool():
   assert [group["member_count"] for group in answer["groups"]] == [1]
   code, answer = run("add-member", f"--group={group_id}", details={"email": "pat@example.org", "name": "Pat"})
   assert code == 1 and answer == {"ok": False, "error": "That person is already in the group."}
+  # email-member (in a separate process, so mail is off there: it is refused, and says why).
+  member_id = run("get", f"--group={group_id}")[1]["group"]["members"][0]["id"]
+  code, answer = run("email-member", f"--group={group_id}", f"--member={member_id}", details={"text": "", "sent_by": "dave"})
+  assert code == 1 and answer == {"ok": False, "error": "The message is needed."}
+  done = subprocess.run(
+    [sys.executable, str(TOOL), "email-member", f"--group={group_id}", f"--member={member_id}"],
+    input=json.dumps({"text": "Hi", "sent_by": "dave"}), capture_output=True, text=True, env={**os.environ, "OUTGOING_EMAIL": "off"},
+  )
+  assert done.returncode == 1 and "OUTGOING_EMAIL=off" in json.loads(done.stdout)["error"]

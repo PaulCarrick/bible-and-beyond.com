@@ -192,9 +192,35 @@ class GroupController extends ControllerBase {
         $links[] = ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.group_member_edit', $id + ['member_id' => $member['id']])];
       }
       $links[] = ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_member_remove', $id + ['member_id' => $member['id']])];
+      // The name of a member with a site account links to their entry on Site users, for those who may open
+      // it (administer site users; a Group leader may not, and sees the name only). Contacts have no entry.
+      $name = $member['name'] !== '' ? $member['name'] : '—';
+      $nameCell = ['#plain_text' => $name];
+      if ($member['is_account'] && !empty($member['user_id'])) {
+        $siteUser = Url::fromRoute('bible_admin.site_user_edit', ['user_id' => $member['user_id']]);
+        if ($siteUser->access()) {
+          $nameCell = ['#type' => 'link', '#title' => $name, '#url' => $siteUser];
+        }
+      }
+      // The address opens a box to email this member alone (GroupMemberEmailForm, in a dialog); not for a
+      // member who stopped the group's messages or has not confirmed their address (it would be refused).
+      $emailCell = ['#plain_text' => $member['email']];
+      if (!$member['stopped'] && ($member['confirmed'] ?? TRUE)) {
+        $emailCell = [
+          '#type' => 'link',
+          '#title' => $member['email'],
+          '#url' => Url::fromRoute('bible_admin.group_member_email', $id + ['member_id' => $member['id']]),
+          '#attributes' => [
+            'class' => ['use-ajax'],
+            'data-dialog-type' => 'modal',
+            'data-dialog-options' => json_encode(['width' => 600, 'title' => (string) $this->t('Email @name', ['@name' => $member['name'] ?: $member['email']])]),
+            'title' => (string) $this->t('Email this member only'),
+          ],
+        ];
+      }
       $rows[] = [
-        ['data' => ['#plain_text' => $member['name'] !== '' ? $member['name'] : '—']],
-        ['data' => ['#plain_text' => $member['email']]],
+        ['data' => $nameCell],
+        ['data' => $emailCell],
         ['data' => ['#plain_text' => $member['phone']]],
         ['data' => ['#plain_text' => (string) ($member['is_account'] ? $this->t('Site account') : $this->t('Contact'))]],
         ['data' => ['#plain_text' => $member['receives']]],
@@ -206,6 +232,7 @@ class GroupController extends ControllerBase {
       '#header' => [$this->t('Name'), $this->t('Email'), $this->t('Phone'), $this->t('Kind'), $this->t('Gets messages by'), $this->t('Operations')],
       '#rows' => $rows,
       '#empty' => $this->t('No members yet. Use "Add a member".'),
+      '#attached' => ['library' => ['core/drupal.dialog.ajax']],
     ];
 
     $sent = [];

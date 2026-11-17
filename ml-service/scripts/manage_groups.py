@@ -14,6 +14,7 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
     manage_groups.py add-accounts --group=ID           input {user_ids: [...]}: those accounts
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
     manage_groups.py remove-member --group=ID --member=ID
+    manage_groups.py email-member --group=ID --member=ID    input {html or text, sent_by}: an email to that member only
     manage_groups.py preview-verse                     a random verse card (its name, picture and verse)
     manage_groups.py preview-picture                   input {text}: the words on a random picture
     manage_groups.py send --group=ID --kind=message|verse|picture   input {subject, text, card, verse, sent_by}
@@ -47,7 +48,7 @@ def parse_arguments(arguments=None):
   save.add_argument("--group", type=int)
   save.add_argument("--owner", type=int, required=True)
   save.add_argument("--set-owner", action="store_true")
-  for name in ("update-member", "remove-member"):
+  for name in ("update-member", "remove-member", "email-member"):
     member = commands.add_parser(name)
     member.add_argument("--group", type=int, required=True)
     member.add_argument("--member", type=int, required=True)
@@ -100,6 +101,14 @@ def run(arguments) -> dict:
     return {"ok": True, "member": groups.update_member(arguments.group, arguments.member, read_input())}
   if command == "remove-member":
     return {"ok": True, "member": groups.remove_member(arguments.group, arguments.member)}
+  if command == "email-member":
+    details = read_input()
+    html = details.get("html")
+    member = groups.email_member(
+      arguments.group, arguments.member, str(details.get("text", "")), str(details.get("sent_by", "")),
+      html=str(html) if html is not None else None,
+    )
+    return {"ok": True, "member": member}
   if command == "candidates":
     return {"ok": True, "accounts": groups.list_candidates(arguments.group)}
   if command == "add-accounts":

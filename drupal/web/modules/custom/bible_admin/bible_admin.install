@@ -98,3 +98,29 @@ function bible_admin_update_11003(): string {
   }
   return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
 }
+
+/**
+ * Adds the "Group email" text format and its editor (the Email a member box on a group's page, 2026-11-17) and
+ * lets Group leaders and Website administrators use it.
+ */
+function bible_admin_update_11004(): string {
+  $done = [];
+  $directory = \Drupal::service('extension.list.module')->getPath('bible_admin') . '/config';
+  if (!FilterFormat::load('group_email')) {
+    FilterFormat::create(Yaml::decode(file_get_contents($directory . '/install/filter.format.group_email.yml')))->save();
+    $done[] = 'added the Group email text format';
+  }
+  if (\Drupal::moduleHandler()->moduleExists('ckeditor5') && !Editor::load('group_email')) {
+    Editor::create(Yaml::decode(file_get_contents($directory . '/optional/editor.editor.group_email.yml')))->save();
+    $done[] = 'added its editor';
+  }
+  foreach (['group_leader', 'website_administrator'] as $id) {
+    $role = Role::load($id);
+    if ($role && !$role->hasPermission('use text format group_email')) {
+      $role->grantPermission('use text format group_email');
+      $role->save();
+      $done[] = 'let the ' . $role->label() . ' role use it';
+    }
+  }
+  return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
+}

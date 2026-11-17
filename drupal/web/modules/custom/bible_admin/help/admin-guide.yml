@@ -155,6 +155,13 @@ sections:
       agreement to texts. <em>Add and add another</em> keeps the form open for the next person. On the group's page,
       <em>Edit</em> changes such a person's details, and <em>Remove</em> takes anyone out of the group (their account,
       if any, stays).</p>
+      <p>In the members list, the <strong>name</strong> of someone with an account opens their entry on Site users
+      (only for those who may use Site users; a Group leader sees the name only). Click a member's <strong>email
+      address</strong> to write to that person alone: a box opens with an editor (headings, bold, italic, underline,
+      strikethrough, links, lists and quotations). <em>Send</em> emails it to them only, with your address as the one
+      it is to and for replies, like every group email; <em>Cancel</em> closes the box and sends nothing. It goes by
+      email even to someone who chose texts. It cannot go to someone who stopped the group's messages or has not
+      confirmed their address (their address is not a link then). The Sent table lists it as "to one member".</p>
       <figure><img data-guide="group-member-contact" alt="Add a member with Someone without an account chosen: email, name and phone"><figcaption>Adding someone without an account.</figcaption></figure>
       <h3>Sending</h3>
       <p>Every message goes to each member separately, showing <strong>only your address</strong> as the one it is

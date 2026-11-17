@@ -382,6 +382,17 @@ bible_admin.group_member_remove:
     group_id: '\d+'
     member_id: '\d+'
 
+# An email to one member only (the address in the member list opens it in a dialog).
+bible_admin.group_member_email:
+  path: '/admin/groups/{group_id}/members/{member_id}/email'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\GroupMemberEmailForm'
+    _title: 'Email a member'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    member_id: '\d+'
+
 bible_admin.group_schedule_add:
   path: '/admin/groups/{group_id}/schedules/add'
   defaults:
