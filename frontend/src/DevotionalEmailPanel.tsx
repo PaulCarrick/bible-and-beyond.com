@@ -117,6 +117,11 @@ function DevotionalEmailPanel({ devotional, sections, currentSection, currentUni
           </button>{' '}
           to get {devotional.name} by email each day.
         </p>
+      ) : !user.email ? (
+        <p>
+          This comes by email, and your account has no email address (you log in with your phone). To get it, ask us
+          through the Contact page to add an address to your account.
+        </p>
       ) : !user.email_verified ? (
         <p>
           Please confirm your email address first: we sent a link to {user.email}. Use the reminder at the top of the

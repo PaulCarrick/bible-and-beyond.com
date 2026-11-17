@@ -116,8 +116,9 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
     setErrorMessage('')
     const hasPhone = phone.trim() !== ''
     try {
-      const choice = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms)
-      const saved = await savePhone(phone, hasPhone && phoneIsCell, choice.sendViaEmail, choice.sendViaSms, sendMultimedia)
+      const hasEmail = Boolean(user?.email)
+      const choice = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms, hasEmail)
+      const saved = await savePhone(phone, hasPhone && (phoneIsCell || !hasEmail), choice.sendViaEmail, choice.sendViaSms, sendMultimedia)
       if (verseADay) {
         await saveVerseSubscription(verseTime, timeZone)
       } else if (verseLoaded) {
@@ -146,9 +147,15 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
     <div className="account-page">
       <h1>My account</h1>
       <p>
-        Logged in as <strong>{user.email}</strong>
+        Logged in as <strong>{user.email ?? user.phone}</strong>
         {user.first_name || user.last_name ? ` (${[user.first_name, user.last_name].filter(Boolean).join(' ')})` : ''}.
       </p>
+      {!user.email && (
+        <p className="account-note">
+          Your account has no email address: you log in with your phone number, and nothing is sent to you by email.
+          {user.logs_in_with_phone && !user.phone_verified && ' Type the code we texted you (at the top of the page) to confirm your number.'}
+        </p>
+      )}
       {user.sms_stopped && !user.sms_opt_in && (
         <p className="account-note">
           You replied STOP to one of our texts, so texts are off and your messages come by email for now. Save
@@ -158,13 +165,14 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
       )}
       <form className="contact-form" onSubmit={handleSubmit}>
         <label className="contact-field">
-          Phone (optional)
+          {user.email ? 'Phone (optional)' : 'Cell phone number (you log in with it)'}
           <input
             type="tel"
             value={phone}
             maxLength={40}
             autoComplete="tel"
             placeholder="+1 (555) 123-4567"
+            required={!user.email}
             onChange={(event) => setPhone(nextPhoneValue(phone, event.target.value))}
             onBlur={() => setPhone(formatUsPhone(phone))}
           />
@@ -179,6 +187,7 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
           onSendViaEmailChange={setSendViaEmail}
           onSendViaSmsChange={setSendViaSms}
           onSendMultimediaChange={setSendMultimedia}
+          hasEmail={Boolean(user.email)}
         />
         {verseLoaded !== undefined && (
           <VerseADayChoice
@@ -190,10 +199,16 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
             onTimeZoneChange={setTimeZone}
           />
         )}
-        {!user.email_verified && (sendViaSms || verseADay) && (
+        {user.email && !user.email_verified && (sendViaSms || verseADay) && (
           <p className="account-note">
             Texts and the verse a day start once you have confirmed your email address, as the other emails do.
           </p>
+        )}
+        {!user.email && !user.phone_verified && (sendViaSms || verseADay) && (
+          <p className="account-note">Texts and the verse a day start once you have confirmed your phone number.</p>
+        )}
+        {user.logs_in_with_phone && phone !== user.phone && (
+          <p className="account-note">A new number is the one you log in with; we will text it a code to confirm it.</p>
         )}
         {errorMessage && (
           <p className="error" role="alert">

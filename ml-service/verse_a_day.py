@@ -185,7 +185,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS, c
         SELECT s.id, s.send_time, s.timezone, s.last_sent_on, s.last_verse, s.attempts_on, s.attempts,
                s.unsubscribe_token, u.email, u.id, u.send_multimedia
         FROM verse_subscriptions s JOIN users u ON u.id = s.user_id
-        WHERE u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL
+        WHERE (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AND u.disabled_at IS NULL
         ORDER BY s.id
         """
       ).fetchall()

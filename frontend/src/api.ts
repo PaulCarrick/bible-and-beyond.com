@@ -674,6 +674,15 @@ export function verifyEmail(token: string) {
   return accountAction('verify', { token })
 }
 
+// An account that logs in with its phone: the code texted to it, and another code (not more than one a minute).
+export function confirmPhone(code: string) {
+  return accountRequest('confirm-phone', 'POST', { code })
+}
+
+export function resendPhoneCode() {
+  return accountAction('resend-phone-code')
+}
+
 export function resendVerification() {
   return accountAction('resend-verification')
 }
@@ -868,12 +877,14 @@ export async function deleteSubscription(devotionalId: string): Promise<void> {
   )
 }
 
-// The link in every email: stops that devotional's emails with no login. Answers with the devotional's name.
+// The link in every email: stops those emails with no login. Answers with the sentence the stop page shows
+// ("You will not get any more emails of ...", or a scheduled group email's own wording).
 export async function unsubscribeWithToken(token: string): Promise<string> {
   const response = await fetch(`${mlServiceUrl}/subscriptions/unsubscribe?token=${encodeURIComponent(token)}`, {
     method: 'POST',
   })
-  return (await readJson<{ devotional: string }>(response)).devotional
+  const answer = await readJson<{ devotional: string; message?: string }>(response)
+  return answer.message ?? `You will not get any more emails of ${answer.devotional}.`
 }
 
 export interface FaqQuestion {

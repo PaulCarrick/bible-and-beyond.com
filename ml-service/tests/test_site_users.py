@@ -233,3 +233,38 @@ def test_an_administrator_can_reopen_or_close_an_account():
   assert update_user(user["id"], closed=True)["closed"] is True
   with connect() as connection:
     assert connection.execute("SELECT count(*) FROM user_sessions WHERE user_id = %s", (user["id"],)).fetchone()[0] == 0
+
+
+def test_an_account_can_have_a_phone_instead_of_an_email():
+  try:
+    user = create_user("", PASSWORD, email_verified=False, open_ai_queries=False, phone="555 234 7777", first_name="Phone", phone_verified=True)
+    assert user["email"] == "" and user["login_phone"] == "+15552347777" and user["phone_verified"] is True
+    assert user["email_verified"] is False
+    assert log_in("(555) 234-7777", PASSWORD)[0]["id"] == user["id"]
+    # Found by the digits of its phone, however typed.
+    assert [found["id"] for found in list_users("234-7777")["users"]] == [user["id"]]
+    with pytest.raises(UserProblem, match="cell phone number"):
+      create_user("", PASSWORD, email_verified=False, open_ai_queries=False, phone="")
+    with pytest.raises(UserProblem, match="already exists"):
+      create_user("", PASSWORD, email_verified=False, open_ai_queries=False, phone="5552347777")
+    # Adding an address: it logs in either way; taking it away again needs the phone.
+    both = update_user(user["id"], email=f"phone@{DOMAIN}")
+    assert both["email"] == f"phone@{DOMAIN}" and both["login_phone"] == "+15552347777"
+    assert log_in(f"phone@{DOMAIN}", PASSWORD)[0]["id"] == user["id"]
+    back = update_user(user["id"], email="")
+    assert back["email"] == "" and back["login_phone"] == "+15552347777"
+    with pytest.raises(UserProblem, match="cell phone number"):
+      update_user(user["id"], phone="")
+    # A new number is the new login, not confirmed unless ticked.
+    moved = update_user(user["id"], phone="555 234 8888")
+    assert moved["login_phone"] == "+15552348888" and moved["phone_verified"] is False
+    assert update_user(user["id"], phone_verified=True)["phone_verified"] is True
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM users WHERE login_phone IN ('+15552347777', '+15552348888')")
+
+
+def test_an_email_account_needs_its_email_unless_it_logs_in_with_a_phone():
+  user = create_user(f"keep@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False)
+  with pytest.raises(UserProblem, match="cell phone number"):
+    update_user(user["id"], email="")

@@ -222,6 +222,10 @@ class GroupController extends ControllerBase {
       if (!$member['is_account']) {
         $links[] = ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.group_member_edit', $id + ['member_id' => $member['id']])];
       }
+      // The undo for scheduled emails the member stopped (2026-11-17, the owner's request).
+      if (!empty($member['schedules_stopped']) || !empty($member['stopped_schedules'])) {
+        $links[] = ['title' => $this->t('Start scheduled emails again'), 'url' => Url::fromRoute('bible_admin.group_member_restart_schedules', $id + ['member_id' => $member['id']])];
+      }
       $links[] = ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_member_remove', $id + ['member_id' => $member['id']])];
       // The name of a member with a site account links to their entry on Site users, for those who may open
       // it (administer site users; a Group leader may not, and sees the name only). Contacts have no entry.
@@ -236,7 +240,7 @@ class GroupController extends ControllerBase {
       // The address opens a box to email this member alone (GroupMemberEmailForm, in a dialog); not for a
       // member who stopped the group's messages or has not confirmed their address (it would be refused).
       $emailCell = ['#plain_text' => $member['email']];
-      if (!$member['stopped'] && ($member['confirmed'] ?? TRUE)) {
+      if ($member['email'] !== '' && !$member['stopped'] && ($member['confirmed'] ?? TRUE)) {
         $emailCell = [
           '#type' => 'link',
           '#title' => $member['email'],

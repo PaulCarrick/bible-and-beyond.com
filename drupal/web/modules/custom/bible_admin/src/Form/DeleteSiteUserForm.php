@@ -43,7 +43,7 @@ class DeleteSiteUserForm extends ConfirmFormBase {
   }
 
   public function getQuestion() {
-    return $this->t('Delete the account @email?', ['@email' => $this->user['email'] ?? '']);
+    return $this->t('Delete the account @email?', ['@email' => ($this->user['email'] ?? '') ?: ($this->user['phone'] ?? '')]);
   }
 
   public function getDescription() {
@@ -64,7 +64,7 @@ class DeleteSiteUserForm extends ConfirmFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     try {
       $user = $this->manager->deleteSiteUser((int) $form_state->get('user_id'));
-      $this->messenger()->addStatus($this->t('Deleted the account @email.', ['@email' => $user['email']]));
+      $this->messenger()->addStatus($this->t('Deleted the account @email.', ['@email' => $user['email'] ?: $user['phone']]));
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

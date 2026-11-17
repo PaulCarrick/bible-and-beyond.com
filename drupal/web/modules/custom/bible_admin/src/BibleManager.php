@@ -440,8 +440,12 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, bool $phoneVerified = FALSE): array {
+    // An empty $email: the account logs in with its phone (profile phone), confirmed when $phoneVerified.
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
+    if ($phoneVerified) {
+      $arguments[] = '--phone-verified';
+    }
     if ($emailVerified) {
       $arguments[] = '--email-verified';
     }
@@ -460,7 +464,7 @@ class BibleManager {
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
       '@user' => $this->currentUser->getAccountName(),
-      '@email' => $user['email'],
+      '@email' => $user['email'] ?: $user['phone'],
     ]);
     return $user;
   }
@@ -471,7 +475,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL): array {
     $before = $closed === NULL ? NULL : $this->getSiteUser($userId);
     $arguments = [
       'update',
@@ -487,6 +491,9 @@ class BibleManager {
     if ($closed !== NULL) {
       $arguments[] = '--closed=' . ($closed ? 'yes' : 'no');
     }
+    if ($phoneVerified !== NULL) {
+      $arguments[] = '--phone-verified=' . ($phoneVerified ? 'yes' : 'no');
+    }
     $input = NULL;
     if ($password !== '') {
       $arguments[] = '--password-on-input';
@@ -495,14 +502,14 @@ class BibleManager {
     $user = $this->run($arguments, 'manage_users.py', $input)['user'];
     $this->logger->notice('@user changed the site account @email@password.', [
       '@user' => $this->currentUser->getAccountName(),
-      '@email' => $user['email'],
+      '@email' => $user['email'] ?: $user['phone'],
       '@password' => $password !== '' ? ' (new password)' : '',
     ]);
     if ($before !== NULL && !empty($before['closed']) !== !empty($user['closed'])) {
       $this->logger->notice('@user @change the site account @email.', [
         '@user' => $this->currentUser->getAccountName(),
         '@change' => !empty($user['closed']) ? 'closed' : 'reopened',
-        '@email' => $user['email'],
+        '@email' => $user['email'] ?: $user['phone'],
       ]);
     }
     return $user;
@@ -526,7 +533,7 @@ class BibleManager {
     $user = $this->run(['delete', '--id=' . $userId], 'manage_users.py')['user'];
     $this->logger->notice('@user deleted the site account @email (@notes notes).', [
       '@user' => $this->currentUser->getAccountName(),
-      '@email' => $user['email'],
+      '@email' => $user['email'] ?: $user['phone'],
       '@notes' => $user['note_count'],
     ]);
     return $user;
@@ -911,6 +918,21 @@ class BibleManager {
     $group = $this->getGroup($groupId);
     $member = $this->run(['update-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details))['member'];
     $this->logGroup('changed a member of', $group);
+    return $member;
+  }
+
+  /**
+   * A member's stopped scheduled emails start again (the group page's undo). Returns the member.
+   */
+  public function restartGroupMemberSchedules(int $groupId, int $memberId): array {
+    $group = $this->getGroup($groupId);
+    $member = $this->run(['restart-schedules', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py')['member'];
+    $this->logger->notice('@user started the scheduled emails again for member @member of the group “@name” (@id).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@member' => $member['id'],
+      '@name' => $group['name'],
+      '@id' => $group['id'],
+    ]);
     return $member;
   }
 

@@ -1,6 +1,9 @@
 """Accounts for visitors of the main site (separate from Drupal's users).
 
-An account is an email address and a password. Passwords are kept only as a salted scrypt hash. A
+An account is an email address and a password, or (since 2026-11-17, the owner's request) a cell phone number and
+a password: users.login_phone, confirmed by a texted code (phone_verified_at). An account with no email address is
+never emailed; the email features (devotional emails, the prayer list, reply emails) are off for it, the others
+(notes, lists, the Prayer Wall, texts it asks for) work. Passwords are kept only as a salted scrypt hash. A
 logged-in browser holds a random token in an HttpOnly cookie; the database keeps only the SHA-256 of
 that token, so a copy of the database cannot be used to log in.
 """
@@ -15,7 +18,8 @@ from datetime import datetime, timedelta, timezone
 import psycopg
 
 from contact import CONTROL_CHARACTERS, EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, send_plain_message
-from sms import SmsProblem, check_choices, format_phone
+import sms
+from sms import SmsProblem, check_choices, format_phone, texting_number
 from search import connect
 from site_settings import get_public_settings
 
@@ -29,6 +33,9 @@ PHONE_LIMIT = 40
 SESSION_DAYS = 30
 VERIFY_LINK_HOURS = 72
 RESET_LINK_MINUTES = 60
+# The code texted to confirm a phone number: six digits, good for this long, and no more than this many wrong tries.
+PHONE_CODE_MINUTES = 15
+PHONE_CODE_ATTEMPTS = 5
 # A new link is not sent to the same account more often than this, however often it is asked for.
 LINK_PAUSE_SECONDS = 60
 
@@ -117,7 +124,8 @@ _USER_COLUMNS = """
   users.id, users.email, users.email_verified_at IS NOT NULL, users.open_ai_queries,
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
   users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
-  users.send_via_email, users.send_via_sms, users.send_multimedia
+  users.send_via_email, users.send_via_sms, users.send_multimedia, users.phone_verified_at IS NOT NULL,
+  users.login_phone IS NOT NULL
 """
 
 
@@ -145,6 +153,9 @@ def _describe_user(row) -> dict:
     "send_via_sms": row[13],
     # Send Multimedia Messages: the verse a day and the devotionals come as a picture (message_cards.py).
     "send_multimedia": row[14],
+    # An account set up with a phone number (no email, or as well): it logs in with it, once confirmed by a code.
+    "phone_verified": row[15],
+    "logs_in_with_phone": row[16],
   }
 
 
@@ -156,14 +167,26 @@ def _sms_choices(phone: str, phone_is_cell: bool, sms_opt_in: bool) -> tuple[boo
 
 
 def _delivery_choices(
-  phone: str, phone_is_cell: bool, send_via_email: bool, send_via_sms: bool
+  phone: str, phone_is_cell: bool, send_via_email: bool, send_via_sms: bool, has_email: bool = True
 ) -> tuple[bool, str | None, bool, bool]:
   """(phone_is_cell, sms_number, send_via_email, send_via_sms) to save for the phone number and the checkboxes
   "This is a cell number", "Send via Email" and "Send via SMS". Send via SMS needs a US or Canadian cell number
   (refused otherwise); its tick is also the consent to texts (sms_opt_in). With texts off, email is always on, so
   a member is never left with no way to be reached."""
   phone_is_cell, sms_number, send_via_sms = _sms_choices(phone, phone_is_cell, send_via_sms)
+  if not has_email:
+    # No address: never by email (the member may still choose texts).
+    return phone_is_cell, sms_number, False, send_via_sms
   return phone_is_cell, sms_number, bool(send_via_email or not send_via_sms), send_via_sms
+
+
+def login_number(phone: str) -> str:
+  """The number a phone-only account logs in with (+15551234567), or AccountProblem when it is not a US or Canadian
+  number (the code that confirms it is texted)."""
+  number = texting_number(phone)
+  if number is None:
+    raise AccountProblem("Please enter an email address, or a US or Canadian cell phone number with its area code.")
+  return number
 
 
 def create_account(
@@ -178,9 +201,17 @@ def create_account(
   send_via_email: bool = True,
   send_multimedia: bool = False,
 ) -> dict:
-  email = normalize_email(email)
+  """Makes an account with an email address, or with only a cell phone number (no email: the number is its login
+  and must be confirmed by a texted code, start_phone_code)."""
+  email = normalize_email(email) if (email or "").strip() else None
   first_name, last_name, phone = check_profile(first_name, last_name, phone)
-  phone_is_cell, sms_number, send_via_email, send_via_sms = _delivery_choices(phone, phone_is_cell, send_via_email, send_via_sms)
+  login_phone = None
+  if email is None:
+    login_phone = login_number(phone)
+    phone_is_cell = True
+  phone_is_cell, sms_number, send_via_email, send_via_sms = _delivery_choices(
+    phone, phone_is_cell, send_via_email, send_via_sms, has_email=email is not None
+  )
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   try:
@@ -189,17 +220,18 @@ def create_account(
         f"""
         INSERT INTO users
           (email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, sms_opt_in, sms_consent_at,
-           send_via_email, send_via_sms, send_multimedia)
-        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END, %s, %s, %s)
+           send_via_email, send_via_sms, send_multimedia, login_phone)
+        VALUES (%s, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s, CASE WHEN %s THEN now() END, %s, %s, %s, %s)
         RETURNING {_USER_COLUMNS}
         """,
         (
           email, password_hash, first_name, last_name, phone, phone_is_cell, sms_number, send_via_sms, send_via_sms,
-          send_via_email, send_via_sms, bool(send_multimedia),
+          send_via_email, send_via_sms, bool(send_multimedia), login_phone,
         ),
       ).fetchone()
   except psycopg.errors.UniqueViolation:
-    raise AccountProblem("An account with that email address already exists. Please log in.", 409)
+    what = "email address" if email else "phone number"
+    raise AccountProblem(f"An account with that {what} already exists. Please log in.", 409)
   return _describe_user(row)
 
 
@@ -210,7 +242,24 @@ def update_phone(
   """Changes a member's phone number and how their notices reach them (the My account page). Returns the account
   and, when texts were just turned on (or moved to a new number), the number to send the welcome text to."""
   _, _, phone = check_profile("", "", phone)
-  phone_is_cell, sms_number, send_via_email, sms_opt_in = _delivery_choices(phone, phone_is_cell, send_via_email, send_via_sms)
+  with connect() as connection:
+    account = connection.execute("SELECT email, login_phone FROM users WHERE id = %s", (user_id,)).fetchone()
+  has_email = account is None or account[0] is not None
+  login_phone = None
+  if account is not None and account[1] is not None:
+    # Logs in with its phone: it stays a cell number; a new one is the new login, confirmed again by a code.
+    login_phone = login_number(phone)
+    phone_is_cell = True
+  phone_is_cell, sms_number, send_via_email, sms_opt_in = _delivery_choices(
+    phone, phone_is_cell, send_via_email, send_via_sms, has_email=has_email
+  )
+  try:
+    return _update_phone(user_id, phone, phone_is_cell, sms_number, send_via_email, sms_opt_in, send_multimedia, login_phone)
+  except psycopg.errors.UniqueViolation:
+    raise AccountProblem("Another account already logs in with that phone number.", 409)
+
+
+def _update_phone(user_id, phone, phone_is_cell, sms_number, send_via_email, sms_opt_in, send_multimedia, login_phone):
   with connect() as connection:
     before = connection.execute("SELECT sms_opt_in, sms_number FROM users WHERE id = %s", (user_id,)).fetchone()
     row = connection.execute(
@@ -220,12 +269,15 @@ def update_phone(
         sms_consent_at = CASE WHEN %(opt_in)s THEN now() ELSE sms_consent_at END,
         sms_stopped_at = CASE WHEN %(opt_in)s THEN NULL ELSE sms_stopped_at END,
         send_via_email = %(by_email)s, send_via_sms = %(opt_in)s,
-        send_multimedia = COALESCE(%(multimedia)s, send_multimedia)
+        send_multimedia = COALESCE(%(multimedia)s, send_multimedia),
+        phone_verified_at = CASE WHEN %(login)s::text IS NOT NULL AND login_phone IS DISTINCT FROM %(login)s THEN NULL
+                                 ELSE phone_verified_at END,
+        login_phone = COALESCE(%(login)s, login_phone)
       WHERE id = %(user)s RETURNING {_USER_COLUMNS}
       """,
       {
         "phone": phone, "cell": phone_is_cell, "number": sms_number, "opt_in": sms_opt_in, "by_email": send_via_email,
-        "multimedia": send_multimedia, "user": user_id,
+        "multimedia": send_multimedia, "user": user_id, "login": login_phone,
       },
     ).fetchone()
   newly_on = sms_opt_in and (before is None or not before[0] or before[1] != sms_number)
@@ -236,16 +288,29 @@ def _hash_token(token: str) -> str:
   return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _login_column(identifier: str) -> tuple[str, str] | None:
+  """("email", address) or ("login_phone", +15551234567) for what was typed in the login box, or None."""
+  identifier = (identifier or "").strip()
+  if "@" in identifier:
+    return "email", identifier.lower()
+  number = texting_number(identifier)
+  return ("login_phone", number) if number else None
+
+
 def log_in(email: str, password: str) -> tuple[dict, str]:
-  """Returns the user and a new session token, or raises AccountProblem (the same message whatever was wrong)."""
-  refusal = AccountProblem("The email address or the password is not right.", 401)
-  email = email.strip().lower()
-  if not email or not password or len(password) > PASSWORD_MAXIMUM:
+  """Returns the user and a new session token, or raises AccountProblem (the same message whatever was wrong).
+  email is what was typed in the login box: an email address, or the phone number of an account that logs in
+  with it."""
+  refusal = AccountProblem("The email address or phone number, or the password, is not right.", 401)
+  found = _login_column(email)
+  if found is None or not password or len(password) > PASSWORD_MAXIMUM:
+    password_matches((password or "x")[:PASSWORD_MAXIMUM], _DUMMY_HASH)
     raise refusal
+  column, value = found
   with connect() as connection:
     row = connection.execute(
-      f"SELECT users.password_hash, users.disabled_at IS NOT NULL, {_USER_COLUMNS} FROM users WHERE email = %s",
-      (email,),
+      f"SELECT users.password_hash, users.disabled_at IS NOT NULL, {_USER_COLUMNS} FROM users WHERE {column} = %s",
+      (value,),
     ).fetchone()
     if row is None:
       password_matches(password, _DUMMY_HASH)
@@ -323,7 +388,7 @@ def start_verification(user_id: int) -> tuple[str, str] | None:
   """(email, token) for a verification email, or None when there is nothing to send."""
   with connect() as connection:
     row = connection.execute("SELECT email, email_verified_at IS NOT NULL FROM users WHERE id = %s", (user_id,)).fetchone()
-    if row is None or row[1]:
+    if row is None or row[0] is None or row[1]:
       return None
     token = _issue_token(connection, user_id, "verify", timedelta(hours=VERIFY_LINK_HOURS))
   return (row[0], token) if token else None
@@ -335,29 +400,41 @@ def verify_email(token: str) -> None:
     connection.execute("UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = %s", (user_id,))
 
 
-def start_password_reset(email: str) -> tuple[str, str] | None:
-  """(email, token) for a reset email, or None (no such account, or one was sent a moment ago). The caller
-  must answer the visitor the same way either way."""
-  email = email.strip().lower()
-  if not email or len(email) > EMAIL_LIMIT:
+def start_password_reset(email: str) -> tuple[str, str, str] | None:
+  """("email", address, token) for a reset email, ("phone", number, token) for a reset text (an account that logs
+  in with its phone), or None (no such account, or one was sent a moment ago). The caller must answer the visitor
+  the same way either way."""
+  if len((email or "").strip()) > EMAIL_LIMIT:
     return None
+  found = _login_column(email)
+  if found is None:
+    return None
+  column, value = found
   with connect() as connection:
-    row = connection.execute("SELECT id FROM users WHERE email = %s AND disabled_at IS NULL", (email,)).fetchone()
+    row = connection.execute(f"SELECT id FROM users WHERE {column} = %s AND disabled_at IS NULL", (value,)).fetchone()
     if row is None:
       return None
     token = _issue_token(connection, row[0], "reset", timedelta(minutes=RESET_LINK_MINUTES))
-  return (email, token) if token else None
+  if not token:
+    return None
+  return ("email" if column == "email" else "phone", value, token)
 
 
 def reset_password(token: str, password: str, confirmation: str) -> None:
   """Sets a new password. Everyone logged in to the account is logged out. Following the emailed link also
-  proves the address, so it counts as verified."""
+  proves the address, so it counts as verified; for an account with no address the link was texted, so it proves
+  the phone instead."""
   check_new_password(password, confirmation)
   password_hash = hash_password(password)
   with connect() as connection:
     user_id = _use_token(connection, token, "reset")
     connection.execute(
-      "UPDATE users SET password_hash = %s, email_verified_at = COALESCE(email_verified_at, now()) WHERE id = %s",
+      """
+      UPDATE users SET password_hash = %s,
+        email_verified_at = CASE WHEN email IS NOT NULL THEN COALESCE(email_verified_at, now()) END,
+        phone_verified_at = CASE WHEN email IS NULL THEN COALESCE(phone_verified_at, now()) ELSE phone_verified_at END
+      WHERE id = %s
+      """,
       (password_hash, user_id),
     )
     connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
@@ -471,3 +548,83 @@ def send_reset_email(address: str, token: str) -> None:
     f"The link works once and for {RESET_LINK_MINUTES} minutes. If you did not ask for this, ignore this "
     f"email: your password has not been changed.\n",
   )
+
+
+# --- phone numbers (accounts that log in with one) -------------------------------------------------------------
+
+
+def start_phone_code(user_id: int) -> tuple[str, str] | None:
+  """(number, code) to text to an account that logs in with its phone and has not confirmed it, or None (nothing to
+  confirm, or a code was sent a moment ago). A new code replaces the last one."""
+  with connect() as connection:
+    row = connection.execute(
+      "SELECT login_phone FROM users WHERE id = %s AND login_phone IS NOT NULL AND phone_verified_at IS NULL AND disabled_at IS NULL",
+      (user_id,),
+    ).fetchone()
+    if row is None:
+      return None
+    recent = connection.execute(
+      """
+      SELECT 1 FROM account_tokens
+      WHERE user_id = %s AND purpose = 'phone' AND created_at > now() - make_interval(secs => %s)
+      """,
+      (user_id, LINK_PAUSE_SECONDS),
+    ).fetchone()
+    if recent:
+      return None
+    code = f"{secrets.randbelow(10**6):06d}"
+    connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'phone'", (user_id,))
+    connection.execute(
+      "INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at) VALUES (%s, %s, 'phone', %s)",
+      (_hash_token(f"{user_id}:{code}"), user_id, datetime.now(timezone.utc) + timedelta(minutes=PHONE_CODE_MINUTES)),
+    )
+  return row[0], code
+
+
+def confirm_phone(user_id: int, code: str) -> dict:
+  """The member types the code texted to their phone. Right: the phone is confirmed (texts can go to it). Wrong:
+  counted; after PHONE_CODE_ATTEMPTS the code no longer works and a new one is needed. Returns the account."""
+  code = "".join(character for character in (code or "") if character.isdigit())
+  # The refusals are raised after the database work is done: raising inside "with connect()" would undo the count.
+  refusal = None
+  with connect() as connection:
+    row = connection.execute(
+      "SELECT token_hash, attempts FROM account_tokens WHERE user_id = %s AND purpose = 'phone' AND expires_at > now()",
+      (user_id,),
+    ).fetchone()
+    if row is None:
+      refusal = AccountProblem("That code has expired. Use “Text me a new code”.", 400)
+    elif not hmac.compare_digest(row[0], _hash_token(f"{user_id}:{code}")):
+      if row[1] + 1 >= PHONE_CODE_ATTEMPTS:
+        connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'phone'", (user_id,))
+        refusal = AccountProblem("That code is not right, and it has been tried too many times. Use “Text me a new code”.", 400)
+      else:
+        connection.execute("UPDATE account_tokens SET attempts = attempts + 1 WHERE user_id = %s AND purpose = 'phone'", (user_id,))
+        refusal = AccountProblem("That code is not right. Please check it and try again.", 400)
+  if refusal is not None:
+    raise refusal
+  with connect() as connection:
+    connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'phone'", (user_id,))
+    found = connection.execute(
+      f"UPDATE users SET phone_verified_at = COALESCE(phone_verified_at, now()) WHERE id = %s RETURNING {_USER_COLUMNS}",
+      (user_id,),
+    ).fetchone()
+  return _describe_user(found)
+
+
+def send_phone_code(number: str, code: str) -> None:
+  """Texts the code that confirms a phone number (asked for by its owner, so it goes without the texts consent)."""
+  title = get_public_settings()["title"]
+  if not sms.send_text(number, f"{title}: your code is {code}. It works for {PHONE_CODE_MINUTES} minutes. If you did not ask for it, ignore this text."):
+    logger.error("Phone code not texted.")
+
+
+def send_reset_text(number: str, token: str) -> None:
+  """Texts a reset link to an account that logs in with its phone."""
+  title = get_public_settings()["title"]
+  text = (
+    f"{title}: to choose a new password, open {site_link('reset=' + token)} (it works once, for {RESET_LINK_MINUTES} "
+    "minutes). If you did not ask for this, ignore this text."
+  )
+  if not sms.send_text(number, text):
+    logger.error("Reset link not texted.")

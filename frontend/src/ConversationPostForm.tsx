@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { AccountContext } from './AccountContext'
 import { fetchMyGroups, saveConversationPost } from './api'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
@@ -39,6 +40,7 @@ function sharingOf(post?: ConversationPost): Sharing {
 // also has the choice of who sees it (Sharing), Public to start.
 function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel }: ConversationPostFormProps) {
   const isPrayer = (post?.board ?? board) === 'prayer'
+  const hasEmail = Boolean(useContext(AccountContext).user?.email)
   const [title, setTitle] = useState(post?.title ?? '')
   const [sharing, setSharing] = useState<Sharing>(sharingOf(post))
   // The groups the member is in, for the "Email <group>" choices (empty when in none).
@@ -118,7 +120,8 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         {post ? `The text of your post ${post.title}` : 'The text of your post'}
       </span>
       <RichTextEditor ref={editorReference} placeholder="Write your post" labelledBy={labelId} />
-      {!isPrayer && (
+      {/* Email me replies: not for an account with no email address (it logs in with its phone, 2026-11-17). */}
+      {!isPrayer && hasEmail && (
         <div className="prayer-options">
           <label className="inline-label">
             <input type="checkbox" checked={emailReplies} onChange={(event) => setEmailReplies(event.target.checked)} />

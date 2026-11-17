@@ -297,6 +297,47 @@ def test_a_scheduled_message_from_the_editor_keeps_its_formatting(outbox):
   assert plain["html"] is None
 
 
+def test_the_stop_page_says_it_plainly_and_the_leader_can_undo(outbox):
+  from fastapi.testclient import TestClient
+  from main import app
+
+  client = TestClient(app)
+  group = group_with_a_member()  # Pat
+  weekly = group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=0), "dave", now=NOW - timedelta(hours=1))
+  verse = group_schedules.add_schedule(group["id"], {"kind": "verse", "repeat": "weekly", "weekday": 2, "send_time": "09:00", "timezone": "America/Chicago"}, "dave", now=NOW)
+  with connect() as connection:
+    token, member_id = connection.execute("SELECT stop_token, id FROM group_members WHERE group_id = %s", (group["id"],)).fetchone()
+
+  # The sentence the stop page shows, for each kind of link.
+  answer = client.post(f"/subscriptions/unsubscribe?token={token}.s{weekly['id']}").json()
+  assert answer["message"] == (
+    "You will not get the scheduled email “Prayer meeting” from the group “Care list” any more. You are still in the "
+    "group, and still get the messages your leader sends and its other scheduled emails."
+  )
+  answer = client.post(f"/subscriptions/unsubscribe?token={token}.s{verse['id']}").json()
+  assert answer["message"].startswith("You will not get the scheduled verse card from the group “Care list” any more.")
+  answer = client.post(f"/subscriptions/unsubscribe?token={token}.sall").json()
+  assert answer["message"] == (
+    "You will not get any scheduled emails from the group “Care list” any more. You are still in the group, and still "
+    "get the messages your leader sends."
+  )
+  pat = groups.get_group(group["id"])["members"][0]
+  assert pat["schedules_stopped"] is True and pat["stopped_schedules"] == 2
+
+  # The leader's undo clears both kinds; the scheduled emails reach Pat again.
+  again = groups.restart_schedules(group["id"], member_id)
+  assert again["schedules_stopped"] is False and again["stopped_schedules"] == 0
+  assert {schedule["stopped_count"] for schedule in group_schedules.list_schedules(group["id"])} == {0}
+  assert group_schedules.send_due(NOW + timedelta(minutes=1), pause=0)["sent"] == 1
+  assert [email["Subject"] for email in outbox["emails"]] == ["Prayer meeting"]
+  # It does not undo the group's own stop link (everything from the group), and refuses another group's member.
+  client.post(f"/subscriptions/unsubscribe?token={token}")
+  assert groups.restart_schedules(group["id"], member_id)["stopped"] is True
+  other = groups.save_group(None, {"name": "Other"}, OWNER, "Deacon Dave", "dave@example.org")
+  with pytest.raises(GroupProblem, match="not in the group"):
+    groups.restart_schedules(other["id"], member_id)
+
+
 def test_deleting_the_group_removes_its_schedules():
   group = group_with_a_member()
   group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=2), "dave", now=NOW)

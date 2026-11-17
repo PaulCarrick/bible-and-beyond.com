@@ -16,13 +16,17 @@ from accounts import (
   change_password,
   create_account,
   close_account,
+  confirm_phone,
   log_in,
   log_out,
   reset_password,
   send_goodbye_email,
+  send_phone_code,
+  send_reset_text,
   send_reset_email,
   send_verification_email,
   start_password_reset,
+  start_phone_code,
   start_verification,
   update_phone,
   user_for_token,
@@ -74,7 +78,7 @@ from subscriptions import (
   delete_subscription,
   list_subscriptions,
   save_subscription,
-  unsubscribe_with_token,
+  unsubscribe,
 )
 import prayer_list
 from conversations import (
@@ -845,7 +849,8 @@ SESSION_COOKIE = "session"
 
 
 class RegisterRequest(BaseModel):
-  email: str
+  # An email address, or "" to set up the account with a cell phone number instead (phone; 2026-11-17).
+  email: str = ""
   password: str
   password_confirmation: str
   first_name: str = ""
@@ -865,6 +870,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+  # What was typed in the login box: an email address, or the phone number of an account that logs in with it.
   email: str
   password: str
 
@@ -885,7 +891,8 @@ def start_session(response: Response, request: Request, token: str):
 
 @app.post("/account/register")
 def account_register(body: RegisterRequest, request: Request, response: Response, background: BackgroundTasks):
-  """Makes an account, emails a link to confirm the address, and logs the visitor in."""
+  """Makes an account, emails a link to confirm the address (or, for an account set up with a phone number, texts a
+  code to confirm it), and logs the visitor in."""
   if body.verse_a_day:
     # Checked before the account is made, so a bad time or zone does not leave half a sign-up.
     try:
@@ -898,18 +905,51 @@ def account_register(body: RegisterRequest, request: Request, response: Response
       body.email, body.password, body.password_confirmation, body.first_name, body.last_name, body.phone,
       body.phone_is_cell, body.send_via_sms, body.send_via_email, body.send_multimedia,
     )
-    user, token = log_in(body.email, body.password)
+    user, token = log_in(body.email if created["email"] else body.phone, body.password)
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   verification = start_verification(created["id"])
   if verification:
     background.add_task(send_verification_email, *verification)
-  if created["sms_opt_in"]:
+  phone_code = start_phone_code(created["id"])
+  if phone_code:
+    background.add_task(send_phone_code, *phone_code)
+  # A phone-only account gets its welcome text once its number is confirmed (account_confirm_phone).
+  if created["sms_opt_in"] and created["email"]:
     background.add_task(sms.welcome_text, sms.texting_number(body.phone))
   if body.verse_a_day:
     verse_a_day.save_subscription(created["id"], body.verse_time, body.timezone)
   start_session(response, request, token)
   return {"user": user}
+
+
+class PhoneCodeRequest(BaseModel):
+  code: str = Field(default="", max_length=20)
+
+
+@app.post("/account/confirm-phone")
+def account_confirm_phone(body: PhoneCodeRequest, request: Request, background: BackgroundTasks):
+  """The logged-in member types the code texted to the phone their account logs in with. Wrong codes are counted
+  (accounts.PHONE_CODE_ATTEMPTS). Once confirmed, texts can go to it (and the welcome text does, if they chose
+  texts)."""
+  user = require_user(request, "Please log in first.")
+  try:
+    confirmed = confirm_phone(user["id"], body.code)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  if confirmed["sms_opt_in"]:
+    background.add_task(sms.welcome_text, sms.texting_number(confirmed["phone"]))
+  return {"user": confirmed}
+
+
+@app.post("/account/resend-phone-code")
+def account_resend_phone_code(request: Request, background: BackgroundTasks):
+  """Texts the logged-in member a new code for their phone (not more than one a minute)."""
+  user = require_user(request, "Please log in first.")
+  phone_code = start_phone_code(user["id"])
+  if phone_code:
+    background.add_task(send_phone_code, *phone_code)
+  return {"sent": True}
 
 
 class PhoneRequest(BaseModel):
@@ -932,7 +972,12 @@ def account_phone(body: PhoneRequest, request: Request, background: BackgroundTa
     )
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
-  if welcome_number:
+  if changed["logs_in_with_phone"] and not changed["phone_verified"]:
+    # A new login number: confirmed again by a texted code; the welcome text waits for it.
+    phone_code = start_phone_code(changed["id"])
+    if phone_code:
+      background.add_task(send_phone_code, *phone_code)
+  elif welcome_number:
     background.add_task(sms.welcome_text, welcome_number)
   return {"user": changed}
 
@@ -1042,7 +1087,8 @@ def account_close(body: CloseAccountRequest, request: Request, response: Respons
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   response.delete_cookie(SESSION_COOKIE, path="/")
-  background.add_task(send_goodbye_email, address)
+  if address:
+    background.add_task(send_goodbye_email, address)
   return {"closed": True, "user": None}
 
 
@@ -1088,7 +1134,9 @@ def account_forgot_password(body: ForgotRequest, background: BackgroundTasks):
   sent after answering, so neither the words nor the time say whether the address has an account."""
   reset = start_password_reset(body.email)
   if reset:
-    background.add_task(send_reset_email, *reset)
+    kind, target, token = reset
+    # By email, or by text for an account that logs in with its phone.
+    background.add_task(send_reset_email if kind == "email" else send_reset_text, target, token)
   return {"sent": True}
 
 
@@ -1577,6 +1625,8 @@ def subscriptions_unsubscribe(token: str = Query(max_length=100)):
   """The link in every devotional email: stops that one subscription, with no login. Mail programs call it
   too (one-click unsubscribe), which is why the token is in the address."""
   try:
-    return {"devotional": unsubscribe_with_token(token)}
+    stopped = unsubscribe(token)
+    # devotional: what was stopped (its name); message: the sentence the stop page shows.
+    return {"devotional": stopped["name"], "message": stopped["message"]}
   except SubscriptionProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))

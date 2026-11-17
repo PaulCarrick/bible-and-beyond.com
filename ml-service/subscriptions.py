@@ -132,7 +132,10 @@ def save_subscription(
   # If today's time has already gone by, the first email is tomorrow's, not one sent at once.
   has_passed = local.time() >= send_time
   with connect() as connection:
-    verified = connection.execute("SELECT email_verified_at IS NOT NULL FROM users WHERE id = %s", (user_id,)).fetchone()
+    verified = connection.execute("SELECT email_verified_at IS NOT NULL, email IS NOT NULL FROM users WHERE id = %s", (user_id,)).fetchone()
+    if verified is not None and not verified[1]:
+      # An account set up with a phone number only (2026-11-17): these are emails.
+      raise SubscriptionProblem("This is sent by email, and your account has no email address.", 403)
     if verified is None or not verified[0]:
       raise SubscriptionProblem("Please confirm your email address first: we emailed you a link when you set up the account.", 403)
     _, _, kind = _devotional(connection, devotional_id, must_be_published=True)
@@ -183,6 +186,19 @@ def delete_subscription(user_id: int, devotional_id: str) -> None:
 def unsubscribe_with_token(token: str) -> str:
   """Stops the emails the token belongs to, with no login: a devotional's, the prayer list's, or the replies to a
   Conversations post. Returns what they were."""
+  return unsubscribe(token)["name"]
+
+
+def unsubscribe(token: str) -> dict:
+  """unsubscribe_with_token, with the sentence the stop page shows (message): "You will not get any more emails of
+  <name>.", or the scheduled group emails' own wording (groups.stop_schedule_with_token)."""
+  result = _unsubscribe(token)
+  if isinstance(result, tuple):
+    return {"name": result[0], "message": result[1]}
+  return {"name": result, "message": f"You will not get any more emails of {result}."}
+
+
+def _unsubscribe(token: str):
   if not token or len(token) > 100:
     raise SubscriptionProblem("This link is not valid, or the emails have already been stopped.", 404)
   with connect() as connection:
@@ -207,7 +223,7 @@ def unsubscribe_with_token(token: str) -> str:
       # A scheduled group email's own links (this scheduled email, or all of the group's): the member stays.
       stopped = groups.stop_schedule_with_token(connection, token)
       if stopped is not None:
-        return stopped
+        return stopped  # (name, sentence)
       group_name = groups.stop_with_token(connection, token)
       if group_name is not None:
         return f"messages from the group “{group_name}”"

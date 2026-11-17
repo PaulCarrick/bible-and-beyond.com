@@ -53,15 +53,15 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
       <nav className="site-account" aria-label="Account">
         {user ? (
           <>
-            {/* The address opens the My account page (phone number and texts). */}
+            {/* The address (or, for an account that logs in with its phone, the number) opens My account. */}
             <button
               type="button"
               className="link-button site-account-email"
-              title={`My account: ${user.email}`}
-              aria-label={`My account (${user.email})`}
+              title={`My account: ${user.email ?? user.phone}`}
+              aria-label={`My account (${user.email ?? user.phone})`}
               onClick={onShowAccount}
             >
-              {user.email}
+              {user.email ?? user.phone}
             </button>
             <button type="button" className="link-button" onClick={onShowNotes}>
               My notes

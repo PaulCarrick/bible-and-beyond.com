@@ -125,5 +125,5 @@ def test_the_stop_link_ends_it(sent):
   with connect() as connection:
     token = connection.execute("SELECT unsubscribe_token FROM verse_subscriptions WHERE user_id = %s", (user_id,)).fetchone()[0]
   response = client.post("/subscriptions/unsubscribe", params={"token": token})
-  assert response.status_code == 200 and response.json()["devotional"] == "the verse a day"
+  assert response.status_code == 200 and response.json()["devotional"] == "the verse a day" and response.json()["message"] == "You will not get any more emails of the verse a day."
   assert verse_a_day.get_subscription(user_id) is None

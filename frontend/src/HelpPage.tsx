@@ -732,7 +732,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
             the page and enter your email address and a password twice (at least 8 characters). Your first
-            name, last name and phone number are optional. On the same form you can choose how your messages are sent
+            name, last name and phone number are optional. <strong>No email address?</strong> Leave it empty and give
+            your cell phone number instead (US or Canadian): you then log in with that number, we text you a code to
+            confirm it, and nothing is ever sent to you by email, so the devotional emails, the prayer list email and
+            reply emails are not offered. Notes, lists, the Prayer Wall and texts (if you choose them) all work. On the same form you can choose how your messages are sent
             (email, text or both) and a verse a day
             (see{' '}
             <button type="button" className="link-button" onClick={() => goToSection('help-verse-a-day')}>
@@ -746,12 +749,19 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             the top of the page has <em>Send it again</em>.
           </li>
           <li>
+            <strong>Confirming your phone</strong> (an account set up with a phone number). We text you a 6-digit code;
+            type it in the box at the foot of the page and press <em>Confirm</em>. It works for 15 minutes;{' '}
+            <em>Text me a new code</em> sends another. Until then everything works except texts to you.
+          </li>
+          <li>
             <strong>Logging in and out.</strong> <PageLink onNavigate={onNavigate} view="login">Log in</PageLink> and <em>Log out</em> are at the
-            top right. You stay logged in on that browser for 30 days.
+            top right. Log in with your email address, or with your phone number if your account was set up with one
+            (written any way: 555-123-4567 works). You stay logged in on that browser for 30 days.
           </li>
           <li>
             <strong>A forgotten password.</strong> On the Log in page choose <em>Forgot your password?</em>, enter your
-            address, and use the link we email you within an hour to choose a new password.
+            address (or the phone number you log in with), and use the link we email (or text) you within an hour to
+            choose a new password.
           </li>
           <li>
             <strong>Changing your password.</strong> While logged in, click your address at the top right to open{' '}

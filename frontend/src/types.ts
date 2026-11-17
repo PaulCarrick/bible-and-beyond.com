@@ -408,9 +408,13 @@ export interface SiteSettings {
 // A visitor who has set up an account and is logged in.
 export interface AccountUser {
   id: number
-  email: string
+  // null for an account set up with a phone number only (2026-11-17): it logs in with it and is never emailed.
+  email: string | null
   // True once the owner followed the link emailed to the address.
   email_verified: boolean
+  // The account logs in with its phone number, and whether the code texted to it was typed in.
+  logs_in_with_phone: boolean
+  phone_verified: boolean
   // An administrator allowed this account to ask the AI its own questions (the FAQ page); off unless set in Drupal.
   open_ai_queries: boolean
   // Given when the account was set up; '' for accounts set up before the names were asked for.

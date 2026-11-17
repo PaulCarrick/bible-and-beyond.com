@@ -10,6 +10,7 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
                                                        (--set-owner: the group moves to that leader)
     manage_groups.py delete --group=ID
     manage_groups.py add-member --group=ID             input {email, name, phone}
+    manage_groups.py restart-schedules --group=ID --member=ID   the member's stopped scheduled emails start again
     manage_groups.py candidates --group=ID             the site's accounts not in the group yet
     manage_groups.py add-accounts --group=ID           input {user_ids: [...]}: those accounts
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
@@ -49,7 +50,7 @@ def parse_arguments(arguments=None):
   save.add_argument("--group", type=int)
   save.add_argument("--owner", type=int, required=True)
   save.add_argument("--set-owner", action="store_true")
-  for name in ("update-member", "remove-member", "email-member"):
+  for name in ("update-member", "remove-member", "email-member", "restart-schedules"):
     member = commands.add_parser(name)
     member.add_argument("--group", type=int, required=True)
     member.add_argument("--member", type=int, required=True)
@@ -110,6 +111,8 @@ def run(arguments) -> dict:
       html=str(html) if html is not None else None,
     )
     return {"ok": True, "member": member}
+  if command == "restart-schedules":
+    return {"ok": True, "member": groups.restart_schedules(arguments.group, arguments.member)}
   if command == "candidates":
     return {"ok": True, "accounts": groups.list_candidates(arguments.group)}
   if command == "add-accounts":

@@ -547,3 +547,151 @@ def test_no_email_or_text_goes_to_a_closed_account(monkeypatch):
   monkeypatch.setattr(sms.httpx, "post", lambda *arguments, **keywords: posted.append(keywords) or type("R", (), {"status_code": 200})())
   assert number and sms.send_text(number, "Hello") is False and posted == []
   assert sms.send_text("+15550001111", "Hello") is True and len(posted) == 1
+
+
+# --- accounts that log in with a phone number (added 2026-11-17) ----------------------------------------------
+# The phone numbers are 555 test numbers; their accounts are removed by the fixture below.
+
+PHONE = "555 234 5678"
+
+
+@pytest.fixture
+def texts(monkeypatch):
+  """Nothing is texted: each text that would be sent is collected as (number, text)."""
+  import sms
+
+  sent = []
+  monkeypatch.setattr(sms, "is_configured", lambda: True)
+  monkeypatch.setattr(sms, "send_text", lambda number, text, media_url=None: sent.append((number, text)) or True)
+  yield sent
+  with connect() as connection:
+    connection.execute("DELETE FROM users WHERE login_phone LIKE '+1555%' AND email IS NULL")
+
+
+def register_by_phone(phone=PHONE, **profile):
+  details = {"first_name": "Pat", "last_name": "Lee", "phone": phone, **profile}
+  return client.post("/account/register", json={"email": "", "password": PASSWORD, "password_confirmation": PASSWORD, **details})
+
+
+def code_in(text):
+  return re.search(r"code is (\d{6})", text).group(1)
+
+
+def test_an_account_can_be_set_up_and_log_in_with_a_phone_number_only(texts):
+  response = register_by_phone()
+  assert response.status_code == 200
+  user = response.json()["user"]
+  assert user["email"] is None and user["logs_in_with_phone"] is True and user["phone_verified"] is False
+  assert user["phone"] == "+1 (555) 234-5678" and user["send_via_email"] is False
+  # The code is texted (and nothing is emailed).
+  assert [number for number, _ in texts] == ["+15552345678"] and code_in(texts[0][1])
+  client.cookies.clear()
+  # The login box takes the number however it is written.
+  for typed in ("(555) 234-5678", "5552345678", "+1 555 234 5678", "1-555-234-5678"):
+    client.cookies.clear()
+    answer = client.post("/account/login", json={"email": typed, "password": PASSWORD})
+    assert answer.status_code == 200 and answer.json()["user"]["id"] == user["id"]
+  client.cookies.clear()
+  wrong = client.post("/account/login", json={"email": PHONE, "password": "not the password"})
+  assert wrong.status_code == 401 and wrong.json()["detail"] == "The email address or phone number, or the password, is not right."
+
+
+@pytest.mark.parametrize(
+  "phone, fragment",
+  [("", "email address, or a US or Canadian cell phone number"), ("+44 20 7946 0958", "US or Canadian"), ("123", "US or Canadian")],
+)
+def test_without_an_email_a_us_cell_number_is_needed(texts, phone, fragment):
+  response = register_by_phone(phone)
+  assert response.status_code == 422 and fragment in response.json()["detail"]
+
+
+def test_one_account_per_phone_number(texts):
+  register_by_phone()
+  client.cookies.clear()
+  again = register_by_phone("(555) 234-5678")
+  assert again.status_code == 409 and "phone number already exists" in again.json()["detail"]
+
+
+def test_the_texted_code_confirms_the_phone_and_wrong_codes_are_limited(texts):
+  user = register_by_phone(send_via_sms=True, phone_is_cell=True).json()["user"]
+  code = code_in(texts[0][1])
+  texts.clear()
+  wrong = str((int(code) + 1) % 1_000_000).zfill(6)
+  for _ in range(4):
+    answer = client.post("/account/confirm-phone", json={"code": wrong})
+    assert answer.status_code == 400 and "not right" in answer.json()["detail"]
+  confirmed = client.post("/account/confirm-phone", json={"code": code})
+  assert confirmed.status_code == 200 and confirmed.json()["user"]["phone_verified"] is True
+  # Texts were chosen at sign-up: the welcome text waits for the confirmed number.
+  assert len(texts) == 1 and "texts" in texts[0][1].lower()
+  assert client.get("/account/me").json()["user"]["phone_verified"] is True
+  with connect() as connection:
+    import sms
+
+    assert sms.number_for_user(connection, user["id"]) == "+15552345678"
+    # Never by email: the account has no address.
+    assert sms.delivery_for_user(connection, user["id"]) == (False, "+15552345678")
+
+
+def test_five_wrong_codes_end_the_code(texts):
+  register_by_phone()
+  code = code_in(texts[0][1])
+  wrong = str((int(code) + 1) % 1_000_000).zfill(6)
+  for _ in range(4):
+    client.post("/account/confirm-phone", json={"code": wrong})
+  last = client.post("/account/confirm-phone", json={"code": wrong})
+  assert "too many times" in last.json()["detail"]
+  assert "expired" in client.post("/account/confirm-phone", json={"code": code}).json()["detail"]
+  # A new code (a minute after the last; the test moves the old one back) works.
+  with connect() as connection:
+    connection.execute("UPDATE account_tokens SET created_at = now() - interval '2 minutes' WHERE purpose = 'phone'")
+  texts.clear()
+  assert client.post("/account/resend-phone-code").status_code == 200
+  assert client.post("/account/confirm-phone", json={"code": code_in(texts[0][1])}).json()["user"]["phone_verified"] is True
+
+
+def test_a_forgotten_password_is_reset_by_a_texted_link(texts, sent_mail):
+  user = register_by_phone().json()["user"]
+  client.cookies.clear()
+  texts.clear()
+  assert client.post("/account/forgot-password", json={"email": "555-234-5678"}).json() == {"sent": True}
+  assert sent_mail == [] and len(texts) == 1 and texts[0][0] == "+15552345678"
+  token = re.search(r"\?reset=([\w-]+)", texts[0][1]).group(1)
+  reset = client.post("/account/reset-password", json={"token": token, "password": "a brand new password", "password_confirmation": "a brand new password"})
+  assert reset.status_code == 200
+  answer = client.post("/account/login", json={"email": PHONE, "password": "a brand new password"})
+  assert answer.status_code == 200 and answer.json()["user"]["phone_verified"] is True  # the text proved the number
+  # A number nobody logs in with gets nothing, and the answer is the same.
+  texts.clear()
+  assert client.post("/account/forgot-password", json={"email": "555 999 0000"}).json() == {"sent": True} and texts == []
+
+
+def test_a_phone_only_account_has_no_email_features_but_the_others_work(texts):
+  import subscriptions
+
+  user = register_by_phone().json()["user"]
+  with pytest.raises(subscriptions.SubscriptionProblem, match="no email address"):
+    subscriptions.save_subscription(user["id"], "spurgeon-morning-evening", "07:00", "UTC")
+  # No verification email is asked for, and closing the account sends no goodbye email.
+  assert accounts.start_verification(user["id"]) is None
+  # A new number on My account is the new login, confirmed again by a new code.
+  with connect() as connection:
+    connection.execute("UPDATE account_tokens SET created_at = now() - interval '2 minutes' WHERE purpose = 'phone'")
+  texts.clear()
+  changed = client.put("/account/phone", json={"phone": "555 234 9999", "send_via_email": True}).json()["user"]
+  assert changed["phone"] == "+1 (555) 234-9999" and changed["send_via_email"] is False and changed["phone_verified"] is False
+  assert [number for number, _ in texts] == ["+15552349999"]
+  client.cookies.clear()
+  assert client.post("/account/login", json={"email": "555 234 9999", "password": PASSWORD}).status_code == 200
+  assert client.post("/account/login", json={"email": PHONE, "password": PASSWORD}).status_code == 401
+
+
+def test_email_accounts_still_log_in_and_reset_by_email(texts, sent_mail):
+  register(phone=PHONE)
+  client.cookies.clear()
+  # Their phone is not a login.
+  assert client.post("/account/login", json={"email": PHONE, "password": PASSWORD}).status_code == 401
+  assert client.post("/account/login", json={"email": "ANN@accounts-test.example", "password": PASSWORD}).status_code == 200
+  sent_mail.clear()
+  client.post("/account/forgot-password", json={"email": "ann@accounts-test.example"})
+  assert len(sent_mail) == 1 and texts == []

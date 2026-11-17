@@ -14,7 +14,8 @@ function unsubscribeOnce(token: string): Promise<string> {
   return requests.get(token)!
 }
 
-// The page that the link at the foot of a devotional email opens: it stops that devotional's emails.
+// The page that the stop link at the foot of an email opens (a devotional, the verse a day, the prayer list, replies,
+// a group or one of its scheduled emails): it stops them and says what, in the server's words.
 function UnsubscribePage({ token }: UnsubscribePageProps) {
   const [message, setMessage] = useState('Stopping the emails…')
   const [isError, setIsError] = useState(false)
@@ -22,7 +23,7 @@ function UnsubscribePage({ token }: UnsubscribePageProps) {
   useEffect(() => {
     let isCurrent = true
     unsubscribeOnce(token)
-      .then((name) => isCurrent && setMessage(`Done. You will not get any more emails of ${name}.`))
+      .then((sentence) => isCurrent && setMessage(`Done. ${sentence}`))
       .catch((error: Error) => {
         if (isCurrent) {
           setIsError(true)

@@ -6,13 +6,14 @@ administrator, and the exit status is not 0.
 
     manage_users.py list [--query=part-of-an-address-or-name] [--page=1]
     manage_users.py get --id=7
-    manage_users.py create --email=ann@example.com [--first-name=Ann] [--last-name=Lee] [--phone=...]
-                           [--email-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] --password-on-input
+    manage_users.py create [--email=ann@example.com] [--first-name=Ann] [--last-name=Lee] [--phone=...]
+                           [--email-verified] [--phone-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] --password-on-input
     manage_users.py update --id=7 [--email=...] [--first-name=...] [--last-name=...] [--phone=...]
-                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no] [--use-maps=yes|no] [--closed=yes|no]
+                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no] [--use-maps=yes|no] [--closed=yes|no] [--phone-verified=yes|no]
                            [--password-on-input]
 
-An empty --first-name=, --last-name= or --phone= on update clears it; leaving the option out keeps it.
+An empty --first-name=, --last-name= or --phone= on update clears it; leaving the option out keeps it. Without an
+email (an empty --email=), the account logs in with its phone, which must then be a US or Canadian cell number.
     manage_users.py delete --id=7
 
 A password is never given as an argument (other users of the server could see it in the process list):
@@ -45,7 +46,7 @@ def parse_arguments():
   for name in ("get", "delete"):
     commands.add_parser(name).add_argument("--id", type=int, required=True)
   create = commands.add_parser("create")
-  create.add_argument("--email", required=True)
+  create.add_argument("--email", default="")
   create.add_argument("--first-name", default="")
   create.add_argument("--last-name", default="")
   create.add_argument("--phone", default="")
@@ -54,6 +55,7 @@ def parse_arguments():
   create.add_argument("--use-conversations", action="store_true")
   create.add_argument("--see-private-prayers", action="store_true")
   create.add_argument("--use-maps", action="store_true")
+  create.add_argument("--phone-verified", action="store_true")
   create.add_argument("--password-on-input", action="store_true")
   update = commands.add_parser("update")
   update.add_argument("--id", type=int, required=True)
@@ -67,6 +69,7 @@ def parse_arguments():
   update.add_argument("--see-private-prayers", type=yes_or_no)
   update.add_argument("--use-maps", type=yes_or_no)
   update.add_argument("--closed", type=yes_or_no)
+  update.add_argument("--phone-verified", type=yes_or_no)
   update.add_argument("--password-on-input", action="store_true")
   return parser.parse_args()
 
@@ -96,6 +99,7 @@ def run(arguments) -> dict:
       use_conversations=arguments.use_conversations,
       see_private_prayers=arguments.see_private_prayers,
       use_maps=arguments.use_maps,
+      phone_verified=arguments.phone_verified,
     )
     return {"ok": True, "user": user}
   password = read_password() if arguments.password_on_input else None
@@ -112,6 +116,7 @@ def run(arguments) -> dict:
     see_private_prayers=arguments.see_private_prayers,
     use_maps=arguments.use_maps,
     closed=arguments.closed,
+    phone_verified=arguments.phone_verified,
   )
   return {"ok": True, "user": user}
 

@@ -72,7 +72,9 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
       <ul>
         <li>
           <strong>Your email address and password.</strong> We never store your password itself, only a scrambled
-          version of it that cannot be turned back into the password.
+          version of it that cannot be turned back into the password. If you set up your account with a phone number
+          instead of an email address, we keep that number to log you in, and text it only a code to confirm it, a
+          password reset link you ask for, and the texts you choose.
         </li>
         <li>
           <strong>Your first name, last name and phone number,</strong> if you choose to give them. All three are

@@ -10,10 +10,12 @@ import type { AccountUser } from './types'
 import type { View } from './views'
 
 interface AccountPageProps {
-  // register: Set up account (email and the password twice, which are required; first name, last name and phone,
-  // which are optional).
-  // login: email and password.
-  // forgot: ask for a reset link. reset: choose a new password with the link's token.
+  // register: Set up account (an email address or a cell phone number, and the password twice; first name, last
+  // name and, with an email address, the phone are optional). Without an email address the account logs in with
+  // its phone (2026-11-17), confirmed by a texted code.
+  // login: email address or phone number, and password.
+  // forgot: ask for a reset link (emailed, or texted to a phone that logs in). reset: choose a new password with
+  // the link's token.
   mode: 'register' | 'login' | 'forgot' | 'reset'
   token: string
   onDone: (user: AccountUser) => void
@@ -40,6 +42,8 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const [doneMessage, setDoneMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const needsTwoPasswords = mode === 'register' || mode === 'reset'
+  // Sign-up without an email address: the phone is the login, a cell number, and nothing is emailed.
+  const hasEmail = emailAddress.trim() !== ''
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -51,12 +55,16 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
       setErrorMessage('The two passwords are not the same.')
       return
     }
+    if (mode === 'register' && !hasEmail && phone.trim() === '') {
+      setErrorMessage('Please give an email address or a cell phone number (you can give both).')
+      return
+    }
     setIsSending(true)
     try {
       if (mode === 'forgot') {
         await forgotPassword(emailAddress)
         setDoneMessage(
-          'If an account has that email address, a link to choose a new password is on its way. It works for an hour.',
+          'If an account has that email address or phone number, a link to choose a new password is on its way, by email or by text. It works for an hour.',
         )
       } else if (mode === 'reset') {
         await resetPassword(token, password, passwordConfirmation)
@@ -71,8 +79,8 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
                 firstName,
                 lastName,
                 phone,
-                phoneIsCell: phone.trim() !== '' && phoneIsCell,
-                ...deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms),
+                phoneIsCell: phone.trim() !== '' && (phoneIsCell || !hasEmail),
+                ...deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms, hasEmail),
                 sendMultimedia,
                 verseADay,
                 verseTime,
@@ -93,9 +101,9 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const heading = { register: 'Set up account', login: 'Log in', forgot: 'Forgot your password?', reset: 'Choose a new password' }[mode]
   const intro = {
     register:
-      'An account is optional. Everything on this site works without one; it will be used later for features that are just for you. We will email you a link to confirm your address.',
+      'An account is optional. Everything on this site works without one; it will be used later for features that are just for you. Set it up with an email address (we email you a link to confirm it) or, if you have none, with a cell phone number (we text you a code to confirm it, and you log in with it).',
     login: 'Logging in is optional. Everything on this site works without it.',
-    forgot: 'Enter the email address of your account and we will email you a link to choose a new password.',
+    forgot: 'Enter the email address of your account, or the phone number you log in with, and we will send you a link to choose a new password (by email or by text).',
     reset: 'Choose a new password for your account.',
   }[mode]
   const submitLabel = { register: 'Set up account', login: 'Log in', forgot: 'Send the link', reset: 'Change password' }[mode]
@@ -140,28 +148,42 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
               </label>
             </>
           )}
-          {mode !== 'reset' && (
+          {mode === 'register' && (
             <label className="contact-field">
               Email Address
               <input
                 type="email"
                 value={emailAddress}
                 maxLength={254}
-                required
                 autoComplete="email"
+                onChange={(event) => setEmailAddress(event.target.value)}
+              />
+              <small>Or leave it empty and give a cell phone number below: you then log in with that number.</small>
+            </label>
+          )}
+          {(mode === 'login' || mode === 'forgot') && (
+            <label className="contact-field">
+              Email address or phone number
+              <input
+                type="text"
+                value={emailAddress}
+                maxLength={254}
+                required
+                autoComplete="username"
                 onChange={(event) => setEmailAddress(event.target.value)}
               />
             </label>
           )}
           {mode === 'register' && (
             <label className="contact-field">
-              Phone (optional)
+              {hasEmail ? 'Phone (optional)' : 'Cell phone number (you log in with it)'}
               <input
                 type="tel"
                 value={phone}
                 maxLength={40}
                 autoComplete="tel"
                 placeholder="+1 (555) 123-4567"
+                required={!hasEmail}
                 onChange={(event) => setPhone(nextPhoneValue(phone, event.target.value))}
                 onBlur={() => setPhone(formatUsPhone(phone))}
               />
@@ -178,6 +200,7 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
               onSendViaEmailChange={setSendViaEmail}
               onSendViaSmsChange={setSendViaSms}
               onSendMultimediaChange={setSendMultimedia}
+              hasEmail={hasEmail}
             />
           )}
           {mode === 'register' && (

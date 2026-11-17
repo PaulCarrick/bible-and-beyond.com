@@ -226,7 +226,7 @@ def test_every_email_has_a_working_unsubscribe_link(fakes):
   assert f"https://site.example/?unsubscribe={token}" in email.get_content()
   client.cookies.clear()  # no login is needed
   response = client.post("/subscriptions/unsubscribe", params={"token": token})
-  assert response.status_code == 200 and response.json() == {"devotional": "Morning and Evening"}
+  assert response.status_code == 200 and response.json() == {"devotional": "Morning and Evening", "message": "You will not get any more emails of Morning and Evening."}
   assert client.post("/subscriptions/unsubscribe", params={"token": token}).status_code == 404
   assert client.post("/subscriptions/unsubscribe", params={"token": "made-up"}).status_code == 404
   assert run(utc(2026, 11, 5, 7, 5), fakes)["sent"] == 0

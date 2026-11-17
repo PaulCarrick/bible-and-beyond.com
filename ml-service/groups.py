@@ -181,7 +181,7 @@ MEMBER_COLUMNS = """
   CASE WHEN m.user_id IS NULL THEN m.name
        ELSE COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), m.name, '') END,
   COALESCE(u.email, m.email), CASE WHEN m.user_id IS NULL THEN m.phone ELSE COALESCE(u.phone, '') END,
-  u.email_verified_at IS NOT NULL, m.schedules_stopped_at IS NOT NULL,
+  (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL), m.schedules_stopped_at IS NOT NULL,
   (SELECT count(*) FROM group_schedule_stops s WHERE s.member_id = m.id), u.disabled_at IS NOT NULL
 """
 
@@ -195,7 +195,7 @@ def _how(connection, user_id: int | None, verified: bool, stopped: bool, closed:
   if user_id is None:
     return "Email"
   if not verified:
-    return "Nothing until they confirm their email address"
+    return "Nothing until they confirm their email address or phone number"
   by_email, number = sms.delivery_for_user(connection, user_id)
   return "Email and text" if by_email and number else ("Text" if number else "Email")
 
@@ -213,7 +213,7 @@ def list_members(group_id: int) -> list[dict]:
       {
         "id": row[0], "is_account": row[1] is not None, "user_id": row[1], "stopped": row[2] is not None,
         "confirmed": row[1] is None or (bool(row[6]) and not row[9]), "closed": bool(row[9]),
-        "name": row[3], "email": row[4], "phone": row[5],
+        "name": row[3], "email": row[4] or "", "phone": row[5],
         "receives": _how(connection, row[1], row[6], row[2] is not None, bool(row[9])),
         # Scheduled emails they stopped: all of them, or how many (stop_schedule_with_token).
         "schedules_stopped": bool(row[7]), "stopped_schedules": row[8],
@@ -265,11 +265,11 @@ def list_candidates(group_id: int) -> list[dict]:
   with connect() as connection:
     rows = connection.execute(
       """
-      SELECT u.id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), u.email,
-             u.email_verified_at IS NOT NULL
+      SELECT u.id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), COALESCE(u.email, u.phone, ''),
+             (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL)
       FROM users u
       WHERE u.disabled_at IS NULL AND NOT EXISTS (SELECT 1 FROM group_members m WHERE m.group_id = %s AND m.user_id = u.id)
-      ORDER BY lower(COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email)), u.id
+      ORDER BY lower(COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, u.phone)), u.id
       """,
       (group_id,),
     ).fetchall()
@@ -335,6 +335,19 @@ def remove_member(group_id: int, member_id: int) -> dict:
   return found[0]
 
 
+def restart_schedules(group_id: int, member_id: int) -> dict:
+  """Undoes a member's stopped scheduled emails (the group page's "Start scheduled emails again"; added 2026-11-17 at
+  the owner's request): both the ones they stopped one by one and "all scheduled emails from this group". It does
+  not undo the group's own stop link (stopped_at: everything from the group). Returns the member."""
+  with connect() as connection:
+    found = connection.execute("SELECT 1 FROM group_members WHERE id = %s AND group_id = %s", (member_id, group_id)).fetchone()
+    if found is None:
+      raise GroupProblem("That member is not in the group (they may have been removed).")
+    connection.execute("DELETE FROM group_schedule_stops WHERE member_id = %s", (member_id,))
+    connection.execute("UPDATE group_members SET schedules_stopped_at = NULL WHERE id = %s", (member_id,))
+  return next(member for member in list_members(group_id) if member["id"] == member_id)
+
+
 def stop_with_token(connection, token: str) -> str | None:
   """The stop link of a group email: that member gets no more messages from that group. Returns the group's
   name, or None when the token is not a group's."""
@@ -355,11 +368,11 @@ def schedule_stop_token(token: str, schedule_id) -> str:
   return f"{token}.s{schedule_id}"
 
 
-def stop_schedule_with_token(connection, token: str) -> str | None:
+def stop_schedule_with_token(connection, token: str) -> tuple[str, str] | None:
   """A scheduled email's stop link (schedule_stop_token): records that the member stopped that scheduled email
   (group_schedule_stops) or all the group's scheduled emails (group_members.schedules_stopped_at). The member stays
-  in the group and still gets what the leader sends by hand. Returns what was stopped, in words, or None when the
-  token is not one of these."""
+  in the group and still gets what the leader sends by hand. Returns what was stopped, in words, and the sentence
+  the stop page shows (2026-11-17: "clearer wording"), or None when the token is not one of these."""
   match = re.fullmatch(r"([A-Za-z0-9_-]{8,64})\.s(all|\d{1,9})", token or "")
   if match is None:
     return None
@@ -372,7 +385,11 @@ def stop_schedule_with_token(connection, token: str) -> str | None:
   member_id, group_id, group_name = member
   if match[2] == "all":
     connection.execute("UPDATE group_members SET schedules_stopped_at = COALESCE(schedules_stopped_at, now()) WHERE id = %s", (member_id,))
-    return f"the scheduled emails from the group “{group_name}” (you stay in the group)"
+    return (
+      f"the scheduled emails from the group “{group_name}” (you stay in the group)",
+      f"You will not get any scheduled emails from the group “{group_name}” any more. You are still in the group, and "
+      "still get the messages your leader sends.",
+    )
   schedule = connection.execute(
     "SELECT kind, subject FROM group_schedules WHERE id = %s AND group_id = %s", (int(match[2]), group_id)
   ).fetchone()
@@ -382,7 +399,12 @@ def stop_schedule_with_token(connection, token: str) -> str | None:
     "INSERT INTO group_schedule_stops (schedule_id, member_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (int(match[2]), member_id)
   )
   what = "verse card" if schedule[0] == "verse" else f"“{schedule[1]}”"
-  return f"the scheduled {what} from the group “{group_name}” (you stay in the group)"
+  sentence_what = "the scheduled verse card" if schedule[0] == "verse" else f"the scheduled email “{schedule[1]}”"
+  return (
+    f"the scheduled {what} from the group “{group_name}” (you stay in the group)",
+    f"You will not get {sentence_what} from the group “{group_name}” any more. You are still in the group, and still "
+    "get the messages your leader sends and its other scheduled emails.",
+  )
 
 
 # --- previews ----------------------------------------------------------------------------------------------
@@ -536,7 +558,7 @@ def send(
       SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token,
              m.stopped_at IS NOT NULL OR (%(schedule)s::int IS NOT NULL AND (m.schedules_stopped_at IS NOT NULL
                OR EXISTS (SELECT 1 FROM group_schedule_stops s WHERE s.member_id = m.id AND s.schedule_id = %(schedule)s))),
-             m.user_id IS NULL OR (u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL)
+             m.user_id IS NULL OR ((u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AND u.disabled_at IS NULL)
       FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.group_id = %(group)s ORDER BY m.id
       """,
       {"group": group_id, "schedule": schedule["id"] if schedule else None},
@@ -640,7 +662,7 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
     row = connection.execute(
       """
       SELECT COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
-             m.user_id IS NULL OR u.email_verified_at IS NOT NULL, u.disabled_at IS NOT NULL
+             m.user_id IS NULL OR (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL), u.disabled_at IS NOT NULL
       FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = %s AND m.group_id = %s
       """,
       (member_id, group_id),
@@ -652,6 +674,8 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
     raise GroupProblem("This member closed their account, so nothing can be sent to them.")
   if stopped:
     raise GroupProblem("This member stopped the group's messages, so nothing can be sent to them.")
+  if address is None:
+    raise GroupProblem("This member's account has no email address (they log in with their phone), so it cannot be emailed.")
   if not confirmed:
     raise GroupProblem("This member has not confirmed their email address yet, so nothing can be sent to them.")
   sender = group["owner_name"] or "your group's leader"
@@ -735,7 +759,7 @@ def send_prayer_request(
       members = connection.execute(
         """
         SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
-               m.user_id IS NULL OR (u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL)
+               m.user_id IS NULL OR ((u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AND u.disabled_at IS NULL)
         FROM group_members m LEFT JOIN users u ON u.id = m.user_id
         WHERE m.group_id = %s AND m.user_id IS DISTINCT FROM %s ORDER BY m.id
         """,

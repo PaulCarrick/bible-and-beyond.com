@@ -205,8 +205,9 @@ sections:
       person; <em>Stop all scheduled emails from this group</em> stops every scheduled email of this group for them,
       including ones you add later. Neither takes them out of the group: they still get what you send by hand, and
       other groups are not affected. The Scheduled table says how many members stopped each one, and the members
-      list says what each person stopped. To start someone's scheduled emails again, remove them and add them
-      back.</p>
+      list says what each person stopped. If someone asks to have them back, choose <em>Start scheduled emails
+      again</em> in their menu on the right (it asks first): they get every scheduled email again. It does not undo
+      the link that stops everything from the group.</p>
       <figure><img data-guide="group-schedule" alt="Add a scheduled email: what to send, and When: repeat, which, day of the week, time and time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
       <h3>Changing the group or its leader</h3>
       <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a
@@ -256,8 +257,16 @@ sections:
       <ul>
         <li>The email address (they log in with it), names and phone. Changing the phone turns their text messages off:
         only the member can turn texts on, on their My account page, as texts need their own agreement.</li>
+        <li><strong>An email address or a phone number</strong> (or both) is needed. With no email address the
+        account logs in with its phone, which must be a US or Canadian cell number, and it is never emailed (the list
+        shows "(none: logs in with phone)"). Members can set up such an account themselves on the site; a texted
+        code confirms the number.</li>
         <li><em>Email address confirmed</em>: the daily emails and texts go only to a confirmed address. Tick it only
         if you know the address is theirs.</li>
+        <li><em>Phone number confirmed</em> (shown when there is no email address): the same for an account that
+        logs in with its phone. Texts go only to a confirmed number. Tick it only if you know the number is
+        theirs.</li>
+        <li>The search box finds accounts by address, name, or the digits of their phone.</li>
         <li><em>Open AI queries</em> (their own questions on the FAQ page), <em>Conversations</em> (writing on
         Conversations and the Prayer Wall) and <em>Maps</em> (their own notes, pins and routes): off unless ticked
         here.</li>

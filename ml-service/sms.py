@@ -147,7 +147,8 @@ def number_for_user(connection, user_id: int) -> str | None:
   row = connection.execute(
     """
     SELECT sms_number FROM users
-    WHERE id = %s AND sms_opt_in AND sms_number IS NOT NULL AND email_verified_at IS NOT NULL
+    WHERE id = %s AND sms_opt_in AND sms_number IS NOT NULL
+      AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL)
     """,
     (user_id,),
   ).fetchone()
@@ -162,12 +163,15 @@ def delivery_for_user(connection, user_id: int) -> tuple[bool, str | None]:
   """How a notice reaches a member: (send it by email?, the number to text it to, or None). Email when they chose
   it, or when they chose texts but cannot be texted now (STOP, no number, texting not set up here)."""
   row = connection.execute(
-    "SELECT send_via_email, send_via_sms FROM users WHERE id = %s", (user_id,)
+    "SELECT send_via_email, send_via_sms, email IS NOT NULL FROM users WHERE id = %s", (user_id,)
   ).fetchone()
   if row is None:
     return False, None
-  by_email, by_text = row
+  by_email, by_text, has_email = row
   number = number_for_user(connection, user_id) if by_text and is_configured() else None
+  if not has_email:
+    # An account set up with a phone number only (2026-11-17): never by email; by text when it can be, else not.
+    return False, number
   return bool(by_email or number is None), number
 
 
@@ -175,7 +179,8 @@ def deliver(user_id: int, send_the_email, words: str, link: str = "", picture=No
   """Sends one notice the way the member chose. send_the_email() sends the email and raises if it cannot. Raises
   when the notice reached the member by no way they chose, so the caller can try again; a text that fails beside
   an email that went is only logged. With a picture (a message_cards.MessageCard) the text goes as an MMS with
-  it. Returns {"email": sent?, "text": sent?}."""
+  it. An account with no email address and no number to text gets nothing and nothing is raised. Returns
+  {"email": sent?, "text": sent?}."""
   with connect() as connection:
     by_email, number = delivery_for_user(connection, user_id)
   sent = {"email": False, "text": False}

@@ -39,6 +39,7 @@ import TutorialPage from './TutorialPage'
 import DayCardPage from './DayCardPage'
 import PrivacyPage from './PrivacyPage'
 import MyAccountPage from './MyAccountPage'
+import ConfirmPhoneBox from './ConfirmPhoneBox'
 import DevotionalsTab from './DevotionalsTab'
 import SearchTab from './SearchTab'
 import SideNav from './SideNav'
@@ -485,7 +486,8 @@ function App() {
                   navigate('faq')
                 }}
               />
-              {user && !user.email_verified && activeView !== 'verify' && (
+              {user && user.logs_in_with_phone && !user.phone_verified && <ConfirmPhoneBox user={user} onConfirmed={setUser} />}
+              {user && user.email && !user.email_verified && activeView !== 'verify' && (
                 <p className="contact-sent" role="status">
                   Please confirm your email address: we sent a link to {user.email}.{' '}
                   <button

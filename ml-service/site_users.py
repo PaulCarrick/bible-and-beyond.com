@@ -20,7 +20,8 @@ _COLUMNS = """
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
   users.use_conversations, users.see_private_prayers, users.sms_opt_in, users.sms_stopped_at IS NOT NULL,
-  users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at
+  users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at,
+  users.phone_verified_at IS NOT NULL, users.login_phone
 """
 
 
@@ -31,7 +32,8 @@ class UserProblem(Exception):
 def _describe(row) -> dict:
   return {
     "id": row[0],
-    "email": row[1],
+    # "" for an account set up with a phone number only (it logs in with login_phone; 2026-11-17).
+    "email": row[1] or "",
     "created_at": row[2].isoformat(),
     "last_login_at": row[3].isoformat() if row[3] else None,
     "email_verified": row[4],
@@ -53,6 +55,9 @@ def _describe(row) -> dict:
     # Closed by its owner on My account (accounts.close_account): no login, no emails or texts. Reopened here.
     "closed": row[17] is not None,
     "closed_at": row[17].isoformat() if row[17] else None,
+    # Phone login (accounts.py): the number it logs in with (+15551234567) and whether it is confirmed.
+    "phone_verified": row[18],
+    "login_phone": row[19],
   }
 
 
@@ -77,8 +82,19 @@ def _checked_profile(first_name: str, last_name: str, phone: str) -> tuple[str, 
     raise UserProblem(str(problem)) from problem
 
 
-# An account matches a search when its address or its name ("first last") contains the words searched for.
-_MATCHES = "(email LIKE %s OR lower(concat_ws(' ', first_name, last_name)) LIKE %s)"
+# An account matches a search when its address or its name ("first last") contains the words searched for, or its
+# phone number contains the digits searched for.
+_MATCHES = (
+  "(email LIKE %s OR lower(concat_ws(' ', first_name, last_name)) LIKE %s"
+  " OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') LIKE %s)"
+)
+
+
+def _digits_pattern(query: str) -> str:
+  """The pattern for the phone digits searched for; one that matches nothing when the search has no digits."""
+  digits = "".join(character for character in query if character.isdigit())
+  # A phone's digits never equal "-", so without digits the phone part matches no account.
+  return f"%{digits}%" if len(digits) >= 3 else "-"
 
 
 def list_users(query: str = "", page: int = 1) -> dict:
@@ -87,10 +103,11 @@ def list_users(query: str = "", page: int = 1) -> dict:
   page = max(page, 1)
   pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
   with connect() as connection:
-    total = connection.execute(f"SELECT count(*) FROM users WHERE {_MATCHES}", (pattern, pattern)).fetchone()[0]
+    digits = _digits_pattern(query) if query else pattern
+    total = connection.execute(f"SELECT count(*) FROM users WHERE {_MATCHES}", (pattern, pattern, digits)).fetchone()[0]
     rows = connection.execute(
       f"SELECT {_COLUMNS} FROM users WHERE {_MATCHES} ORDER BY users.created_at DESC, users.id DESC LIMIT %s OFFSET %s",
-      (pattern, pattern, PER_PAGE, (page - 1) * PER_PAGE),
+      (pattern, pattern, digits, PER_PAGE, (page - 1) * PER_PAGE),
     ).fetchall()
   return {"users": [_describe(row) for row in rows], "total": total, "page": page, "per_page": PER_PAGE}
 
@@ -114,9 +131,13 @@ def create_user(
   use_conversations: bool = False,
   see_private_prayers: bool = False,
   use_maps: bool = False,
+  phone_verified: bool = False,
 ) -> dict:
-  email = _checked_email(email)
+  """Adds an account with an email address, or with a cell phone number only (no email: it logs in with the number;
+  phone_verified says whether it is confirmed, as email_verified does for an address)."""
+  email = _checked_email(email) if (email or "").strip() else None
   first_name, last_name, phone = _checked_profile(first_name, last_name, phone)
+  login_phone = None if email else _login_number(phone)
   _checked_password(password)
   password_hash = hash_password(password)
   try:
@@ -125,16 +146,26 @@ def create_user(
         """
         INSERT INTO users
           (email, password_hash, email_verified_at, open_ai_queries, first_name, last_name, phone, use_conversations,
-           see_private_prayers, use_maps)
-        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s)
+           see_private_prayers, use_maps, login_phone, phone_is_cell, phone_verified_at, send_via_email)
+        VALUES (%s, %s, CASE WHEN %s THEN now() END, %s, NULLIF(%s, ''), NULLIF(%s, ''), NULLIF(%s, ''), %s, %s, %s,
+                %s, %s, CASE WHEN %s THEN now() END, %s)
         RETURNING id
         """,
-        (email, password_hash, email_verified, open_ai_queries, first_name, last_name, phone, use_conversations,
-         see_private_prayers, use_maps),
+        (email, password_hash, bool(email and email_verified), open_ai_queries, first_name, last_name, phone,
+         use_conversations, see_private_prayers, use_maps, login_phone, login_phone is not None,
+         bool(login_phone and phone_verified), email is not None),
       ).fetchone()[0]
   except psycopg.errors.UniqueViolation as error:
-    raise UserProblem("An account with that email address already exists.") from error
+    what = "email address" if email else "phone number"
+    raise UserProblem(f"An account with that {what} already exists.") from error
   return get_user(user_id)
+
+
+def _login_number(phone: str) -> str:
+  number = texting_number(phone)
+  if number is None:
+    raise UserProblem("Please give an email address, or a US or Canadian cell phone number (the account then logs in with it).")
+  return number
 
 
 def update_user(
@@ -150,19 +181,42 @@ def update_user(
   see_private_prayers: bool | None = None,
   use_maps: bool | None = None,
   closed: bool | None = None,
+  phone_verified: bool | None = None,
 ) -> dict:
   """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
   name or phone ("") clears it. closed: False reopens an account its owner closed (it can log in again and get
-  emails); True closes it, as the owner's Close my account does but with no email."""
+  emails); True closes it, as the owner's Close my account does but with no email. An empty email ("") leaves the
+  account with only its phone: it then logs in with that number (which must be a US or Canadian cell number), and
+  is never emailed. phone_verified: whether that number is confirmed (a new login number is not, unless ticked)."""
   current = get_user(user_id)
   changes = []
   values: list = []
+  new_email = current["email"] or None
   if email is not None:
-    email = _checked_email(email)
-    if email != current["email"]:
+    new_email = _checked_email(email) if email.strip() else None
+    if new_email != (current["email"] or None):
       changes.append("email = %s")
-      values.append(email)
+      values.append(new_email)
+      if new_email is None:
+        changes.append("email_verified_at = NULL, send_via_email = false")
+      elif not current["email"]:
+        changes.append("send_via_email = true")
   checked = _checked_profile(first_name or "", last_name or "", phone or "")
+  new_phone = checked[2] if phone is not None else current["phone"]
+  # The number it logs in with: needed when it has no email address; kept (moved to the new number) when it had one.
+  login_phone = current["login_phone"]
+  if new_email is None:
+    login_phone = _login_number(new_phone)
+  elif login_phone is not None and phone is not None:
+    login_phone = texting_number(new_phone)
+  if login_phone != current["login_phone"]:
+    changes.append("login_phone = %s")
+    values.append(login_phone)
+    if phone_verified is None:
+      changes.append("phone_verified_at = NULL")
+  if phone_verified is not None and login_phone is not None and phone_verified != current["phone_verified"]:
+    changes.append("phone_verified_at = CASE WHEN %s THEN now() END")
+    values.append(phone_verified)
   for column, given, value in zip(("first_name", "last_name", "phone"), (first_name, last_name, phone), checked):
     if given is not None and value != current[column]:
       changes.append(f"{column} = NULLIF(%s, '')")
@@ -173,13 +227,14 @@ def update_user(
         if number is None or number != texting_number(current["phone"]):
           # A new number has not been agreed to for texts: the member turns them on again on My account.
           changes.append(
-            "phone_is_cell = false, sms_number = NULL, sms_opt_in = false, send_via_sms = false, send_via_email = true"
+            "phone_is_cell = %s, sms_number = NULL, sms_opt_in = false, send_via_sms = false, send_via_email = %s"
           )
+          values.extend([login_phone is not None, new_email is not None])
   if password:
     _checked_password(password)
     changes.append("password_hash = %s")
     values.append(hash_password(password))
-  if email_verified is not None and email_verified != current["email_verified"]:
+  if email_verified is not None and new_email is not None and email_verified != current["email_verified"]:
     changes.append("email_verified_at = CASE WHEN %s THEN now() END")
     values.append(email_verified)
   if open_ai_queries is not None:
@@ -209,7 +264,7 @@ def update_user(
           connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
           connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'reset'", (user_id,))
     except psycopg.errors.UniqueViolation as error:
-      raise UserProblem("Another account already uses that email address.") from error
+      raise UserProblem("Another account already uses that email address or phone number.") from error
   return get_user(user_id)
 
 

@@ -12,6 +12,9 @@ interface TextMessageChoicesProps {
   onSendViaEmailChange: (value: boolean) => void
   onSendViaSmsChange: (value: boolean) => void
   onSendMultimediaChange: (value: boolean) => void
+  // False for an account with no email address (it logs in with its phone): no "Send via Email", the number is a
+  // cell number, and texts are optional.
+  hasEmail?: boolean
 }
 
 // Under the phone number (the sign-up form and the My account page): "This is a cell (mobile) number" once a
@@ -31,10 +34,43 @@ function TextMessageChoices({
   onSendViaEmailChange,
   onSendViaSmsChange,
   onSendMultimediaChange,
+  hasEmail = true,
 }: TextMessageChoicesProps) {
   const hasPhone = phone.trim() !== ''
-  const smsAllowed = canSendViaSms(phone, phoneIsCell)
-  const shown = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms)
+  const smsAllowed = hasEmail ? canSendViaSms(phone, phoneIsCell) : hasPhone
+  const shown = deliveryChoice(phone, phoneIsCell, sendViaEmail, sendViaSms, hasEmail)
+  if (!hasEmail) {
+    return (
+      <div className="prayer-options text-message-choices">
+        <fieldset className="prayer-options delivery-choices">
+          <legend>How should we send you messages?</legend>
+          <p className="delivery-choices-note">
+            With no email address, nothing comes by email. The verse a day and your groups&rsquo; messages can come as
+            texts to your phone if you tick below; everything else on the site works either way.
+          </p>
+          <label className="inline-label">
+            <input
+              type="checkbox"
+              checked={shown.sendViaSms}
+              disabled={!smsAllowed}
+              onChange={(event) => onSendViaSmsChange(event.target.checked)}
+            />
+            Send via SMS
+            <small>
+              A short text message with a link, to the number above. <strong>Your mobile carrier may charge you for
+              text messages</strong> (message and data rates may apply). Reply STOP to any text to stop them, or HELP
+              for help. US and Canadian numbers only.
+            </small>
+          </label>
+          <label className="inline-label">
+            <input type="checkbox" checked={sendMultimedia} onChange={(event) => onSendMultimediaChange(event.target.checked)} />
+            Send Multimedia Messages
+            <small>The verse a day comes as a picture text (MMS), which your carrier may charge more for.</small>
+          </label>
+        </fieldset>
+      </div>
+    )
+  }
   return (
     <div className="prayer-options text-message-choices">
       {hasPhone && (

@@ -82,7 +82,10 @@ def save_subscription(
   # Counting the most recent due day as done makes the next one the first.
   done_through = last_due_date(now.astimezone(zone), send_weekday, send_time)
   with connect() as connection:
-    verified = connection.execute("SELECT email_verified_at IS NOT NULL FROM users WHERE id = %s", (user_id,)).fetchone()
+    verified = connection.execute("SELECT email_verified_at IS NOT NULL, email IS NOT NULL FROM users WHERE id = %s", (user_id,)).fetchone()
+    if verified is not None and not verified[1]:
+      # An account set up with a phone number only (2026-11-17): these are emails.
+      raise SubscriptionProblem("This is sent by email, and your account has no email address.", 403)
     if verified is None or not verified[0]:
       raise SubscriptionProblem("Please confirm your email address first: we emailed you a link when you set up the account.", 403)
     row = connection.execute(

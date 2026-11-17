@@ -74,7 +74,8 @@ class SiteUserListController extends ControllerBase {
       $rows[] = [
         ['data' => ['#plain_text' => $name]],
         // A closed account (its owner closed it on My account) says so after its address.
-        ['data' => ['#plain_text' => !empty($user['closed']) ? $user['email'] . ' ' . $this->t('(closed)') : $user['email']]],
+        // An account with no address logs in with its phone (2026-11-17); a closed one says so after it.
+        ['data' => ['#plain_text' => ($user['email'] !== '' ? $user['email'] : (string) $this->t('(none: logs in with phone)')) . (!empty($user['closed']) ? ' ' . $this->t('(closed)') : '')]],
         ['data' => ['#plain_text' => $user['phone'] ?? '']],
         ['data' => ['#plain_text' => $user['email_verified'] ? $this->t('Yes') : $this->t('No')]],
         ['data' => ['#plain_text' => $user['open_ai_queries'] ? $this->t('Yes') : $this->t('No')]],

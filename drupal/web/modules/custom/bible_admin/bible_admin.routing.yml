@@ -382,6 +382,17 @@ bible_admin.group_member_remove:
     group_id: '\d+'
     member_id: '\d+'
 
+# A member's stopped scheduled emails start again (an undo; it asks first).
+bible_admin.group_member_restart_schedules:
+  path: '/admin/groups/{group_id}/members/{member_id}/restart-schedules'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\RestartMemberSchedulesForm'
+    _title: 'Start scheduled emails again'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    member_id: '\d+'
+
 # An email to one member only (the address in the member list opens it in a dialog).
 bible_admin.group_member_email:
   path: '/admin/groups/{group_id}/members/{member_id}/email'

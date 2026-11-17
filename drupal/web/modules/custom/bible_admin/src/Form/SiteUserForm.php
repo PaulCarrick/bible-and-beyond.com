@@ -74,9 +74,8 @@ class SiteUserForm extends FormBase {
       '#type' => 'email',
       '#title' => $this->t('Email address'),
       '#default_value' => $user['email'] ?? '',
-      '#required' => TRUE,
       '#maxlength' => 254,
-      '#description' => $this->t('The visitor logs in with it. It is kept in lower case.'),
+      '#description' => $this->t('The visitor logs in with it. It is kept in lower case. It may be left empty when a cell phone number is given below: the account then logs in with that number and is never emailed (no devotional or prayer list emails, no reply emails).'),
     ];
     $form['first_name'] = [
       '#type' => 'textfield',
@@ -96,7 +95,7 @@ class SiteUserForm extends FormBase {
       '#title' => $this->t('Phone'),
       '#default_value' => $user['phone'] ?? '',
       '#maxlength' => self::PHONE_MAXIMUM,
-      '#description' => $this->t('Optional. A US number is kept as +1 (555) 123-4567. Changing it turns off this member\'s text messages: only the member can turn them on (on their My account page), since texts need their own consent.'),
+      '#description' => $this->t('Optional when there is an email address; needed without one (a US or Canadian cell number, which the account then logs in with). A US number is kept as +1 (555) 123-4567. Changing it turns off this member\'s text messages: only the member can turn them on (on their My account page), since texts need their own consent.'),
     ];
     $form['email_verified'] = [
       '#type' => 'checkbox',
@@ -104,6 +103,18 @@ class SiteUserForm extends FormBase {
       '#default_value' => $user['email_verified'] ?? FALSE,
       '#description' => $this->t('The daily devotional emails are only sent to a confirmed address. A visitor confirms it by following the link we email them; tick this only if you know the address is theirs.'),
     ];
+    // For an account that logs in with its phone (2026-11-17): like "Email address confirmed", for the number.
+    $form['phone_verified'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Phone number confirmed'),
+      '#default_value' => $user['phone_verified'] ?? FALSE,
+      '#description' => $this->t('For an account that logs in with its phone number (one with no email address). Texts, such as the verse a day and group messages, go only to a confirmed number. A visitor confirms it by typing the code we text them; tick this only if you know the number is theirs.'),
+      '#states' => ['visible' => [':input[name="email"]' => ['value' => '']]],
+    ];
+    if (!empty($user['login_phone']) && ($user['email'] ?? '') !== '') {
+      // An account that has both: it logs in either way, so the box shows whatever the address.
+      unset($form['phone_verified']['#states']);
+    }
     $form['open_ai_queries'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Open AI queries'),
@@ -168,6 +179,9 @@ class SiteUserForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
+    if (trim((string) $form_state->getValue('email')) === '' && trim((string) $form_state->getValue('phone')) === '') {
+      $form_state->setErrorByName('email', $this->t('Give an email address or a cell phone number (or both).'));
+    }
     foreach (['first_name', 'last_name', 'phone'] as $field) {
       if (preg_match('/[\x00-\x1f\x7f]/', (string) $form_state->getValue($field))) {
         $form_state->setErrorByName($field, $this->t('This must be one line of plain text.'));
@@ -202,14 +216,14 @@ class SiteUserForm extends FormBase {
     ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps);
-        $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email']]));
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('phone_verified'));
+        $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email'] ?: $user['phone']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'));
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'));
         $this->messenger()->addStatus($password === ''
-          ? $this->t('Saved @email.', ['@email' => $user['email']])
-          : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email']]));
+          ? $this->t('Saved @email.', ['@email' => $user['email'] ?: $user['phone']])
+          : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email'] ?: $user['phone']]));
       }
     }
     catch (BibleManagerException $exception) {

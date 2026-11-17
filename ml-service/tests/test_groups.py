@@ -365,6 +365,35 @@ def test_group_notes_from_the_editor_are_cleaned():
   assert plain["description"] == "Plain notes"
 
 
+def test_a_member_who_logs_in_with_a_phone_gets_texts_and_never_email(outbox):
+  group = new_group()
+  client.cookies.clear()
+  user = client.post(
+    "/account/register",
+    json={"email": "", "password": PASSWORD, "password_confirmation": PASSWORD, "first_name": "Pho", "last_name": "Ne",
+          "phone": "555 234 6666", "send_via_sms": True},
+  ).json()["user"]
+  try:
+    candidates = groups.list_candidates(group["id"])
+    assert any(candidate["id"] == user["id"] and candidate["email"] == "+1 (555) 234-6666" for candidate in candidates)
+    groups.add_accounts(group["id"], [user["id"]])
+    member = groups.get_group(group["id"])["members"][0]
+    # Not confirmed yet: nothing; then texts only.
+    assert member["email"] == "" and member["receives"] == "Nothing until they confirm their email address or phone number"
+    with connect() as connection:
+      connection.execute("UPDATE users SET phone_verified_at = now() WHERE id = %s", (user["id"],))
+    assert groups.get_group(group["id"])["members"][0]["receives"] == "Text"
+    outbox["texts"].clear()
+    counts = groups.send(group["id"], "message", {"subject": "Hello", "text": "Hi"}, "dave", pause=0)
+    assert counts == {"emailed": 0, "texted": 1, "skipped": 0, "failed": 0}
+    assert outbox["texts"][0][0] == "+15552346666" and [email["X-Delivered-To"] for email in outbox["emails"]] == ["dave@example.org"]
+    with pytest.raises(GroupProblem, match="no email address"):
+      groups.email_member(group["id"], member["id"], "Hi", "dave")
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM users WHERE id = %s", (user["id"],))
+
+
 def test_deleting_a_group_keeps_the_accounts():
   group = new_group()
   ann = account("ann")
