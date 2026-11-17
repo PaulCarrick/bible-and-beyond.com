@@ -143,7 +143,7 @@ sections:
       <p><strong>Make a group</strong>: give it a name (it appears in the emails) and, if you like, notes that only you
       see. You are its leader, and <strong>replies to its emails come to the email address of your Drupal
       account</strong>.</p>
-      <figure><img data-guide="group" alt="A group's page: who leads it, three send buttons, the Scheduled table, the members with how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
+      <figure><img data-guide="group" alt="A group's page: its notes, who leads it, three send buttons, the Scheduled table (one email stopped by a member), the members with names and addresses as links and how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
       <h3>Members</h3>
       <p><strong>Add a member</strong> starts with <em>People with an account on the site</em>: everyone with an
       account who is not in the group yet. Tick as many as you like and click <em>Add</em>. They get your messages the
@@ -162,6 +162,7 @@ sections:
       it is to and for replies, like every group email; <em>Cancel</em> closes the box and sends nothing. It goes by
       email even to someone who chose texts. It cannot go to someone who stopped the group's messages or has not
       confirmed their address (their address is not a link then). The Sent table lists it as "to one member".</p>
+      <figure><img data-guide="group-member-email" alt="Email Ruth Example: To Ruth Example only, by email, the message in the editor, and Send and Cancel"><figcaption>Writing to one member: the box opens over the group's page.</figcaption></figure>
       <figure><img data-guide="group-member-contact" alt="Add a member with Someone without an account chosen: email, name and phone"><figcaption>Adding someone without an account.</figcaption></figure>
       <h3>Sending</h3>
       <p>Every message goes to each member separately, showing <strong>only your address</strong> as the one it is
@@ -180,7 +181,7 @@ sections:
         picture. Click <em>Make the picture</em> to see it first, <em>Make another picture</em> for a different one, then
         send.</li>
       </ul>
-      <figure><img data-guide="group-send-message" alt="Send a message: subject and message, and Send to the 4 members"><figcaption>Send a message. The button says how many it goes to.</figcaption></figure>
+      <figure><img data-guide="group-send-message" alt="Send a message: the subject, the message in the editor with bold and a list, and Send to the members"><figcaption>Send a message. The button says how many it goes to.</figcaption></figure>
       <figure><img data-guide="group-send-verse" alt="Send a verse card: the card shown, with Pick another verse and Send"><figcaption>Send a verse card.</figcaption></figure>
       <figure><img data-guide="group-send-picture" alt="Send a picture message: subject, words, the picture made, Make another picture and Send"><figcaption>Send a picture message, after Make the picture.</figcaption></figure>
       <h3>Scheduled emails</h3>
@@ -208,13 +209,13 @@ sections:
       list says what each person stopped. If someone asks to have them back, choose <em>Start scheduled emails
       again</em> in their menu on the right (it asks first): they get every scheduled email again. It does not undo
       the link that stops everything from the group.</p>
-      <figure><img data-guide="group-schedule" alt="Add a scheduled email: what to send, and When: repeat, which, day of the week, time and time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
+      <figure><img data-guide="group-schedule" alt="Add a scheduled email: a message chosen, its subject and words in the editor, and When: every week on Tuesday, the time and the time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
       <h3>Changing the group or its leader</h3>
       <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a
       <strong>Leader</strong> list there (or follows <em>Change the leader</em> on the group's page) to give the group to
       someone else who can lead groups; it then belongs to them, and replies go to their address. <em>Delete the
       group</em> removes it with its members and record (their site accounts stay).</p>
-      <figure><img data-guide="group-edit" alt="Change a group: name, Leader and notes"><figcaption>Change the group, as a Website administrator sees it (with Leader).</figcaption></figure>
+      <figure><img data-guide="group-edit" alt="Change a group: name, Leader and the notes in the editor"><figcaption>Change the group, as a Website administrator sees it (with Leader).</figcaption></figure>
       <p>Members can also send a <strong>prayer request</strong> to their group, or to its leader only, from the
       Prayer Wall. It arrives with their name; replying answers them. Such requests show in the Sent table as
       <em>Prayer Wall</em>, with the subject only.</p>
@@ -252,7 +253,7 @@ sections:
       <p>The accounts of the public site's visitors (not the people who use these admin pages). Newest first, 50 a
       page, with a search on the address or name, and for each its phone, whether the address is confirmed, what it is
       allowed and how many notes it has.</p>
-      <figure><img data-guide="site-users" alt="Site users: search, Add a site user, and a table of accounts with their address, name, phone and flags"><figcaption>Site users.</figcaption></figure>
+      <figure><img data-guide="site-users" alt="Site users: search, Add a site user, and a table of accounts with their address (or none, for one that logs in with its phone), name, phone and flags"><figcaption>Site users.</figcaption></figure>
       <p><strong>Add a site user</strong> or <strong>Edit</strong>:</p>
       <ul>
         <li>The email address (they log in with it), names and phone. Changing the phone turns their text messages off:
@@ -275,7 +276,7 @@ sections:
         <li>A password, twice (8 to 128 characters). Left empty when editing, it stays as it is; a new one logs them
         out everywhere. The site cannot email it: tell them privately.</li>
       </ul>
-      <figure><img data-guide="site-user-edit" alt="Edit a site user: address, names, phone, the checkboxes and the password"><figcaption>Edit a site user.</figcaption></figure>
+      <figure><img data-guide="site-user-edit" alt="Edit a site user who logs in with a phone: no address, names, the phone, Phone number confirmed ticked, the other checkboxes, Account closed and the password"><figcaption>Edit a site user: here one with no email address, who logs in with their phone.</figcaption></figure>
       <p><strong>Delete</strong> asks first, and says how many notes and daily emails go with the account.</p>
       <p><strong>Closed accounts.</strong> A member can close their own account on My account (<em>Close my
       account</em>, with their password). Nothing is deleted, but it can no longer log in, and after one email saying

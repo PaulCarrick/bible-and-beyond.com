@@ -140,11 +140,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <p>
           Every page has the same three parts. At the top is the <strong>header</strong>: click the name or the round
           emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the top right are{' '}
-          <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address (click it to
-          open <em>My account</em>), <em>My notes</em>, <em>My lists</em> and <em>Log out</em> there instead. On the left is the{' '}
+          <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address (or your phone
+          number, if you log in with it; click it to open <em>My account</em>), <em>My notes</em>, <em>My lists</em> and{' '}
+          <em>Log out</em> there instead. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
-          the devotionals, the other books, Christian media, maps, questions (the FAQ), members (Conversations and the
-          Prayer Wall) and about (this Help page, the tutorial video, Contact and Privacy). The groups start closed to
+          the devotionals, the other books, Christian media, maps, questions (the FAQ), today (Verse of the day and
+          Devotional of the day), members (Conversations and the Prayer Wall) and about (this Help page, the tutorial
+          video, Contact and Privacy). The groups start closed to
           keep the menu short: a small arrow (▶) beside a group&rsquo;s name shows it is closed. Click the name to open
           it and see its pages (the arrow turns down), and click it again to close it. The group of the page you are on
           opens by itself. On a phone the menu is hidden behind the menu button in the header.
@@ -375,7 +377,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <Screenshot
           name="bible-search"
           width={1152}
-          height={2138}
+          height={1900}
           alt="Search results for love in the BSB, with the search options open"
           caption="“love” searched in the Berean Standard Bible, with the Search Options open."
         />
@@ -428,7 +430,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <Screenshot
           name="search-commentaries"
           width={1152}
-          height={2674}
+          height={1631}
           alt="Commentary search results for love, best matches first, with the search options open"
           caption="Searching the commentaries for “love”: 7,695 notes, best matches first."
         />
@@ -816,12 +818,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           verse, its reference and its picture are links to the verse on the site, and its text message carries the
           link.
         </p>
+        <Screenshot
+          name="verse-of-the-day"
+          width={1152}
+          height={1080}
+          alt="Verse of the day: a Bible verse written over a photograph, with Download the picture, Show another and Read it in the Bible"
+          caption="Verse of the day (Today in the menu): a new verse over a photograph each time."
+        />
         <p>
           <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}
           <em>My account</em>, and choose a time of day and your time zone. Each day at that time (within five minutes)
           you get one Bible verse from the Berean Standard Bible, chosen at random from about 1,500 of the best-known
           verses and never the same two days running, with a link to read it in context. It comes by email, by text
-          or both, as you chose (see below). It starts once your email address is confirmed. To stop it, untick the box on My
+          or both, as you chose (see below). It starts once your email address (or, if you log in with your phone, your
+          phone number) is confirmed. To stop it, untick the box on My
           account and press <em>Save</em>, or use the link at the foot of any of its emails.
         </p>
         <p>
@@ -842,12 +852,22 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           <strong>Text messages.</strong> <em>Send via SMS</em> can be ticked only once you give a US or Canadian
           phone number (it is written as +1 (555) 123-4567 as you type) and tick <em>This is a cell (mobile)
           number</em>; until then it is greyed out. You get a welcome text to confirm. A text is short, with a link to
-          the full reading, verse, list or reply. Texts need a confirmed email address. Your mobile carrier may charge
+          the full reading, verse, list or reply. Texts need a confirmed email address (or a confirmed phone number, for
+          an account set up with one). Your mobile carrier may charge
           for texts (message and data rates may apply). Reply <strong>STOP</strong> to any text to end them
           (<strong>START</strong> turns them back on), or <strong>HELP</strong> for help; or untick{' '}
           <em>Send via SMS</em> on My account. If you chose texts only and they stop (you replied STOP), your messages
           come by email until you turn texts back on, so you miss nothing. The emails about your account (confirming
-          your address, a password reset) always come by email and are never texted.
+          your address, a password reset) always come by email and are never texted, except for an account set up with
+          a phone number, whose code and reset link are texted.
+        </p>
+        <p>
+          <strong>Messages from a group.</strong> A deacon or other leader may add you to a group on the site. Its
+          messages, verse cards and picture messages come the way you chose above. Each email shows only the
+          leader&rsquo;s address, never the other members&rsquo;, and a reply goes to the leader. At its foot, a link
+          stops everything from that group. Emails the leader has scheduled (such as every first Monday) have two more
+          links: one stops just that scheduled email, the other all of the group&rsquo;s scheduled emails; with either
+          you stay in the group and still get what the leader sends. Ask the leader if you want them back.
         </p>
       </section>
 
@@ -897,6 +917,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           of the search, including those on other pages or behind <em>Show more</em> (up to 200 at a time); in Search
           everything it ticks the results of every section.
         </p>
+        <Screenshot
+          name="list-save"
+          width={1152}
+          height={1000}
+          alt="Bible search results for comfort with three ticked, and the box under them: Save in A new list, the name Comfort verses, Save and Cancel"
+          caption="Three verses ticked and a new list named, ready to save."
+        />
         <p>
           <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (at the top of the page, beside My notes)
           shows your lists. Choose one to see its entries as the search showed them (the search is not run again), each
@@ -905,6 +932,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           first). <em>Copy to notes</em> puts the whole list into one note, on its first verse, commentary note or
           reading, so you can add your own thoughts to it in My notes. Your lists are yours alone.
         </p>
+        <Screenshot
+          name="my-lists"
+          width={1152}
+          height={1000}
+          alt="My lists with the list Comfort verses open: its three verses, each with Read in the Bible and Remove from the list, and Rename, Delete the list and Copy to notes"
+          caption="My lists, with a list open."
+        />
       </section>
 
       <section id="help-conversations" tabIndex={-1} className="help-section">
