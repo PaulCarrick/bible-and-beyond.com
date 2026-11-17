@@ -134,22 +134,44 @@
     }
 
     // Saves the zip waiting on the server into the folder (or downloads it), then deletes it on the server.
+    // Chrome counts a file written into a folder against the storage it allows this site, not the free disk, so a
+    // big backup can be refused there ("QuotaExceededError"; the owner met it on 2026-11-17 with 50 GB free): then
+    // the half-written file is removed and the zip is downloaded the ordinary way instead.
     async function save(waiting, folder) {
       const url = `${settings.pageUrl}/download/${encodeURIComponent(waiting.name)}`;
       if (!folder) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = waiting.name;
-        document.body.append(link);
-        link.click();
-        link.remove();
-        show(
-          Drupal.t('@name (@size) is being downloaded. Once it has finished, delete the copy on the server.', { '@name': waiting.name, '@size': size(waiting.size) }),
-          'status',
-          [[Drupal.t('Delete the copy on the server'), discard]],
-        );
+        download(waiting, url, '');
         return;
       }
+      try {
+        await saveToFolder(waiting, folder, url);
+      }
+      catch (error) {
+        if (!error || error.name !== 'QuotaExceededError') {
+          throw error;
+        }
+        await folder.removeEntry(waiting.name).catch(() => {});
+        showProgress(null);
+        download(waiting, url, Drupal.t('Chrome would not save it into that folder: it is bigger than the storage Chrome allows this site (this has nothing to do with your free disk space).') + ' ');
+      }
+    }
+
+    // The ordinary browser download (to the Downloads folder); the copy on the server stays until it is deleted.
+    function download(waiting, url, reason) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = waiting.name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      show(
+        reason + Drupal.t('@name (@size) is being downloaded. Once it has finished, delete the copy on the server.', { '@name': waiting.name, '@size': size(waiting.size) }),
+        'status',
+        [[Drupal.t('Delete the copy on the server'), discard]],
+      );
+    }
+
+    async function saveToFolder(waiting, folder, url) {
       const response = await fetch(url, { credentials: 'same-origin' });
       if (!response.ok) {
         throw new Error(Drupal.t('The backup could not be fetched from the server.'));
@@ -347,6 +369,8 @@
                   setBusy(false);
                 }
               }],
+              // The ordinary download, for when saving into a folder does not work (2026-11-17).
+              [Drupal.t('Download it instead'), () => save(answer.waiting, null)],
               [Drupal.t('Delete it from the server'), discard],
             ],
           );

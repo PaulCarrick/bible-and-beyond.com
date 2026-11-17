@@ -316,6 +316,12 @@ sections:
       settings, Drupal's own database and the service keys) and <em>Files</em> (the song files, maps, pictures and
       Drupal's uploads). The zip holds members' details and the keys: keep it private.</p>
       <figure><img data-guide="backup" alt="Backup and restore: what to include, a note, Back up to a folder, and Restore from a backup zip"><figcaption>Backup and restore.</figcaption></figure>
+      <p><strong>Back up to a folder…</strong> builds the zip on the server, then asks for a folder and saves it
+      there (in Chrome and Edge; other browsers download it to your Downloads folder). A big backup can be too large
+      for Chrome to write into a folder, as Chrome limits how much each website may store whatever your free disk
+      space; the page then downloads it the ordinary way instead and says so. If a backup is left waiting on the
+      server (say the page was closed), the page offers <em>Save it to a folder…</em>, <em>Download it
+      instead</em> or <em>Delete it from the server</em>. Delete the server's copy once you have it.</p>
       <p><strong>Back up</strong>: add a note if you like (such as "Before the move"), then <em>Back up to a
       folder</em>. Chrome and Edge let you choose the folder; other browsers download the zip.</p>
       <p><strong>Restore</strong> replaces what is here with the backup: anything added since is lost, and you then
