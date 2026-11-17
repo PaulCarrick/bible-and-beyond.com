@@ -404,11 +404,11 @@ def preview_picture(text: str) -> dict:
 
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
-  personal: bool = False, html: str | None = None, test: bool = False, schedule: dict | None = None,
+  personal: bool = False, html: str | None = None, schedule: dict | None = None,
 ) -> EmailMessage:
   """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
-  it went to; with test, a test for the leader instead, send_test). personal: a message to that one member
+  it went to). personal: a message to that one member
   (email_member), said so at the foot. html: the message
   as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot.
   schedule ({id, label}): a scheduled email (group_schedules.send_due). Its foot has two more stop links, for this
@@ -445,8 +445,6 @@ def compose_email(
       lines.append("You stay in the group, and still get the messages your leader sends.")
     links.append(site_link("unsubscribe=" + token))
     lines.append(f"To stop all messages from this group, open: {links[-1]}" if schedule else f"To stop messages from this group, open: {links[-1]}")
-  elif test:
-    lines.append("This is a test for the group's leader only: no member got it. Members get it at its time, each with their own stop link here.")
   else:
     lines.append(f"This is your copy as the group's leader: it went to {reached} member{'s' if reached != 1 else ''}, each as a hidden recipient.")
   email.set_content("\n".join(lines) + "\n")
@@ -567,18 +565,21 @@ def send(
   return counts
 
 
-def send_test(group_id: int, kind: str, details: dict) -> dict:
+def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = None) -> dict:
   """A test of a message (a scheduled email's "Send a test", group_schedules.send_test; added 2026-11-17 at the
-  owner's request): the same email the members would get, sent **only to the group's leader** (their Drupal
-  address, the group's Reply-To), subject "[Test] ...", marked as a test at the foot. Email only (no texts), not
-  recorded in the Sent table. Returns the address it went to."""
+  owner's request), sent **only to the group's leader** (their Drupal address, the group's Reply-To). It is
+  **exactly** what a member gets (the owner's request: "I want to see EXACTLY what the users will see"): the same
+  subject, words and foot, with schedule ({id, label}) its scheduled-email stop links, and the one-click header.
+  The links carry a made-up member code that matches nobody, so they look like a member's
+  but stop nothing. Email only (no texts), not recorded in the Sent table. Returns the address it went to."""
   group = get_group(group_id)
   if not group["owner_email"]:
     raise GroupProblem("The group's leader has no email address: set one on their Drupal account first.")
   subject, text, verse, card, _words, _link = _prepare(group, kind, details)
   try:
     settings = load_mail_settings()
-    email = compose_email(settings, group, None, "[Test] " + subject, text, verse, card, test=True)
+    # A code shaped like a member's stop_token that belongs to no one (the stop page says "not valid").
+    email = compose_email(settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule)
     send_email(settings, email, [group["owner_email"]])
   except MailUnavailable as problem:
     raise GroupProblem(f"The test could not be sent: {problem}") from problem

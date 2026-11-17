@@ -169,10 +169,32 @@ def test_a_test_goes_to_the_leader_only_and_leaves_the_schedule_alone(monkeypatc
   # One email, to the leader alone: no member, no text.
   assert [recipients for recipients, _ in delivered] == [["dave@example.org"]] and texts == []
   email = delivered[0][1]
-  assert email["Subject"] == "[Test] Prayer meeting" and email["To"] == "dave@example.org"
-  content = email.get_content()
-  assert "no member got it" in content and "?unsubscribe=" not in content and email["List-Unsubscribe"] is None
+  # Exactly what a member gets (the owner's request): the same subject and the same foot with all the stop links
+  # and the one-click header, but with a made-up member code that matches nobody.
+  delivered.clear()
+  with connect() as connection:
+    connection.execute("UPDATE group_schedules SET next_run_at = %s WHERE id = %s", (NOW, schedule["id"]))
+    tokens = [row[0] for row in connection.execute("SELECT stop_token FROM group_members WHERE group_id = %s", (group["id"],))]
+  group_schedules.send_due(NOW + timedelta(minutes=1), pause=0)
+  member_copy = next(sent for recipients, sent in delivered if recipients == ["pat@example.org"])
+  pat_token = next(token for token in tokens if token in member_copy["List-Unsubscribe"])
+  fake = email["List-Unsubscribe"].split("token=")[1].split(".s")[0]
+  assert fake not in tokens and len(fake) == len(pat_token)
+  assert email["Subject"] == member_copy["Subject"] == "Prayer meeting" and email["To"] == "dave@example.org"
+  assert email.get_content().replace(fake, "CODE") == member_copy.get_content().replace(pat_token, "CODE")
+  assert email["List-Unsubscribe"].replace(fake, "CODE") == member_copy["List-Unsubscribe"].replace(pat_token, "CODE")
+  assert "To stop this scheduled email (“Prayer meeting”)" in email.get_content()
   assert "pat@example.org" not in email.as_string() and "sam@example.org" not in email.as_string()
+  # Its links stop nothing.
+  from subscriptions import SubscriptionProblem, unsubscribe_with_token
+
+  for suffix in (f".s{schedule['id']}", ".sall", ""):
+    with pytest.raises(SubscriptionProblem):
+      unsubscribe_with_token(fake + suffix)
+  with connect() as connection:
+    connection.execute("UPDATE group_schedules SET next_run_at = %s, last_run_at = %s, last_result = %s WHERE id = %s",
+                       (before["next_run_at"], before["last_run_at"], before["last_result"], schedule["id"]))
+    connection.execute("DELETE FROM group_messages WHERE group_id = %s", (group["id"],))
   # The schedule and the Sent table are as they were.
   assert group_schedules.get_schedule(group["id"], schedule["id"]) == before and groups.list_sent(group["id"]) == []
 
@@ -181,7 +203,7 @@ def test_a_test_goes_to_the_leader_only_and_leaves_the_schedule_alone(monkeypatc
   verse = group_schedules.add_schedule(group["id"], {"kind": "verse", "repeat": "weekly", "weekday": 0, "send_time": "09:00", "timezone": "America/Chicago"}, "dave", now=NOW)
   group_schedules.send_test(group["id"], verse["id"])
   email = delivered[0][1]
-  assert email["Subject"].startswith("[Test] A verse for Care list: ") and [part for part in email.walk() if part.get_content_type() == "image/jpeg"]
+  assert email["Subject"].startswith("A verse for Care list: ") and ".sall" in email.get_body(("plain",)).get_content() and [part for part in email.walk() if part.get_content_type() == "image/jpeg"]
 
   # Refused: a group whose leader has no address, and a schedule of another group.
   groups.save_group(group["id"], {"name": "Care list"}, OWNER, "Deacon Dave", "")

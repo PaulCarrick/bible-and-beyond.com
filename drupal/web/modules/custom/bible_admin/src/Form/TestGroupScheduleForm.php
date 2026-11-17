@@ -13,8 +13,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * "Send a test" of a group's scheduled email (added 2026-11-17 at the owner's request): sends it now to the
- * group's leader only, so they can check it (group_schedules.send_test). No member gets it, and the schedule's
- * next time is not changed.
+ * group's leader only, exactly as a member gets it (stop links included, with a code that matches nobody), so
+ * they can check it (group_schedules.send_test). No member gets it, and the schedule's next time is not changed.
  */
 class TestGroupScheduleForm extends ConfirmFormBase {
 
@@ -64,7 +64,7 @@ class TestGroupScheduleForm extends ConfirmFormBase {
   }
 
   public function getDescription() {
-    $description = $this->t('It goes now, by email, only to the group\'s leader (@address), marked as a test. No member gets it, and it still goes to the group at its time (@when).', [
+    $description = $this->t('It goes now, by email, only to the group\'s leader (@address), exactly as each member will get it: the same subject, words and stop links. The links in the test belong to no one, so they stop nothing. No member gets it, and it still goes to the group at its time (@when).', [
       '@address' => ($this->group['owner_email'] ?? '') ?: $this->t('no address'),
       '@when' => $this->schedule['description'] ?? '',
     ]);

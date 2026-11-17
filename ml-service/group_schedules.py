@@ -273,10 +273,10 @@ def _details_for(schedule: dict) -> dict:
 
 def send_test(group_id: int, schedule_id: int) -> dict:
   """"Send a test" on a scheduled email: what it would send now (a verse card or picture made afresh, as at its
-  time), to the group's leader only (groups.send_test). The schedule is not changed: its next time, last time and
+  time), to the group's leader only, exactly as a member gets it, stop links included (groups.send_test). The schedule is not changed: its next time, last time and
   result stay. Returns {"to": the leader's address, "schedule": the schedule}."""
   schedule = _get(schedule_id, group_id)
-  sent = groups.send_test(group_id, schedule["kind"], _details_for(schedule))
+  sent = groups.send_test(group_id, schedule["kind"], _details_for(schedule), schedule={"id": schedule["id"], "label": label(schedule)})
   return {"to": sent["to"], "schedule": _public(schedule)}
 
 

@@ -193,9 +193,10 @@ sections:
       <em>Scheduled</em> table shows when each goes next and how the last one went, with <em>Edit</em> and
       <em>Remove</em>. A one-time email shows <em>Done</em> once it has gone.</p>
       <p><strong>Send a test</strong> (in the same menu, after <em>Remove</em>) emails it now to the group's leader
-      only, so you can see how it looks. Its subject starts with "[Test]" and it says no member got it. Members get
-      nothing, nothing is texted, and it still goes to the group at its time. A verse card or picture message is
-      chosen at random each time, so the test shows one example.</p>
+      only, so you can see how it looks. It is exactly what each member gets: the same subject, words and stop links
+      at the foot (the links in your test belong to no one, so they stop nothing). Members get nothing, nothing is
+      texted, and it still goes to the group at its time. A verse card or picture message is chosen at random each
+      time, so the test shows one example.</p>
       <p><strong>Stopping a scheduled email</strong>: each scheduled email has two more links at its foot, besides the
       one that stops everything from the group. <em>Stop this scheduled email</em> stops only that one for that
       person; <em>Stop all scheduled emails from this group</em> stops every scheduled email of this group for them,
