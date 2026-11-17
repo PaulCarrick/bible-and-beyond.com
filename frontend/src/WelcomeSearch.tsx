@@ -6,6 +6,7 @@ import { searchEverything } from './api'
 import type { SiteSearchGroup, SiteSearchKind, SiteSearchResult } from './api'
 import { highlight, renderExcerpt } from './highlight'
 import { siteItem } from './listItems'
+import type { ListItem } from './listItems'
 import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
 import ListTick from './ListTick'
@@ -312,6 +313,32 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpen
       )}
       {searched?.matchMode === 'archive' && <ArchiveResults query={searched.query} kind="texts" searchId={archiveSearchId} />}
       {searched && searched.matchMode !== 'archive' && !isSearching && groups.length === 0 && !errorMessage && <p>Nothing was found.</p>}
+      {searched && groups.length > 0 && (
+        // One for the whole search (the owner's wish, 2026-11-17): every hit of every group, behind Show more too,
+        // group after group in the order shown (the server gives 25 at a time).
+        <ListSelectAll
+          picks={listPicks}
+          total={groups.reduce((sum, group) => sum + group.total, 0)}
+          searchKey={JSON.stringify(searched)}
+          fetchAll={async (limit) => {
+            const items: ListItem[] = []
+            for (const group of groups) {
+              if (items.length >= limit) {
+                break
+              }
+              const results: SiteSearchResult[] = await collectPages(
+                (page) =>
+                  searchEverything({ ...searched, kind: group.kind, page, perPage: 25 }, new AbortController().signal).then(
+                    (found) => found.groups[0] ?? { results: [], total: 0 },
+                  ),
+                limit - items.length,
+              )
+              items.push(...results.map((result) => siteItem(result, group.kind)))
+            }
+            return items
+          }}
+        />
+      )}
       {groups.map((group) => (
         <div key={group.kind} className={`welcome-search-group${isSearching ? ' is-loading' : ''}`}>
           <h3>
@@ -319,23 +346,6 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpen
             {group.kind === 'bible' && group.translation ? ` (${group.translation})` : ''}
             <span className="welcome-search-count"> · {countLabel(group.kind, group.total)}</span>
           </h3>
-          {searched && (
-            // One for each group: every hit of this kind, behind Show more too (the server gives 25 at a time).
-            <ListSelectAll
-              picks={listPicks}
-              total={group.total}
-              searchKey={JSON.stringify({ ...searched, kind: group.kind })}
-              fetchAll={(limit) =>
-                collectPages(
-                  (page) =>
-                    searchEverything({ ...searched, kind: group.kind, page, perPage: 25 }, new AbortController().signal).then(
-                      (found) => found.groups[0] ?? { results: [], total: 0 },
-                    ),
-                  limit,
-                ).then((results) => results.map((result) => siteItem(result, group.kind)))
-              }
-            />
-          )}
           <ul className="result-list book-results">
             {group.results.map((result, index) => {
               const hit = renderHit(group, result)

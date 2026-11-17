@@ -864,7 +864,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           name, or choose one of your lists to add to, and press <em>Save</em> (<em>Cancel</em> clears the ticks). An
           entry already in the list is not added twice. <em>Select all</em>, above the checkboxes, ticks every result
           of the search, including those on other pages or behind <em>Show more</em> (up to 200 at a time); in Search
-          everything each group has its own.
+          everything it ticks the results of every section.
         </p>
         <p>
           <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (at the top of the page, beside My notes)
