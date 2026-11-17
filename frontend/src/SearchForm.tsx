@@ -146,58 +146,60 @@ function SearchForm({
         </button>
       </div>
 
+      {/* The Match select (with "Use AI") is always shown, not inside the collapsed Search Options. */}
+      <div className="book-search-options">
+        <select
+          aria-label="Match mode"
+          value={effectiveMatchMode}
+          disabled={onlyLicensed && !isCommentarySearch}
+          onChange={(event) => setMatchMode(event.target.value as SearchMatchMode)}
+        >
+          <option value="all">Match ALL words</option>
+          <option value="any">Match ANY word</option>
+          <option value="phrase">Match exact phrase</option>
+          {canUseAi && (
+            <option value="ai">{isCommentarySearch ? 'Use AI to find related notes' : 'Use AI to find related verses'}</option>
+          )}
+          <option value="archive">Search the Internet Archive</option>
+        </select>
+      </div>
+      {isArchiveSearch && (
+        <p className="option-note">
+          Searches inside the books and documents of the Internet Archive (archive.org), including its lending library
+          of books still under copyright, which anyone can borrow free for an hour with an Archive account. The
+          results open on archive.org; the other options do not apply.
+        </p>
+      )}
+      {isAiSearch && isCommentarySearch && (
+        <p className="option-note">
+          AI finds the notes closest in meaning to what you type, even when they use other words (the
+          beatitudes finds notes on &ldquo;Blessed are the poor in spirit&rdquo;). Up to 50 notes, closest
+          first. It can be wrong, so read each note.
+        </p>
+      )}
+      {isAiSearch && !isCommentarySearch && (
+        <p className="option-note">
+          An AI (Google's Gemini) suggests up to 30 verses related to what you type, and they are listed from
+          the Bibles on this site, in Bible order. The AI can be wrong, so read each verse in context. The
+          licensed Bibles (NIV, NASB, The Message) are not searched this way.
+        </p>
+      )}
+
       {children}
 
       <details className="search-options">
         <summary>Search Options</summary>
         <div className="options-body">
-          <div className="form-row">
-            <select
-              aria-label="Match mode"
-              value={effectiveMatchMode}
-              disabled={onlyLicensed && !isCommentarySearch}
-              onChange={(event) => setMatchMode(event.target.value as SearchMatchMode)}
-            >
-              <option value="all">Match ALL words</option>
-              <option value="any">Match ANY word</option>
-              <option value="phrase">Match exact phrase</option>
-              {canUseAi && (
-                <option value="ai">{isCommentarySearch ? 'Use AI to find related notes' : 'Use AI to find related verses'}</option>
-              )}
-              <option value="archive">Search the Internet Archive</option>
-            </select>
-            {!isCommentarySearch && (
-              <label className="inline-label">
-                <input
-                  type="checkbox"
-                  checked={wholeWords && !onlyLicensed && !isAiSearch && !isArchiveSearch}
-                  disabled={onlyLicensed || isAiSearch || isArchiveSearch}
-                  onChange={(event) => setWholeWords(event.target.checked)}
-                />
-                Match whole words only
-              </label>
-            )}
-          </div>
-          {isArchiveSearch && (
-            <p className="option-note">
-              Searches inside the books and documents of the Internet Archive (archive.org), including its lending library
-              of books still under copyright, which anyone can borrow free for an hour with an Archive account. The
-              results open on archive.org; the other options here do not apply.
-            </p>
-          )}
-          {isAiSearch && isCommentarySearch && (
-            <p className="option-note">
-              AI finds the notes closest in meaning to what you type, even when they use other words (the
-              beatitudes finds notes on &ldquo;Blessed are the poor in spirit&rdquo;). Up to 50 notes, closest
-              first. It can be wrong, so read each note.
-            </p>
-          )}
-          {isAiSearch && !isCommentarySearch && (
-            <p className="option-note">
-              An AI (Google's Gemini) suggests up to 30 verses related to what you type, and they are listed from
-              the Bibles on this site, in Bible order. The AI can be wrong, so read each verse in context. The
-              licensed Bibles (NIV, NASB, The Message) are not searched this way.
-            </p>
+          {!isCommentarySearch && (
+            <label className="inline-label">
+              <input
+                type="checkbox"
+                checked={wholeWords && !onlyLicensed && !isAiSearch && !isArchiveSearch}
+                disabled={onlyLicensed || isAiSearch || isArchiveSearch}
+                onChange={(event) => setWholeWords(event.target.checked)}
+              />
+              Match whole words only
+            </label>
           )}
           {isCommentarySearch && !isAiSearch && (
             <p className="option-note">

@@ -320,12 +320,26 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           picture (the words over a photograph, as on <em>Verse of the day</em>) to share. Click the <em>Verse</em> or <em>Contents</em> heading
           of the list to sort the results by it, and <em>Clear Sort</em> to go back to Bible order.
         </p>
-        <p>Open <strong>Search Options</strong> under the results to change how and where the search looks:</p>
+        <p>The list under the search box chooses how your words are matched:</p>
         <ul className="welcome-tips">
           <li>
             <strong>Match ALL words, ANY word or the exact phrase.</strong> A phrase in quotation marks is kept
             together.
           </li>
+          <li>
+            <strong>Use AI to find related verses.</strong> For accounts that may ask their own FAQ questions (see the
+            FAQ section below for how to ask for it), this extra choice has an AI (Google&rsquo;s Gemini) suggest up to
+            30 verses about what you describe, such as &ldquo;comfort when someone has died&rdquo;, and lists them from
+            the Bibles on this site in Bible order. The AI can be wrong, so read each verse in context. Up to 50 new AI
+            searches a day; the licensed Bibles are not searched this way.
+          </li>
+          <li>
+            <strong>Search the Internet Archive.</strong> Searches the books and documents of the Internet Archive
+            instead (see Search everything above).
+          </li>
+        </ul>
+        <p>Open <strong>Search Options</strong> under the results to change where the search looks:</p>
+        <ul className="welcome-tips">
           <li>
             <strong>Match whole words only.</strong> Without it, &ldquo;love&rdquo; also finds &ldquo;beloved&rdquo; and
             &ldquo;loved&rdquo;.
@@ -361,28 +375,28 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <Screenshot
           name="bible-search"
           width={1152}
-          height={1900}
+          height={2138}
           alt="Search results for love in the BSB, with the search options open"
           caption="“love” searched in the Berean Standard Bible, with the Search Options open."
         />
         <p>
           <strong>Searching with AI.</strong> If your account may ask its own FAQ questions, choose <em>Use AI to find
-          related verses</em> in Search Options, describe what you are looking for in your own words, and press{' '}
+          related verses</em> in the list under the search box (no need to open Search Options), describe what you are looking for in your own words, and press{' '}
           <em>Find verses with AI</em>. The verses it suggests are listed like any search, with all the same links.
         </p>
         <Screenshot
           name="ai-search-results"
           width={1152}
           height={860}
-          alt="AI search results for forgiving someone who hurt me, starting with Genesis 50:20 and verses from Proverbs"
+          alt="AI search results for forgiving someone who hurt me, with the AI choice under the search box and Genesis 50:17 first"
           caption="An AI search for “forgiving someone who hurt me”: 30 verses suggested by Gemini, listed in Bible order with their links."
         />
         <Screenshot
           name="ai-search-options"
           width={1152}
-          height={860}
-          alt="Search Options with Use AI to find related verses chosen, its explanation, and the filters by book"
-          caption="Use AI to find related verses, chosen in Search Options (shown only to accounts it has been turned on for)."
+          height={600}
+          alt="The Match list under the search box, opened, with Use AI to find related verses chosen and its explanation below"
+          caption="Use AI to find related verses, chosen in the list under the search box (shown only to accounts it has been turned on for)."
         />
       </section>
 
@@ -414,7 +428,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         <Screenshot
           name="search-commentaries"
           width={1152}
-          height={1631}
+          height={2674}
           alt="Commentary search results for love, best matches first, with the search options open"
           caption="Searching the commentaries for “love”: 7,695 notes, best matches first."
         />
