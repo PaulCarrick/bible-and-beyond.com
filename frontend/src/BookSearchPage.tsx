@@ -6,9 +6,10 @@ import { searchOtherBooks } from './api'
 import type { BookSearchOptions, BookSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
 import { bookItem } from './listItems'
-import { useListPicks } from './listPicks'
+import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
 import ListTick from './ListTick'
+import ListSelectAll from './ListSelectAll'
 import type { DevotionalInfo } from './types'
 
 interface BookSearchPageProps {
@@ -187,6 +188,18 @@ function BookSearchPage({ books, isHidden, onOpen }: BookSearchPageProps) {
                 ? 'Nothing was found.'
                 : `${response.total.toLocaleString()} ${response.total === 1 ? 'passage' : 'passages'} found`}
             </p>
+            {shown && (
+              <ListSelectAll
+                picks={listPicks}
+                total={response.total}
+                searchKey={JSON.stringify({ ...shown, page: 0 })}
+                fetchAll={(limit) =>
+                  collectPages((page) => searchOtherBooks({ ...shown, page, perPage: 100 }, new AbortController().signal), limit).then((results) =>
+                    results.map((result) => bookItem(result, 'book')),
+                  )
+                }
+              />
+            )}
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
                 <li

@@ -7,8 +7,9 @@ import type { MusicSearchResponse, Playlist } from './api'
 import { renderExcerpt } from './highlight'
 import PlaylistSaveBox from './PlaylistSaveBox'
 import { songItem } from './listItems'
-import { useListPicks } from './listPicks'
+import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
+import ListSelectAll from './ListSelectAll'
 
 interface MusicSearchPageProps {
   isHidden: boolean
@@ -206,6 +207,21 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
               {response.total === 0 ? 'Nothing was found.' : `${response.total.toLocaleString()} ${response.total === 1 ? 'song' : 'songs'} found`}
             </p>
             {user && response.results.length > 0 && <p className="music-tick-heading">Tick songs for a playlist or a list</p>}
+            {shown && (
+              <ListSelectAll
+                picks={listPicks}
+                total={response.total}
+                searchKey={JSON.stringify({ ...shown, page: 0 })}
+                fetchAll={(limit) =>
+                  collectPages((page) => searchMusic({ ...shown, page, perPage: 100 }, new AbortController().signal), limit).then((results) => results.map(songItem))
+                }
+                // The same songs are ticked (or unticked) for a playlist too.
+                onChange={(items, isTicked) => {
+                  const ids = items.map((item) => item.target.song ?? '')
+                  setTickedIds((current) => (isTicked ? [...current, ...ids.filter((id) => !current.includes(id))] : current.filter((id) => !ids.includes(id))))
+                }}
+              />
+            )}
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
                 <li key={result.id} className={user ? 'result book-result music-search-result' : 'result book-result'}>

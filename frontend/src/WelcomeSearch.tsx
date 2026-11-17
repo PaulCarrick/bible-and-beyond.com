@@ -6,9 +6,10 @@ import { searchEverything } from './api'
 import type { SiteSearchGroup, SiteSearchKind, SiteSearchResult } from './api'
 import { highlight, renderExcerpt } from './highlight'
 import { siteItem } from './listItems'
-import { useListPicks } from './listPicks'
+import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
 import ListTick from './ListTick'
+import ListSelectAll from './ListSelectAll'
 import type { Destination } from './types'
 import { verseButtonProps } from './verseAddress'
 import type { View } from './views'
@@ -318,6 +319,23 @@ function WelcomeSearch({ isHidden, isPage, onOpen, onOpenSong, onOpenFaq, onOpen
             {group.kind === 'bible' && group.translation ? ` (${group.translation})` : ''}
             <span className="welcome-search-count"> · {countLabel(group.kind, group.total)}</span>
           </h3>
+          {searched && (
+            // One for each group: every hit of this kind, behind Show more too (the server gives 25 at a time).
+            <ListSelectAll
+              picks={listPicks}
+              total={group.total}
+              searchKey={JSON.stringify({ ...searched, kind: group.kind })}
+              fetchAll={(limit) =>
+                collectPages(
+                  (page) =>
+                    searchEverything({ ...searched, kind: group.kind, page, perPage: 25 }, new AbortController().signal).then(
+                      (found) => found.groups[0] ?? { results: [], total: 0 },
+                    ),
+                  limit,
+                ).then((results) => results.map((result) => siteItem(result, group.kind)))
+              }
+            />
+          )}
           <ul className="result-list book-results">
             {group.results.map((result, index) => {
               const hit = renderHit(group, result)

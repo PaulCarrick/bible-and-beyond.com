@@ -3,9 +3,11 @@ import type { ReactNode } from 'react'
 import ContextWindow from './ContextWindow'
 import DownloadCardButton from './DownloadCardButton'
 import { bibleItem, commentaryItem } from './listItems'
-import { useListPicks } from './listPicks'
+import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
 import ListTick from './ListTick'
+import ListSelectAll from './ListSelectAll'
+import { searchBible, searchCommentaries } from './api'
 import { reportView } from './fums'
 import { highlight, renderExcerpt } from './highlight'
 import { useVerseWindows } from './useVerseWindows'
@@ -157,6 +159,15 @@ function SearchResults({
   // Bible's (its text must not be kept).
   const listPicks = useListPicks()
   const canPick = response?.source === 'local' || response?.source === 'commentary'
+  // Select all fetches every page of the search shown (an AI search's later pages come from the cache, uncounted).
+  const listSearchKey = JSON.stringify({ mode, search: { ...searchParameters, perPage: null }, selectedBook })
+  function fetchAllForList(limit: number) {
+    const search = mode === 'commentary' ? searchCommentaries : searchBible
+    const signal = new AbortController().signal
+    return collectPages((page) => search(searchParameters, page, selectedBook, maximumPerPage, signal), limit).then((results) =>
+      results.map((result) => (mode === 'commentary' ? commentaryItem(result) : bibleItem(result))),
+    )
+  }
   const showContext = windows.isShowing
   const currentView = windows.currentView
 
@@ -349,6 +360,9 @@ function SearchResults({
             </div>
           )}
 
+          {canPick && response && (
+            <ListSelectAll picks={listPicks} total={response.total} searchKey={listSearchKey} fetchAll={fetchAllForList} />
+          )}
           <ol ref={listReference} className={isLoading ? 'result-list is-loading' : 'result-list'}>
             {response?.results.map((result) => (
               <li

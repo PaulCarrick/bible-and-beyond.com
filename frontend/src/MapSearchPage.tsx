@@ -5,9 +5,10 @@ import { mapFileAddress, searchMaps } from './api'
 import type { MapSearchResponse } from './api'
 import { renderExcerpt } from './highlight'
 import { mapItem } from './listItems'
-import { useListPicks } from './listPicks'
+import { collectPages, useListPicks } from './listPicks'
 import ListSaveBox from './ListSaveBox'
 import ListTick from './ListTick'
+import ListSelectAll from './ListSelectAll'
 import MapsCredit from './MapsCredit'
 
 interface MapSearchPageProps {
@@ -113,6 +114,16 @@ function MapSearchPage({ isHidden, onOpen }: MapSearchPageProps) {
             <p className="book-search-count">
               {response.total === 0 ? 'Nothing was found.' : `${response.total.toLocaleString()} ${response.total === 1 ? 'map' : 'maps'} found`}
             </p>
+            {shown && (
+              <ListSelectAll
+                picks={listPicks}
+                total={response.total}
+                searchKey={JSON.stringify({ ...shown, page: 0 })}
+                fetchAll={(limit) =>
+                  collectPages((page) => searchMaps({ ...shown, page, perPage: 100 }, new AbortController().signal), limit).then((results) => results.map(mapItem))
+                }
+              />
+            )}
             <ul className={`result-list book-results${isSearching ? ' is-loading' : ''}`}>
               {response.results.map((result) => (
                 <li key={result.id} className={listMember ? 'result book-result map-search-result has-list-tick' : 'result book-result map-search-result'}>

@@ -862,7 +862,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           media and the maps) has a checkbox at the right of each result. Tick the ones you want to keep, such as the
           verses for a lesson or a hard week; a box appears under the results. Choose <em>A new list</em> and give it a
           name, or choose one of your lists to add to, and press <em>Save</em> (<em>Cancel</em> clears the ticks). An
-          entry already in the list is not added twice.
+          entry already in the list is not added twice. <em>Select all</em>, above the checkboxes, ticks every result
+          of the search, including those on other pages or behind <em>Show more</em> (up to 200 at a time); in Search
+          everything each group has its own.
         </p>
         <p>
           <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (at the top of the page, beside My notes)
