@@ -193,6 +193,72 @@ def test_a_test_goes_to_the_leader_only_and_leaves_the_schedule_alone(monkeypatc
   assert len(delivered) == 1
 
 
+def test_a_scheduled_email_can_be_stopped_alone_or_all_without_leaving_the_group(outbox):
+  from fastapi.testclient import TestClient
+  from main import app
+
+  client = TestClient(app)
+  group = group_with_a_member()  # Pat
+  groups.add_member(group["id"], {"email": "sam@example.org", "name": "Sam"})
+  weekly = group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=0), "dave", now=NOW - timedelta(hours=1))
+  monthly = group_schedules.add_schedule(group["id"], message(repeat="monthly_day", day_of_month=16, subject="Monthly news"), "dave", now=NOW - timedelta(hours=1))
+  assert group_schedules.send_due(NOW + timedelta(minutes=1), pause=0)["sent"] == 2
+  # Each scheduled email carries its own stop links: this one, all scheduled ones, and everything from the group.
+  text = outbox["emails"][0].get_content()
+  assert "To stop this scheduled email (“Prayer meeting”), open: " in text or "To stop this scheduled email (“Monthly news”), open: " in text
+  assert "To stop all scheduled emails from this group, open: " in text and "To stop all messages from this group, open: " in text
+  assert "You stay in the group" in text
+
+  with connect() as connection:
+    tokens = dict(connection.execute("SELECT email, stop_token FROM group_members WHERE group_id = %s", (group["id"],)).fetchall())
+  # The one-click header of a scheduled email stops that scheduled email only.
+  headers = [email["List-Unsubscribe"] for email in outbox["emails"]]
+  assert f"token={tokens['pat@example.org']}.s{weekly['id']}>" in " ".join(headers)
+
+  # Pat stops the weekly one only (as the site's stop page does).
+  answer = client.post(f"/subscriptions/unsubscribe?token={tokens['pat@example.org']}.s{weekly['id']}")
+  assert answer.status_code == 200 and "Prayer meeting" in answer.json()["devotional"] and "stay in the group" in answer.json()["devotional"]
+  # Sam stops all the group's scheduled emails.
+  answer = client.post(f"/subscriptions/unsubscribe?token={tokens['sam@example.org']}.sall")
+  assert answer.status_code == 200 and "scheduled emails from the group “Care list”" in answer.json()["devotional"]
+
+  # Both are still members, and not stopped for what the leader sends by hand.
+  after = {member["email"]: member for member in groups.get_group(group["id"])["members"]}
+  assert set(after) == {"pat@example.org", "sam@example.org"} and not any(member["stopped"] for member in after.values())
+  assert after["pat@example.org"]["stopped_schedules"] == 1 and after["pat@example.org"]["schedules_stopped"] is False
+  assert after["sam@example.org"]["schedules_stopped"] is True
+  counts = {schedule["id"]: schedule["stopped_count"] for schedule in group_schedules.list_schedules(group["id"])}
+  assert counts == {weekly["id"]: 2, monthly["id"]: 1}
+
+  # Next week: the weekly one goes to nobody (both skipped); the monthly one (next month) only to Pat.
+  outbox["emails"].clear()
+  assert group_schedules.send_due(NOW + timedelta(days=7, minutes=1), pause=0)["sent"] == 1
+  assert outbox["emails"] == [] and group_schedules.get_schedule(group["id"], weekly["id"])["last_result"] == "0 emailed, 0 texted, 2 skipped"
+  later = datetime(2026, 12, 16, 15, 1, tzinfo=timezone.utc)
+  group_schedules.send_due(later, pause=0)
+  assert [email["Subject"] for email in outbox["emails"]] == ["Monthly news"]
+  assert tokens["pat@example.org"] in outbox["emails"][0]["List-Unsubscribe"]
+  # A scheduled email added later is stopped for Sam too.
+  outbox["emails"].clear()
+  group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=1, subject="New one"), "dave", now=later)
+  group_schedules.send_due(later + timedelta(days=6, minutes=10), pause=0)
+  assert [email["List-Unsubscribe"].count(tokens["pat@example.org"]) for email in outbox["emails"]] == [1]
+  # What the leader sends by hand still reaches both.
+  outbox["emails"].clear()
+  assert groups.send(group["id"], "message", {"subject": "By hand", "text": "Hi"}, "dave", pause=0)["emailed"] == 2
+  assert "To stop this scheduled email" not in outbox["emails"][0].get_content()
+
+  # Links that are not good: a schedule of another group, garbage, an unknown member.
+  other = groups.save_group(None, {"name": "Other"}, OWNER, "Deacon Dave", "dave@example.org")
+  other_schedule = group_schedules.add_schedule(other["id"], message(repeat="weekly", weekday=0), "dave", now=NOW)
+  for bad in (f"{tokens['pat@example.org']}.s{other_schedule['id']}", f"{tokens['pat@example.org']}.sx", "nobody-at-all-here.s1"):
+    assert client.post(f"/subscriptions/unsubscribe?token={bad}").status_code == 404
+  # Removing the schedule removes its stops.
+  group_schedules.remove_schedule(group["id"], weekly["id"])
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM group_schedule_stops WHERE schedule_id = %s", (weekly["id"],)).fetchone()[0] == 0
+
+
 def test_deleting_the_group_removes_its_schedules():
   group = group_with_a_member()
   group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=2), "dave", now=NOW)

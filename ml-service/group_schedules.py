@@ -135,12 +135,28 @@ def _public(schedule: dict) -> dict:
   }
 
 
+def label(schedule: dict) -> str:
+  """A scheduled email in a few words, for its stop link ("the verse card", or its subject)."""
+  return "the verse card" if schedule["kind"] == "verse" else f"“{schedule['subject']}”"
+
+
 def list_schedules(group_id: int) -> list[dict]:
+  """The group's schedules, each with how many members stopped it: itself, or all the group's scheduled emails
+  (stopped_count)."""
   with connect() as connection:
     rows = connection.execute(
       f"SELECT {COLUMNS} FROM group_schedules WHERE group_id = %s ORDER BY next_run_at NULLS LAST, id", (group_id,)
     ).fetchall()
-  return [_public(_row(row)) for row in rows]
+    stopped = dict(connection.execute(
+      """
+      SELECT s.id, count(m.id) FROM group_schedules s
+      JOIN group_members m ON m.group_id = s.group_id AND m.stopped_at IS NULL
+        AND (m.schedules_stopped_at IS NOT NULL OR EXISTS (SELECT 1 FROM group_schedule_stops t WHERE t.schedule_id = s.id AND t.member_id = m.id))
+      WHERE s.group_id = %s GROUP BY s.id
+      """,
+      (group_id,),
+    ).fetchall())
+  return [_public(_row(row)) | {"stopped_count": stopped.get(row[0], 0)} for row in rows]
 
 
 def _get(schedule_id: int, group_id: int) -> dict:
@@ -293,7 +309,10 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
         result["late"] += 1
       else:
         try:
-          counts = groups.send(schedule["group_id"], schedule["kind"], _details_for(schedule), f"schedule ({schedule['created_by']})", pause=pause)
+          counts = groups.send(
+            schedule["group_id"], schedule["kind"], _details_for(schedule), f"schedule ({schedule['created_by']})", pause=pause,
+            schedule={"id": schedule["id"], "label": label(schedule)},
+          )
           outcome = f"{counts['emailed']} emailed, {counts['texted']} texted" + (f", {counts['skipped']} skipped" if counts["skipped"] else "") + (f", {counts['failed']} failed" if counts["failed"] else "")
           result["sent"] += 1
         except Exception as problem:  # never stop the run

@@ -204,6 +204,10 @@ def unsubscribe_with_token(token: str) -> str:
       # verse_a_day, which imports this module.
       import groups
 
+      # A scheduled group email's own links (this scheduled email, or all of the group's): the member stays.
+      stopped = groups.stop_schedule_with_token(connection, token)
+      if stopped is not None:
+        return stopped
       group_name = groups.stop_with_token(connection, token)
       if group_name is not None:
         return f"messages from the group “{group_name}”"

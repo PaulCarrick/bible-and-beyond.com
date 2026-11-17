@@ -85,6 +85,14 @@ class GroupController extends ControllerBase {
         'picture' => $this->t('Picture message: @subject', ['@subject' => $schedule['subject']]),
         default => $this->t('Message: @subject', ['@subject' => $schedule['subject']]),
       };
+      // Members who stopped it with the links in a scheduled email (this one, or all the group's scheduled
+      // emails); they are still in the group (2026-11-17, the owner's request).
+      if (!empty($schedule['stopped_count'])) {
+        $what = $this->t('@what (@stopped)', [
+          '@what' => $what,
+          '@stopped' => $this->formatPlural($schedule['stopped_count'], '1 member stopped it', '@count members stopped it'),
+        ]);
+      }
       $rows[] = [
         ['data' => ['#plain_text' => $schedule['description']]],
         ['data' => ['#plain_text' => (string) $what]],
@@ -104,6 +112,23 @@ class GroupController extends ControllerBase {
       '#rows' => $rows,
       '#empty' => $this->t('Nothing scheduled. Use "Add a scheduled email" to send on a date, or every week or month.'),
     ];
+  }
+
+  /**
+   * How the group's messages reach a member, with the scheduled emails they stopped (they stay in the group).
+   */
+  private function receives(array $member): string {
+    $receives = $member['receives'];
+    if ($member['stopped']) {
+      return $receives;
+    }
+    if (!empty($member['schedules_stopped'])) {
+      return $receives . ' ' . $this->t('(no scheduled emails: they stopped them all)');
+    }
+    if (!empty($member['stopped_schedules'])) {
+      return $receives . ' ' . $this->formatPlural($member['stopped_schedules'], '(stopped 1 scheduled email)', '(stopped @count scheduled emails)');
+    }
+    return $receives;
   }
 
   public function title(string $group_id): string {
@@ -225,7 +250,7 @@ class GroupController extends ControllerBase {
         ['data' => $emailCell],
         ['data' => ['#plain_text' => $member['phone']]],
         ['data' => ['#plain_text' => (string) ($member['is_account'] ? $this->t('Site account') : $this->t('Contact'))]],
-        ['data' => ['#plain_text' => $member['receives']]],
+        ['data' => ['#plain_text' => $this->receives($member)]],
         ['data' => ['#type' => 'operations', '#links' => $links]],
       ];
     }

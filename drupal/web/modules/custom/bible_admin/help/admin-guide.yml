@@ -196,6 +196,13 @@ sections:
       only, so you can see how it looks. Its subject starts with "[Test]" and it says no member got it. Members get
       nothing, nothing is texted, and it still goes to the group at its time. A verse card or picture message is
       chosen at random each time, so the test shows one example.</p>
+      <p><strong>Stopping a scheduled email</strong>: each scheduled email has two more links at its foot, besides the
+      one that stops everything from the group. <em>Stop this scheduled email</em> stops only that one for that
+      person; <em>Stop all scheduled emails from this group</em> stops every scheduled email of this group for them,
+      including ones you add later. Neither takes them out of the group: they still get what you send by hand, and
+      other groups are not affected. The Scheduled table says how many members stopped each one, and the members
+      list says what each person stopped. To start someone's scheduled emails again, remove them and add them
+      back.</p>
       <figure><img data-guide="group-schedule" alt="Add a scheduled email: what to send, and When: repeat, which, day of the week, time and time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
       <h3>Changing the group or its leader</h3>
       <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a

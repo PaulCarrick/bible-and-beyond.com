@@ -170,7 +170,8 @@ MEMBER_COLUMNS = """
   CASE WHEN m.user_id IS NULL THEN m.name
        ELSE COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), m.name, '') END,
   COALESCE(u.email, m.email), CASE WHEN m.user_id IS NULL THEN m.phone ELSE COALESCE(u.phone, '') END,
-  u.email_verified_at IS NOT NULL
+  u.email_verified_at IS NOT NULL, m.schedules_stopped_at IS NOT NULL,
+  (SELECT count(*) FROM group_schedule_stops s WHERE s.member_id = m.id)
 """
 
 
@@ -200,6 +201,8 @@ def list_members(group_id: int) -> list[dict]:
         "id": row[0], "is_account": row[1] is not None, "user_id": row[1], "stopped": row[2] is not None,
         "confirmed": row[1] is None or bool(row[6]), "name": row[3], "email": row[4], "phone": row[5],
         "receives": _how(connection, row[1], row[6], row[2] is not None),
+        # Scheduled emails they stopped: all of them, or how many (stop_schedule_with_token).
+        "schedules_stopped": bool(row[7]), "stopped_schedules": row[8],
       }
       for row in rows
     ]
@@ -331,6 +334,43 @@ def stop_with_token(connection, token: str) -> str | None:
   return row[0] if row else None
 
 
+def schedule_stop_token(token: str, schedule_id) -> str:
+  """The token of a scheduled email's stop links: the member's stop_token (token_urlsafe, never a dot) with
+  ".s<schedule id>" (this scheduled email) or ".sall" (all the group's scheduled emails). The site's stop page and
+  the one-click endpoint pass it to subscriptions.unsubscribe_with_token like any other."""
+  return f"{token}.s{schedule_id}"
+
+
+def stop_schedule_with_token(connection, token: str) -> str | None:
+  """A scheduled email's stop link (schedule_stop_token): records that the member stopped that scheduled email
+  (group_schedule_stops) or all the group's scheduled emails (group_members.schedules_stopped_at). The member stays
+  in the group and still gets what the leader sends by hand. Returns what was stopped, in words, or None when the
+  token is not one of these."""
+  match = re.fullmatch(r"([A-Za-z0-9_-]{8,64})\.s(all|\d{1,9})", token or "")
+  if match is None:
+    return None
+  member = connection.execute(
+    "SELECT m.id, m.group_id, g.name FROM group_members m JOIN member_groups g ON g.id = m.group_id WHERE m.stop_token = %s",
+    (match[1],),
+  ).fetchone()
+  if member is None:
+    return None
+  member_id, group_id, group_name = member
+  if match[2] == "all":
+    connection.execute("UPDATE group_members SET schedules_stopped_at = COALESCE(schedules_stopped_at, now()) WHERE id = %s", (member_id,))
+    return f"the scheduled emails from the group “{group_name}” (you stay in the group)"
+  schedule = connection.execute(
+    "SELECT kind, subject FROM group_schedules WHERE id = %s AND group_id = %s", (int(match[2]), group_id)
+  ).fetchone()
+  if schedule is None:
+    return None
+  connection.execute(
+    "INSERT INTO group_schedule_stops (schedule_id, member_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (int(match[2]), member_id)
+  )
+  what = "verse card" if schedule[0] == "verse" else f"“{schedule[1]}”"
+  return f"the scheduled {what} from the group “{group_name}” (you stay in the group)"
+
+
 # --- previews ----------------------------------------------------------------------------------------------
 
 
@@ -364,13 +404,16 @@ def preview_picture(text: str) -> dict:
 
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
-  personal: bool = False, html: str | None = None, test: bool = False,
+  personal: bool = False, html: str | None = None, test: bool = False, schedule: dict | None = None,
 ) -> EmailMessage:
   """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
   it went to; with test, a test for the leader instead, send_test). personal: a message to that one member
   (email_member), said so at the foot. html: the message
-  as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot."""
+  as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot.
+  schedule ({id, label}): a scheduled email (group_schedules.send_due). Its foot has two more stop links, for this
+  scheduled email only and for all the group's scheduled emails (schedule_stop_link; stop_schedule_with_token),
+  and its one-click header stops this scheduled email only. Neither takes the member out of the group."""
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
@@ -380,7 +423,7 @@ def compose_email(
   if group["owner_email"]:
     email["Reply-To"] = group["owner_email"]
   if token:
-    one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + token
+    one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + (schedule_stop_token(token, schedule["id"]) if schedule else token)
     email["List-Unsubscribe"] = f"<{one_click}>"
     email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
   if verse:
@@ -392,8 +435,16 @@ def compose_email(
     lines += ["", "--", f"Sent by {sender} to you alone, as a member of the group “{group['name']}”, through {title}: {site}"]
   else:
     lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
+  links = []
   if token:
-    lines.append(f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}")
+    if schedule:
+      links.append(site_link("unsubscribe=" + schedule_stop_token(token, schedule["id"])))
+      lines.append(f"To stop this scheduled email ({schedule['label']}), open: {links[-1]}")
+      links.append(site_link("unsubscribe=" + schedule_stop_token(token, "all")))
+      lines.append(f"To stop all scheduled emails from this group, open: {links[-1]}")
+      lines.append("You stay in the group, and still get the messages your leader sends.")
+    links.append(site_link("unsubscribe=" + token))
+    lines.append(f"To stop all messages from this group, open: {links[-1]}" if schedule else f"To stop messages from this group, open: {links[-1]}")
   elif test:
     lines.append("This is a test for the group's leader only: no member got it. Members get it at its time, each with their own stop link here.")
   else:
@@ -401,8 +452,7 @@ def compose_email(
   email.set_content("\n".join(lines) + "\n")
   if html is not None:
     foot = "".join(f"<p>{escape(line)}</p>" for line in lines[len(lines) - lines[::-1].index("--"):])
-    if token:
-      stop = site_link("unsubscribe=" + token)
+    for stop in links:
       foot = foot.replace(escape(stop), f'<a href="{escape(stop)}">{escape(stop)}</a>')
     email.add_alternative(f"<html><body>{html}<hr>{foot}</body></html>", subtype="html")
   if verse:
@@ -442,9 +492,13 @@ def _prepare(group: dict, kind: str, details: dict) -> tuple:
   return subject, text, verse, card, words, link
 
 
-def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = PAUSE_BETWEEN_MEMBERS) -> dict:
+def send(
+  group_id: int, kind: str, details: dict, sent_by: str, pause: float = PAUSE_BETWEEN_MEMBERS, schedule: dict | None = None
+) -> dict:
   """Sends one message to every member who has not stopped them. details: subject and text (message, picture),
   card (verse, picture: the name from the preview) and verse (verse: translation, book, chapter, verse).
+  schedule ({id, label}): sent by a scheduled email, which also skips the members who stopped it or all the
+  group's scheduled emails, and gives the others its own stop links (compose_email).
   Returns how many were emailed, texted, skipped (not confirmed yet, or stopped) and failed."""
   group = get_group(group_id)
   subject, text, verse, card, words, link = _prepare(group, kind, details)
@@ -452,11 +506,13 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
   with connect() as connection:
     members = connection.execute(
       """
-      SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
+      SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token,
+             m.stopped_at IS NOT NULL OR (%(schedule)s::int IS NOT NULL AND (m.schedules_stopped_at IS NOT NULL
+               OR EXISTS (SELECT 1 FROM group_schedule_stops s WHERE s.member_id = m.id AND s.schedule_id = %(schedule)s))),
              m.user_id IS NULL OR u.email_verified_at IS NOT NULL
-      FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.group_id = %s ORDER BY m.id
+      FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.group_id = %(group)s ORDER BY m.id
       """,
-      (group_id,),
+      {"group": group_id, "schedule": schedule["id"] if schedule else None},
     ).fetchall()
   counts = {"emailed": 0, "texted": 0, "skipped": 0, "failed": 0}
   # Members reached by email, text or both (for the leader's copy).
@@ -472,7 +528,7 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
       if settings is None:
         settings = load_mail_settings()
       # The member is the hidden recipient; the To shows the leader.
-      send_email(settings, compose_email(settings, group, token, subject, text, verse, card), [address])
+      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule), [address])
 
     try:
       if user_id is None:
