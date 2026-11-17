@@ -364,11 +364,12 @@ def preview_picture(text: str) -> dict:
 
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
-  personal: bool = False, html: str | None = None,
+  personal: bool = False, html: str | None = None, test: bool = False,
 ) -> EmailMessage:
   """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
-  it went to). personal: a message to that one member (email_member), said so at the foot. html: the message
+  it went to; with test, a test for the leader instead, send_test). personal: a message to that one member
+  (email_member), said so at the foot. html: the message
   as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot."""
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
@@ -393,6 +394,8 @@ def compose_email(
     lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
   if token:
     lines.append(f"To stop messages from this group, open: {site_link('unsubscribe=' + token)}")
+  elif test:
+    lines.append("This is a test for the group's leader only: no member got it. Members get it at its time, each with their own stop link here.")
   else:
     lines.append(f"This is your copy as the group's leader: it went to {reached} member{'s' if reached != 1 else ''}, each as a hidden recipient.")
   email.set_content("\n".join(lines) + "\n")
@@ -409,13 +412,11 @@ def compose_email(
   return email
 
 
-def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = PAUSE_BETWEEN_MEMBERS) -> dict:
-  """Sends one message to every member who has not stopped them. details: subject and text (message, picture),
-  card (verse, picture: the name from the preview) and verse (verse: translation, book, chapter, verse).
-  Returns how many were emailed, texted, skipped (not confirmed yet, or stopped) and failed."""
+def _prepare(group: dict, kind: str, details: dict) -> tuple:
+  """What a send of this kind says, from its details (see send): subject, text, verse, card, and the words and
+  link of its text message."""
   if kind not in KINDS:
     raise GroupProblem("Unknown kind of message.")
-  group = get_group(group_id)
   card = None
   verse = None
   if kind in ("verse", "picture"):
@@ -437,6 +438,16 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
     subject = _one_line(details.get("subject", ""), "subject", SUBJECT_LIMIT)
     text = _text(details.get("text", ""), "message" if kind == "message" else "words for the picture", MESSAGE_LIMIT if kind == "message" else PICTURE_TEXT_LIMIT)
     words, link = f"{group['name']}: {subject}. {text}", ""
+
+  return subject, text, verse, card, words, link
+
+
+def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = PAUSE_BETWEEN_MEMBERS) -> dict:
+  """Sends one message to every member who has not stopped them. details: subject and text (message, picture),
+  card (verse, picture: the name from the preview) and verse (verse: translation, book, chapter, verse).
+  Returns how many were emailed, texted, skipped (not confirmed yet, or stopped) and failed."""
+  group = get_group(group_id)
+  subject, text, verse, card, words, link = _prepare(group, kind, details)
 
   with connect() as connection:
     members = connection.execute(
@@ -498,6 +509,27 @@ def send(group_id: int, kind: str, details: dict, sent_by: str, pause: float = P
       (group_id, kind, subject, text, sent_by, counts["emailed"], counts["texted"], counts["skipped"], counts["failed"]),
     )
   return counts
+
+
+def send_test(group_id: int, kind: str, details: dict) -> dict:
+  """A test of a message (a scheduled email's "Send a test", group_schedules.send_test; added 2026-11-17 at the
+  owner's request): the same email the members would get, sent **only to the group's leader** (their Drupal
+  address, the group's Reply-To), subject "[Test] ...", marked as a test at the foot. Email only (no texts), not
+  recorded in the Sent table. Returns the address it went to."""
+  group = get_group(group_id)
+  if not group["owner_email"]:
+    raise GroupProblem("The group's leader has no email address: set one on their Drupal account first.")
+  subject, text, verse, card, _words, _link = _prepare(group, kind, details)
+  try:
+    settings = load_mail_settings()
+    email = compose_email(settings, group, None, "[Test] " + subject, text, verse, card, test=True)
+    send_email(settings, email, [group["owner_email"]])
+  except MailUnavailable as problem:
+    raise GroupProblem(f"The test could not be sent: {problem}") from problem
+  except Exception as problem:
+    logger.error("Group %s test not sent: %s", group_id, type(problem).__name__)
+    raise GroupProblem("The test could not be sent; try again later.") from problem
+  return {"to": group["owner_email"]}
 
 
 def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None) -> dict:

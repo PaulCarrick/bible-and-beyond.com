@@ -422,6 +422,17 @@ bible_admin.group_schedule_remove:
     group_id: '\d+'
     schedule_id: '\d+'
 
+# Send a test of a scheduled email to the group's leader only.
+bible_admin.group_schedule_test:
+  path: '/admin/groups/{group_id}/schedules/{schedule_id}/test'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\TestGroupScheduleForm'
+    _title: 'Send a test'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    schedule_id: '\d+'
+
 bible_admin.group_send:
   path: '/admin/groups/{group_id}/send/{kind}'
   defaults:

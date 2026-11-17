@@ -255,6 +255,15 @@ def _details_for(schedule: dict) -> dict:
   return {"subject": schedule["subject"], "text": schedule["text"]}
 
 
+def send_test(group_id: int, schedule_id: int) -> dict:
+  """"Send a test" on a scheduled email: what it would send now (a verse card or picture made afresh, as at its
+  time), to the group's leader only (groups.send_test). The schedule is not changed: its next time, last time and
+  result stay. Returns {"to": the leader's address, "schedule": the schedule}."""
+  schedule = _get(schedule_id, group_id)
+  sent = groups.send_test(group_id, schedule["kind"], _details_for(schedule))
+  return {"to": sent["to"], "schedule": _public(schedule)}
+
+
 def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_MEMBERS) -> dict:
   """Sends every scheduled message that is due. Returns how many were sent, skipped (too late) and failed."""
   now = now or datetime.now(timezone.utc)

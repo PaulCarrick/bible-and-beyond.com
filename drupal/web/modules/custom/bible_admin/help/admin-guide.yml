@@ -192,6 +192,10 @@ sections:
       <p>Choose the time and the time zone (yours, to start). It goes within five minutes of that time. The
       <em>Scheduled</em> table shows when each goes next and how the last one went, with <em>Edit</em> and
       <em>Remove</em>. A one-time email shows <em>Done</em> once it has gone.</p>
+      <p><strong>Send a test</strong> (in the same menu, after <em>Remove</em>) emails it now to the group's leader
+      only, so you can see how it looks. Its subject starts with "[Test]" and it says no member got it. Members get
+      nothing, nothing is texted, and it still goes to the group at its time. A verse card or picture message is
+      chosen at random each time, so the test shows one example.</p>
       <figure><img data-guide="group-schedule" alt="Add a scheduled email: what to send, and When: repeat, which, day of the week, time and time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
       <h3>Changing the group or its leader</h3>
       <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a

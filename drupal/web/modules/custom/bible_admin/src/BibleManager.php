@@ -992,6 +992,16 @@ class BibleManager {
     return $schedule;
   }
 
+  /**
+   * Sends a scheduled email now to the group's leader only, as a test. Returns {to, schedule}.
+   */
+  public function testGroupSchedule(int $groupId, int $scheduleId): array {
+    $group = $this->getGroup($groupId);
+    $result = $this->run(['test-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py');
+    $this->logSchedule('sent a test of the scheduled', $result['schedule'], $group);
+    return $result;
+  }
+
   private function logSchedule(string $change, array $schedule, array $group): void {
     $this->logger->notice('@user @change @kind for the group “@name” (@id): @when.', [
       '@user' => $this->currentUser->getAccountName(),

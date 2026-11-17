@@ -23,6 +23,7 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
     manage_groups.py get-schedule --group=ID --schedule=ID
     manage_groups.py update-schedule --group=ID --schedule=ID   input as add-schedule
     manage_groups.py remove-schedule --group=ID --schedule=ID
+    manage_groups.py test-schedule --group=ID --schedule=ID     send it now to the group's leader only
 """
 
 import argparse
@@ -52,7 +53,7 @@ def parse_arguments(arguments=None):
     member = commands.add_parser(name)
     member.add_argument("--group", type=int, required=True)
     member.add_argument("--member", type=int, required=True)
-  for name in ("get-schedule", "update-schedule", "remove-schedule"):
+  for name in ("get-schedule", "update-schedule", "remove-schedule", "test-schedule"):
     schedule = commands.add_parser(name)
     schedule.add_argument("--group", type=int, required=True)
     schedule.add_argument("--schedule", type=int, required=True)
@@ -122,6 +123,8 @@ def run(arguments) -> dict:
     return {"ok": True, "schedule": group_schedules.update_schedule(arguments.group, arguments.schedule, read_input())}
   if command == "remove-schedule":
     return {"ok": True, "schedule": group_schedules.remove_schedule(arguments.group, arguments.schedule)}
+  if command == "test-schedule":
+    return {"ok": True, **group_schedules.send_test(arguments.group, arguments.schedule)}
   if command == "preview-verse":
     return {"ok": True, "preview": groups.preview_verse()}
   if command == "preview-picture":

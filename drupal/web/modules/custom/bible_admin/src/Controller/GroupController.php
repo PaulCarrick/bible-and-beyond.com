@@ -93,6 +93,8 @@ class GroupController extends ControllerBase {
         ['data' => ['#type' => 'operations', '#links' => [
           ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.group_schedule_edit', $parameters)],
           ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_schedule_remove', $parameters)],
+          // Sends it now to the group's leader only, to check it (2026-11-17, the owner's request).
+          ['title' => $this->t('Send a test'), 'url' => Url::fromRoute('bible_admin.group_schedule_test', $parameters)],
         ]]],
       ];
     }

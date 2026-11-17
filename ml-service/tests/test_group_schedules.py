@@ -154,6 +154,45 @@ def test_a_picture_message_is_made_at_send_time(outbox):
   assert [part for part in outbox["emails"][0].walk() if part.get_content_type() == "image/jpeg"]
 
 
+def test_a_test_goes_to_the_leader_only_and_leaves_the_schedule_alone(monkeypatch):
+  delivered = []
+  monkeypatch.setattr(groups, "send_email", lambda settings, email, recipients=None: delivered.append((recipients, email)))
+  texts = []
+  monkeypatch.setattr(sms, "send_text", lambda *arguments, **keywords: texts.append(arguments))
+  group = group_with_a_member()
+  groups.add_member(group["id"], {"email": "sam@example.org", "name": "Sam"})
+  schedule = group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=0), "dave", now=NOW)
+  before = group_schedules.get_schedule(group["id"], schedule["id"])
+
+  answer = group_schedules.send_test(group["id"], schedule["id"])
+  assert answer["to"] == "dave@example.org" and answer["schedule"]["id"] == schedule["id"]
+  # One email, to the leader alone: no member, no text.
+  assert [recipients for recipients, _ in delivered] == [["dave@example.org"]] and texts == []
+  email = delivered[0][1]
+  assert email["Subject"] == "[Test] Prayer meeting" and email["To"] == "dave@example.org"
+  content = email.get_content()
+  assert "no member got it" in content and "?unsubscribe=" not in content and email["List-Unsubscribe"] is None
+  assert "pat@example.org" not in email.as_string() and "sam@example.org" not in email.as_string()
+  # The schedule and the Sent table are as they were.
+  assert group_schedules.get_schedule(group["id"], schedule["id"]) == before and groups.list_sent(group["id"]) == []
+
+  # A verse card is made afresh, as at its time, with its picture.
+  delivered.clear()
+  verse = group_schedules.add_schedule(group["id"], {"kind": "verse", "repeat": "weekly", "weekday": 0, "send_time": "09:00", "timezone": "America/Chicago"}, "dave", now=NOW)
+  group_schedules.send_test(group["id"], verse["id"])
+  email = delivered[0][1]
+  assert email["Subject"].startswith("[Test] A verse for Care list: ") and [part for part in email.walk() if part.get_content_type() == "image/jpeg"]
+
+  # Refused: a group whose leader has no address, and a schedule of another group.
+  groups.save_group(group["id"], {"name": "Care list"}, OWNER, "Deacon Dave", "")
+  with pytest.raises(GroupProblem, match="no email address"):
+    group_schedules.send_test(group["id"], schedule["id"])
+  other = groups.save_group(None, {"name": "Other"}, OWNER, "Deacon Dave", "dave@example.org")
+  with pytest.raises(GroupProblem):
+    group_schedules.send_test(other["id"], schedule["id"])
+  assert len(delivered) == 1
+
+
 def test_deleting_the_group_removes_its_schedules():
   group = group_with_a_member()
   group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=2), "dave", now=NOW)
