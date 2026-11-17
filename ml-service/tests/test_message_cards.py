@@ -206,3 +206,14 @@ def test_telnyx_is_sent_the_picture_address(monkeypatch):
   assert sms.send_text("+15552345678", "hello", "https://site.example/api/message-card/x.jpg") is True
   assert sms.send_text("+15552345678", "hello") is True
   assert posted[0]["media_urls"] == ["https://site.example/api/message-card/x.jpg"] and "media_urls" not in posted[1]
+
+
+def test_the_email_text_is_written_as_paragraphs():
+  text = "Morning and Evening: November 17\n\nMORNING\n\nFirst paragraph,\nsecond line.\n\nAnother paragraph.\n\n--\nSent by the site: https://site.example/\nTo stop these emails, open: https://site.example/?unsubscribe=T"
+  html = message_cards.paragraphs_html(text)
+  assert html.count("<p style=\"margin:0 0 14px") == 3
+  assert ">MORNING</h3>" in html
+  assert "First paragraph,<br>second line." in html
+  assert "<hr " in html and "color:#666" in html and '<a href="https://site.example/?unsubscribe=T">' in html
+  # A lone signature line with nothing after it does no harm.
+  assert "<hr" not in message_cards.paragraphs_html("Hello.\n\n--")

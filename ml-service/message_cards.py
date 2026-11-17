@@ -258,6 +258,42 @@ def _linked(text: str) -> str:
   return "".join(parts + [escape(text[start:])])
 
 
+PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
+TEXT_STYLE = "margin:0 0 14px;font-size:16px;line-height:1.55;"
+
+
+def paragraphs_html(text: str) -> str:
+  """Plain text as paragraphs of HTML (the owner's request, 2026-11-17: the text under the picture was one block
+  with no breaks in some mail programs, which ignore white-space). A blank line starts a paragraph and a single line
+  break is kept; a short line in capitals (MORNING, EVENING) becomes a heading; the "--" signature and what follows it
+  are smaller and grey. Web addresses are links."""
+  html_parts = []
+  in_footer = False
+  for block in PARAGRAPH_BREAK.split(text.strip()):
+    lines = [line.rstrip() for line in block.strip("\n").split("\n")]
+    if not any(line.strip() for line in lines):
+      continue
+    if lines[0].strip() == "--":
+      in_footer = True
+      lines = lines[1:]
+      if not lines:
+        continue
+    joined = "<br>".join(_linked(line) for line in lines)
+    plain = " ".join(line.strip() for line in lines)
+    if in_footer:
+      html_parts.append(f'<p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#666;">{joined}</p>')
+    elif len(lines) == 1 and len(plain) <= 40 and plain.upper() == plain and any(character.isalpha() for character in plain):
+      html_parts.append(f'<h3 style="margin:22px 0 8px;font-size:15px;letter-spacing:0.08em;">{joined}</h3>')
+    else:
+      html_parts.append(f'<p style="{TEXT_STYLE}">{joined}</p>')
+  if in_footer:
+    # A line between the message and the signature.
+    first_footer = next((index for index, part in enumerate(html_parts) if "color:#666" in part), None)
+    if first_footer is not None:
+      html_parts.insert(first_footer, '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 12px;">')
+  return "\n".join(html_parts)
+
+
 def attach_to_email(email, card: MessageCard | None, alternative_text: str = "", link: str | None = None, linked_lines: int = 0) -> None:
   """Adds an HTML version to a plain-text email (set_content already called), the plain part kept for mail
   programs that want it. With a card, the picture comes first (inline, cid:). With a link, the picture and the
@@ -283,7 +319,7 @@ def attach_to_email(email, card: MessageCard | None, alternative_text: str = "",
   )
   email.add_alternative(
     f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;font-family:Georgia,serif;">
-{picture}{lead_html}<div style="white-space:pre-wrap;font-size:16px;line-height:1.5;">{_linked(rest)}</div>
+{picture}{lead_html}<div style="max-width:640px;">{paragraphs_html(rest)}</div>
 </body></html>""",
     subtype="html",
   )
