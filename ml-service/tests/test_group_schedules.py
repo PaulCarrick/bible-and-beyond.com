@@ -281,6 +281,22 @@ def test_a_scheduled_email_can_be_stopped_alone_or_all_without_leaving_the_group
     assert connection.execute("SELECT count(*) FROM group_schedule_stops WHERE schedule_id = %s", (weekly["id"],)).fetchone()[0] == 0
 
 
+def test_a_scheduled_message_from_the_editor_keeps_its_formatting(outbox):
+  group = group_with_a_member()
+  details = message(repeat="weekly", weekday=0)
+  details.pop("text")
+  details["html"] = "<p>We meet <strong>tonight</strong></p><script>x</script>"
+  schedule = group_schedules.add_schedule(group["id"], details, "dave", now=NOW - timedelta(hours=1))
+  assert schedule["html"] == "<p>We meet <strong>tonight</strong></p>" and schedule["text"] == "We meet tonight"
+  assert group_schedules.send_due(NOW + timedelta(minutes=1), pause=0)["sent"] == 1
+  email = outbox["emails"][0]
+  assert "<strong>tonight</strong>" in email.get_body(("html",)).get_content() and "To stop this scheduled email" in email.get_body(("html",)).get_content()
+  assert "We meet tonight" in email.get_body(("plain",)).get_content()
+  # An older plain message still goes as plain text.
+  plain = group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=1), "dave", now=NOW)
+  assert plain["html"] is None
+
+
 def test_deleting_the_group_removes_its_schedules():
   group = group_with_a_member()
   group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=2), "dave", now=NOW)

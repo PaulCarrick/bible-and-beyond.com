@@ -128,6 +128,17 @@ class SiteUserForm extends FormBase {
       '#default_value' => $user['see_private_prayers'] ?? FALSE,
       '#description' => $this->t('For the site\'s own administrators: when this visitor gets the weekly prayer list email, it also holds the week\'s private Prayer Wall requests. Off unless turned on here.'),
     ];
+    // An account its owner closed on My account (added 2026-11-17): untick to reopen it.
+    if ($user !== NULL) {
+      $form['closed'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Account closed'),
+        '#default_value' => !empty($user['closed']),
+        '#description' => !empty($user['closed'])
+          ? $this->t('Closed by its owner on @date (My account > Close my account). It cannot log in and gets no emails or texts; everything in it is kept. Untick to reopen it, or use Delete to remove it with everything in it.', ['@date' => $this->formatDate((string) $user['closed_at'])])
+          : $this->t('A closed account cannot log in and gets no emails or texts; everything in it is kept. Members close their own on My account.'),
+      ];
+    }
     $form['password'] = [
       '#type' => 'password_confirm',
       '#title' => $user === NULL ? $this->t('Password') : $this->t('New password'),
@@ -195,7 +206,7 @@ class SiteUserForm extends FormBase {
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'));
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email']]));

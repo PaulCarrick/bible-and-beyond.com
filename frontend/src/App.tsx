@@ -223,6 +223,9 @@ function App() {
     return () => window.removeEventListener('popstate', showHistoryEntry)
   }, [])
 
+  // Set when the visitor has just closed their account (My account then says so instead of "please log in").
+  const [wasAccountClosed, setWasAccountClosed] = useState(false)
+
   // Whether a visitor is logged in (the browser sends its session cookie). Nobody has to be.
   useEffect(() => {
     fetchCurrentUser()
@@ -535,7 +538,20 @@ function App() {
                   }}
                 />
               )}
-              {activeView === 'account' && <MyAccountPage key={user?.id ?? 0} user={user} isAccountKnown={isAccountKnown} onUserChanged={setUser} onNavigate={navigate} />}
+              {activeView === 'account' && (
+                <MyAccountPage
+                  key={user?.id ?? 0}
+                  user={user}
+                  isAccountKnown={isAccountKnown}
+                  wasAccountClosed={wasAccountClosed}
+                  onUserChanged={setUser}
+                  onNavigate={navigate}
+                  onAccountClosed={() => {
+                    setWasAccountClosed(true)
+                    setUser(null)
+                  }}
+                />
+              )}
               {activeView === 'copyright' && (
                 <CopyrightPage onBack={() => navigate('help')} devotionals={[...devotionals, ...otherBooks]} commentaries={commentaries} />
               )}

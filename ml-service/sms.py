@@ -109,6 +109,14 @@ def send_text(number: str, text: str, media_url: str | None = None) -> bool:
   off here too."""
   if not is_configured():
     return False
+  # Never to a closed account's number (users.disabled_at, added 2026-11-17), whichever part of the site sends.
+  with connect() as connection:
+    closed = connection.execute(
+      "SELECT bool_and(disabled_at IS NOT NULL) FROM users WHERE sms_number = %s OR phone = %s", (number, number)
+    ).fetchone()[0]
+  if closed:
+    logger.info("A text was not sent to a closed account.")
+    return False
   message = {"from": get_setting("telnyx_from_number"), "to": number, "text": text}
   if media_url:
     message["media_urls"] = [media_url]

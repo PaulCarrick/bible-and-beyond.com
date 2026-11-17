@@ -20,7 +20,7 @@ _COLUMNS = """
   (SELECT count(*) FROM notes WHERE notes.user_id = users.id),
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
   users.use_conversations, users.see_private_prayers, users.sms_opt_in, users.sms_stopped_at IS NOT NULL,
-  users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id)
+  users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at
 """
 
 
@@ -50,6 +50,9 @@ def _describe(row) -> dict:
     # Notes, pins and routes on the maps (map_marks.py).
     "use_maps": row[15],
     "map_mark_count": row[16],
+    # Closed by its owner on My account (accounts.close_account): no login, no emails or texts. Reopened here.
+    "closed": row[17] is not None,
+    "closed_at": row[17].isoformat() if row[17] else None,
   }
 
 
@@ -146,9 +149,11 @@ def update_user(
   use_conversations: bool | None = None,
   see_private_prayers: bool | None = None,
   use_maps: bool | None = None,
+  closed: bool | None = None,
 ) -> dict:
   """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
-  name or phone ("") clears it."""
+  name or phone ("") clears it. closed: False reopens an account its owner closed (it can log in again and get
+  emails); True closes it, as the owner's Close my account does but with no email."""
   current = get_user(user_id)
   changes = []
   values: list = []
@@ -189,10 +194,16 @@ def update_user(
   if use_maps is not None:
     changes.append("use_maps = %s")
     values.append(use_maps)
+  if closed is not None and closed != current["closed"]:
+    changes.append("disabled_at = CASE WHEN %s THEN now() END")
+    values.append(closed)
   if changes:
     try:
       with connect() as connection:
         connection.execute(f"UPDATE users SET {', '.join(changes)} WHERE id = %s", (*values, user_id))
+        if closed:
+          connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
+          connection.execute("DELETE FROM account_tokens WHERE user_id = %s", (user_id,))
         if password:
           # Whoever was logged in with the old password, and any reset link, no longer works.
           connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))

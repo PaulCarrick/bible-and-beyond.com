@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Controller;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -163,7 +164,10 @@ class GroupController extends ControllerBase {
 
     $build = [
       '#cache' => ['max-age' => 0],
-      'description' => $group['description'] !== '' ? ['#type' => 'html_tag', '#tag' => 'p', '#value' => $group['description'], '#attributes' => ['style' => 'white-space: pre-wrap;']] : [],
+      // The leader's notes: from the editor (cleaned HTML; #markup filters it again), or plain text from before.
+      'description' => $group['description'] === '' ? [] : (GroupEditor::isHtml($group['description'])
+        ? ['#type' => 'container', '#attributes' => ['class' => ['group-notes']], 'notes' => ['#markup' => $group['description']]]
+        : ['#type' => 'html_tag', '#tag' => 'p', '#value' => $group['description'], '#attributes' => ['style' => 'white-space: pre-wrap;']]),
       'leader' => [
         '#type' => 'container',
         '#attributes' => ['class' => ['group-leader'], 'style' => 'margin: 1em 0;'],

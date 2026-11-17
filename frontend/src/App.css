@@ -1614,6 +1614,51 @@ select:disabled {
   font-size: 1.3rem;
 }
 
+/* "Close your account" at the foot of My account (CloseAccountSection): a red outlined button, as the site's
+   other buttons are outlined, so it is plainly not the main action. */
+.close-account {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+.close-account h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.3rem;
+}
+
+.danger-button {
+  margin-top: 0.5rem;
+  padding: calc(0.5rem - 1px) calc(1rem - 1px);
+  border: 1px solid #b5300f;
+  border-radius: 8px;
+  background: transparent;
+  color: #b5300f;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: rgba(181, 48, 15, 0.08);
+}
+
+.danger-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .danger-button {
+    border-color: #f08a6e;
+    color: #f08a6e;
+  }
+
+  .danger-button:hover:not(:disabled) {
+    background: rgba(240, 138, 110, 0.12);
+  }
+}
+
 .contact-field small {
   color: #5a6472;
 }

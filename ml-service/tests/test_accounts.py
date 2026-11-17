@@ -18,7 +18,7 @@ client = TestClient(app)
 def sent_mail(monkeypatch):
   """Nothing is emailed: each message that would be sent is collected as (address, subject, text)."""
   messages = []
-  monkeypatch.setattr(accounts, "send_plain_message", lambda address, subject, text: messages.append((address, subject, text)))
+  monkeypatch.setattr(accounts, "send_plain_message", lambda address, subject, text, **options: messages.append((address, subject, text)))
   monkeypatch.setenv("SITE_URL", "https://site.example")
   return messages
 
@@ -425,3 +425,125 @@ def test_changing_the_password_logs_out_other_devices_but_not_this_one(sent_mail
     json={"token": reset_token, "password": "another new password", "password_confirmation": "another new password"},
   )
   assert cancelled.status_code == 400
+
+
+# --- closing your own account (the My account page; added 2026-11-17) ----------------------------------------
+# First built as a delete; the owner then asked for a flag instead: nothing is deleted, the account cannot log in
+# or do anything, and after one goodbye email nothing is emailed or texted to it.
+
+
+def close_account(password=PASSWORD, browser=None):
+  return (browser or client).post("/account/close", json={"password": password})
+
+
+def test_closing_the_account_needs_a_login():
+  register()
+  client.cookies.clear()
+  assert close_account().status_code == 401
+  with connect() as connection:
+    assert connection.execute("SELECT disabled_at FROM users WHERE email = 'ann@accounts-test.example'").fetchone()[0] is None
+
+
+def test_a_wrong_password_closes_nothing():
+  register()
+  for wrong in ("not the password", "", "x" * 500):
+    response = close_account(wrong)
+    assert response.status_code == 422 and "password is not right" in response.json()["detail"]
+    assert "not the password" not in response.text
+  assert client.get("/account/me").json()["user"]["email"] == "ann@accounts-test.example"
+
+
+def test_a_closed_account_keeps_its_data_but_cannot_log_in_and_gets_one_goodbye_email(sent_mail):
+  user = register().json()["user"]
+  other_device = TestClient(app)
+  other_device.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD})
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO verse_subscriptions (user_id, send_time, timezone, unsubscribe_token) VALUES (%s, '07:00', 'UTC', 'goodbye-test-token')",
+      (user["id"],),
+    )
+  sent_mail.clear()
+
+  response = close_account()
+  assert response.status_code == 200 and response.json() == {"closed": True, "user": None}
+  # This browser's cookie is cleared and every device is logged out.
+  assert "session=" in response.headers.get("set-cookie", "") and client.get("/account/me").json() == {"user": None}
+  assert other_device.get("/account/me").json() == {"user": None}
+  # Nothing is deleted: the account and what goes with it are still there, marked closed.
+  with connect() as connection:
+    assert connection.execute("SELECT disabled_at IS NOT NULL FROM users WHERE id = %s", (user["id"],)).fetchone()[0] is True
+    assert connection.execute("SELECT count(*) FROM verse_subscriptions WHERE user_id = %s", (user["id"],)).fetchone()[0] == 1
+    assert connection.execute("SELECT count(*) FROM user_sessions WHERE user_id = %s", (user["id"],)).fetchone()[0] == 0
+  # One goodbye email, and none after it.
+  assert len(sent_mail) == 1 and sent_mail[0][0] == "ann@accounts-test.example" and "account was closed" in sent_mail[0][1]
+  assert "last email" in sent_mail[0][2] and "/contact" in sent_mail[0][2]
+  # Logging in: the right password says it is closed; a wrong one says what it always says.
+  answer = client.post("/account/login", json={"email": "ann@accounts-test.example", "password": PASSWORD})
+  assert answer.status_code == 403 and "closed" in answer.json()["detail"]
+  answer = client.post("/account/login", json={"email": "ann@accounts-test.example", "password": "wrong password"})
+  assert answer.status_code == 401 and "closed" not in answer.text
+  # No reset link, no verification, no account actions.
+  sent_mail.clear()
+  assert client.post("/account/forgot-password", json={"email": "ann@accounts-test.example"}).status_code == 200
+  assert sent_mail == []
+  assert client.post("/account/resend-verification").status_code == 401
+  assert close_account().status_code == 401
+
+
+def test_no_email_or_text_goes_to_a_closed_account(monkeypatch):
+  import contact
+  import sms
+
+  user = register(phone="555 234 5678", phone_is_cell=True, send_via_sms=True).json()["user"]
+  register(email="Bob@Accounts-Test.example")
+  with connect() as connection:
+    connection.execute("UPDATE users SET disabled_at = now() WHERE id = %s", (user["id"],))
+    number = connection.execute("SELECT sms_number FROM users WHERE id = %s", (user["id"],)).fetchone()[0]
+  delivered = []
+
+  class FakeServer:
+    def __init__(self, *arguments, **keywords):
+      pass
+
+    def __enter__(self):
+      return self
+
+    def __exit__(self, *arguments):
+      return False
+
+    def ehlo(self):
+      pass
+
+    def has_extn(self, name):
+      return False
+
+    def send_message(self, email, to_addrs=None):
+      delivered.append(list(to_addrs) if to_addrs else [email["To"]])
+
+  monkeypatch.setattr(contact.smtplib, "SMTP", FakeServer)
+  settings = {"smtp_host": "mail.example", "smtp_port": 25, "smtp_authentication": "none", "from_address": "site@site.example"}
+
+  def email(to):
+    message = contact.EmailMessage()
+    message["To"] = to
+    message["Subject"] = "Hello"
+    message.set_content("Hi")
+    return message
+
+  # Whichever way it is addressed, the closed account is left out; others still get theirs.
+  contact.send_email(settings, email("ann@accounts-test.example"))
+  contact.send_email(settings, email("Ann <ANN@accounts-test.example>"))
+  contact.send_email(settings, email("leader@site.example"), ["ann@accounts-test.example"])
+  contact.send_email(settings, email("leader@site.example"), ["ann@accounts-test.example", "bob@accounts-test.example"])
+  assert delivered == [["bob@accounts-test.example"]]
+  # Only the goodbye email may pass.
+  contact.send_email(settings, email("ann@accounts-test.example"), even_if_closed=True)
+  assert delivered[-1] == ["ann@accounts-test.example"]
+
+  # No text either.
+  posted = []
+  monkeypatch.setattr(sms, "is_configured", lambda: True)
+  monkeypatch.setattr(sms, "get_setting", lambda name: "x")
+  monkeypatch.setattr(sms.httpx, "post", lambda *arguments, **keywords: posted.append(keywords) or type("R", (), {"status_code": 200})())
+  assert number and sms.send_text(number, "Hello") is False and posted == []
+  assert sms.send_text("+15550001111", "Hello") is True and len(posted) == 1

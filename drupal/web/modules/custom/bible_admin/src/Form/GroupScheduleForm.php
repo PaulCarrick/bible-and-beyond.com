@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Datetime\TimeZoneFormHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -74,14 +75,22 @@ class GroupScheduleForm extends FormBase {
       '#default_value' => $schedule['subject'] ?? '',
       '#states' => $what(['message', 'picture']),
     ];
+    // A message is written in the editor (GroupEditor; 2026-11-17): the email keeps its formatting, texts get the
+    // words. A picture's words stay plain: they are written onto the picture.
+    $isMessage = ($schedule['kind'] ?? 'message') === 'message';
+    $form['message_box'] = [
+      '#type' => 'container',
+      '#states' => $what(['message']),
+      'message' => GroupEditor::field((string) $this->t('Message'), $isMessage ? (string) (($schedule['html'] ?? '') ?: ($schedule['text'] ?? '')) : '', 8, FALSE),
+    ];
     $form['text'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Message, or the words for the picture'),
-      '#rows' => 6,
-      '#maxlength' => 5000,
-      '#default_value' => $schedule['text'] ?? '',
-      '#description' => $this->t('On a picture, up to 400 characters: the fewer the words, the larger they are written.'),
-      '#states' => $what(['message', 'picture']),
+      '#title' => $this->t('Words for the picture'),
+      '#rows' => 3,
+      '#maxlength' => 400,
+      '#default_value' => $isMessage ? '' : ($schedule['text'] ?? ''),
+      '#description' => $this->t('Up to 400 characters: the fewer the words, the larger they are written.'),
+      '#states' => $what(['picture']),
     ];
 
     $form['when'] = ['#type' => 'fieldset', '#title' => $this->t('When')];
@@ -156,8 +165,14 @@ class GroupScheduleForm extends FormBase {
     $groupId = (int) $form_state->get('group_id');
     $scheduleId = $form_state->get('schedule_id');
     $details = [];
-    foreach (['kind', 'subject', 'text', 'repeat', 'on_date', 'day_of_month', 'weekday', 'week_of_month', 'send_time', 'timezone'] as $name) {
+    foreach (['kind', 'subject', 'repeat', 'on_date', 'day_of_month', 'weekday', 'week_of_month', 'send_time', 'timezone'] as $name) {
       $details[$name] = (string) $form_state->getValue($name);
+    }
+    if ($details['kind'] === 'message') {
+      $details += GroupEditor::value($form_state->getValue('message'));
+    }
+    else {
+      $details['text'] = (string) $form_state->getValue('text');
     }
     try {
       $schedule = $scheduleId === NULL

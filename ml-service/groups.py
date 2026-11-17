@@ -128,7 +128,18 @@ def save_group(
   their name and address (the Reply-To of its emails) are brought up to date on every change. With set_owner
   (an administrator choosing another leader; Drupal checks who may) the group moves to the owner given."""
   name = _one_line(details.get("name", ""), "group's name", NAME_LIMIT)
-  description = (details.get("description") or "").strip()[:DESCRIPTION_LIMIT]
+  if details.get("description_html") is not None:
+    # The leader's notes written in the editor (2026-11-17): cleaned like a message (only the allowed tags), or ""
+    # when there is nothing in them. The group page shows them formatted.
+    raw = str(details["description_html"])
+    try:
+      description = check_rich_text(raw, DESCRIPTION_LIMIT * 10, DESCRIPTION_LIMIT, "notes")["html"]
+    except ContactProblem as problem:
+      if "write something" not in str(problem):
+        raise GroupProblem(str(problem)) from problem
+      description = ""
+  else:
+    description = (details.get("description") or "").strip()[:DESCRIPTION_LIMIT]
   with connect() as connection:
     if group_id is None:
       group_id = connection.execute(
@@ -171,12 +182,14 @@ MEMBER_COLUMNS = """
        ELSE COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), m.name, '') END,
   COALESCE(u.email, m.email), CASE WHEN m.user_id IS NULL THEN m.phone ELSE COALESCE(u.phone, '') END,
   u.email_verified_at IS NOT NULL, m.schedules_stopped_at IS NOT NULL,
-  (SELECT count(*) FROM group_schedule_stops s WHERE s.member_id = m.id)
+  (SELECT count(*) FROM group_schedule_stops s WHERE s.member_id = m.id), u.disabled_at IS NOT NULL
 """
 
 
-def _how(connection, user_id: int | None, verified: bool, stopped: bool) -> str:
+def _how(connection, user_id: int | None, verified: bool, stopped: bool, closed: bool = False) -> str:
   """How the group's messages reach a member, in words for the leader."""
+  if closed:
+    return "Nothing: they closed their account"
   if stopped:
     return "Stopped (they followed the stop link in an email)"
   if user_id is None:
@@ -199,8 +212,9 @@ def list_members(group_id: int) -> list[dict]:
     return [
       {
         "id": row[0], "is_account": row[1] is not None, "user_id": row[1], "stopped": row[2] is not None,
-        "confirmed": row[1] is None or bool(row[6]), "name": row[3], "email": row[4], "phone": row[5],
-        "receives": _how(connection, row[1], row[6], row[2] is not None),
+        "confirmed": row[1] is None or (bool(row[6]) and not row[9]), "closed": bool(row[9]),
+        "name": row[3], "email": row[4], "phone": row[5],
+        "receives": _how(connection, row[1], row[6], row[2] is not None, bool(row[9])),
         # Scheduled emails they stopped: all of them, or how many (stop_schedule_with_token).
         "schedules_stopped": bool(row[7]), "stopped_schedules": row[8],
       }
@@ -254,7 +268,7 @@ def list_candidates(group_id: int) -> list[dict]:
       SELECT u.id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), u.email,
              u.email_verified_at IS NOT NULL
       FROM users u
-      WHERE NOT EXISTS (SELECT 1 FROM group_members m WHERE m.group_id = %s AND m.user_id = u.id)
+      WHERE u.disabled_at IS NULL AND NOT EXISTS (SELECT 1 FROM group_members m WHERE m.group_id = %s AND m.user_id = u.id)
       ORDER BY lower(COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email)), u.id
       """,
       (group_id,),
@@ -460,9 +474,20 @@ def compose_email(
   return email
 
 
+def message_html(html: str) -> tuple[str, str]:
+  """A message written in the editor (Drupal's CKEditor, text format group_email; the owner's request, 2026-11-17):
+  cleaned like the contact form's messages (contact.check_rich_text: only its allowed tags, links only http(s) or
+  mailto, no attributes). Returns (html, text): the HTML for the email and its plain-text copy for texts."""
+  try:
+    cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message")
+  except ContactProblem as problem:
+    raise GroupProblem(str(problem)) from problem
+  return cleaned["html"], cleaned["text"]
+
+
 def _prepare(group: dict, kind: str, details: dict) -> tuple:
-  """What a send of this kind says, from its details (see send): subject, text, verse, card, and the words and
-  link of its text message."""
+  """What a send of this kind says, from its details (see send): subject, text, verse, card, the words and link of
+  its text message, and html (a message written in the editor: details["html"]; else None)."""
   if kind not in KINDS:
     raise GroupProblem("Unknown kind of message.")
   card = None
@@ -482,12 +507,16 @@ def _prepare(group: dict, kind: str, details: dict) -> tuple:
     subject = f"A verse for {group['name']}: {verse['reference']}"
     text = verse["text"]
     words, link = f"{verse['reference']}: {verse['text']}", verse_a_day.verse_link(verse["verse"])
-  else:
+  html = None
+  if kind != "verse":
     subject = _one_line(details.get("subject", ""), "subject", SUBJECT_LIMIT)
-    text = _text(details.get("text", ""), "message" if kind == "message" else "words for the picture", MESSAGE_LIMIT if kind == "message" else PICTURE_TEXT_LIMIT)
+    if kind == "message" and details.get("html") is not None:
+      html, text = message_html(str(details["html"]))
+    else:
+      text = _text(details.get("text", ""), "message" if kind == "message" else "words for the picture", MESSAGE_LIMIT if kind == "message" else PICTURE_TEXT_LIMIT)
     words, link = f"{group['name']}: {subject}. {text}", ""
 
-  return subject, text, verse, card, words, link
+  return subject, text, verse, card, words, link, html
 
 
 def send(
@@ -499,7 +528,7 @@ def send(
   group's scheduled emails, and gives the others its own stop links (compose_email).
   Returns how many were emailed, texted, skipped (not confirmed yet, or stopped) and failed."""
   group = get_group(group_id)
-  subject, text, verse, card, words, link = _prepare(group, kind, details)
+  subject, text, verse, card, words, link, html = _prepare(group, kind, details)
 
   with connect() as connection:
     members = connection.execute(
@@ -507,7 +536,7 @@ def send(
       SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token,
              m.stopped_at IS NOT NULL OR (%(schedule)s::int IS NOT NULL AND (m.schedules_stopped_at IS NOT NULL
                OR EXISTS (SELECT 1 FROM group_schedule_stops s WHERE s.member_id = m.id AND s.schedule_id = %(schedule)s))),
-             m.user_id IS NULL OR u.email_verified_at IS NOT NULL
+             m.user_id IS NULL OR (u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL)
       FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.group_id = %(group)s ORDER BY m.id
       """,
       {"group": group_id, "schedule": schedule["id"] if schedule else None},
@@ -526,7 +555,7 @@ def send(
       if settings is None:
         settings = load_mail_settings()
       # The member is the hidden recipient; the To shows the leader.
-      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule), [address])
+      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html), [address])
 
     try:
       if user_id is None:
@@ -550,7 +579,7 @@ def send(
     try:
       if settings is None:
         settings = load_mail_settings()
-      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached), [group["owner_email"]])
+      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html), [group["owner_email"]])
     except Exception as problem:
       logger.error("Group %s leader's copy not sent: %s", group_id, type(problem).__name__)
 
@@ -575,11 +604,11 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
   group = get_group(group_id)
   if not group["owner_email"]:
     raise GroupProblem("The group's leader has no email address: set one on their Drupal account first.")
-  subject, text, verse, card, _words, _link = _prepare(group, kind, details)
+  subject, text, verse, card, _words, _link, html = _prepare(group, kind, details)
   try:
     settings = load_mail_settings()
     # A code shaped like a member's stop_token that belongs to no one (the stop page says "not valid").
-    email = compose_email(settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule)
+    email = compose_email(settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule, html=html)
     send_email(settings, email, [group["owner_email"]])
   except MailUnavailable as problem:
     raise GroupProblem(f"The test could not be sent: {problem}") from problem
@@ -611,14 +640,16 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
     row = connection.execute(
       """
       SELECT COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
-             m.user_id IS NULL OR u.email_verified_at IS NOT NULL
+             m.user_id IS NULL OR u.email_verified_at IS NOT NULL, u.disabled_at IS NOT NULL
       FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = %s AND m.group_id = %s
       """,
       (member_id, group_id),
     ).fetchone()
   if row is None:
     raise GroupProblem("That member is not in the group (they may have been removed).")
-  address, token, stopped, confirmed = row
+  address, token, stopped, confirmed, closed = row
+  if closed:
+    raise GroupProblem("This member closed their account, so nothing can be sent to them.")
   if stopped:
     raise GroupProblem("This member stopped the group's messages, so nothing can be sent to them.")
   if not confirmed:
@@ -704,7 +735,7 @@ def send_prayer_request(
       members = connection.execute(
         """
         SELECT m.user_id, COALESCE(u.email, m.email), m.stop_token, m.stopped_at IS NOT NULL,
-               m.user_id IS NULL OR u.email_verified_at IS NOT NULL
+               m.user_id IS NULL OR (u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL)
         FROM group_members m LEFT JOIN users u ON u.id = m.user_id
         WHERE m.group_id = %s AND m.user_id IS DISTINCT FROM %s ORDER BY m.id
         """,

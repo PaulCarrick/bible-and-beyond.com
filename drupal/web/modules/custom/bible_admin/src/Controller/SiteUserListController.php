@@ -73,7 +73,8 @@ class SiteUserListController extends ControllerBase {
       $name = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
       $rows[] = [
         ['data' => ['#plain_text' => $name]],
-        ['data' => ['#plain_text' => $user['email']]],
+        // A closed account (its owner closed it on My account) says so after its address.
+        ['data' => ['#plain_text' => !empty($user['closed']) ? $user['email'] . ' ' . $this->t('(closed)') : $user['email']]],
         ['data' => ['#plain_text' => $user['phone'] ?? '']],
         ['data' => ['#plain_text' => $user['email_verified'] ? $this->t('Yes') : $this->t('No')]],
         ['data' => ['#plain_text' => $user['open_ai_queries'] ? $this->t('Yes') : $this->t('No')]],

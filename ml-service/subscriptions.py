@@ -271,7 +271,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
         FROM devotional_subscriptions s
         JOIN users u ON u.id = s.user_id
         JOIN devotionals d ON d.id = s.devotional_id AND d.is_published AND d.collection = 'devotionals'
-        WHERE u.email_verified_at IS NOT NULL
+        WHERE u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL
         ORDER BY s.id
         """
       ).fetchall()

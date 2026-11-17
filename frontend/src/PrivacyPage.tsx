@@ -182,7 +182,9 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
           mobile carrier may charge for texts you receive.
         </li>
         <li>
-          To delete your account and everything stored with it, or to ask what we hold about you, use the{' '}
+          You can close your account yourself at the foot of the My account page: it can no longer log in, and after one
+          email saying it was closed we send you nothing more. What you stored is kept until you ask us to delete it. To
+          delete your account and everything stored with it, to reopen it, or to ask what we hold about you, use the{' '}
           <button type="button" className="link-button" onClick={() => onNavigate('contact')}>
             Contact
           </button>{' '}

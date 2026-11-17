@@ -471,7 +471,8 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL): array {
+    $before = $closed === NULL ? NULL : $this->getSiteUser($userId);
     $arguments = [
       'update',
       '--id=' . $userId,
@@ -483,6 +484,9 @@ class BibleManager {
       '--see-private-prayers=' . ($seePrivatePrayers ? 'yes' : 'no'),
       '--use-maps=' . ($useMaps ? 'yes' : 'no'),
     ];
+    if ($closed !== NULL) {
+      $arguments[] = '--closed=' . ($closed ? 'yes' : 'no');
+    }
     $input = NULL;
     if ($password !== '') {
       $arguments[] = '--password-on-input';
@@ -494,6 +498,13 @@ class BibleManager {
       '@email' => $user['email'],
       '@password' => $password !== '' ? ' (new password)' : '',
     ]);
+    if ($before !== NULL && !empty($before['closed']) !== !empty($user['closed'])) {
+      $this->logger->notice('@user @change the site account @email.', [
+        '@user' => $this->currentUser->getAccountName(),
+        '@change' => !empty($user['closed']) ? 'closed' : 'reopened',
+        '@email' => $user['email'],
+      ]);
+    }
     return $user;
   }
 
@@ -801,7 +812,7 @@ class BibleManager {
    * administer all groups, moves the group to that Drupal user (who must be able to lead groups): its emails'
    * Reply-To becomes their address.
    */
-  public function saveGroup(?int $groupId, string $name, string $description, ?AccountInterface $leader = NULL): array {
+  public function saveGroup(?int $groupId, string $name, string|array $description, ?AccountInterface $leader = NULL): array {
     $owner = $this->currentUser;
     $previous = NULL;
     if ($groupId !== NULL) {
@@ -833,9 +844,13 @@ class BibleManager {
       $ownerName = $previous['owner_name'];
       $ownerEmail = $previous['owner_email'];
     }
+    // $description: plain text, or ['html' => ...] from the editor / ['text' => ...] from the plain box
+    // (GroupEditor::value); the ML service cleans the HTML.
+    $notes = is_array($description) ? $description : ['text' => $description];
     $group = $this->run($arguments, 'manage_groups.py', $this->groupInput([
       'name' => $name,
-      'description' => $description,
+      'description' => $notes['text'] ?? '',
+      'description_html' => $notes['html'] ?? NULL,
       'owner_name' => $ownerName,
       'owner_email' => $ownerEmail,
     ]))['group'];

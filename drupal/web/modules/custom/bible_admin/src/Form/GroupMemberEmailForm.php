@@ -6,10 +6,10 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\filter\Entity\FilterFormat;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -21,7 +21,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class GroupMemberEmailForm extends FormBase {
 
-  private const FORMAT = 'group_email';
 
   public function __construct(protected BibleManager $manager) {}
 
@@ -65,29 +64,9 @@ class GroupMemberEmailForm extends FormBase {
         '@address' => $group['owner_email'] ?: $this->t('the site\'s address (set one on your Drupal account)'),
       ]),
     ];
-    // The editor (CKEditor 5, text format group_email: bold, italic, underline, links, lists, quotations; the
-    // owner's request, 2026-11-17). The ML service cleans what it writes. Without the format, a plain box.
-    $format = FilterFormat::load(self::FORMAT);
-    if ($format && $format->access('use')) {
-      $form['text'] = [
-        '#type' => 'text_format',
-        '#title' => $this->t('Message'),
-        '#format' => self::FORMAT,
-        '#allowed_formats' => [self::FORMAT],
-        '#rows' => 8,
-        '#required' => TRUE,
-        '#after_build' => [[static::class, 'hideFormatHelp']],
-      ];
-    }
-    else {
-      $form['text'] = [
-        '#type' => 'textarea',
-        '#title' => $this->t('Message'),
-        '#required' => TRUE,
-        '#rows' => 8,
-        '#maxlength' => 5000,
-      ];
-    }
+    // The editor (GroupEditor: CKEditor 5, text format group_email; the owner's request, 2026-11-17). The ML
+    // service cleans what it writes. Without the format, a plain box.
+    $form['text'] = GroupEditor::field((string) $this->t('Message'), '', 8, TRUE);
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
@@ -103,19 +82,10 @@ class GroupMemberEmailForm extends FormBase {
     return $form;
   }
 
-  /**
-   * Takes away the "About text formats" link and the format's guidelines: there is only the one format.
-   */
-  public static function hideFormatHelp(array $element): array {
-    unset($element['format']['help'], $element['format']['guidelines']);
-    return $element;
-  }
-
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $groupId = (int) $form_state->get('group_id');
     // From the editor: HTML; from the plain box: text.
-    $value = $form_state->getValue('text');
-    $details = is_array($value) ? ['html' => (string) ($value['value'] ?? '')] : ['text' => (string) $value];
+    $details = GroupEditor::value($form_state->getValue('text'));
     try {
       $member = $this->manager->emailGroupMember($groupId, (int) $form_state->get('member_id'), $details);
       $this->messenger()->addStatus($this->t('Your message was emailed to @name.', ['@name' => $member['name'] ?: $this->t('the member')]));

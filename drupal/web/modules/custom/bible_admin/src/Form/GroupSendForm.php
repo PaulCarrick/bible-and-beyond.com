@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -65,15 +66,23 @@ class GroupSendForm extends FormBase {
         '#required' => TRUE,
         '#default_value' => $form_state->getValue('subject', ''),
       ];
-      $form['text'] = [
-        '#type' => 'textarea',
-        '#title' => $kind === 'picture' ? $this->t('Words for the picture') : $this->t('Message'),
-        '#rows' => $kind === 'picture' ? 3 : 8,
-        '#maxlength' => $kind === 'picture' ? 400 : 5000,
-        '#required' => TRUE,
-        '#default_value' => $form_state->getValue('text', ''),
-        '#description' => $kind === 'picture' ? $this->t('Up to 400 characters; the fewer the words, the larger they are written.') : '',
-      ];
+      if ($kind === 'picture') {
+        // Plain words: they are written onto the picture, where formatting cannot show.
+        $form['text'] = [
+          '#type' => 'textarea',
+          '#title' => $this->t('Words for the picture'),
+          '#rows' => 3,
+          '#maxlength' => 400,
+          '#required' => TRUE,
+          '#default_value' => $form_state->getValue('text', ''),
+          '#description' => $this->t('Up to 400 characters; the fewer the words, the larger they are written.'),
+        ];
+      }
+      else {
+        // The editor (GroupEditor; 2026-11-17): the email keeps its formatting, texts get the words.
+        $typed = $form_state->getValue('text', '');
+        $form['text'] = GroupEditor::field((string) $this->t('Message'), is_array($typed) ? (string) ($typed['value'] ?? '') : (string) $typed, 8, TRUE);
+      }
     }
 
     if ($preview) {
@@ -156,7 +165,7 @@ class GroupSendForm extends FormBase {
     $details = match ($kind) {
       'verse' => ['card' => $preview['card'] ?? '', 'verse' => $preview['verse'] ?? []],
       'picture' => ['subject' => (string) $form_state->getValue('subject'), 'text' => (string) $form_state->getValue('text'), 'card' => $preview['card'] ?? ''],
-      default => ['subject' => (string) $form_state->getValue('subject'), 'text' => (string) $form_state->getValue('text')],
+      default => ['subject' => (string) $form_state->getValue('subject')] + GroupEditor::value($form_state->getValue('text')),
     };
     try {
       $counts = $this->manager->sendToGroup($groupId, $kind, $details);

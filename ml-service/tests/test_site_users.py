@@ -212,3 +212,24 @@ def test_the_tool_reads_the_password_from_its_input_and_answers_in_json():
   assert status == 0 and answer["user"]["email"] == f"ann@{DOMAIN}"
   status, answer, _ = run_tool("get", f"--id={user_id}")
   assert status == 1 and "no such account" in answer["error"]
+
+
+def test_an_administrator_can_reopen_or_close_an_account():
+  from accounts import AccountProblem, close_account
+
+  user = create_user(f"reopen@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False)
+  assert user["closed"] is False and user["closed_at"] is None
+  close_account(user["id"], PASSWORD)
+  closed = get_user(user["id"])
+  assert closed["closed"] is True and closed["closed_at"] is not None
+  assert any(found["closed"] for found in list_users(f"reopen@{DOMAIN}")["users"])
+  with pytest.raises(AccountProblem, match="closed"):
+    log_in(f"reopen@{DOMAIN}", PASSWORD)
+  # Unticking "Account closed" reopens it: it can log in again; other edits leave the flag alone.
+  assert update_user(user["id"], first_name="Ruth")["closed"] is True
+  assert update_user(user["id"], closed=False)["closed"] is False
+  assert log_in(f"reopen@{DOMAIN}", PASSWORD)[0]["id"] == user["id"]
+  # Ticking it closes it and logs it out everywhere.
+  assert update_user(user["id"], closed=True)["closed"] is True
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM user_sessions WHERE user_id = %s", (user["id"],)).fetchone()[0] == 0

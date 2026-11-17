@@ -244,7 +244,7 @@ def log_in(email: str, password: str) -> tuple[dict, str]:
     raise refusal
   with connect() as connection:
     row = connection.execute(
-      f"SELECT users.password_hash, {_USER_COLUMNS} FROM users WHERE email = %s",
+      f"SELECT users.password_hash, users.disabled_at IS NOT NULL, {_USER_COLUMNS} FROM users WHERE email = %s",
       (email,),
     ).fetchone()
     if row is None:
@@ -252,7 +252,10 @@ def log_in(email: str, password: str) -> tuple[dict, str]:
       raise refusal
     if not password_matches(password, row[0]):
       raise refusal
-    user = _describe_user(row[1:])
+    if row[1]:
+      # Closed by its owner (close_account): said only to someone who has its password.
+      raise AccountProblem("This account was closed. To reopen it, please ask us through the Contact page.", 403)
+    user = _describe_user(row[2:])
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
     connection.execute("DELETE FROM user_sessions WHERE expires_at < now()")
@@ -272,7 +275,7 @@ def user_for_token(token: str | None) -> dict | None:
       f"""
       SELECT {_USER_COLUMNS}
       FROM user_sessions JOIN users ON users.id = user_sessions.user_id
-      WHERE user_sessions.token_hash = %s AND user_sessions.expires_at > now()
+      WHERE user_sessions.token_hash = %s AND user_sessions.expires_at > now() AND users.disabled_at IS NULL
       """,
       (_hash_token(token),),
     ).fetchone()
@@ -339,7 +342,7 @@ def start_password_reset(email: str) -> tuple[str, str] | None:
   if not email or len(email) > EMAIL_LIMIT:
     return None
   with connect() as connection:
-    row = connection.execute("SELECT id FROM users WHERE email = %s", (email,)).fetchone()
+    row = connection.execute("SELECT id FROM users WHERE email = %s AND disabled_at IS NULL", (email,)).fetchone()
     if row is None:
       return None
     token = _issue_token(connection, row[0], "reset", timedelta(minutes=RESET_LINK_MINUTES))
@@ -385,6 +388,52 @@ def change_password(user_id: int, session_token: str | None, current: str, passw
       (user_id, _hash_token(session_token or "")),
     )
     connection.execute("DELETE FROM account_tokens WHERE user_id = %s AND purpose = 'reset'", (user_id,))
+
+
+def close_account(user_id: int, password: str) -> str:
+  """A logged-in member closes their own account (the My account page; added 2026-11-17 at the owner's request,
+  first as a delete, then: "let's not actually delete the account just add a disable flag and don't permit any
+  account related actions (including sending emails) and login"). Their password must be right (the same check as
+  changing it, so a wrong one takes about as long). Sets users.disabled_at, logs out every device and cancels any
+  emailed link. Nothing is deleted. One short email says it was closed (send_goodbye_email, the owner's wish) and
+  after that nothing more: from now on the account cannot log in (log_in,
+  user_for_token, start_password_reset) and no email or text goes to it (contact.send_email, sms.send_text and the
+  sending loops). An administrator can reopen or delete it on Site users."""
+  refusal = AccountProblem("Your password is not right.", 422)
+  if not password or len(password) > PASSWORD_MAXIMUM:
+    password_matches((password or "")[:PASSWORD_MAXIMUM], _DUMMY_HASH)
+    raise refusal
+  with connect() as connection:
+    row = connection.execute("SELECT password_hash, email FROM users WHERE id = %s AND disabled_at IS NULL", (user_id,)).fetchone()
+    if row is None:
+      password_matches(password, _DUMMY_HASH)
+      raise AccountProblem("Please log in again.", 401)
+    if not password_matches(password, row[0]):
+      raise refusal
+    connection.execute("UPDATE users SET disabled_at = now() WHERE id = %s", (user_id,))
+    connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
+    connection.execute("DELETE FROM account_tokens WHERE user_id = %s", (user_id,))
+  logger.info("Account %s closed by its owner.", user_id)
+  return row[1]
+
+
+def send_goodbye_email(address: str) -> None:
+  """The one email a closed account gets: that it was closed (so they know, if it was not them). Sent past the
+  closed-account guard (even_if_closed); nothing is sent to it after this."""
+  title = get_public_settings()["title"]
+  contact_page = site_link("").rstrip("?").rstrip("/") + "/contact"
+  try:
+    send_plain_message(
+      address,
+      f"Your {title} account was closed",
+      f"The {title} account for this address was closed from its My account page. It can no longer log in, and "
+      f"this is the last email you will get from the site: no more emails or texts will be sent to you.\n\n"
+      f"If you did not do this, or you would like it reopened or deleted with everything stored with it, please "
+      f"tell us through the Contact page: {contact_page}\n",
+      even_if_closed=True,
+    )
+  except MailUnavailable as problem:
+    logger.error("Account email not sent: %s", problem)
 
 
 def site_link(query: str) -> str:

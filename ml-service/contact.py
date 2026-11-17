@@ -15,6 +15,7 @@ import smtplib
 import ssl
 import subprocess
 from email.message import EmailMessage
+from email.utils import getaddresses
 from html import escape
 from html.parser import HTMLParser
 from pathlib import Path
@@ -297,7 +298,32 @@ def build_email(settings: dict, values: dict) -> EmailMessage:
   return email
 
 
-def send_email(settings: dict, email: EmailMessage, recipients: list[str] | None = None) -> None:
+def closed_addresses(addresses: list[str]) -> set[str]:
+  """Which of these addresses (lower case) belong to accounts their owners closed (users.disabled_at; added
+  2026-11-17): no email ever goes to them."""
+  wanted = sorted({address.strip().lower() for address in addresses if address and address.strip()})
+  if not wanted:
+    return set()
+  from search import connect  # here, not at the top: search is not needed for the contact form's own checks
+
+  with connect() as connection:
+    rows = connection.execute("SELECT lower(email) FROM users WHERE disabled_at IS NOT NULL AND lower(email) = ANY(%s)", (wanted,)).fetchall()
+  return {row[0] for row in rows}
+
+
+def send_email(settings: dict, email: EmailMessage, recipients: list[str] | None = None, even_if_closed: bool = False) -> None:
+  """Sends one email: to recipients (its real delivery, when that is not who its To shows), else to its To, Cc and
+  Bcc. An address of a closed account (closed_addresses) is left out, whichever part of the site sends; with
+  nobody left, nothing is sent. even_if_closed is only for the email that tells a member their account was
+  closed (accounts.send_goodbye_email), the last one it ever gets."""
+  targets = list(recipients) if recipients else [address for _, address in getaddresses(email.get_all("To", []) + email.get_all("Cc", []) + email.get_all("Bcc", []))]
+  closed = set() if even_if_closed else closed_addresses(targets)
+  if closed:
+    targets = [address for address in targets if address.strip().lower() not in closed]
+    logger.info("An email was not sent to %d closed account(s).", len(closed))
+    if not targets:
+      return
+    recipients = targets
   host = settings["smtp_host"]
   port = int(settings["smtp_port"])
   authentication = settings.get("smtp_authentication", "login")
@@ -331,7 +357,7 @@ def send_contact_message(values: dict) -> None:
   send_email(settings, build_email(settings, values))
 
 
-def send_plain_message(to_address: str, subject: str, text: str) -> None:
+def send_plain_message(to_address: str, subject: str, text: str, even_if_closed: bool = False) -> None:
   """Sends a short plain-text email from the site's address, with the settings kept in Drupal."""
   settings = load_mail_settings()
   email = EmailMessage()
@@ -339,4 +365,4 @@ def send_plain_message(to_address: str, subject: str, text: str) -> None:
   email["From"] = settings["from_address"]
   email["To"] = to_address
   email.set_content(text)
-  send_email(settings, email)
+  send_email(settings, email, even_if_closed=even_if_closed)

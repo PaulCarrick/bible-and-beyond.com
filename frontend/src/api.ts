@@ -691,6 +691,12 @@ export function changePassword(currentPassword: string, password: string, passwo
   })
 }
 
+// The logged-in member closes their own account (My account): it can no longer log in or get emails; nothing is
+// deleted. Every device is logged out.
+export function closeAccount(password: string) {
+  return accountAction('close', { password })
+}
+
 export function resetPassword(token: string, password: string, passwordConfirmation: string) {
   return accountAction('reset-password', { token, password, password_confirmation: passwordConfirmation })
 }

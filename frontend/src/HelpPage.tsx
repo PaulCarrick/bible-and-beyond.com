@@ -765,6 +765,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             verse-a-day choice (press <em>Save</em>), and change your password.
           </li>
           <li>
+            <strong>Closing your account.</strong> At the foot of <em>My account</em>, <em>Close my account</em> asks for
+            your password and closes it: you are logged out everywhere, you can no longer log in, and after one email
+            saying it was closed the site sends you no more emails or texts. What you wrote is kept. To have it reopened,
+            or deleted with everything in it, ask through the{' '}
+            <PageLink onNavigate={onNavigate} view="contact">Contact</PageLink> page.
+          </li>
+          <li>
             <strong>Your address</strong> is used only for the site&rsquo;s own emails (the confirmation link, a password
             reset, and any devotional, verse a day, prayer list or reply notices you choose). Your name and phone number
             are kept with your account; only the site&rsquo;s administrators can see them. The{' '}

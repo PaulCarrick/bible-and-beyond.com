@@ -192,7 +192,7 @@ def send_due(now: datetime | None = None, pause: float = PAUSE_BETWEEN_EMAILS) -
         SELECT s.id, s.send_weekday, s.send_time, s.timezone, s.last_sent_on, s.sent_through, s.attempts_on,
                s.attempts, s.unsubscribe_token, u.email, u.see_private_prayers, u.id
         FROM prayer_list_subscriptions s JOIN users u ON u.id = s.user_id
-        WHERE u.email_verified_at IS NOT NULL
+        WHERE u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL
         ORDER BY s.id
         """
       ).fetchall()

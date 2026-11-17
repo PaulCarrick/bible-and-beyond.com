@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSubscription } from './api'
 import ChangePasswordSection from './ChangePasswordSection'
+import CloseAccountSection from './CloseAccountSection'
 import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
@@ -14,15 +15,20 @@ interface MyAccountPageProps {
   user: AccountUser | null
   // False until the site knows whether anyone is logged in.
   isAccountKnown: boolean
+  // True once the visitor has closed their account in this visit (the page says so).
+  wasAccountClosed: boolean
   onUserChanged: (user: AccountUser) => void
   onNavigate: (view: View) => void
+  // After the member closes their account: the site forgets them (this page then says it was closed).
+  onAccountClosed: () => void
 }
 
 // My account (added 2026-11-15 with text messages, the owner's request): the logged-in member's address, their
 // phone number with "This is a cell number", how their messages reach them (Send via Email, Send via SMS; added
 // 2026-11-16) and the verse a day, which they can change here. Opened from their address in the
-// header. Below them, a section of its own changes the password (ChangePasswordSection).
-function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAccountPageProps) {
+// header. Below them, a section of its own changes the password (ChangePasswordSection), and at the foot the
+// member can close their account (CloseAccountSection, 2026-11-17).
+function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, onNavigate, onAccountClosed }: MyAccountPageProps) {
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [phoneIsCell, setPhoneIsCell] = useState(user?.phone_is_cell ?? false)
   const [sendViaEmail, setSendViaEmail] = useState(user?.send_via_email ?? true)
@@ -65,6 +71,23 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
       <div className="account-page">
         <h1>My account</h1>
         <p>Loading…</p>
+      </div>
+    )
+  }
+  if (user === null && wasAccountClosed) {
+    return (
+      <div className="account-page">
+        <h1>My account</h1>
+        <p role="status">
+          Your account has been closed and you have been logged out everywhere. We have sent one last email to your
+          address to say so; the site will send you nothing more. Thank you for using the site. To have it reopened,
+          ask us through the Contact page.
+        </p>
+        <div className="note-actions">
+          <button type="button" className="secondary-button" onClick={() => onNavigate('welcome')}>
+            Go to the welcome page
+          </button>
+        </div>
       </div>
     )
   }
@@ -185,6 +208,7 @@ function MyAccountPage({ user, isAccountKnown, onUserChanged, onNavigate }: MyAc
         </div>
       </form>
       <ChangePasswordSection />
+      <CloseAccountSection onClosed={onAccountClosed} />
     </div>
   )
 }

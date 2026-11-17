@@ -15,9 +15,11 @@ from accounts import (
   SESSION_DAYS,
   change_password,
   create_account,
+  close_account,
   log_in,
   log_out,
   reset_password,
+  send_goodbye_email,
   send_reset_email,
   send_verification_email,
   start_password_reset,
@@ -1022,6 +1024,26 @@ def account_password(body: PasswordChangeRequest, request: Request):
   except AccountProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"changed": True}
+
+
+class CloseAccountRequest(BaseModel):
+  # No max_length here: a refused value would be echoed back in the error. close_account checks the length.
+  password: str
+
+
+@app.post("/account/close")
+def account_close(body: CloseAccountRequest, request: Request, response: Response, background: BackgroundTasks):
+  """The logged-in member closes their own account (the My account page), after typing their password. Nothing is
+  deleted: the account can no longer log in and gets no emails or texts. Every device is logged out (its sessions
+  are removed) and this one's cookie is cleared. One short email says it was closed, and nothing is sent after."""
+  user = require_user(request, "Please log in to close your account.")
+  try:
+    address = close_account(user["id"], body.password)
+  except AccountProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  response.delete_cookie(SESSION_COOKIE, path="/")
+  background.add_task(send_goodbye_email, address)
+  return {"closed": True, "user": None}
 
 
 class TokenRequest(BaseModel):

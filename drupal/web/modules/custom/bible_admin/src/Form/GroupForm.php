@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -74,13 +75,8 @@ class GroupForm extends FormBase {
         '#description' => $this->t('The group moves to the person chosen: only they (and those who administer all groups) see it, and replies to its emails go to their address. The list holds the Drupal users who can lead groups; give someone the Group leader role to add them.'),
       ];
     }
-    $form['description'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Notes (only the leader and those who administer all groups see them)'),
-      '#default_value' => $group['description'] ?? '',
-      '#rows' => 3,
-      '#maxlength' => 2000,
-    ];
+    // The editor (GroupEditor; the owner's request, 2026-11-17).
+    $form['description'] = GroupEditor::field((string) $this->t('Notes (only the leader and those who administer all groups see them)'), (string) ($group['description'] ?? ''), 3, FALSE);
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $group === NULL ? $this->t('Make the group') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -97,7 +93,7 @@ class GroupForm extends FormBase {
     try {
       $leaderId = $form_state->getValue('leader');
       $leader = $leaderId ? $this->entityTypes->getStorage('user')->load((int) $leaderId) : NULL;
-      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), (string) $form_state->getValue('description'), $leader);
+      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), GroupEditor::value($form_state->getValue('description')), $leader);
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

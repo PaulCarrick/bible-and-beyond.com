@@ -102,7 +102,7 @@ def describe(schedule: dict) -> str:
 
 COLUMNS = (
   "id, group_id, kind, subject, text, repeat, on_date, day_of_month, weekday, week_of_month, send_time, timezone, "
-  "next_run_at, last_run_at, last_result, created_by"
+  "next_run_at, last_run_at, last_result, created_by, html"
 )
 
 
@@ -132,6 +132,8 @@ def _public(schedule: dict) -> dict:
     "last_run_at": schedule["last_run_at"].isoformat() if schedule["last_run_at"] else None,
     "last_result": schedule["last_result"],
     "created_by": schedule["created_by"],
+    # A message written in the editor (migration 050); None for a picture, a verse card or an older message.
+    "html": schedule["html"],
   }
 
 
@@ -191,12 +193,16 @@ def check(details: dict, now: datetime) -> dict:
   except SubscriptionProblem as problem:
     raise GroupProblem(str(problem)) from problem
   schedule = {
-    "kind": kind, "subject": "", "text": "", "repeat": repeat, "on_date": None, "day_of_month": None, "weekday": None,
+    "kind": kind, "subject": "", "text": "", "html": None, "repeat": repeat, "on_date": None, "day_of_month": None, "weekday": None,
     "week_of_month": None, "send_time": send_time, "timezone": str(details["timezone"]),
   }
   if kind == "message":
     schedule["subject"] = groups._one_line(details.get("subject", ""), "subject", groups.SUBJECT_LIMIT)
-    schedule["text"] = groups._text(details.get("text", ""), "message", groups.MESSAGE_LIMIT)
+    if details.get("html") is not None:
+      # Written in the editor: cleaned, with its plain-text copy in text (for texts).
+      schedule["html"], schedule["text"] = groups.message_html(str(details["html"]))
+    else:
+      schedule["text"] = groups._text(details.get("text", ""), "message", groups.MESSAGE_LIMIT)
   elif kind == "picture":
     schedule["subject"] = groups._one_line(details.get("subject", ""), "subject", groups.SUBJECT_LIMIT)
     schedule["text"] = groups._text(details.get("text", ""), "words for the picture", groups.PICTURE_TEXT_LIMIT)
@@ -218,7 +224,7 @@ def check(details: dict, now: datetime) -> dict:
   return schedule
 
 
-FIELDS = ("kind", "subject", "text", "repeat", "on_date", "day_of_month", "weekday", "week_of_month", "send_time", "timezone", "next_run_at")
+FIELDS = ("kind", "subject", "text", "html", "repeat", "on_date", "day_of_month", "weekday", "week_of_month", "send_time", "timezone", "next_run_at")
 
 
 def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | None = None) -> dict:
@@ -268,6 +274,8 @@ def _details_for(schedule: dict) -> dict:
   if schedule["kind"] == "picture":
     preview = groups.preview_picture(schedule["text"])
     return {"subject": schedule["subject"], "text": schedule["text"], "card": preview["card"]}
+  if schedule.get("html"):
+    return {"subject": schedule["subject"], "html": schedule["html"]}
   return {"subject": schedule["subject"], "text": schedule["text"]}
 
 

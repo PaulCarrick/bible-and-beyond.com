@@ -169,7 +169,10 @@ sections:
       group (other groups are not affected). You get one copy of each, which says how many it reached. The page then
       says how many were emailed and texted, and the <em>Sent</em> table keeps a record (never who).</p>
       <ul>
-        <li><strong>Send a message</strong>: a subject and your words. No picture. A text is a short version.</li>
+        <li><strong>Send a message</strong>: a subject and your words, written in the editor (headings, bold,
+        italic, underline, strikethrough, links, lists and quotations), which the email keeps. No picture. A text is a
+        short version with the words only. A scheduled message, Email a member and the group's notes use the same
+        editor; the words for a picture stay plain, as they are written onto the picture.</li>
         <li><strong>Send a verse card</strong>: a well-known Bible verse chosen at random, written over one of the
         verse a day pictures. Not the one you want? <em>Pick another verse</em>. In the email the verse is a link to it
         on the site; members who get texts get it as a picture message.</li>
@@ -265,6 +268,12 @@ sections:
       </ul>
       <figure><img data-guide="site-user-edit" alt="Edit a site user: address, names, phone, the checkboxes and the password"><figcaption>Edit a site user.</figcaption></figure>
       <p><strong>Delete</strong> asks first, and says how many notes and daily emails go with the account.</p>
+      <p><strong>Closed accounts.</strong> A member can close their own account on My account (<em>Close my
+      account</em>, with their password). Nothing is deleted, but it can no longer log in, and after one email saying
+      it was closed the site sends it no more emails or texts (no devotionals, verse a day, prayer list, replies or
+      group messages; in a group it shows "Nothing: they closed their account"). The list shows "(closed)" after its
+      address. To reopen it, edit it and untick <em>Account closed</em>; to remove it with everything in it, use
+      <strong>Delete</strong>. Ticking <em>Account closed</em> yourself closes an account without any email.</p>
 
   - id: site-settings
     title: Site settings

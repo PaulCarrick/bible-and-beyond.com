@@ -309,6 +309,62 @@ def test_emailing_a_member_says_so_when_mail_is_off(outbox, monkeypatch):
   assert outbox["emails"] == [] and groups.list_sent(group["id"]) == []
 
 
+def test_a_closed_account_gets_nothing_from_its_groups(outbox):
+  group = new_group()
+  ann = account("ann", texts=True)
+  account("bob")
+  groups.add_member(group["id"], {"email": f"ann@{DOMAIN}"})
+  groups.add_member(group["id"], {"email": f"bob@{DOMAIN}"})
+  with connect() as connection:
+    connection.execute("UPDATE users SET disabled_at = now() WHERE id = %s", (ann["id"],))
+  ann_member = next(member for member in groups.get_group(group["id"])["members"] if member["email"] == f"ann@{DOMAIN}")
+  assert ann_member["closed"] is True and ann_member["confirmed"] is False and ann_member["receives"] == "Nothing: they closed their account"
+  outbox["texts"].clear()
+  counts = groups.send(group["id"], "message", {"subject": "Hello", "text": "Hi"}, "dave", pause=0)
+  assert counts == {"emailed": 1, "texted": 0, "skipped": 1, "failed": 0} and outbox["texts"] == []
+  assert f"ann@{DOMAIN}" not in [email["X-Delivered-To"] for email in outbox["emails"]]
+  with pytest.raises(GroupProblem, match="closed their account"):
+    groups.email_member(group["id"], ann_member["id"], "Hi", "dave")
+  # Not offered when adding people.
+  other = new_group("Other")
+  assert f"ann@{DOMAIN}" not in [candidate["email"] for candidate in groups.list_candidates(other["id"])]
+
+
+def test_a_message_from_the_editor_is_sent_formatted_with_the_words_in_texts(outbox):
+  group = new_group()
+  account("ann", texts=True)
+  groups.add_member(group["id"], {"email": f"ann@{DOMAIN}"})
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  outbox["texts"].clear()
+  html = '<p>Potluck <strong>Sunday</strong></p><ul><li>Bring a dish</li></ul><script>alert(1)</script><p onclick="x()">See <a href="https://site.example/x">this</a></p>'
+  counts = groups.send(group["id"], "message", {"subject": "Potluck", "html": html}, "dave", pause=0)
+  assert counts["emailed"] == 2 and counts["texted"] == 1
+  member = next(email for email in outbox["emails"] if email["X-Delivered-To"] == "pat@example.org")
+  sent_html = member.get_body(("html",)).get_content()
+  assert "<strong>Sunday</strong>" in sent_html and "<li>Bring a dish</li>" in sent_html and "https://site.example/x" in sent_html
+  assert "script" not in sent_html and "onclick" not in sent_html
+  assert "To stop messages from this group" in sent_html and "?unsubscribe=" in sent_html
+  plain = member.get_body(("plain",)).get_content()
+  assert "Potluck Sunday" in plain and "Bring a dish" in plain and "<" not in plain.split("--")[0]
+  # The text has the words, never the markup.
+  assert "Potluck Sunday" in outbox["texts"][0][1] and "<" not in outbox["texts"][0][1]
+  # The leader's copy is formatted too; the Sent table keeps the words.
+  leader = next(email for email in outbox["emails"] if email["X-Delivered-To"] == "dave@example.org")
+  assert "<strong>Sunday</strong>" in leader.get_body(("html",)).get_content()
+  assert groups.list_sent(group["id"])[0]["text"].startswith("Potluck Sunday")
+  with pytest.raises(GroupProblem, match="write something"):
+    groups.send(group["id"], "message", {"subject": "Empty", "html": "<p> </p>"}, "dave", pause=0)
+
+
+def test_group_notes_from_the_editor_are_cleaned():
+  group = groups.save_group(None, {"name": "Notes", "description_html": '<p>Call <em>Pat</em></p><img src="x"><script>alert(1)</script>'}, OWNER, "Dave", "dave@example.org")
+  assert group["description"] == "<p>Call <em>Pat</em></p>"
+  emptied = groups.save_group(group["id"], {"name": "Notes", "description_html": "<p></p>"}, OWNER, "Dave", "dave@example.org")
+  assert emptied["description"] == ""
+  plain = groups.save_group(group["id"], {"name": "Notes", "description": "Plain notes"}, OWNER, "Dave", "dave@example.org")
+  assert plain["description"] == "Plain notes"
+
+
 def test_deleting_a_group_keeps_the_accounts():
   group = new_group()
   ann = account("ann")
