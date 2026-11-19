@@ -4,7 +4,7 @@ tables: their rows are set aside before each test and put back afterwards."""
 import json
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -191,7 +191,7 @@ def site_users():
   """Two made-up site accounts (one closed), deleted afterwards."""
   with connect() as connection:
     open_id = connection.execute(
-      "INSERT INTO users (email, password_hash, first_name, last_name) VALUES ('scheduled-ruth@example.org', 'x', 'Ruth', 'Test') RETURNING id"
+      "INSERT INTO users (email, password_hash, first_name, last_name, email_verified_at) VALUES ('scheduled-ruth@example.org', 'x', 'Ruth', 'Test', now()) RETURNING id"
     ).fetchone()[0]
     closed_id = connection.execute(
       "INSERT INTO users (email, password_hash, disabled_at) VALUES ('scheduled-closed@example.org', 'x', now()) RETURNING id"
@@ -277,3 +277,99 @@ def test_the_schedule_commands_of_the_tool(site_users):
   assert status == 1 and "next 4 dates" in answer["error"]
   status, answer = run_tool("manage_tasks.py", ["remove-schedule", f"--schedule={schedule_id}"])
   assert status == 0
+
+
+# --- reminders ---------------------------------------------------------------------------------------------
+
+
+def reminder_task(**changes) -> dict:
+  values = {
+    "name": "Greeter", "weekday": 6, "timezone": "America/Chicago", "owner_email": "leader@example.org",
+    "first_notification": {"html": "<p>You are the <strong>greeter</strong> next week.</p>"}, "first_notice_days": 7,
+    "second_notification": {"text": "You are the greeter tomorrow."}, "second_notice_days": 1,
+  }
+  values.update(changes)
+  return task_details(**values)
+
+
+@pytest.fixture
+def mailbox(monkeypatch):
+  sent = []
+  monkeypatch.setattr(scheduled_tasks, "load_mail_settings", lambda: {"from_address": "site@example.test"})
+  monkeypatch.setattr(scheduled_tasks, "send_email", lambda settings, email, recipients=None: sent.append(email))
+  return sent
+
+
+def at_utc(year, month, day, hour):
+  return datetime(year, month, day, hour, tzinfo=timezone.utc)
+
+
+def test_the_days_before_are_checked():
+  task = admin_tasks.create_task(reminder_task(), OWNER, "Paul")
+  assert (task["first_notice_days"], task["second_notice_days"], task["timezone"], task["owner_email"]) == (7, 1, "America/Chicago", "leader@example.org")
+  with pytest.raises(TaskProblem, match="fewer days"):
+    admin_tasks.create_task(reminder_task(second_notice_days=7), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="from 0 to 90"):
+    admin_tasks.create_task(reminder_task(first_notice_days=91), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="Write the second notification"):
+    admin_tasks.create_task(reminder_task(second_notification={"text": ""}), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="time zone"):
+    admin_tasks.create_task(reminder_task(timezone="Mars/Olympus"), OWNER, "Paul")
+  # Changed by someone else (no time zone or address given): the owner's stay.
+  changed = admin_tasks.update_task(task["id"], task_details(name="Greeter", weekday=6, first_notice_days="", second_notice_days=None))
+  assert changed["first_notice_days"] is None and changed["timezone"] == "America/Chicago" and changed["owner_email"] == "leader@example.org"
+
+
+def test_each_reminder_goes_once_at_eight_in_the_tasks_time_zone(site_users, mailbox):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  assert scheduled["first_notice_date"] == "2026-11-22" and scheduled["second_notice_date"] == "2026-11-28"
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 22, 13))["sent"] == 0  # 7:00 AM in Chicago
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 22, 14))["sent"] == 1  # 8:00 AM
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 22, 20))["sent"] == 0
+  email = mailbox[0]
+  assert email["To"] == "scheduled-ruth@example.org" and email["Reply-To"] == "leader@example.org"
+  assert email["Subject"] == "Reminder: Greeter on Sunday, November 29, 2026"
+  assert "<strong>greeter</strong>" in email.get_body(("html",)).get_content()
+  assert "You are the greeter next week." in email.get_body(("plain",)).get_content()
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 28, 15))["sent"] == 1
+  assert "greeter tomorrow" in mailbox[1].get_body(("plain",)).get_content()
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 29, 15))["sent"] == 0
+  after = scheduled_tasks.get_scheduled(scheduled["id"])
+  assert after["first_notice_result"] == "Sent" and after["second_notice_result"] == "Sent" and len(mailbox) == 2
+
+
+def test_a_late_schedule_sends_only_the_second_reminder(site_users, mailbox):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-22"}, OWNER, "Paul", THURSDAY)
+  result = scheduled_tasks.send_due(at_utc(2026, 11, 21, 15))
+  assert (result["sent"], result["skipped"]) == (1, 1) and len(mailbox) == 1
+  assert "tomorrow" in mailbox[0].get_body(("plain",)).get_content()
+  after = scheduled_tasks.get_scheduled(scheduled["id"])
+  assert after["first_notice_result"].startswith("Skipped") and after["second_notice_result"] == "Sent"
+
+
+def test_a_new_date_lets_the_reminders_go_again_and_a_passed_date_sends_none(site_users, mailbox):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  assert len(mailbox) == 1
+  moved = scheduled_tasks.update_scheduled(scheduled["id"], {"user_id": open_id, "on_date": "2026-12-06"}, THURSDAY)
+  assert moved["first_notice_at"] is None and moved["first_notice_result"] == ""
+  # The job was not running until after the new date: nothing is sent late.
+  result = scheduled_tasks.send_due(at_utc(2026, 12, 7, 15))
+  assert result["sent"] == 0 and result["skipped"] == 2 and len(mailbox) == 1
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"].startswith("Skipped: the date passed")
+
+
+def test_an_unconfirmed_address_is_not_emailed(site_users, mailbox):
+  open_id, _ = site_users
+  with connect() as connection:
+    connection.execute("UPDATE users SET email_verified_at = NULL WHERE id = %s", (open_id,))
+  task = admin_tasks.create_task(reminder_task(second_notice_days=None), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))["skipped"] == 1 and mailbox == []
+  assert "not confirmed" in scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"]

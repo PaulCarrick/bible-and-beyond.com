@@ -1,6 +1,7 @@
 """Tasks (added 2026-11-19 at the owner's request): a name, a formatted description, how often the task comes round,
-and the words of a first and a second notification, kept in admin_tasks (migration 054). The notifications are
-not sent yet.
+and the words of a first and a second notification, each sent so many days before a scheduled date (first_notice_days,
+second_notice_days; migration 056), kept in admin_tasks (migration 054). The reminders are emailed to the site user a
+task is scheduled for (scheduled_tasks.send_due) at 8:00 AM in the task's time zone (the owner's when they saved it).
 
 How often (repeat):
   weekly     every week on a weekday (weekday: 0 Monday to 6 Sunday)
@@ -14,19 +15,22 @@ anyone with "administer all signatures and tasks"). The Drupal "Tasks" page runs
 import calendar
 from datetime import date, timedelta
 
+from subscriptions import SubscriptionProblem, check_timezone
+
 from formatted_text import FormattedTextProblem, clean, one_line
 from search import connect
 
 NAME_LIMIT = 200
 PREVIEW_LENGTH = 160
 MAX_PER_OWNER = 200
+MAX_NOTICE_DAYS = 90
 REPEATS = ("weekly", "biweekly", "monthly")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 COLUMNS = """
   id, name, description_html, description_text, repeat, weekday, first_date, day_of_month,
   first_notification_html, first_notification_text, second_notification_html, second_notification_text,
-  owner_uid, owner_name, created_at, updated_at
+  owner_uid, owner_name, created_at, updated_at, first_notice_days, second_notice_days, timezone, owner_email
 """
 
 
@@ -91,6 +95,7 @@ def _describe(row, today: date | None = None) -> dict:
     "first_notification_html": row[8], "first_notification_text": row[9],
     "second_notification_html": row[10], "second_notification_text": row[11],
     "owner_uid": row[12], "owner_name": row[13], "created_at": row[14].isoformat(), "updated_at": row[15].isoformat(),
+    "first_notice_days": row[16], "second_notice_days": row[17], "timezone": row[18], "owner_email": row[19],
   }
   task["how_often"] = describe(task)
   task["next_date"] = next_date(task, today or date.today()).isoformat()
@@ -137,6 +142,27 @@ def _check(details: dict) -> dict:
     values["day_of_month"] = _integer(details.get("day_of_month"), 1, 31)
     if values["day_of_month"] is None:
       raise TaskProblem("Choose a day of the month from 1 to 31.")
+  for which in ("first", "second"):
+    days = details.get(f"{which}_notice_days")
+    if days is None or days == "":
+      values[f"{which}_notice_days"] = None
+      continue
+    values[f"{which}_notice_days"] = _integer(days, 0, MAX_NOTICE_DAYS)
+    if values[f"{which}_notice_days"] is None:
+      raise TaskProblem(f"The days before for the {which} notice must be a whole number from 0 to {MAX_NOTICE_DAYS}.")
+    if not values[f"{which}_notification"]["text"]:
+      raise TaskProblem(f"Write the {which} notification, or leave its days before empty.")
+  first, second = values["first_notice_days"], values["second_notice_days"]
+  if first is not None and second is not None and second >= first:
+    raise TaskProblem("The second notice comes after the first, so it needs fewer days before the date.")
+  values["timezone"] = None
+  if details.get("timezone"):
+    try:
+      check_timezone(str(details["timezone"]))
+    except SubscriptionProblem as problem:
+      raise TaskProblem(str(problem)) from problem
+    values["timezone"] = str(details["timezone"])
+  values["owner_email"] = None if details.get("owner_email") is None else str(details["owner_email"]).strip()[:320]
   return values
 
 
@@ -146,6 +172,7 @@ def _parameters(values: dict) -> tuple:
     values["first_date"], values["day_of_month"],
     values["first_notification"]["html"], values["first_notification"]["text"],
     values["second_notification"]["html"], values["second_notification"]["text"],
+    values["first_notice_days"], values["second_notice_days"],
   )
 
 
@@ -177,9 +204,9 @@ def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
       f"""INSERT INTO admin_tasks (
         name, description_html, description_text, repeat, weekday, first_date, day_of_month,
         first_notification_html, first_notification_text, second_notification_html, second_notification_text,
-        owner_uid, owner_name
-      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
-      (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT]),
+        first_notice_days, second_notice_days, owner_uid, owner_name, timezone, owner_email
+      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
+      (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT], values["timezone"] or "UTC", values["owner_email"] or ""),
     ).fetchone()
   return _describe(row)
 
@@ -191,9 +218,11 @@ def update_task(task_id: int, details: dict) -> dict:
       f"""UPDATE admin_tasks SET
         name = %s, description_html = %s, description_text = %s, repeat = %s, weekday = %s, first_date = %s,
         day_of_month = %s, first_notification_html = %s, first_notification_text = %s,
-        second_notification_html = %s, second_notification_text = %s, updated_at = now()
+        second_notification_html = %s, second_notification_text = %s, first_notice_days = %s,
+        second_notice_days = %s, timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email),
+        updated_at = now()
       WHERE id = %s RETURNING {COLUMNS}""",
-      (*_parameters(values), task_id),
+      (*_parameters(values), values["timezone"], values["owner_email"], task_id),
     ).fetchone()
   if row is None:
     raise TaskProblem("That task was not found. It may have been deleted.")

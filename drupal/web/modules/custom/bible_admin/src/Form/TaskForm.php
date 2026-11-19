@@ -15,7 +15,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Adds a task (belonging to the user adding it) or changes one: a name, a formatted description, how often it
  * comes round (every week on a day, every two weeks from a first date, or every month on a day) and the words of
- * its first and second notifications (formatted, in the group emails' editor; not sent yet).
+ * its first and second notifications (formatted, in the group emails' editor), each with how many days before a
+ * scheduled date it is emailed to the site user (scheduled_tasks.send_due, at 8:00 AM in the owner's time zone).
  */
 class TaskForm extends FormBase {
 
@@ -109,8 +110,20 @@ class TaskForm extends FormBase {
       ],
     ];
 
-    $form['first_notification'] = GroupEditor::field((string) $this->t('First notification'), (string) ($task['first_notification_html'] ?? ''), 4, FALSE);
-    $form['second_notification'] = GroupEditor::field((string) $this->t('Second notification'), (string) ($task['second_notification_html'] ?? ''), 4, FALSE);
+    foreach (['first' => $this->t('First notification'), 'second' => $this->t('Second notification')] as $which => $title) {
+      $form[$which . '_notification'] = GroupEditor::field((string) $title, (string) ($task[$which . '_notification_html'] ?? ''), 4, FALSE);
+      $form[$which . '_notice_days'] = [
+        '#type' => 'number',
+        '#title' => $this->t('Days before'),
+        '#min' => 0,
+        '#max' => 90,
+        '#default_value' => $task[$which . '_notice_days'] ?? NULL,
+        '#field_suffix' => $this->t('days before the scheduled date'),
+        '#description' => $which === 'first'
+          ? $this->t('The first notification is emailed to the site user this many days before each date the task is scheduled for them, at 8:00 AM your time. Leave it empty to send none.')
+          : $this->t('Fewer days than the first (1 for the day before, 0 for the day itself). Leave it empty to send none.'),
+      ];
+    }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $task === NULL ? $this->t('Add the task') : $this->t('Save')];
@@ -150,6 +163,8 @@ class TaskForm extends FormBase {
         'day_of_month' => $repeat === 'monthly' ? (int) $form_state->getValue('day_of_month') : NULL,
         'first_notification' => GroupEditor::value($form_state->getValue('first_notification')),
         'second_notification' => GroupEditor::value($form_state->getValue('second_notification')),
+        'first_notice_days' => $this->days($form_state->getValue('first_notice_days')),
+        'second_notice_days' => $this->days($form_state->getValue('second_notice_days')),
       ]);
     }
     catch (BibleManagerException $exception) {
@@ -161,6 +176,13 @@ class TaskForm extends FormBase {
       ? $this->t('Added the task “@name”: @how_often.', ['@name' => $task['name'], '@how_often' => $task['how_often']])
       : $this->t('Saved “@name”.', ['@name' => $task['name']]));
     $form_state->setRedirect('bible_admin.tasks');
+  }
+
+  /**
+   * A days-before box: a whole number, or NULL when left empty.
+   */
+  private function days(mixed $value): ?int {
+    return $value === NULL || $value === '' ? NULL : (int) $value;
   }
 
 }

@@ -1176,16 +1176,23 @@ class BibleManager {
    *
    * @param array $details
    *   name, repeat (weekly, biweekly or monthly), weekday (0 Monday to 6 Sunday), first_date (Y-m-d),
-   *   day_of_month (1 to 31), and description, first_notification and second_notification, each ['html' => ...]
-   *   or ['text' => ...] (GroupEditor::value).
+   *   day_of_month (1 to 31), first_notice_days and second_notice_days (0 to 90, or NULL), and description,
+   *   first_notification and second_notification, each ['html' => ...] or ['text' => ...] (GroupEditor::value).
    */
   public function saveTask(?int $taskId, array $details): array {
-    $input = $this->groupInput($details + ['owner_name' => $this->currentUser->getDisplayName()]);
+    $previous = $taskId === NULL ? NULL : $this->getTask($taskId);
+    $details += ['owner_name' => $this->currentUser->getDisplayName()];
+    // The reminders go at 8:00 AM in the owner's time zone, with replies to the owner: taken from the owner's own
+    // account when they save it (an administrator changing someone else's task leaves them as they are).
+    if ($previous === NULL || (int) $previous['owner_uid'] === (int) $this->currentUser->id()) {
+      $details['timezone'] = $this->currentUser->getTimeZone() ?: (string) \Drupal::config('system.date')->get('timezone.default');
+      $details['owner_email'] = (string) $this->currentUser->getEmail();
+    }
+    $input = $this->groupInput($details);
     if ($taskId === NULL) {
       $task = $this->run(['create', '--owner=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['task'];
     }
     else {
-      $this->getTask($taskId);
       $task = $this->run(['update', '--id=' . $taskId], 'manage_tasks.py', $input)['task'];
     }
     $this->logSignatureOrTask($taskId === NULL ? 'added' : 'changed', 'task', $task);

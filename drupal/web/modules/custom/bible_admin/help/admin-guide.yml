@@ -273,8 +273,7 @@ sections:
     body: |
       <p>Things that come round again: each task has a name, a description, how often it comes round and the words of
       a first and a second notification. Only you see your tasks; a Website administrator sees everyone's, with an
-      Owner column. The list shows how often each comes round and its next date. The notifications are not sent
-      yet.</p>
+      Owner column. The list shows how often each comes round and its next date.</p>
       <p><strong>Add a task</strong> (or Edit) and choose how often:</p>
       <ul>
         <li><strong>Every week</strong>, on a day of the week.</li>
@@ -283,7 +282,11 @@ sections:
         <li><strong>Every month</strong>, on a day of the month (1 to 31; the 29th, 30th and 31st mean the last day in
         shorter months).</li>
       </ul>
-      <p>The description and the two notifications are written in the editor and may be left empty.</p>
+      <p>The description and the two notifications are written in the editor. Under each notification, <strong>Days
+      before</strong> says when it is emailed to the person a date is scheduled for: for example 7 for a week before
+      and 1 for the day before (0 is the day itself). The second needs fewer days than the first. It goes at 8:00 AM
+      in your time zone (the one on your Drupal account), and replies come to your email address. Leave Days before
+      empty to send no email for that notification.</p>
 
   - id: scheduled-tasks
     title: Scheduled tasks
@@ -298,6 +301,10 @@ sections:
       list as "its date now"); <strong>Remove</strong> takes away that date for that person and keeps the task.
       Deleting a task, or a site user's account, removes its scheduled dates. You see the scheduled dates of your own
       tasks; a Website administrator sees all of them.</p>
+      <p>The <strong>Reminders</strong> column shows the day each reminder goes and how it went: Sent, not sent yet,
+      or why it was not sent (for example an email address not confirmed yet). A reminder goes once. If you schedule a
+      date after its first reminder's day, the first goes at once; if the second is due by then too, only the second
+      goes. Nothing goes once the date has passed. Changing the person or the date lets the reminders go again.</p>
 
   - id: site-users
     title: Site users

@@ -6,21 +6,41 @@ the next four Sundays). Changing a scheduled task may keep its own date even whe
 
 A scheduled task belongs with its task: Drupal lets whoever may see the task see and change it (owner_uid is the
 task's owner). The Drupal "Scheduled tasks" page and Schedule beside each task run scripts/manage_tasks.py.
+
+Reminders (send_due, run by the five-minute job; the owner's request, 2026-11-19): the task's first notification is
+emailed to the site user first_notice_days before the date, and its second second_notice_days before, at SEND_HOUR in
+the task's time zone (a notice whose days are not set is not sent). Each is claimed before it is sent, so it goes
+once. One that falls due late (the date was scheduled after its day, or the job was not running) goes at the next
+run; when the second is due too, only the second goes and the first is marked skipped. Nothing goes once the date
+has passed. Changing the date of a scheduled task lets its reminders go again for the new date.
 """
 
-from datetime import date
+import logging
+from datetime import date, datetime, time, timedelta, timezone
+from email.message import EmailMessage
+from html import escape
+from zoneinfo import ZoneInfo
 
 import admin_tasks
 from admin_tasks import TaskProblem
+from contact import MailUnavailable, load_mail_settings, send_email
 from search import connect
+from site_settings import get_public_settings
+
+logger = logging.getLogger(__name__)
 
 OCCURRENCES = 4
+SEND_HOUR = 8
+LOCK_NUMBER = 7281005
+NOTICES = ("first", "second")
 NAME_LIMIT = 200
 
 COLUMNS = """
   s.id, s.task_id, t.name, t.owner_uid, t.owner_name, s.user_id,
   COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), COALESCE(u.email, u.phone, ''),
-  s.on_date, s.created_by_name, s.created_at, s.updated_at
+  s.on_date, s.created_by_name, s.created_at, s.updated_at,
+  s.first_notice_at, s.first_notice_result, s.second_notice_at, s.second_notice_result,
+  t.first_notice_days, t.second_notice_days
 """
 FROM = "admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id"
 
@@ -31,6 +51,10 @@ def _describe(row, today: date) -> dict:
     "user_id": row[5], "user_name": row[6], "user_email": row[7], "user_label": _user_label(row[6], row[7]),
     "on_date": row[8].isoformat(), "past": row[8] < today, "created_by_name": row[9],
     "created_at": row[10].isoformat(), "updated_at": row[11].isoformat(),
+    "first_notice_at": row[12].isoformat() if row[12] else None, "first_notice_result": row[13],
+    "second_notice_at": row[14].isoformat() if row[14] else None, "second_notice_result": row[15],
+    "first_notice_date": (row[8] - timedelta(days=row[16])).isoformat() if row[16] is not None else None,
+    "second_notice_date": (row[8] - timedelta(days=row[17])).isoformat() if row[17] is not None else None,
   }
 
 
@@ -149,9 +173,16 @@ def update_scheduled(scheduled_id: int, details: dict, today: date | None = None
     user_id, day = _check(connection, task, details, today, date.fromisoformat(scheduled["on_date"]))
     if _taken(connection, task["id"], user_id, day, scheduled_id):
       raise TaskProblem("That person already has this task on that date.")
+    # A new person or date: the reminders go again (to them, for that date).
+    changed = user_id != scheduled["user_id"] or day.isoformat() != scheduled["on_date"]
     connection.execute(
-      "UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, updated_at = now() WHERE id = %s",
-      (user_id, day, scheduled_id),
+      """UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, updated_at = now(),
+        first_notice_at = CASE WHEN %s THEN NULL ELSE first_notice_at END,
+        first_notice_result = CASE WHEN %s THEN '' ELSE first_notice_result END,
+        second_notice_at = CASE WHEN %s THEN NULL ELSE second_notice_at END,
+        second_notice_result = CASE WHEN %s THEN '' ELSE second_notice_result END
+      WHERE id = %s""",
+      (user_id, day, changed, changed, changed, changed, scheduled_id),
     )
   return get_scheduled(scheduled_id, today)
 
@@ -161,3 +192,133 @@ def remove_scheduled(scheduled_id: int) -> dict:
   with connect() as connection:
     connection.execute("DELETE FROM admin_scheduled_tasks WHERE id = %s", (scheduled_id,))
   return scheduled
+
+
+# --- reminders ---------------------------------------------------------------------------------------------
+
+
+def _due_moment(on_date: date, days: int, zone: ZoneInfo) -> datetime:
+  return datetime.combine(on_date - timedelta(days=days), time(SEND_HOUR), tzinfo=zone).astimezone(timezone.utc)
+
+
+def compose_reminder(settings: dict, reminder: dict) -> EmailMessage:
+  """The reminder email: To the site user, Reply-To the task's owner, the notification's words and a short foot."""
+  title = get_public_settings()["title"]
+  day = date_label(reminder["on_date"])
+  email = EmailMessage()
+  email["Subject"] = f"Reminder: {reminder['task_name']} on {day}"
+  email["From"] = settings["from_address"]
+  email["To"] = reminder["address"]
+  if reminder["owner_email"]:
+    email["Reply-To"] = reminder["owner_email"]
+  sender = reminder["owner_name"] or title
+  foot = f"A reminder of “{reminder['task_name']}” on {day}, from {sender} through {title}."
+  email.set_content(f"{reminder['text']}\n\n--\n{foot}\n")
+  email.add_alternative(f"<html><body>{reminder['html']}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  return email
+
+
+def _recipient_problem(address: str | None, confirmed: bool, closed: bool) -> str | None:
+  if closed:
+    return "Not sent: the site user closed their account."
+  if not address:
+    return "Not sent: the site user's account has no email address."
+  if not confirmed:
+    return "Not sent: the site user has not confirmed their email address yet."
+  return None
+
+
+def _finish(scheduled_id: int, which: str, result: str) -> None:
+  with connect() as connection:
+    connection.execute(f"UPDATE admin_scheduled_tasks SET {which}_notice_result = %s WHERE id = %s", (result, scheduled_id))
+
+
+def _claim(scheduled_id: int, which: str, now: datetime, result: str = "Sending") -> bool:
+  """Marks a reminder as taken (sent or given up) unless another run took it first."""
+  with connect() as connection:
+    return connection.execute(
+      f"""UPDATE admin_scheduled_tasks SET {which}_notice_at = %s, {which}_notice_result = %s
+      WHERE id = %s AND {which}_notice_at IS NULL RETURNING id""",
+      (now, result, scheduled_id),
+    ).fetchone() is not None
+
+
+def send_due(now: datetime | None = None) -> dict:
+  """Emails every task reminder that is due. Returns how many were sent, skipped and failed."""
+  now = now or datetime.now(timezone.utc)
+  result = {"sent": 0, "skipped": 0, "failed": 0, "already_running": False}
+  settings = None
+  with connect() as lock_connection:
+    if not lock_connection.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_NUMBER,)).fetchone()[0]:
+      result["already_running"] = True
+      return result
+    with connect() as connection:
+      rows = connection.execute(
+        """
+        SELECT s.id, s.on_date, s.first_notice_at IS NULL, s.second_notice_at IS NULL,
+               t.name, t.timezone, t.owner_name, t.owner_email, t.first_notice_days, t.second_notice_days,
+               t.first_notification_html, t.first_notification_text, t.second_notification_html, t.second_notification_text,
+               u.email, (u.email_verified_at IS NOT NULL), u.disabled_at IS NOT NULL
+        FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id
+        WHERE s.on_date >= %s
+          AND ((s.first_notice_at IS NULL AND t.first_notice_days IS NOT NULL)
+            OR (s.second_notice_at IS NULL AND t.second_notice_days IS NOT NULL))
+        ORDER BY s.on_date, s.id
+        """,
+        ((now - timedelta(days=2)).date(),),
+      ).fetchall()
+    for row in rows:
+      (scheduled_id, on_date, first_open, second_open, task_name, zone_name, owner_name, owner_email,
+       first_days, second_days, first_html, first_text, second_html, second_text, address, confirmed, closed) = row
+      zone = ZoneInfo(zone_name or "UTC")
+      notices = {
+        "first": {"open": first_open, "days": first_days, "html": first_html, "text": first_text},
+        "second": {"open": second_open, "days": second_days, "html": second_html, "text": second_text},
+      }
+      for notice in notices.values():
+        notice["due"] = notice["open"] and notice["days"] is not None and _due_moment(on_date, notice["days"], zone) <= now
+      local_today = now.astimezone(zone).date()
+      if on_date < local_today:
+        for which, notice in notices.items():
+          if notice["open"] and notice["days"] is not None and _claim(scheduled_id, which, now, "Skipped: the date passed before it was sent."):
+            result["skipped"] += 1
+        continue
+      if notices["second"]["due"]:
+        which = "second"
+        if notices["first"]["due"] and _claim(scheduled_id, "first", now, "Skipped: it was due late, so only the second reminder went."):
+          result["skipped"] += 1
+      elif notices["first"]["due"]:
+        if not second_open:
+          # The second already went (the first's days were added later): the first would come after it.
+          if _claim(scheduled_id, "first", now, "Skipped: the second reminder had already gone."):
+            result["skipped"] += 1
+          continue
+        which = "first"
+      else:
+        continue
+      notice = notices[which]
+      if not _claim(scheduled_id, which, now):
+        continue
+      problem = _recipient_problem(address, confirmed, closed)
+      if problem is None and not notice["text"]:
+        problem = "Not sent: the notification has no words."
+      if problem is not None:
+        _finish(scheduled_id, which, problem)
+        result["skipped"] += 1
+        continue
+      try:
+        settings = settings or load_mail_settings()
+        send_email(settings, compose_reminder(settings, {
+          "task_name": task_name, "on_date": on_date, "address": address, "owner_name": owner_name,
+          "owner_email": owner_email, "html": notice["html"], "text": notice["text"],
+        }))
+        _finish(scheduled_id, which, "Sent")
+        result["sent"] += 1
+      except MailUnavailable as problem:
+        _finish(scheduled_id, which, f"Not sent: {problem}")
+        result["failed"] += 1
+      except Exception as problem:  # never stop the run
+        logger.error("Task reminder %s (%s) not sent: %s", scheduled_id, which, type(problem).__name__)
+        _finish(scheduled_id, which, "Not sent (the details are in the server's log).")
+        result["failed"] += 1
+  return result

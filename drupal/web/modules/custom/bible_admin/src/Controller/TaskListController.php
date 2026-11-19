@@ -32,7 +32,7 @@ class TaskListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('A task comes round every week, every two weeks or every month, and has the words of a first and a second notification. Only you see your tasks. (The notifications are not sent yet.) Use Schedule beside a task to give it to a site user on one of its next dates; the Scheduled tasks page lists them.'),
+        '#value' => $this->t('A task comes round every week, every two weeks or every month, and has the words of a first and a second notification. Only you see your tasks. Each notification is emailed to the site user the days before you set, at 8:00 AM your time. Use Schedule beside a task to give it to a site user on one of its next dates; the Scheduled tasks page lists them.'),
       ],
     ];
     try {

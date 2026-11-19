@@ -67,6 +67,7 @@ class ScheduledTaskListController extends ControllerBase {
         ['data' => ['#plain_text' => $this->formatDay($schedule['on_date'])]],
         ['data' => ['#plain_text' => $schedule['task_name']]],
         ['data' => ['#plain_text' => $schedule['user_label']]],
+        ['data' => $this->reminders($schedule)],
       ];
       if ($showOwner) {
         $row[] = ['data' => ['#plain_text' => $schedule['owner_name']]];
@@ -75,13 +76,32 @@ class ScheduledTaskListController extends ControllerBase {
       $row[] = ['data' => ['#type' => 'operations', '#links' => $links]];
       $rows[] = $row;
     }
-    $header = [$this->t('Date'), $this->t('Task'), $this->t('Site user')];
+    $header = [$this->t('Date'), $this->t('Task'), $this->t('Site user'), $this->t('Reminders')];
     if ($showOwner) {
       $header[] = $this->t('Task owner');
     }
     $header[] = $this->t('Scheduled by');
     $header[] = $this->t('Operations');
     return ['#type' => 'table', '#header' => $header, '#rows' => $rows, '#empty' => $empty];
+  }
+
+  /**
+   * Each reminder the task sends: its day, and how it went (or nothing yet). "None" when the task sends none.
+   */
+  private function reminders(array $schedule): array {
+    $items = [];
+    foreach (['first' => $this->t('First'), 'second' => $this->t('Second')] as $which => $label) {
+      if ($schedule[$which . '_notice_date'] === NULL) {
+        continue;
+      }
+      $outcome = $schedule[$which . '_notice_result'] !== '' ? $schedule[$which . '_notice_result'] : $this->t('not sent yet');
+      $items[] = $this->t('@which, @day: @outcome', [
+        '@which' => $label,
+        '@day' => $this->formatDay($schedule[$which . '_notice_date']),
+        '@outcome' => $outcome,
+      ]);
+    }
+    return $items ? ['#theme' => 'item_list', '#items' => $items] : ['#plain_text' => (string) $this->t('None')];
   }
 
   /**
