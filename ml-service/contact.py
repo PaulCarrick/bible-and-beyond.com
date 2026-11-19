@@ -180,6 +180,11 @@ FONT_FAMILIES = (
   "Trebuchet MS, Helvetica, sans-serif",
   "Tahoma, Geneva, sans-serif",
   "Courier New, Courier, monospace",
+  # Script (handwriting) fonts, added the same day at the owner's request. Many computers have them, phones mostly
+  # not: there the reader's own handwriting-style font (cursive) is used instead.
+  "Brush Script MT, cursive",
+  "Lucida Handwriting, cursive",
+  "Segoe Script, cursive",
 )
 FONT_SIZES = ("12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px")
 FONT_COLOURS = (

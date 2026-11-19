@@ -22,6 +22,10 @@ bible_admin_font:
           - 'Trebuchet MS, Helvetica, sans-serif'
           - 'Tahoma, Geneva, sans-serif'
           - 'Courier New, Courier, monospace'
+          # Script fonts: on many computers; phones show their own handwriting-style font (cursive) instead.
+          - 'Brush Script MT, cursive'
+          - 'Lucida Handwriting, cursive'
+          - 'Segoe Script, cursive'
       fontSize:
         supportAllValues: false
         options: [12, 14, default, 18, 20, 24, 28, 32]

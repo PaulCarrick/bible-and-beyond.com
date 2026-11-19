@@ -252,6 +252,10 @@ def test_the_admin_cleaner_keeps_only_the_offered_fonts_sizes_and_colours():
     '<p><span style="font-family:Times New Roman, Times, serif;font-size:18px;color:#c0392b;background-color:#f1c40f">kept</span>'
     'plain<span style="color:#000000">short hex</span>bare</p>'
   )
+  # A script font, with its handwriting fallback.
+  assert clean_message_html('<span style="font-family:&quot;Brush Script MT&quot;, cursive">Paul</span>', FormattedCleaner) == (
+    '<span style="font-family:Brush Script MT, cursive">Paul</span>'
+  )
   # Visitors' text (the default cleaner) never keeps a span or a style.
   assert clean_message_html('<p><span style="color:#c0392b">red</span></p>') == "<p>red</p>"
   # A style cannot break out of its attribute.
