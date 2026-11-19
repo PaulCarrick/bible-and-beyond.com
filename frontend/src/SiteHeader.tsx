@@ -13,6 +13,8 @@ interface SiteHeaderProps {
   // Who is logged in (nobody, unless they chose to).
   user: AccountUser | null
   onSetUpAccount: () => void
+  // False while "Login required" is on: only an administrator sets up accounts then (Site users).
+  canSetUpAccount?: boolean
   onShowNotes: () => void
   onShowLists: () => void
   // The My account page (phone number and texts).
@@ -22,7 +24,7 @@ interface SiteHeaderProps {
 }
 
 // The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
-function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, onShowNotes, onShowLists, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, canSetUpAccount = true, onShowNotes, onShowLists, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -75,9 +77,11 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
           </>
         ) : (
           <>
-            <button type="button" className="link-button" aria-label="Set up account" onClick={onSetUpAccount}>
-              Set up<span className="phone-hidden"> account</span>
-            </button>
+            {canSetUpAccount && (
+              <button type="button" className="link-button" aria-label="Set up account" onClick={onSetUpAccount}>
+                Set up<span className="phone-hidden"> account</span>
+              </button>
+            )}
             <button type="button" className="link-button" onClick={onLogIn}>
               Log in
             </button>

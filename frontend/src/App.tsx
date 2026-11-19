@@ -61,8 +61,9 @@ import type { View } from './views'
 import './App.css'
 
 // What the pages show until the administrator's settings arrive, and if they cannot be had.
-// The pages a visitor who is not logged in may open while "Login required" is on.
-const lockedOutViews: View[] = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe', 'privacy']
+// The pages a visitor who is not logged in may open while "Login required" is on. Not Set up account: then only an
+// administrator sets up accounts (Site users), and the API refuses sign-ups.
+const lockedOutViews: View[] = ['login', 'forgot', 'reset', 'verify', 'unsubscribe', 'privacy']
 
 const defaultSiteSettings: SiteSettings = {
   title: 'Bible and Beyond',
@@ -460,6 +461,7 @@ function App() {
           onGoHome={() => navigate('welcome')}
           user={user}
           onSetUpAccount={() => navigate('register')}
+          canSetUpAccount={!siteSettings.login_required}
           onShowNotes={() => navigate('notes')}
           onShowLists={() => navigate('lists')}
           onShowAccount={() => navigate('account')}
@@ -492,7 +494,7 @@ function App() {
                 {lockedOutView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
                 {lockedOutView === 'verify' && emailLink && <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />}
                 {lockedOutView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
-                {(lockedOutView === 'register' || lockedOutView === 'login' || lockedOutView === 'forgot' || lockedOutView === 'reset') && (
+                {(lockedOutView === 'login' || lockedOutView === 'forgot' || lockedOutView === 'reset') && (
                   <AccountPage
                     key={lockedOutView}
                     mode={lockedOutView}
@@ -500,6 +502,7 @@ function App() {
                     onDone={(loggedInUser) => setUser(loggedInUser)}
                     onNavigate={navigate}
                     isLoginRequired
+                    siteTitle={siteSettings.title}
                   />
                 )}
               </main>

@@ -558,6 +558,12 @@ async function accountRequest(path: string, method: 'GET' | 'POST' | 'PUT', body
   return (await readJson<{ user: AccountUser | null }>(response)).user
 }
 
+// While "Login required" is on: the administrator's address for asking for an account ('' when there is none).
+export async function fetchAccountRequestAddress(): Promise<string> {
+  const response = await fetch(`${mlServiceUrl}/account/request-address`, { credentials: 'include' })
+  return (await readJson<{ email: string }>(response)).email
+}
+
 export function fetchCurrentUser(): Promise<AccountUser | null> {
   return accountRequest('me', 'GET')
 }

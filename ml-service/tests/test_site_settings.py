@@ -205,3 +205,27 @@ def test_the_settings_tool_sets_login_required_and_the_welcome_text():
 
   assert completed.returncode == 0 and result["settings"]["login_required"] is True
   assert result["settings"]["welcome_text"] == "Hello there."
+
+
+def test_while_login_is_required_visitors_cannot_set_up_accounts():
+  save_settings({"login_required": True})
+  main._login_setting["read_at"] = None
+
+  refused = client.post("/account/register", json={"email": "newcomer@settings-test.example", "password": "a-long-password-1", "password_confirmation": "a-long-password-1"})
+
+  assert refused.status_code == 403
+  assert refused.json()["detail"] == "New accounts are set up by the site's administrators. Please ask them for one."
+  with connect() as connection:
+    assert connection.execute("SELECT count(*) FROM users WHERE lower(email) = 'newcomer@settings-test.example'").fetchone()[0] == 0
+
+
+def test_the_log_in_page_gets_the_administrators_address_only_while_login_is_required(monkeypatch):
+  monkeypatch.setattr(main, "administrator_address", lambda: "admin@settings-test.example")
+  main._request_address["read_at"] = None
+  assert client.get("/account/request-address").json() == {"email": ""}
+
+  save_settings({"login_required": True})
+  main._login_setting["read_at"] = None
+
+  assert client.get("/account/request-address").json() == {"email": "admin@settings-test.example"}
+  main._request_address["read_at"] = None

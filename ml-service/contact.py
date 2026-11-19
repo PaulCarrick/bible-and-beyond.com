@@ -341,6 +341,15 @@ def load_mail_settings() -> dict:
   """
   if os.environ.get("OUTGOING_EMAIL", "on").strip().lower() == "off":
     raise MailUnavailable("Outgoing email is turned off here (OUTGOING_EMAIL=off).")
+  settings = read_drupal_mail_settings()
+  for key in ("smtp_host", "smtp_port", "from_address", "to_address", "subject"):
+    if not settings.get(key):
+      raise MailUnavailable(f"the email setting {key} is empty")
+  return settings
+
+
+def read_drupal_mail_settings() -> dict:
+  """The email settings as Drupal keeps them, unchecked (load_mail_settings checks them before sending)."""
   drush = shlex.split(os.environ.get("DRUSH_COMMAND", "")) or [str(DRUPAL_DIRECTORY / "vendor" / "bin" / "drush")]
   command = [*drush, "php:eval", MAIL_SETTINGS_PHP]
   try:
@@ -353,10 +362,16 @@ def load_mail_settings() -> dict:
     settings = json.loads(completed.stdout.strip().splitlines()[-1])
   except (ValueError, IndexError):
     raise MailUnavailable("the email settings were not understood")
-  for key in ("smtp_host", "smtp_port", "from_address", "to_address", "subject"):
-    if not settings.get(key):
-      raise MailUnavailable(f"the email setting {key} is empty")
   return settings
+
+
+def administrator_address() -> str:
+  """Where account requests go while "Login required" is on: the Contact email to address of the Site settings
+  screen, or '' when it is not set or cannot be read."""
+  try:
+    return str(read_drupal_mail_settings().get("to_address") or "").strip()
+  except MailUnavailable:
+    return ""
 
 
 def build_email(settings: dict, values: dict) -> EmailMessage:

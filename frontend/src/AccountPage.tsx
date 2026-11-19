@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { forgotPassword, logIn, registerAccount, resetPassword } from './api'
+import { fetchAccountRequestAddress, forgotPassword, logIn, registerAccount, resetPassword } from './api'
 import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
@@ -20,13 +20,26 @@ interface AccountPageProps {
   token: string
   onDone: (user: AccountUser) => void
   onNavigate: (view: View) => void
-  // "Login required" is on (Site settings): an account is needed, so the pages do not call it optional.
+  // "Login required" is on (Site settings): an account is needed, so the pages do not call it optional, and the log-in
+  // page offers no way to set one up (an administrator does that, on Site users).
   isLoginRequired?: boolean
+  // For the subject of the account request email.
+  siteTitle?: string
 }
 
 // The pages for setting up an account, logging in and getting a forgotten password back. None is
 // needed to use the site.
-function AccountPage({ mode, token, onDone, onNavigate, isLoginRequired = false }: AccountPageProps) {
+function AccountPage({ mode, token, onDone, onNavigate, isLoginRequired = false, siteTitle = '' }: AccountPageProps) {
+  // The administrator's address, for the "Email us to ask for one" button while login is required.
+  const [requestAddress, setRequestAddress] = useState('')
+  useEffect(() => {
+    if (!isLoginRequired || mode !== 'login') {
+      return
+    }
+    fetchAccountRequestAddress()
+      .then(setRequestAddress)
+      .catch(() => setRequestAddress(''))
+  }, [isLoginRequired, mode])
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -267,9 +280,23 @@ function AccountPage({ mode, token, onDone, onNavigate, isLoginRequired = false 
               <button type="button" className="secondary-button" onClick={() => onNavigate('forgot')}>
                 Forgot your password?
               </button>
-              <button type="button" className="secondary-button" onClick={() => onNavigate('register')}>
-                No account yet? Set one up
-              </button>
+              {/* While "Login required" is on, only an administrator sets up accounts: the visitor emails to ask. */}
+              {!isLoginRequired && (
+                <button type="button" className="secondary-button" onClick={() => onNavigate('register')}>
+                  No account yet? Set one up
+                </button>
+              )}
+              {isLoginRequired && requestAddress && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    window.location.href = `mailto:${requestAddress}?subject=${encodeURIComponent(`Account request for ${siteTitle}`)}`
+                  }}
+                >
+                  No account yet? Email us to ask for one
+                </button>
+              )}
             </>
           )}
           {mode === 'register' && (

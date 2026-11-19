@@ -142,7 +142,7 @@ class SiteSettingsForm extends FormBase {
       $form['site']['login_required'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Login required'),
-        '#description' => $this->t('When ticked, visitors see only the log-in, set-up-account and password pages until they log in; nothing else on the site (or its API) works for them. Anyone can still set up an account.'),
+        '#description' => $this->t('When ticked, visitors see only the log-in and password pages until they log in; nothing else on the site (or its API) works for them. Visitors cannot set up their own accounts then: add people on Site users. The log-in page offers an email link to the Contact email to address (below) for asking for an account.'),
         '#default_value' => (bool) $settings['login_required'],
       ];
       $this->buildIcons($form);

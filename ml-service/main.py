@@ -57,6 +57,7 @@ from commentaries import (
 from contact import (
   ContactProblem,
   MailUnavailable,
+  administrator_address,
   check_message,
   get_recaptcha_site_key,
   send_contact_message,
@@ -934,10 +935,31 @@ def start_session(response: Response, request: Request, token: str):
   )
 
 
+# The administrator's address for account requests, read from Drupal at most every 10 minutes (drush is slow).
+ADDRESS_SECONDS = 600
+_request_address = {"value": "", "read_at": None}
+
+
+@app.get("/account/request-address")
+def account_request_address():
+  """While "Login required" is on (and so visitors cannot set up accounts), the address the log-in page offers for
+  asking for one: the Contact email to address of the Site settings screen. Empty otherwise, or when none is set."""
+  if not login_is_required():
+    return {"email": ""}
+  now = time.monotonic()
+  if _request_address["read_at"] is None or now - _request_address["read_at"] > ADDRESS_SECONDS:
+    _request_address["value"] = administrator_address()
+    _request_address["read_at"] = now
+  return {"email": _request_address["value"]}
+
+
 @app.post("/account/register")
 def account_register(body: RegisterRequest, request: Request, response: Response, background: BackgroundTasks):
   """Makes an account, emails a link to confirm the address (or, for an account set up with a phone number, texts a
-  code to confirm it), and logs the visitor in."""
+  code to confirm it), and logs the visitor in. Refused while "Login required" is on: then only an administrator sets
+  up accounts (Drupal Site users)."""
+  if login_is_required():
+    raise HTTPException(status_code=403, detail="New accounts are set up by the site's administrators. Please ask them for one.")
   if body.verse_a_day:
     # Checked before the account is made, so a bad time or zone does not leave half a sign-up.
     try:
