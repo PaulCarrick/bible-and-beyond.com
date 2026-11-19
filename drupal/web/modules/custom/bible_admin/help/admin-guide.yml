@@ -143,7 +143,7 @@ sections:
       <p><strong>Make a group</strong>: give it a name (it appears in the emails) and, if you like, notes that only you
       see. You are its leader, and <strong>replies to its emails come to the email address of your Drupal
       account</strong>.</p>
-      <figure><img data-guide="group" alt="A group's page: its notes, who leads it, three send buttons, the Scheduled table (one email stopped by a member), the members with names and addresses as links and how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
+      <figure><img data-guide="group" alt="A group's page: its notes, who leads it, three send buttons, the Scheduled table (a weekly message signed Formal), the members with names and addresses as links and how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
       <h3>Members</h3>
       <p><strong>Add a member</strong> starts with <em>People with an account on the site</em>: everyone with an
       account who is not in the group yet. Tick as many as you like and click <em>Add</em>. They get your messages the
@@ -169,7 +169,7 @@ sections:
       <em>Scheduled</em> list as "Message to … only", where <em>Remove</em> stops it before its time; to change it,
       remove it and write it again. <strong>Signature</strong> adds one of your signatures (from the Signatures page)
       after your message, sent now or at its Send at time; it starts as "No signature".</p>
-      <figure><img data-guide="group-member-email" alt="Email Ruth Example: To Ruth Example only, by email, the message in the editor, and Send and Cancel"><figcaption>Writing to one member: the box opens over the group's page.</figcaption></figure>
+      <figure><img data-guide="group-member-email" alt="Email Ruth Example: To Ruth Example only, by email, the subject, the message in the editor, the Signature Formal, Send at now, and Send and Cancel"><figcaption>Writing to one member: the box opens over the group's page.</figcaption></figure>
       <figure><img data-guide="group-member-contact" alt="Add a member with Someone without an account chosen: email, name and phone"><figcaption>Adding someone without an account.</figcaption></figure>
       <h3>Sending</h3>
       <p>Every message goes to each member separately, showing <strong>only your address</strong> as the one it is
@@ -195,7 +195,7 @@ sections:
         picture. Click <em>Make the picture</em> to see it first, <em>Make another picture</em> for a different one, then
         send.</li>
       </ul>
-      <figure><img data-guide="group-send-message" alt="Send a message: the subject, the message in the editor with bold and a list, and Send to the members"><figcaption>Send a message. The button says how many it goes to.</figcaption></figure>
+      <figure><img data-guide="group-send-message" alt="Send a message: the subject, the message in the editor with bold, a red word, a line in Georgia in dark blue and a list, and the Font, Size, Colour and Highlight buttons"><figcaption>Send a message. The button says how many it goes to.</figcaption></figure>
       <figure><img data-guide="group-send-verse" alt="Send a verse card: the card shown, with Pick another verse and Send"><figcaption>Send a verse card.</figcaption></figure>
       <figure><img data-guide="group-send-picture" alt="Send a picture message: subject, words, the picture made, Make another picture and Send"><figcaption>Send a picture message, after Make the picture.</figcaption></figure>
       <h3>Scheduled emails</h3>
@@ -227,7 +227,7 @@ sections:
       list says what each person stopped. If someone asks to have them back, choose <em>Start scheduled emails
       again</em> in their menu on the right (it asks first): they get every scheduled email again. It does not undo
       the link that stops everything from the group.</p>
-      <figure><img data-guide="group-schedule" alt="Add a scheduled email: a message chosen, its subject and words in the editor, and When: every week on Tuesday, the time and the time zone"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
+      <figure><img data-guide="group-schedule" alt="Add a scheduled email: a message chosen, its subject and words in the editor, When: every week on Tuesday, the time and the time zone, and the Signature Formal"><figcaption>Add a scheduled email. The fields change with your choices.</figcaption></figure>
       <h3>Changing the group or its leader</h3>
       <p><em>Change the group</em> changes its name and notes. A Website administrator also sees a
       <strong>Leader</strong> list there (or follows <em>Change the leader</em> on the group's page) to give the group to
@@ -262,7 +262,7 @@ sections:
       the note in the editor: headings, bold, italic, underline, superscript (for verse numbers), a font, size, text
       colour and highlight, links, lists and quotations. A link can go to a verse on the site (copy its address from the Bible reader), another FAQ answer,
       a page of the site, or another website. Links to a verse or another website open in a new tab.</p>
-      <figure><img data-guide="faq-note-edit" alt="Edit a FAQ note: the question and the note in the editor"><figcaption>Edit a FAQ note.</figcaption></figure>
+      <figure><img data-guide="faq-note-edit" alt="Edit a FAQ note: the question and the note in the editor, whose toolbar has the Font, Size, Colour and Highlight buttons"><figcaption>Edit a FAQ note.</figcaption></figure>
 
   - id: signatures
     title: Signatures
@@ -272,7 +272,10 @@ sections:
       same editor as the group emails (bold, italic, links, lists and so on). Only you see your signatures; a Website
       administrator sees everyone's, with an Owner column. Choose one for each scheduled email of a group (see
       Groups, Add a scheduled email).</p>
-      <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first.</p>
+      <figure><img data-guide="signatures" alt="Signatures: Add a signature, and a table of two signatures, Formal and Short, with their owner, the start of each and when it was last changed"><figcaption>Signatures.</figcaption></figure>
+      <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first. The editor
+      has the Font, Size, Colour and Highlight buttons, so a name can be in Georgia or a script font, for example.</p>
+      <figure><img data-guide="signature-edit" alt="Change a signature: the name Formal and the signature in the editor, the name in Georgia and dark blue"><figcaption>A signature in the editor.</figcaption></figure>
 
   - id: tasks
     title: Tasks
@@ -281,6 +284,7 @@ sections:
       <p>Things that come round again: each task has a name, a description, how often it comes round and the words of
       a first and a second notification. Only you see your tasks; a Website administrator sees everyone's, with an
       Owner column. The list shows how often each comes round and its next date.</p>
+      <figure><img data-guide="tasks" alt="Tasks: Add a task, and a table of Communion (every month on the first Sunday), Greeter (every week on Sunday) and Set up the room (every two weeks on Thursday), each with its next date, and Schedule, Edit and Delete"><figcaption>Tasks.</figcaption></figure>
       <p><strong>Add a task</strong> (or Edit) and choose how often:</p>
       <ul>
         <li><strong>Weekly</strong>: every week, or every 2 to 8 weeks, on one or more days of the week (every week on
@@ -300,6 +304,7 @@ sections:
       and 1 for the day before (0 is the day itself). The second needs fewer days than the first. It goes at 8:00 AM
       in your time zone (the one on your Drupal account), and replies come to your email address. Leave Days before
       empty to send no email for that notification.</p>
+      <figure><img data-guide="task-edit" alt="Change a task: Communion, its description, How often: monthly on a weekday, every month, First and Sunday ticked, starting November 1, and the first and second notifications, 7 and 1 days before"><figcaption>Communion: every month on the first Sunday, with two reminders.</figcaption></figure>
 
   - id: scheduled-tasks
     title: Scheduled tasks
@@ -309,6 +314,7 @@ sections:
       pick the <strong>site user</strong> and the <strong>date</strong>: the list holds the task's next date and the
       three after it (for a task every week on Sunday, the next four Sundays). Then Schedule. The same person cannot
       have the same task twice on one date.</p>
+      <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away
       under <em>Past</em>. <strong>Edit</strong> changes the person or the date (a date already passed stays in the
       list as "its date now"); <strong>Remove</strong> takes away that date for that person and keeps the task.
@@ -318,6 +324,7 @@ sections:
       or why it was not sent (for example an email address not confirmed yet). A reminder goes once. If you schedule a
       date after its first reminder's day, the first goes at once; if the second is due by then too, only the second
       goes. Nothing goes once the date has passed. Changing the person or the date lets the reminders go again.</p>
+      <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 
   - id: site-users
     title: Site users
