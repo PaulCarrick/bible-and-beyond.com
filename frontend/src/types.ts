@@ -440,6 +440,8 @@ export interface AccountUser {
   send_multimedia: boolean
   // An administrator allowed this account its own notes, pins and routes on the maps; off unless set in Drupal.
   use_maps: boolean
+  // An administrator allowed this account to share its lists on Public lists; off unless set in Drupal.
+  share_lists: boolean
 }
 
 // What the Set up account form sends.

@@ -11,6 +11,7 @@ licensed ones (NIV, NASB, The Message) must not have their text kept, so they ar
 
 import html
 import re
+from datetime import datetime, timezone
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -92,10 +93,14 @@ def _checked_item(connection, item: dict) -> dict:
 
 
 def _describe_list(row) -> dict:
-  return {"id": row[0], "name": row[1], "count": row[2], "created_at": row[3].isoformat(), "updated_at": row[4].isoformat()}
+  # shared: on the Public lists page (when the account may share; see share_list).
+  return {
+    "id": row[0], "name": row[1], "count": row[2], "created_at": row[3].isoformat(), "updated_at": row[4].isoformat(),
+    "shared": row[5] is not None,
+  }
 
 
-LIST_COLUMNS = "l.id, l.name, (SELECT count(*) FROM saved_list_items i WHERE i.list_id = l.id), l.created_at, l.updated_at"
+LIST_COLUMNS = "l.id, l.name, (SELECT count(*) FROM saved_list_items i WHERE i.list_id = l.id), l.created_at, l.updated_at, l.shared_at"
 
 
 def list_lists(user_id: int) -> list[dict]:
@@ -235,3 +240,152 @@ def copy_to_note(user_id: int, list_id: int) -> dict:
     return create_note(user_id, *place, "".join(parts))
   except NoteProblem as problem:
     raise ListProblem(str(problem)) from problem
+
+
+# --- Sharing: the Public lists page (2026-11-19) -------------------------------------------------------------
+
+# A shared list is on Public lists while its owner may share (users.share_lists, set on Site users) and the account
+# is open. Everyone who can use the site sees them; their owner is named by first name and last initial.
+PUBLIC_CONDITION = "l.shared_at IS NOT NULL AND u.share_lists AND u.disabled_at IS NULL"
+
+
+def _owner_name(first_name: str | None, last_name: str | None) -> str:
+  first, last = (first_name or "").strip(), (last_name or "").strip()
+  if not first and not last:
+    return "A member"
+  return f"{first} {last[:1]}.".strip() if last else first
+
+
+def share_list(user: dict, list_id: int, shared: bool) -> dict:
+  """Shares one of the member's lists on Public lists, or stops sharing it. Only accounts an administrator allowed."""
+  if shared and not user.get("share_lists"):
+    raise ListProblem("Your account cannot share lists. The site's administrators can allow it.", 403)
+  with connect() as connection:
+    _owned(connection, user["id"], list_id)
+    connection.execute(
+      "UPDATE saved_lists SET shared_at = CASE WHEN %s THEN COALESCE(shared_at, now()) END WHERE id = %s",
+      (shared, list_id),
+    )
+  return get_list(user["id"], list_id)
+
+
+def list_public_lists() -> list[dict]:
+  """Every shared list, most recently changed first, with its owner's name and how many entries it holds."""
+  with connect() as connection:
+    rows = connection.execute(
+      f"""
+      SELECT {LIST_COLUMNS}, u.first_name, u.last_name FROM saved_lists l JOIN users u ON u.id = l.user_id
+      WHERE {PUBLIC_CONDITION} ORDER BY l.updated_at DESC, l.id DESC
+      """
+    ).fetchall()
+  return [{**_describe_list(row), "owner": _owner_name(row[6], row[7])} for row in rows]
+
+
+def get_public_list(list_id: int) -> dict:
+  """One shared list with its entries."""
+  with connect() as connection:
+    row = connection.execute(
+      f"SELECT l.user_id, u.first_name, u.last_name FROM saved_lists l JOIN users u ON u.id = l.user_id WHERE l.id = %s AND {PUBLIC_CONDITION}",
+      (list_id,),
+    ).fetchone()
+  if row is None:
+    raise ListProblem("That list is not shared.", 404)
+  return {**get_list(row[0], list_id), "owner": _owner_name(row[1], row[2])}
+
+
+def _free_name(connection, user_id: int, name: str) -> str:
+  """name, or "name (copy)", "name (copy 2)" ... when the member has a list called that already (not "(2)": the
+  pages show each list's count in brackets after its name)."""
+  taken = {
+    row[0] for row in connection.execute("SELECT lower(name) FROM saved_lists WHERE user_id = %s", (user_id,)).fetchall()
+  }
+  candidate, number = name, 1
+  while candidate.lower() in taken:
+    suffix = " (copy)" if number == 1 else f" (copy {number})"
+    candidate = name[: NAME_LIMIT - len(suffix)] + suffix
+    number += 1
+  return candidate
+
+
+def _new_list(connection, user_id: int, name: str, entries: list[dict]) -> tuple[int, int]:
+  """Makes a list from entries checked by _checked_item (at most MAX_ITEMS_PER_LIST; the same item once).
+  Returns the new list's id and how many entries it holds."""
+  if connection.execute("SELECT count(*) FROM saved_lists WHERE user_id = %s", (user_id,)).fetchone()[0] >= MAX_LISTS_PER_USER:
+    raise ListProblem(f"You have reached the limit of {MAX_LISTS_PER_USER} lists. Please delete some first.")
+  name = _free_name(connection, user_id, _name(name))
+  list_id = connection.execute("INSERT INTO saved_lists (user_id, name) VALUES (%s, %s) RETURNING id", (user_id, name)).fetchone()[0]
+  added = 0
+  for item in entries[:MAX_ITEMS_PER_LIST]:
+    row = connection.execute(
+      """
+      INSERT INTO saved_list_items (list_id, position, kind, item_key, title, source, text, target)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (list_id, item_key) DO NOTHING RETURNING id
+      """,
+      (list_id, added + 1, item["kind"], item["key"], item["title"], item["source"], item["text"], Jsonb(item["target"])),
+    ).fetchone()
+    added += row is not None
+  return list_id, added
+
+
+def copy_public_list(user_id: int, list_id: int) -> dict:
+  """Copy to My lists: a shared list becomes one of the member's own (renamed "name (copy)" if they have that name)."""
+  shared = get_public_list(list_id)
+  with connect() as connection:
+    entries = [_checked_item(connection, item) for item in shared["items"]]
+    new_id, _ = _new_list(connection, user_id, shared["name"], entries)
+  return get_list(user_id, new_id)
+
+
+# --- Export and import (2026-11-19) --------------------------------------------------------------------------
+
+EXPORT_FORMAT = "bible-and-beyond-lists"
+EXPORT_VERSION = 1
+
+
+def export_lists(user_id: int, list_id: int | None = None) -> dict:
+  """The member's lists (or the one list_id) as a JSON document that import_lists reads back, here or on another
+  copy of the site: each list's name and its entries as kept (kind, title, source, text and where to open it)."""
+  ids = [list_id] if list_id is not None else [each["id"] for each in reversed(list_lists(user_id))]
+  lists = []
+  for each in ids:
+    found = get_list(user_id, each)
+    lists.append({
+      "name": found["name"],
+      "items": [{key: item[key] for key in ("kind", "title", "source", "text", "target")} for item in found["items"]],
+    })
+  return {
+    "format": EXPORT_FORMAT,
+    "version": EXPORT_VERSION,
+    "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    "lists": lists,
+  }
+
+
+def import_lists(user_id: int, document) -> dict:
+  """Adds the lists of an exported file as new lists (one called the same is renamed "name (copy)"). An entry that
+  cannot be kept here (a Bible this site does not store, an entry that cannot be read) is left out and counted.
+  Returns the new lists and how many entries were left out."""
+  if not isinstance(document, dict) or document.get("format") != EXPORT_FORMAT:
+    raise ListProblem("That is not a lists file exported from this site.")
+  if not isinstance(document.get("version"), int) or document["version"] > EXPORT_VERSION:
+    raise ListProblem("That lists file is from a newer version of the site and cannot be read here.")
+  given = document.get("lists")
+  if not isinstance(given, list) or not given:
+    raise ListProblem("That lists file holds no lists.")
+  if len(given) > MAX_LISTS_PER_USER:
+    raise ListProblem(f"A lists file can hold at most {MAX_LISTS_PER_USER} lists.")
+  made, skipped = [], 0
+  with connect() as connection:
+    for each in given:
+      if not isinstance(each, dict) or not isinstance(each.get("items"), list):
+        raise ListProblem("That lists file could not be read.")
+      entries = []
+      for item in each["items"][:MAX_ITEMS_PER_LIST]:
+        try:
+          entries.append(_checked_item(connection, item if isinstance(item, dict) else {}))
+        except ListProblem:
+          skipped += 1
+      skipped += max(0, len(each["items"]) - MAX_ITEMS_PER_LIST)
+      new_id, _ = _new_list(connection, user_id, str(each.get("name") or "Imported list"), entries)
+      made.append(new_id)
+  return {"lists": [get_list(user_id, each) for each in made], "skipped": skipped}

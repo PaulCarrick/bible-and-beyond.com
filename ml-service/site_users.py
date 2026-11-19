@@ -21,7 +21,8 @@ _COLUMNS = """
   (SELECT count(*) FROM devotional_subscriptions WHERE devotional_subscriptions.user_id = users.id),
   users.use_conversations, users.see_private_prayers, users.sms_opt_in, users.sms_stopped_at IS NOT NULL,
   users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at,
-  users.phone_verified_at IS NOT NULL, users.login_phone
+  users.phone_verified_at IS NOT NULL, users.login_phone, users.share_lists,
+  (SELECT count(*) FROM saved_lists WHERE saved_lists.user_id = users.id AND saved_lists.shared_at IS NOT NULL)
 """
 
 
@@ -58,6 +59,9 @@ def _describe(row) -> dict:
     # Phone login (accounts.py): the number it logs in with (+15551234567) and whether it is confirmed.
     "phone_verified": row[18],
     "login_phone": row[19],
+    # May share its lists on Public lists (saved_lists.py), and how many it shares now.
+    "share_lists": row[20],
+    "shared_list_count": row[21],
   }
 
 
@@ -132,6 +136,7 @@ def create_user(
   see_private_prayers: bool = False,
   use_maps: bool = False,
   phone_verified: bool = False,
+  share_lists: bool = False,
 ) -> dict:
   """Adds an account with an email address, or with a cell phone number only (no email: it logs in with the number;
   phone_verified says whether it is confirmed, as email_verified does for an address)."""
@@ -155,6 +160,8 @@ def create_user(
          use_conversations, see_private_prayers, use_maps, login_phone, login_phone is not None,
          bool(login_phone and phone_verified), email is not None),
       ).fetchone()[0]
+      if share_lists:
+        connection.execute("UPDATE users SET share_lists = true WHERE id = %s", (user_id,))
   except psycopg.errors.UniqueViolation as error:
     what = "email address" if email else "phone number"
     raise UserProblem(f"An account with that {what} already exists.") from error
@@ -180,6 +187,7 @@ def update_user(
   use_conversations: bool | None = None,
   see_private_prayers: bool | None = None,
   use_maps: bool | None = None,
+  share_lists: bool | None = None,
   closed: bool | None = None,
   phone_verified: bool | None = None,
 ) -> dict:
@@ -249,6 +257,9 @@ def update_user(
   if use_maps is not None:
     changes.append("use_maps = %s")
     values.append(use_maps)
+  if share_lists is not None:
+    changes.append("share_lists = %s")
+    values.append(share_lists)
   if closed is not None and closed != current["closed"]:
     changes.append("disabled_at = CASE WHEN %s THEN now() END")
     values.append(closed)

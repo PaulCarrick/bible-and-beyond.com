@@ -1188,6 +1188,10 @@ export interface SavedListSummary {
   count: number
   created_at: string
   updated_at: string
+  // On Public lists (when the account may share).
+  shared: boolean
+  // Public lists only: who shared it (first name and last initial).
+  owner?: string
 }
 
 export interface SavedListEntry {
@@ -1241,6 +1245,55 @@ export async function removeListEntry(listId: number, entryId: number): Promise<
 }
 
 // Copy to notes: one note holding the whole list, on its first verse (or other entry that can carry a note).
+// Share on Public lists, or stop (accounts an administrator allowed share_lists only).
+export async function shareList(id: number, shared: boolean): Promise<SavedList> {
+  return (await listRequest<{ list: SavedList }>(`/${id}/shared`, 'PUT', { shared })).list
+}
+
+// Export: the member's lists (or one) as a JSON file the browser saves.
+export async function exportLists(listId?: number): Promise<void> {
+  const query = listId === undefined ? '' : `?list_id=${listId}`
+  const response = await fetch(`${mlServiceUrl}/lists/export${query}`, { credentials: 'include' })
+  if (!response.ok) {
+    await readJson(response)
+  }
+  const name = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? 'my-lists.json'
+  const address = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = address
+  link.download = name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(address)
+}
+
+// Import: a file made by Export becomes new lists. Returns them and how many entries were left out.
+export async function importLists(file: File): Promise<{ lists: SavedList[]; skipped: number }> {
+  const response = await fetch(`${mlServiceUrl}/lists/import`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: await file.text(),
+  })
+  return readJson(response)
+}
+
+// Public lists (under Members): every shared list, for anyone who can use the site.
+export async function fetchPublicLists(): Promise<SavedListSummary[]> {
+  return (await readJson<{ lists: SavedListSummary[] }>(await fetch(`${mlServiceUrl}/public-lists`, { credentials: 'include' }))).lists
+}
+
+export async function fetchPublicList(id: number): Promise<SavedList> {
+  return (await readJson<{ list: SavedList }>(await fetch(`${mlServiceUrl}/public-lists/${id}`, { credentials: 'include' }))).list
+}
+
+// Copy to My lists (logged in).
+export async function copyPublicList(id: number): Promise<SavedList> {
+  const response = await fetch(`${mlServiceUrl}/public-lists/${id}/copy`, { method: 'POST', credentials: 'include' })
+  return (await readJson<{ list: SavedList }>(response)).list
+}
+
 export async function copyListToNote(id: number): Promise<Note> {
   return (await listRequest<{ note: Note }>(`/${id}/note`, 'POST')).note
 }

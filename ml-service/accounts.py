@@ -125,7 +125,7 @@ _USER_COLUMNS = """
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
   users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
   users.send_via_email, users.send_via_sms, users.send_multimedia, users.phone_verified_at IS NOT NULL,
-  users.login_phone IS NOT NULL
+  users.login_phone IS NOT NULL, users.share_lists
 """
 
 
@@ -156,6 +156,8 @@ def _describe_user(row) -> dict:
     # An account set up with a phone number (no email, or as well): it logs in with it, once confirmed by a code.
     "phone_verified": row[15],
     "logs_in_with_phone": row[16],
+    # share_lists: an administrator allowed this account to share its lists on Public lists (saved_lists.py).
+    "share_lists": row[17],
   }
 
 

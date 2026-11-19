@@ -22,6 +22,7 @@ import { AccountContext } from './AccountContext'
 import { chooseContextTranslation } from './contextTranslation'
 import NotesPage from './NotesPage'
 import MyListsPage from './MyListsPage'
+import PublicListsPage from './PublicListsPage'
 import type { SavedListEntry } from './api'
 import ConversationsPage from './ConversationsPage'
 import AccountPage from './AccountPage'
@@ -437,6 +438,8 @@ function App() {
       entries: [
         { view: 'conversations' as View, label: 'Conversations' },
         { view: 'prayerWall' as View, label: 'Prayer Wall' },
+        // Lists members shared from My lists (accounts allowed share_lists); everyone may read them.
+        { view: 'publicLists' as View, label: 'Public lists' },
       ],
     },
     {
@@ -565,6 +568,7 @@ function App() {
               <ConversationsPage key={user?.id ?? 'logged-out'} isHidden={activeView !== 'conversations'} />
               <ConversationsPage key={`prayer-${user?.id ?? 'logged-out'}`} board="prayer" isHidden={activeView !== 'prayerWall'} />
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
+              {activeView === 'publicLists' && <PublicListsPage key={`public-lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
               {activeView === 'lists' && <MyListsPage key={`lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'verify' && emailLink && (

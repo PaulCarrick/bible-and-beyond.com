@@ -379,8 +379,9 @@ sections:
         theirs.</li>
         <li>The search box finds accounts by address, name, or the digits of their phone.</li>
         <li><em>Open AI queries</em> (their own questions on the FAQ page), <em>Conversations</em> (writing on
-        Conversations and the Prayer Wall) and <em>Maps</em> (their own notes, pins and routes): off unless ticked
-        here.</li>
+        Conversations and the Prayer Wall), <em>Maps</em> (their own notes, pins and routes) and <em>Can share
+        lists</em> (putting their lists on the Public lists page under Members, where everyone sees them; unticking
+        it hides their shared lists): off unless ticked here.</li>
         <li><em>Gets private prayer requests</em>: for the site's own administrators, whose weekly prayer list email
         then holds the private requests too.</li>
         <li>A password, twice (8 to 128 characters). Left empty when editing, it stays as it is; a new one logs them

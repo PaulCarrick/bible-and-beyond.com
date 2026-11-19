@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -1543,6 +1544,63 @@ def lists_index(request: Request):
   """The logged-in member's lists (My lists), most recently changed first, with how many entries each holds."""
   user = require_user(request, "Please log in to use lists.")
   return {"lists": saved_lists.list_lists(user["id"])}
+
+
+# Export, import and sharing of My lists (2026-11-19). These come before /lists/{list_id}, whose number would not
+# match "export".
+IMPORT_BYTES = 20_000_000  # the owner's choice; nginx allows the same for this address (deploy/nginx)
+
+
+class ListShareRequest(BaseModel):
+  shared: bool
+
+
+@app.get("/lists/export")
+def lists_export(request: Request, list_id: int | None = None):
+  """The member's lists (or one, list_id) as a JSON file to download; Import on My lists reads it back."""
+  user = require_user(request, "Please log in to use lists.")
+  document = _lists_call(lambda: saved_lists.export_lists(user["id"], list_id))
+  name = f"my-lists-{date.today().isoformat()}.json"
+  return JSONResponse(document, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.post("/lists/import")
+async def lists_import(request: Request):
+  """Adds the lists of an exported file (the request body is the file's JSON) as new lists."""
+  user = await run_in_threadpool(require_user, request, "Please log in to use lists.")
+  body = await request.body()
+  if len(body) > IMPORT_BYTES:
+    raise HTTPException(status_code=413, detail="That file is too large to import (at most 20 MB). Export fewer lists at a time.")
+  try:
+    document = json.loads(body)
+  except ValueError:
+    raise HTTPException(status_code=422, detail="That is not a lists file exported from this site.")
+  return await run_in_threadpool(_lists_call, lambda: saved_lists.import_lists(user["id"], document))
+
+
+@app.put("/lists/{list_id}/shared")
+def lists_share(list_id: int, body: ListShareRequest, request: Request):
+  """Shares one of the member's lists on Public lists, or stops (only accounts allowed share_lists may share)."""
+  user = require_user(request, "Please log in to use lists.")
+  return {"list": _lists_call(lambda: saved_lists.share_list(user, list_id, body.shared))}
+
+
+@app.get("/public-lists")
+def public_lists_index():
+  """Every shared list (Public lists under Members): anyone who can use the site may read them."""
+  return {"lists": saved_lists.list_public_lists()}
+
+
+@app.get("/public-lists/{list_id}")
+def public_lists_get(list_id: int):
+  return {"list": _lists_call(lambda: saved_lists.get_public_list(list_id))}
+
+
+@app.post("/public-lists/{list_id}/copy")
+def public_lists_copy(list_id: int, request: Request):
+  """Copy to My lists: the shared list becomes one of the logged-in member's own."""
+  user = require_user(request, "Please log in to copy lists.")
+  return {"list": _lists_call(lambda: saved_lists.copy_public_list(user["id"], list_id))}
 
 
 @app.get("/lists/{list_id}")

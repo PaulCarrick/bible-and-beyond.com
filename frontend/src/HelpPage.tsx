@@ -932,7 +932,16 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           with a link to open it (<em>Read in the Bible</em>, <em>Read the note</em>, <em>Play this song</em> and so on)
           and <em>Remove from the list</em>. You can <em>Rename</em> a list or <em>Delete the list</em> (you are asked
           first). <em>Copy to notes</em> puts the whole list into one note, on its first verse, commentary note or
-          reading, so you can add your own thoughts to it in My notes. Your lists are yours alone.
+          reading, so you can add your own thoughts to it in My notes. Your lists are yours alone unless you share one.
+        </p>
+        <p>
+          <em>Export all lists</em> (or <em>Export this list</em>) saves your lists in a file on your computer, and{' '}
+          <em>Import lists…</em> reads such a file back as new lists, here or on another copy of this site (a list
+          with a name you already use gets &ldquo;(copy)&rdquo; after it). If the site&rsquo;s administrators have allowed
+          your account to share, <em>Share on Public lists</em> puts a list on{' '}
+          <PageLink onNavigate={onNavigate} view="publicLists">Public lists</PageLink> (under Members), where everyone
+          can see it with your first name and the first letter of your last name; <em>Stop sharing</em> takes it off.
+          On Public lists, a logged-in member can <em>Copy to My lists</em>.
         </p>
         <Screenshot
           name="my-lists"

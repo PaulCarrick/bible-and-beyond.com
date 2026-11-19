@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { copyListToNote, deleteList, fetchList, fetchLists, removeListEntry, renameList } from './api'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { AccountContext } from './AccountContext'
+import { copyListToNote, deleteList, exportLists, fetchList, fetchLists, importLists, removeListEntry, renameList, shareList } from './api'
 import type { SavedList, SavedListEntry, SavedListSummary } from './api'
+import { openWords } from './listWords'
 import type { View } from './views'
 
 interface MyListsPageProps {
@@ -9,21 +11,15 @@ interface MyListsPageProps {
   onNavigate: (view: View) => void
 }
 
-// The words of each kind's link, as in the searches.
-const openWords: Record<SavedListEntry['kind'], string> = {
-  bible: 'Read in the Bible',
-  commentary: 'Read the note',
-  devotional: 'Read this reading',
-  book: 'Read this chapter',
-  music: 'Play this song',
-  map: 'Open this map',
-  faq: 'Show the answer',
-}
 
 // My lists (the "My lists" link beside My notes; the owner's request, 2026-11-17): the member's lists of search
 // results, each entry as its search showed it (kept, not searched again), with a link that opens it, Remove, a
 // search in the list, Rename, Delete, and Copy to notes (one note holding the whole list, on its first verse).
+// Export (all lists, or the one shown) saves a JSON file that Import reads back, here or on another copy of the
+// site; Share puts a list on Public lists, for accounts an administrator allowed (share_lists; 2026-11-19).
 function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
+  const { user } = useContext(AccountContext)
+  const importInput = useRef<HTMLInputElement>(null)
   const [lists, setLists] = useState<SavedListSummary[] | null>(null)
   const [chosen, setChosen] = useState<SavedList | null>(null)
   const [filter, setFilter] = useState('')
@@ -80,7 +76,23 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
 
   function remember(list: SavedList) {
     setChosen(list)
-    setLists((current) => (current ?? []).map((each) => (each.id === list.id ? { ...each, name: list.name, count: list.count } : each)))
+    setLists((current) =>
+      (current ?? []).map((each) => (each.id === list.id ? { ...each, name: list.name, count: list.count, shared: list.shared } : each)),
+    )
+  }
+
+  // Import: the chosen file becomes new lists; the first of them is shown.
+  function importFile(file: File) {
+    act(async () => {
+      const result = await importLists(file)
+      setLists(await fetchLists())
+      const names = result.lists.map((each) => `“${each.name}”`).join(', ')
+      const left = result.skipped > 0 ? ` ${result.skipped} ${result.skipped === 1 ? 'entry' : 'entries'} could not be kept here and were left out.` : ''
+      setMessage(`Imported ${result.lists.length} ${result.lists.length === 1 ? 'list' : 'lists'}: ${names}.${left}`)
+      if (result.lists.length > 0) {
+        setChosen(result.lists[0])
+      }
+    })
   }
 
   const words = filter.trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -103,6 +115,11 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
       {message && (
         <p role="status" className="list-save-message">
           {message}{' '}
+          {message.includes('is now on Public lists') && (
+            <button type="button" className="link-button" onClick={() => onNavigate('publicLists')}>
+              Open Public lists
+            </button>
+          )}
           {message.startsWith('Copied') && (
             <button type="button" className="link-button" onClick={() => onNavigate('notes')}>
               Open My notes
@@ -110,6 +127,32 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
           )}
         </p>
       )}
+      <div className="my-list-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={isBusy || !lists || lists.length === 0}
+          onClick={() => act(() => exportLists())}
+        >
+          Export all lists
+        </button>
+        <button type="button" className="secondary-button" disabled={isBusy} onClick={() => importInput.current?.click()}>
+          Import lists…
+        </button>
+        <input
+          ref={importInput}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) {
+              importFile(file)
+            }
+          }}
+        />
+      </div>
       {lists === null && !errorMessage && <p>Loading…</p>}
       {lists !== null && lists.length === 0 && <p>You have no lists yet.</p>}
       {lists !== null && lists.length > 0 && (
@@ -122,7 +165,7 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
                 aria-current={chosen?.id === list.id ? 'true' : undefined}
                 onClick={() => open(list.id)}
               >
-                {list.name} ({list.count})
+                {list.name} ({list.count}){list.shared ? ' · shared' : ''}
               </button>
             </li>
           ))}
@@ -187,6 +230,26 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
             {renaming === null && (
               <button type="button" className="secondary-button" onClick={() => setRenaming(chosen.name)}>
                 Rename
+              </button>
+            )}
+            <button type="button" className="secondary-button" disabled={isBusy} onClick={() => act(() => exportLists(chosen.id))}>
+              Export this list
+            </button>
+            {/* Sharing is for accounts an administrator allowed; a shared list can always be unshared. */}
+            {(user?.share_lists || chosen.shared) && (
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isBusy}
+                onClick={() =>
+                  act(async () => {
+                    const changed = await shareList(chosen.id, !chosen.shared)
+                    remember(changed)
+                    setMessage(changed.shared ? `“${changed.name}” is now on Public lists, for everyone to see.` : `“${changed.name}” is no longer shared.`)
+                  })
+                }
+              >
+                {chosen.shared ? 'Stop sharing' : 'Share on Public lists'}
               </button>
             )}
             {confirmingDelete ? (
