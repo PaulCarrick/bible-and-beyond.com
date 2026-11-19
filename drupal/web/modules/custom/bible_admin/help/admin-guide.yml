@@ -205,6 +205,10 @@ sections:
         <li>every month, on a day of the month (29, 30 or 31 means the last day in a shorter month);</li>
         <li>every month, on the first, second, third, fourth or last of a weekday (such as the first Monday).</li>
       </ul>
+      <p><strong>Signature</strong>: each scheduled email can have one of your signatures (from the Signatures page),
+      or none. It goes after the words of every email the schedule sends, before the stop links, and in Send a test.
+      The group page shows it beside the scheduled email ("signed …"). Deleting a signature leaves the scheduled
+      emails that used it with none.</p>
       <p>Choose the time and the time zone (yours, to start). It goes within five minutes of that time. The
       <em>Scheduled</em> table shows when each goes next and how the last one went, with <em>Edit</em> and
       <em>Remove</em>. A one-time email shows <em>Done</em> once it has gone.</p>
@@ -264,7 +268,8 @@ sections:
     body: |
       <p>Your email signatures: each has a name, for you to tell them apart, and the signature itself, written in the
       same editor as the group emails (bold, italic, links, lists and so on). Only you see your signatures; a Website
-      administrator sees everyone's, with an Owner column. They are not added to any email yet.</p>
+      administrator sees everyone's, with an Owner column. Choose one for each scheduled email of a group (see
+      Groups, Add a scheduled email).</p>
       <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first.</p>
 
   - id: tasks

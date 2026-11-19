@@ -87,6 +87,9 @@ class GroupController extends ControllerBase {
         'picture' => $this->t('Picture message: @subject', ['@subject' => $schedule['subject']]),
         default => $this->t('Message: @subject', ['@subject' => $schedule['subject']]),
       };
+      if (!empty($schedule['signature_name'])) {
+        $what = $this->t('@what, signed “@signature”', ['@what' => $what, '@signature' => $schedule['signature_name']]);
+      }
       // Members who stopped it with the links in a scheduled email (this one, or all the group's scheduled
       // emails); they are still in the group (2026-11-17, the owner's request).
       if (!empty($schedule['stopped_count'])) {

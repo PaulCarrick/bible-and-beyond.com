@@ -150,6 +150,30 @@ class GroupScheduleForm extends FormBase {
       '#required' => TRUE,
     ];
 
+    // The signature at the end of its emails (2026-11-19, the owner's request: "Each schedule can have a different
+    // signature"): one of the group leader's signatures, or none.
+    $signatures = [];
+    try {
+      foreach ($this->manager->listLeaderSignatures($group) as $signature) {
+        $signatures[(int) $signature['id']] = $signature['name'];
+      }
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($exception->getMessage());
+    }
+    $mine = (int) $group['owner_uid'] === (int) $this->currentUser()->id();
+    $form['signature_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Signature'),
+      '#options' => ['' => $this->t('- No signature -')] + $signatures,
+      '#default_value' => isset($schedule['signature_id'], $signatures[(int) $schedule['signature_id']]) ? (int) $schedule['signature_id'] : '',
+      '#description' => $signatures
+        ? $this->t('Added after the words of every email this sends, before the stop links.')
+        : ($mine
+          ? $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page, then choose it here.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()])
+          : $this->t('The group leader has no signatures yet.')),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $schedule === NULL ? $this->t('Schedule it') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -165,7 +189,7 @@ class GroupScheduleForm extends FormBase {
     $groupId = (int) $form_state->get('group_id');
     $scheduleId = $form_state->get('schedule_id');
     $details = [];
-    foreach (['kind', 'subject', 'repeat', 'on_date', 'day_of_month', 'weekday', 'week_of_month', 'send_time', 'timezone'] as $name) {
+    foreach (['kind', 'subject', 'repeat', 'on_date', 'day_of_month', 'weekday', 'week_of_month', 'send_time', 'timezone', 'signature_id'] as $name) {
       $details[$name] = (string) $form_state->getValue($name);
     }
     if ($details['kind'] === 'message') {

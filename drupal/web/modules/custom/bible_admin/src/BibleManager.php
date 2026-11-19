@@ -1274,6 +1274,14 @@ class BibleManager {
     ]);
   }
 
+  /**
+   * The signatures of a group's leader, for its scheduled emails' Signature select. $group comes from getGroup,
+   * which has checked that this user may manage it.
+   */
+  public function listLeaderSignatures(array $group): array {
+    return $this->run(['list', '--owner=' . (int) $group['owner_uid']], 'manage_signatures.py')['signatures'];
+  }
+
   private function logSignatureOrTask(string $change, string $kind, array $item): void {
     $this->logger->notice('@user @change the @kind “@name” (@id) of @owner.', [
       '@user' => $this->currentUser->getAccountName(),

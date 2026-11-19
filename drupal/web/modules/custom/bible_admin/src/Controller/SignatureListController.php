@@ -31,7 +31,7 @@ class SignatureListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('A signature is a name and the formatted words to go at the foot of an email. Only you see your signatures. (They are not added to any email yet.)'),
+        '#value' => $this->t('A signature is a name and the formatted words to go at the foot of an email. Only you see your signatures. Choose one for each scheduled email of your groups (Signature, on Add a scheduled email); it goes after the words of every email that schedule sends.'),
       ],
     ];
     try {

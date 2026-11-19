@@ -1,6 +1,7 @@
 """Tests for scheduled group messages (group_schedules.py). Mail and Telnyx are faked: nothing is sent. They use the
 real tables with their own groups (owner 990101) and remove them after."""
 
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -405,3 +406,79 @@ def test_a_message_to_one_member_is_checked_and_follows_the_member(outbox):
   # Removing the member removes what was waiting for them.
   groups.remove_member(group["id"], pat)
   assert group_schedules.list_schedules(group["id"]) == []
+
+
+# --- a signature on each scheduled email (2026-11-19) ------------------------------------------------------
+
+
+@pytest.fixture
+def signatures_of_the_leader():
+  """Two of the leader's signatures and one of someone else's; deleted afterwards."""
+  import signatures
+
+  made = [
+    signatures.create_signature({"name": "Formal", "signature": {"html": "<p><strong>Deacon Dave</strong><br>First Church</p>"}}, OWNER, "Dave"),
+    signatures.create_signature({"name": "Short", "signature": {"text": "Dave"}}, OWNER, "Dave"),
+    signatures.create_signature({"name": "Not his", "signature": {"text": "Someone else"}}, OWNER + 1, "Ruth"),
+  ]
+  yield made
+  with connect() as connection:
+    connection.execute("DELETE FROM admin_signatures WHERE id = ANY(%s)", ([item["id"] for item in made],))
+
+
+def test_each_scheduled_email_has_its_own_signature(outbox, signatures_of_the_leader):
+  formal, short, not_his = signatures_of_the_leader
+  group = group_with_a_member()
+  signed = group_schedules.add_schedule(
+    group["id"], {**message(repeat="weekly", weekday=0), "html": "<p>See you <em>Sunday</em>.</p>", "signature_id": str(formal["id"])}, "dave", now=NOW - timedelta(hours=1)
+  )
+  plain = group_schedules.add_schedule(group["id"], message(repeat="weekly", weekday=0), "dave", now=NOW - timedelta(hours=1))
+  assert signed["signature_id"] == formal["id"] and plain["signature_id"] is None
+  listed = {item["id"]: item for item in group_schedules.list_schedules(group["id"])}
+  assert listed[signed["id"]]["signature_name"] == "Formal" and listed[plain["id"]]["signature_name"] is None
+  assert group_schedules.send_due(NOW + timedelta(minutes=2), pause=0)["sent"] == 2
+  by_signature = {"First Church" in email.get_body(("plain",)).get_content(): email for email in outbox["emails"]}
+  with_it, without = by_signature[True], by_signature[False]
+  text = with_it.get_body(("plain",)).get_content()
+  assert text.index("Sunday") < text.index("Deacon Dave\nFirst Church") < text.index("--")
+  assert "<em>Sunday</em>.</p><p><strong>Deacon Dave</strong><br>First Church</p><hr>" in with_it.get_body(("html",)).get_content()
+  assert "First Church" not in without.get_body(("plain",)).get_content()
+  # Changed to another signature, or to none; someone else's is refused.
+  changed = group_schedules.update_schedule(group["id"], signed["id"], {**message(repeat="weekly", weekday=0), "signature_id": short["id"]}, now=NOW)
+  assert changed["signature_id"] == short["id"]
+  with pytest.raises(GroupProblem, match="not one of the group leader's"):
+    group_schedules.update_schedule(group["id"], signed["id"], {**message(repeat="weekly", weekday=0), "signature_id": not_his["id"]}, now=NOW)
+  assert group_schedules.update_schedule(group["id"], signed["id"], {**message(repeat="weekly", weekday=0), "signature_id": ""}, now=NOW)["signature_id"] is None
+
+
+def test_a_deleted_signature_leaves_the_schedule_with_none(outbox, signatures_of_the_leader):
+  import signatures
+
+  formal = signatures_of_the_leader[0]
+  group = group_with_a_member()
+  schedule = group_schedules.add_schedule(group["id"], {**message(repeat="weekly", weekday=0), "signature_id": formal["id"]}, "dave", now=NOW)
+  signatures.delete_signature(formal["id"])
+  assert group_schedules.get_schedule(group["id"], schedule["id"])["signature_id"] is None
+
+
+def test_a_test_of_a_scheduled_email_has_its_signature(outbox, signatures_of_the_leader, monkeypatch):
+  short = signatures_of_the_leader[1]
+  group = group_with_a_member()
+  schedule = group_schedules.add_schedule(group["id"], {**message(repeat="weekly", weekday=0), "signature_id": short["id"]}, "dave", now=NOW)
+  tests = []
+  monkeypatch.setattr(groups, "send_email", lambda settings, email, recipients=None: tests.append(email))
+  group_schedules.send_test(group["id"], schedule["id"])
+  assert "\n\nDave\n" in tests[0].get_body(("plain",)).get_content()
+
+
+def test_the_stop_links_of_a_formatted_scheduled_email_are_whole_links(outbox):
+  # Found 2026-11-19: the group's stop address is the start of the scheduled email's, and making them links one
+  # after the other put a link inside a link.
+  group = group_with_a_member()
+  group_schedules.add_schedule(group["id"], {**message(repeat="weekly", weekday=0), "html": "<p>Hello</p>"}, "dave", now=NOW - timedelta(hours=1))
+  group_schedules.send_due(NOW + timedelta(minutes=2), pause=0)
+  html = outbox["emails"][0].get_body(("html",)).get_content()
+  links = re.findall(r'<a href="([^"]+)">([^<]+)</a>', html)
+  assert len(links) == 3 and all(address == shown for address, shown in links)
+  assert len({address for address, _ in links}) == 3
+  assert '<a href="<a' not in html and "</a></a>" not in html and "</a>.s" not in html
