@@ -26,7 +26,9 @@ on the bcc ... the leader can be the visible send to"): each email's To is the l
 if the leader has none) and the member is only its hidden recipient (send_email's recipients, the SMTP envelope;
 there is no Bcc header to leak). Each member still gets their own copy, so their stop link is theirs alone. The
 leader gets one copy of each send, marked as theirs, with how many it went to. What
-was sent is kept in group_messages with counts, never with the addresses.
+was sent is kept in group_messages with counts; since 2026-11-18 (the owner's request: "an exact copy of the
+email sent (to, bcc, subject, contents)") group_message_copies also keeps the email as it went out, with the
+addresses it was emailed to (keep_copy, get_copy).
 """
 
 import logging
@@ -58,6 +60,9 @@ PICTURE_TEXT_LIMIT = 400
 MAX_MEMBERS = 500
 PAUSE_BETWEEN_MEMBERS = 0.5
 KINDS = ("message", "verse", "picture")
+# The member code in the stop links of the copy kept of a sent email (group_message_copies): each member's links
+# carry their own, so the copy shows this instead. It matches no member, so the links stop nothing.
+STOP_CODE_PLACEHOLDER = "MEMBER-STOP-CODE"
 
 
 class GroupProblem(Exception):
@@ -566,6 +571,8 @@ def send(
   counts = {"emailed": 0, "texted": 0, "skipped": 0, "failed": 0}
   # Members reached by email, text or both (for the leader's copy).
   reached = 0
+  # The addresses it was emailed to (the hidden recipients), for the copy kept (keep_copy).
+  bcc = []
   settings = None
   for user_id, address, token, stopped, confirmed in members:
     if stopped or not confirmed:
@@ -578,6 +585,7 @@ def send(
         settings = load_mail_settings()
       # The member is the hidden recipient; the To shows the leader.
       send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html), [address])
+      bcc.append(address)
 
     try:
       if user_id is None:
@@ -597,22 +605,31 @@ def send(
       time.sleep(pause)
 
   # The leader's own copy, once per send (never one per member).
+  leader_copy = False
   if group["owner_email"] and reached:
     try:
       if settings is None:
         settings = load_mail_settings()
       send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html), [group["owner_email"]])
+      leader_copy = True
     except Exception as problem:
       logger.error("Group %s leader's copy not sent: %s", group_id, type(problem).__name__)
 
   with connect() as connection:
-    connection.execute(
+    message_id = connection.execute(
       """
       INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed, texted, skipped, failed)
-      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
       """,
       (group_id, kind, subject, text, sent_by, counts["emailed"], counts["texted"], counts["skipped"], counts["failed"]),
-    )
+    ).fetchone()[0]
+    if bcc or leader_copy:
+      # A member's copy (their stop code replaced), or the leader's when no member was emailed (texts only).
+      copy = compose_email(
+        settings, group, STOP_CODE_PLACEHOLDER if bcc else None, subject, text, verse, card, reached,
+        schedule=schedule if bcc else None, html=html,
+      )
+      keep_copy(connection, message_id, copy, bcc, leader_copy)
   return counts
 
 
@@ -662,10 +679,12 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
     logger.error("Group %s message to member %s not sent: %s", group_id, member_id, type(problem).__name__)
     raise GroupProblem("The email could not be sent; try again later.") from problem
   with connect() as connection:
-    connection.execute(
-      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1)",
+    message_id = connection.execute(
+      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1) RETURNING id",
       (group_id, subject + " (to one member)", text, sent_by),
-    )
+    ).fetchone()[0]
+    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html)
+    keep_copy(connection, message_id, copy, [address], False)
   member = next(member for member in group["members"] if member["id"] == member_id)
   return {"id": member["id"], "name": member["name"]}
 
@@ -753,6 +772,9 @@ def send_prayer_request(
     return email
 
   counts = {"emailed": 0, "texted": 0, "skipped": 0, "failed": 0}
+  # The addresses it was emailed to as hidden recipients, and whether the leader's address got it (keep_copy).
+  bcc = []
+  leader_copy = False
   settings = None
 
   def mail_settings() -> dict:
@@ -768,6 +790,7 @@ def send_prayer_request(
       try:
         send_email(mail_settings(), compose(mail_settings(), None), [group["owner_email"]])
         counts["emailed"] = 1
+        leader_copy = True
       except Exception as problem:
         logger.error("Prayer request to group %s's leader not sent: %s", group_id, type(problem).__name__)
         counts["failed"] = 1
@@ -789,6 +812,7 @@ def send_prayer_request(
 
       def send_the_email(address=address, token=token):
         send_email(mail_settings(), compose(mail_settings(), token), [address])
+        bcc.append(address)
 
       try:
         if user_id is None:
@@ -807,18 +831,24 @@ def send_prayer_request(
     if group["owner_email"] and counts["emailed"] + counts["texted"]:
       try:
         send_email(mail_settings(), compose(mail_settings(), None), [group["owner_email"]])
+        leader_copy = True
       except Exception as problem:
         logger.error("Prayer request: group %s leader's copy not sent: %s", group_id, type(problem).__name__)
 
   with connect() as connection:
-    connection.execute(
+    message_id = connection.execute(
       """
       INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed, texted, skipped, failed)
-      VALUES (%s, 'message', %s, '', %s, %s, %s, %s, %s)
+      VALUES (%s, 'message', %s, '', %s, %s, %s, %s, %s) RETURNING id
       """,
       (group_id, subject + (" (to the leader)" if share_with == "leader" else ""), f"Prayer Wall ({author_name})",
        counts["emailed"], counts["texted"], counts["skipped"], counts["failed"]),
-    )
+    ).fetchone()[0]
+    if bcc or leader_copy:
+      # To the leader only, the leader's email is the one kept (bcc empty: it went to its To alone, and
+      # leader_copy is false, as there was no separate copy); else a member's, their stop code replaced.
+      copy = compose(mail_settings(), STOP_CODE_PLACEHOLDER if bcc else None)
+      keep_copy(connection, message_id, copy, bcc, leader_copy and share_with == "group")
   return counts
 
 
@@ -827,13 +857,73 @@ def list_sent(group_id: int, limit: int = 20) -> list[dict]:
   with connect() as connection:
     rows = connection.execute(
       """
-      SELECT kind, subject, text, sent_by, emailed, texted, skipped, failed, sent_at
+      SELECT kind, subject, text, sent_by, emailed, texted, skipped, failed, sent_at, id,
+             EXISTS (SELECT 1 FROM group_message_copies c WHERE c.message_id = group_messages.id)
       FROM group_messages WHERE group_id = %s ORDER BY sent_at DESC, id DESC LIMIT %s
       """,
       (group_id, limit),
     ).fetchall()
   return [
     {"kind": row[0], "subject": row[1], "text": row[2], "sent_by": row[3], "emailed": row[4], "texted": row[5],
-     "skipped": row[6], "failed": row[7], "sent_at": row[8].isoformat()}
+     "skipped": row[6], "failed": row[7], "sent_at": row[8].isoformat(), "id": row[9], "has_copy": row[10]}
     for row in rows
   ]
+
+
+def keep_copy(connection, message_id: int, email: EmailMessage, bcc: list[str], leader_copy: bool) -> None:
+  """Keeps a copy of a sent group email (group_message_copies; the owner's request, 2026-11-18): its From, To,
+  Reply-To and Subject, bcc (the addresses it was emailed to, each as a hidden recipient of its own copy),
+  leader_copy (the leader also got their own copy), and its plain-text and HTML parts. email is one member's copy
+  made with STOP_CODE_PLACEHOLDER as the stop code (the leader's when no member was emailed); a picture shown by
+  cid: in the HTML is kept in it as a data: address, since the card files are deleted after a week. A failure is
+  logged and goes no further: the email has gone and its Sent row is kept (a savepoint undoes only the copy)."""
+  try:
+    with connection.transaction():
+      _insert_copy(connection, message_id, email, bcc, leader_copy)
+  except Exception as problem:
+    logger.error("Group message %s: no copy kept: %s", message_id, type(problem).__name__)
+
+
+def _insert_copy(connection, message_id: int, email: EmailMessage, bcc: list[str], leader_copy: bool) -> None:
+  plain = email.get_body(preferencelist=("plain",))
+  rich = email.get_body(preferencelist=("html",))
+  html = rich.get_content() if rich is not None else None
+  if html is not None:
+    import base64
+
+    for part in email.walk():
+      content_id = (part.get("Content-ID") or "").strip("<> ")
+      if content_id and part.get_content_maintype() == "image":
+        data = f"data:{part.get_content_type()};base64," + base64.b64encode(part.get_content()).decode()
+        html = html.replace(f"cid:{content_id}", data)
+  connection.execute(
+    """
+    INSERT INTO group_message_copies (message_id, from_address, to_address, reply_to, bcc, leader_copy, subject, text, html)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """,
+    (message_id, str(email["From"] or ""), str(email["To"] or ""), str(email["Reply-To"] or ""), list(bcc), leader_copy,
+     str(email["Subject"] or ""), plain.get_content() if plain is not None else "", html),
+  )
+
+
+def get_copy(group_id: int, message_id: int) -> dict:
+  """The copy kept of one sent email of this group (keep_copy), with the Sent table's details of it. Raises
+  GroupProblem when the message is not the group's or has no copy (sent before copies were kept)."""
+  with connect() as connection:
+    row = connection.execute(
+      """
+      SELECT m.id, m.kind, m.sent_by, m.sent_at, m.emailed, m.texted, m.skipped, m.failed,
+             c.from_address, c.to_address, c.reply_to, c.bcc, c.leader_copy, c.subject, c.text, c.html
+      FROM group_messages m JOIN group_message_copies c ON c.message_id = m.id
+      WHERE m.id = %s AND m.group_id = %s
+      """,
+      (message_id, group_id),
+    ).fetchone()
+  if row is None:
+    raise GroupProblem("There is no copy of that email (only emails sent since November 18, 2026 have one).")
+  return {
+    "id": row[0], "kind": row[1], "sent_by": row[2], "sent_at": row[3].isoformat(), "emailed": row[4], "texted": row[5],
+    "skipped": row[6], "failed": row[7], "from": row[8], "to": row[9], "reply_to": row[10], "bcc": list(row[11]),
+    "leader_copy": row[12], "subject": row[13], "text": row[14], "html": row[15],
+    "stop_code_placeholder": STOP_CODE_PLACEHOLDER,
+  }

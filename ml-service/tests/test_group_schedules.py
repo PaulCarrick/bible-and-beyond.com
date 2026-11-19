@@ -126,7 +126,12 @@ def test_a_due_message_is_sent_once_and_moves_on(outbox):
   assert [email["Subject"] for email in outbox["emails"]] == ["Prayer meeting"]
   after = group_schedules.get_schedule(group["id"], schedule["id"])
   assert local(after["next_run_at"]) == "Mon 2026-11-23 09:00" and after["last_result"] == "1 emailed, 0 texted"
-  assert groups.list_sent(group["id"])[0]["sent_by"] == "schedule (dave)"
+  sent = groups.list_sent(group["id"])[0]
+  assert sent["sent_by"] == "schedule (dave)"
+  # The copy kept (2026-11-18) is a member's, with the scheduled email's own stop links (the code a placeholder).
+  copy = groups.get_copy(group["id"], sent["id"])
+  assert copy["subject"] == "Prayer meeting" and len(copy["bcc"]) == 1
+  assert f"{groups.STOP_CODE_PLACEHOLDER}.s{schedule['id']}" in copy["text"] and f"{groups.STOP_CODE_PLACEHOLDER}.sall" in copy["text"]
 
 
 def test_a_one_time_message_goes_once_and_a_verse_card_is_new_each_time(outbox):

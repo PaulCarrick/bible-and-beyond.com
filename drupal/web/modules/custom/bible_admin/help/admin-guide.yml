@@ -172,7 +172,13 @@ sections:
       <p>Every message goes to each member separately, showing <strong>only your address</strong> as the one it is
       to, so no member sees anyone else's address. Each email has a link that stops that person's messages from this
       group (other groups are not affected). You get one copy of each, which says how many it reached. The page then
-      says how many were emailed and texted, and the <em>Sent</em> table keeps a record (never who).</p>
+      says how many were emailed and texted, and the <em>Sent</em> table keeps a record.</p>
+      <p><strong>View</strong> at the end of a row in the <em>Sent</em> table shows a copy of that email as it went
+      out: who it was from, the address it was to (yours), where replies go, every address it was emailed to as a
+      hidden recipient (Bcc), the subject, and the email itself, with its formatting and picture (and its plain-text
+      copy under it). Each member's stop links carry their own code, so the copy shows MEMBER-STOP-CODE there
+      instead; those links stop nothing. Emails sent before November 18, 2026 have no copy, so their rows have no
+      View.</p>
       <ul>
         <li><strong>Send a message</strong>: a subject and your words, written in the editor (headings, bold,
         italic, underline, strikethrough, links, lists and quotations), which the email keeps. No picture. A text is a

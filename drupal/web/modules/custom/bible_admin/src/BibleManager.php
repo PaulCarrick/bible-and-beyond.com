@@ -1024,6 +1024,16 @@ class BibleManager {
     return $schedule;
   }
 
+  /**
+   * The copy kept of one email sent to a group (groups.get_copy): from, to, reply_to, bcc (every address it was
+   * emailed to), leader_copy, subject, html (NULL when it had none), text, and the Sent table's details. Throws
+   * if this user may not manage the group, or the message has no copy (sent before copies were kept).
+   */
+  public function getGroupSentCopy(int $groupId, int $messageId): array {
+    $this->getGroup($groupId);
+    return $this->run(['sent-copy', '--group=' . $groupId, '--message=' . $messageId], 'manage_groups.py')['copy'];
+  }
+
   public function getGroupSchedule(int $groupId, int $scheduleId): array {
     $this->getGroup($groupId);
     return $this->run(['get-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py')['schedule'];

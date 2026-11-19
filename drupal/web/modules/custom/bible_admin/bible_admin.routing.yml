@@ -404,6 +404,17 @@ bible_admin.group_member_email:
     group_id: '\d+'
     member_id: '\d+'
 
+# The copy kept of an email sent to the group (group_message_copies; the "View" link in the Sent table).
+bible_admin.group_sent_copy:
+  path: '/admin/groups/{group_id}/sent/{message_id}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\GroupController::sentCopy'
+    _title: 'Sent email'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\GroupAccess::access'
+    group_id: '\d+'
+    message_id: '\d+'
+
 bible_admin.group_schedule_add:
   path: '/admin/groups/{group_id}/schedules/add'
   defaults:

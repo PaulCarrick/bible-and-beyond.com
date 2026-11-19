@@ -6,6 +6,7 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
 
     manage_groups.py list [--owner=UID]                every group, or one leader's
     manage_groups.py get --group=ID                    a group with its members and latest messages
+    manage_groups.py sent-copy --group=ID --message=ID the copy kept of one sent email (to, bcc, subject, html, text)
     manage_groups.py save [--group=ID] --owner=UID [--set-owner]   input {name, description, owner_name, owner_email}
                                                        (--set-owner: the group moves to that leader)
     manage_groups.py delete --group=ID
@@ -59,6 +60,9 @@ def parse_arguments(arguments=None):
     schedule = commands.add_parser(name)
     schedule.add_argument("--group", type=int, required=True)
     schedule.add_argument("--schedule", type=int, required=True)
+  sent_copy = commands.add_parser("sent-copy")
+  sent_copy.add_argument("--group", type=int, required=True)
+  sent_copy.add_argument("--message", type=int, required=True)
   commands.add_parser("preview-verse")
   commands.add_parser("preview-picture")
   send = commands.add_parser("send")
@@ -89,6 +93,8 @@ def run(arguments) -> dict:
     group["sent"] = groups.list_sent(arguments.group)
     group["schedules"] = group_schedules.list_schedules(arguments.group)
     return {"ok": True, "group": group}
+  if command == "sent-copy":
+    return {"ok": True, "copy": groups.get_copy(arguments.group, arguments.message)}
   if command == "save":
     details = read_input()
     group = groups.save_group(

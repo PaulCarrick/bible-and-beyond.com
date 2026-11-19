@@ -431,3 +431,73 @@ def test_the_tool():
     input=json.dumps({"text": "Hi", "sent_by": "dave"}), capture_output=True, text=True, env={**os.environ, "OUTGOING_EMAIL": "off"},
   )
   assert done.returncode == 1 and "OUTGOING_EMAIL=off" in json.loads(done.stdout)["error"]
+  # sent-copy: the copy kept of a sent email (sent here, where mail is faked); none for a message without one.
+  groups.send(group_id, "message", {"subject": "Hello", "text": "Hi all"}, "dave", pause=0)
+  message_id = run("get", f"--group={group_id}")[1]["group"]["sent"][0]["id"]
+  code, answer = run("sent-copy", f"--group={group_id}", f"--message={message_id}")
+  assert code == 0 and answer["copy"]["bcc"] == ["pat@example.org"] and answer["copy"]["subject"] == "Hello"
+  code, answer = run("sent-copy", f"--group={group_id}", f"--message={message_id + 100000}")
+  assert code == 1 and "no copy" in answer["error"]
+
+
+def test_a_copy_of_each_sent_email_is_kept_with_its_hidden_recipients(outbox):
+  """The owner's request, 2026-11-18: an exact copy of each email sent (to, bcc, subject, contents), viewable from
+  the Sent table. A member's copy is kept, with STOP_CODE_PLACEHOLDER in place of their stop code."""
+  group = new_group()
+  account("ann", texts=True)
+  account("cat", verified=False)
+  groups.add_member(group["id"], {"email": f"ann@{DOMAIN}"})
+  groups.add_member(group["id"], {"email": f"cat@{DOMAIN}"})
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  groups.send(group["id"], "message", {"subject": "Potluck", "html": "<p>Bring a <strong>dish</strong>.</p>"}, "dave", pause=0)
+  sent = groups.list_sent(group["id"])[0]
+  assert sent["has_copy"] is True
+  copy = groups.get_copy(group["id"], sent["id"])
+  assert (copy["from"], copy["to"], copy["reply_to"], copy["subject"]) == ("site@example.test", "dave@example.org", "dave@example.org", "Potluck")
+  # Every address it was emailed to (not the unconfirmed one), and the leader's own copy.
+  assert sorted(copy["bcc"]) == sorted([f"ann@{DOMAIN}", "pat@example.org"]) and copy["leader_copy"] is True
+  assert "<strong>dish</strong>" in copy["html"] and "Bring a dish." in copy["text"]
+  # The same email the members got, but no member's own stop code in it.
+  with connect() as connection:
+    codes = [row[0] for row in connection.execute("SELECT stop_token FROM group_members WHERE group_id = %s", (group["id"],))]
+  assert groups.STOP_CODE_PLACEHOLDER in copy["text"] and groups.STOP_CODE_PLACEHOLDER in copy["html"]
+  assert not any(code in copy["text"] or code in copy["html"] for code in codes)
+  member_text = outbox["emails"][0].get_body(("plain",)).get_content()
+  own = next(code for code in codes if code in member_text)
+  assert member_text.replace(own, groups.STOP_CODE_PLACEHOLDER) == copy["text"]
+  # Not another group's message.
+  other = new_group("Other")
+  with pytest.raises(GroupProblem, match="no copy"):
+    groups.get_copy(other["id"], sent["id"])
+
+
+def test_a_verse_card_copy_keeps_its_picture_and_older_messages_have_none(outbox):
+  group = new_group()
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  preview = groups.preview_verse()
+  groups.send(group["id"], "verse", {"card": preview["card"], "verse": preview["verse"]}, "dave", pause=0)
+  copy = groups.get_copy(group["id"], groups.list_sent(group["id"])[0]["id"])
+  assert copy["bcc"] == ["pat@example.org"] and "cid:" not in copy["html"] and 'src="data:image/jpeg;base64,' in copy["html"]
+  # A message from before copies were kept: no copy, and no View link (has_copy false).
+  with connect() as connection:
+    old = connection.execute(
+      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', 'Old', 'x', 'dave', 1) RETURNING id",
+      (group["id"],),
+    ).fetchone()[0]
+  assert next(each for each in groups.list_sent(group["id"]) if each["id"] == old)["has_copy"] is False
+  with pytest.raises(GroupProblem, match="no copy"):
+    groups.get_copy(group["id"], old)
+
+
+def test_a_copy_of_an_email_to_one_member_and_none_for_texts_only(outbox):
+  group = new_group()
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  member = groups.get_group(group["id"])["members"][0]
+  groups.email_member(group["id"], member["id"], "Thinking of you.", "dave")
+  copy = groups.get_copy(group["id"], groups.list_sent(group["id"])[0]["id"])
+  assert copy["bcc"] == ["pat@example.org"] and copy["leader_copy"] is False and copy["html"] is None
+  assert "Thinking of you." in copy["text"] and "to you alone" in copy["text"] and groups.STOP_CODE_PLACEHOLDER in copy["text"]
+  # A send that emailed nobody (all failed) keeps no copy.
+  empty = new_group("Empty")
+  groups.send(empty["id"], "message", {"subject": "Hi", "text": "Hello"}, "dave", pause=0)
+  assert groups.list_sent(empty["id"])[0]["has_copy"] is False

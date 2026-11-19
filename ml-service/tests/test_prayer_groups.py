@@ -148,3 +148,19 @@ def test_the_other_choices_are_as_before():
   listed = post(email_to_prayer_list=True).json()["post"]
   assert listed["email_to_prayer_list"] and not listed["is_private"]
   assert conversations.share_is_due(listed["id"]) is False
+
+
+def test_a_copy_of_each_emailed_request_is_kept(outbox):
+  """The Sent table's View (2026-11-18): the request as emailed, with its hidden recipients; to the leader only,
+  the leader's email, with no hidden recipients."""
+  group, ann, bob = family()
+  groups.send_prayer_request(group["id"], "group", ann["id"], "Ann Prayer", f"ann@{DOMAIN}", "Surgery Friday", "Please pray for Mom.")
+  groups.send_prayer_request(group["id"], "leader", ann["id"], "Ann Prayer", f"ann@{DOMAIN}", "Surgery Friday", "Please pray for Mom.")
+  to_leader, to_group = groups.list_sent(group["id"])
+  copy = groups.get_copy(group["id"], to_group["id"])
+  assert sorted(copy["bcc"]) == sorted([f"bob@{DOMAIN}", "pat@example.org"]) and copy["leader_copy"] is True
+  assert (copy["to"], copy["reply_to"]) == ("paul@example.org", f"ann@{DOMAIN}") and "Please pray for Mom." in copy["text"]
+  assert groups.STOP_CODE_PLACEHOLDER in copy["text"] and copy["html"] is None
+  copy = groups.get_copy(group["id"], to_leader["id"])
+  assert copy["bcc"] == [] and copy["leader_copy"] is False and copy["to"] == "paul@example.org"
+  assert "To stop messages" not in copy["text"] and copy["subject"] == "Prayer request from Ann Prayer: Surgery Friday"

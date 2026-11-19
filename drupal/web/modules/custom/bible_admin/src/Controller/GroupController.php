@@ -136,6 +136,91 @@ class GroupController extends ControllerBase {
     return $receives;
   }
 
+  /**
+   * The copy kept of one email sent to the group (2026-11-18, the owner's request: "an exact copy of the email
+   * sent (to, bcc, subject, contents: html if possible plain text otherwise)"): its headers, every address it
+   * was emailed to, and the email itself. The HTML is shown in a sandboxed frame (no scripts, no access to this
+   * page; links open in a new tab); without HTML, the plain text. Each member's copy had their own stop links,
+   * so the copy kept shows a placeholder code in them.
+   */
+  public function sentCopy(string $group_id, string $message_id): array {
+    $back = [
+      '#type' => 'link',
+      '#title' => $this->t('Back to the group'),
+      '#url' => Url::fromRoute('bible_admin.group', ['group_id' => $group_id]),
+    ];
+    try {
+      $copy = $this->manager->getGroupSentCopy((int) $group_id, (int) $message_id);
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($exception->getMessage());
+      return ['back' => $back];
+    }
+    $bcc = $copy['bcc'];
+    $bccCell = $bcc
+      ? ['#theme' => 'item_list', '#items' => array_map(fn ($address) => ['#plain_text' => $address], $bcc), '#attributes' => ['style' => 'margin: 0;']]
+      : ['#plain_text' => (string) $this->t('Nobody: it went to the To address only.')];
+    $header = fn (string $label, array $value) => [['data' => ['#plain_text' => $label], 'header' => TRUE], ['data' => $value]];
+    $rows = [
+      $header((string) $this->t('Sent (UTC)'), ['#plain_text' => str_replace('T', ' ', substr($copy['sent_at'], 0, 16)) . ' ' . $this->t('by @who', ['@who' => $copy['sent_by']])]),
+      $header((string) $this->t('From'), ['#plain_text' => $copy['from']]),
+      $header((string) $this->t('To'), ['#plain_text' => $copy['to']]),
+      $header((string) $this->t('Reply-To'), ['#plain_text' => $copy['reply_to'] ?: '—']),
+      $header((string) $this->formatPlural(count($bcc), 'Bcc (1 address)', 'Bcc (@count addresses)'), $bccCell),
+      $header((string) $this->t('Subject'), ['#plain_text' => $copy['subject']]),
+    ];
+    $notes = [];
+    $notes[] = $this->t('Each address under Bcc got its own copy as a hidden recipient: no member saw another member\'s address.');
+    if ($copy['leader_copy']) {
+      $notes[] = $this->t('The leader also got their own copy, with no stop links and a line saying how many it went to.');
+    }
+    if ($copy['texted']) {
+      $notes[] = $this->formatPlural($copy['texted'], '1 member got it as a text message instead of or as well as this email.', '@count members got it as a text message instead of or as well as this email.');
+    }
+    $placeholder = $copy['stop_code_placeholder'];
+    if (str_contains($copy['text'], $placeholder)) {
+      $notes[] = $this->t('Each member\'s stop links carried their own code; here it shows as @code, which stops nothing.', ['@code' => $placeholder]);
+    }
+
+    $build = [
+      '#cache' => ['max-age' => 0],
+      'headers' => ['#type' => 'table', '#rows' => $rows, '#attributes' => ['class' => ['group-sent-copy-headers']]],
+      'notes' => ['#theme' => 'item_list', '#items' => $notes],
+    ];
+    if ($copy['html'] !== NULL && $copy['html'] !== '') {
+      // srcdoc is escaped as an attribute; the sandbox has no allow-scripts or allow-same-origin, so nothing in it
+      // runs or reaches this page. Links open in a new tab (base target, allow-popups).
+      $document = '<base target="_blank">' . $copy['html'];
+      $build['email'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'iframe',
+        '#value' => '',
+        '#attributes' => [
+          'srcdoc' => $document,
+          'sandbox' => 'allow-popups allow-popups-to-escape-sandbox',
+          'referrerpolicy' => 'no-referrer',
+          'title' => (string) $this->t('The email'),
+          'style' => 'width: 100%; height: 70vh; border: 1px solid #ccc; background: #fff;',
+        ],
+      ];
+      $build['text'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Its plain-text copy'),
+        'body' => ['#type' => 'html_tag', '#tag' => 'pre', 'content' => ['#plain_text' => $copy['text']], '#attributes' => ['style' => 'white-space: pre-wrap;']],
+      ];
+    }
+    else {
+      $build['email'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'pre',
+        'content' => ['#plain_text' => $copy['text']],
+        '#attributes' => ['style' => 'white-space: pre-wrap; border: 1px solid #ccc; padding: 1em; background: #fff;'],
+      ];
+    }
+    $build['back'] = $back;
+    return $build;
+  }
+
   public function title(string $group_id): string {
     try {
       return $this->manager->getGroup((int) $group_id)['name'];
@@ -291,12 +376,20 @@ class GroupController extends ControllerBase {
           '@more' => ($message['skipped'] ? ', ' . $message['skipped'] . ' skipped' : '') . ($message['failed'] ? ', ' . $message['failed'] . ' failed' : ''),
         ]),
         $message['sent_by'],
+        // The copy kept of the email as it went out (2026-11-18, the owner's request); none for older messages
+        // or a send that emailed nobody.
+        ['data' => empty($message['has_copy']) ? ['#plain_text' => ''] : [
+          '#type' => 'link',
+          '#title' => $this->t('View'),
+          '#url' => Url::fromRoute('bible_admin.group_sent_copy', $id + ['message_id' => $message['id']]),
+          '#attributes' => ['title' => (string) $this->t('The email as it was sent')],
+        ]],
       ];
     }
     $build['sent_heading'] = ['#type' => 'html_tag', '#tag' => 'h2', '#value' => $this->t('Sent')];
     $build['sent'] = [
       '#type' => 'table',
-      '#header' => [$this->t('When (UTC)'), $this->t('Kind'), $this->t('Subject'), $this->t('Reached'), $this->t('By')],
+      '#header' => [$this->t('When (UTC)'), $this->t('Kind'), $this->t('Subject'), $this->t('Reached'), $this->t('By'), $this->t('Email')],
       '#rows' => $sent,
       '#empty' => $this->t('Nothing has been sent to this group yet.'),
     ];
