@@ -482,3 +482,25 @@ def test_the_stop_links_of_a_formatted_scheduled_email_are_whole_links(outbox):
   assert len(links) == 3 and all(address == shown for address, shown in links)
   assert len({address for address, _ in links}) == 3
   assert '<a href="<a' not in html and "</a></a>" not in html and "</a>.s" not in html
+
+
+def test_an_email_to_one_member_can_have_a_signature_now_or_later(outbox, signatures_of_the_leader):
+  formal, _, not_his = signatures_of_the_leader
+  group = group_with_a_member()
+  pat = groups.get_group(group["id"])["members"][0]["id"]
+  # Send now: the tool checks it is the leader's, then the email has it after the words.
+  groups.email_member(group["id"], pat, "", "dave", html="<p>Hello Pat</p>", signature=groups.signature_words(formal["id"]))
+  email = outbox["emails"][-1]
+  assert email.get_body(("plain",)).get_content().startswith("Hello Pat\n\nDeacon Dave\nFirst Church")
+  assert "<p>Hello Pat</p><p><strong>Deacon Dave</strong><br>First Church</p>" in email.get_body(("html",)).get_content()
+  with pytest.raises(GroupProblem, match="not one of the group leader's"):
+    groups.leader_signature(group, not_his["id"])
+  # Send at: kept with the schedule and sent with it.
+  later = {"html": "<p>See you</p>", "subject": "Lunch", "on_date": "2026-11-17", "send_time": "10:30", "timezone": "America/Chicago", "signature_id": formal["id"]}
+  schedule = group_schedules.schedule_member_email(group["id"], pat, later, "dave", now=NOW)
+  assert schedule["signature_id"] == formal["id"]
+  with pytest.raises(GroupProblem, match="not one of the group leader's"):
+    group_schedules.schedule_member_email(group["id"], pat, dict(later, signature_id=not_his["id"]), "dave", now=NOW)
+  outbox["emails"].clear()
+  assert group_schedules.send_due(now=datetime(2026, 11, 17, 16, 31, tzinfo=timezone.utc), pause=0)["sent"] == 1
+  assert "See you\n\nDeacon Dave\nFirst Church" in outbox["emails"][0].get_body(("plain",)).get_content()

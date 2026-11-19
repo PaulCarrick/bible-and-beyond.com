@@ -167,7 +167,8 @@ sections:
       <strong>Send at</strong> is now to begin with: leave it to send at once, or choose a later date and time (in
       your own time zone) and press <em>Send</em> to have it go then. A message waiting to go is in the group's
       <em>Scheduled</em> list as "Message to … only", where <em>Remove</em> stops it before its time; to change it,
-      remove it and write it again.</p>
+      remove it and write it again. <strong>Signature</strong> adds one of your signatures (from the Signatures page)
+      after your message, sent now or at its Send at time; it starts as "No signature".</p>
       <figure><img data-guide="group-member-email" alt="Email Ruth Example: To Ruth Example only, by email, the message in the editor, and Send and Cancel"><figcaption>Writing to one member: the box opens over the group's page.</figcaption></figure>
       <figure><img data-guide="group-member-contact" alt="Add a member with Someone without an account chosen: email, name and phone"><figcaption>Adding someone without an account.</figcaption></figure>
       <h3>Sending</h3>

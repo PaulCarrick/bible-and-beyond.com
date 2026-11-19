@@ -84,6 +84,28 @@ class GroupMemberEmailForm extends FormBase {
     // The editor (GroupEditor: CKEditor 5, text format group_email; the owner's request, 2026-11-17). The ML
     // service cleans what it writes. Without the format, a plain box.
     $form['text'] = GroupEditor::field((string) $this->t('Message'), '', 8, TRUE);
+    // The signature after the words (2026-11-19, the owner's request: "Add the signature select to Email a member
+    // too"): one of the group leader's signatures, or none.
+    $signatures = [];
+    try {
+      foreach ($this->manager->listLeaderSignatures($group) as $signature) {
+        $signatures[(int) $signature['id']] = $signature['name'];
+      }
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($exception->getMessage());
+    }
+    $form['signature_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Signature'),
+      '#options' => ['' => $this->t('- No signature -')] + $signatures,
+      '#default_value' => '',
+      '#description' => $signatures
+        ? $this->t('Added after your message.')
+        : ((int) $group['owner_uid'] === (int) $this->currentUser()->id()
+          ? $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()])
+          : $this->t('The group leader has no signatures yet.')),
+    ];
     $zone = $this->timeZone();
     // Now, to the minute: with seconds the browser would only take times ending in those seconds.
     $now = new DrupalDateTime('now', $zone);
@@ -126,6 +148,7 @@ class GroupMemberEmailForm extends FormBase {
     // From the editor: HTML; from the plain box: text.
     $details = GroupEditor::value($form_state->getValue('text'));
     $details['subject'] = trim((string) $form_state->getValue('subject'));
+    $details['signature_id'] = (string) $form_state->getValue('signature_id');
     // Up to a minute from now counts as now (the box was opened at "now" and the message written after).
     $sendAt = NULL;
     $when = $form_state->getValue('send_at');

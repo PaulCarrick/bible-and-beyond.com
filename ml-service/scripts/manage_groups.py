@@ -16,7 +16,7 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
     manage_groups.py add-accounts --group=ID           input {user_ids: [...]}: those accounts
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
     manage_groups.py remove-member --group=ID --member=ID
-    manage_groups.py email-member --group=ID --member=ID    input {subject, html or text, sent_by}: an email to that member only;
+    manage_groups.py email-member --group=ID --member=ID    input {subject, html or text, signature_id, sent_by}: an email to that member only;
                                                        with {on_date, send_time, timezone} it is kept to send then
     manage_groups.py preview-verse                     a random verse card (its name, picture and verse)
     manage_groups.py preview-picture                   input {text}: the words on a random picture
@@ -118,9 +118,11 @@ def run(arguments) -> dict:
       schedule = group_schedules.schedule_member_email(arguments.group, arguments.member, details, str(details.get("sent_by", "")))
       member = next(each for each in groups.get_group(arguments.group)["members"] if each["id"] == arguments.member)
       return {"ok": True, "member": {"id": member["id"], "name": member["name"]}, "schedule": schedule}
+    signature_id = groups.leader_signature(groups.get_group(arguments.group), details.get("signature_id"))
     member = groups.email_member(
       arguments.group, arguments.member, str(details.get("text", "")), str(details.get("sent_by", "")),
       html=str(html) if html is not None else None, subject=str(details.get("subject") or ""),
+      signature=groups.signature_words(signature_id),
     )
     return {"ok": True, "member": member}
   if command == "restart-schedules":

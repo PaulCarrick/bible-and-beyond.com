@@ -470,7 +470,12 @@ def compose_email(
   if group["owner_email"]:
     email["Reply-To"] = group["owner_email"]
   if personal:
-    # A message to one member is not a group email: the leader's words only.
+    # A message to one member is not a group email: the leader's words only, and the signature chosen on the box
+    # (2026-11-19) after them.
+    if signature and signature.get("text"):
+      text = f"{text}\n\n{signature['text']}"
+      if html is not None:
+        html += signature["html"]
     email.set_content(text + "\n")
     if html is not None:
       email.add_alternative(f"<html><body>{html}</body></html>", subtype="html")
@@ -676,7 +681,38 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
   return {"to": group["owner_email"]}
 
 
-def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None, subject: str | None = None) -> dict:
+# --- signatures (admin_signatures; signatures.py) ---------------------------------------------------------
+
+
+def leader_signature(group: dict, value) -> int | None:
+  """The signature chosen for a scheduled email or Email a member (details["signature_id"]; 2026-11-19), checked to
+  be one of the group leader's; None (or "") for none."""
+  if value is None or value == "":
+    return None
+  if isinstance(value, str) and value.strip().isdigit():
+    value = int(value.strip())
+  if not isinstance(value, int) or isinstance(value, bool):
+    raise GroupProblem("Choose one of the leader's signatures, or no signature.")
+  with connect() as connection:
+    found = connection.execute("SELECT 1 FROM admin_signatures WHERE id = %s AND owner_uid = %s", (value, group["owner_uid"])).fetchone()
+  if found is None:
+    raise GroupProblem("That signature is not one of the group leader's (it may have been deleted).")
+  return value
+
+
+def signature_words(signature_id: int | None) -> dict | None:
+  """A signature as an email needs it ({html, text}), read when the email goes; None for none (or one deleted)."""
+  if not signature_id:
+    return None
+  with connect() as connection:
+    row = connection.execute("SELECT html, text FROM admin_signatures WHERE id = %s", (signature_id,)).fetchone()
+  return {"html": row[0], "text": row[1]} if row else None
+
+
+def email_member(
+  group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None, subject: str | None = None,
+  signature: dict | None = None,
+) -> dict:
   """A message from the leader to **one member** (the Email link in the group's member list; added 2026-11-17 at
   the owner's request). By email only, to that member alone: From the site, **To the member's own address** (no
   hidden recipients; 2026-11-18), Reply-To the leader, and only the leader's words, with no group foot or stop link
@@ -693,7 +729,7 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
   try:
     settings = load_mail_settings()
     # To the member openly (their address is the To, not a hidden recipient); replies go to the leader.
-    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html, to_address=address))
+    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html, to_address=address, signature=signature))
   except MailUnavailable as problem:
     raise GroupProblem(f"The email could not be sent: {problem}") from problem
   except Exception as problem:
@@ -704,7 +740,7 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
       "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1) RETURNING id",
       (group_id, subject + " (to one member)", text, sent_by),
     ).fetchone()[0]
-    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html, to_address=address)
+    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html, to_address=address, signature=signature)
     keep_copy(connection, message_id, copy, [], False)
   member = next(member for member in group["members"] if member["id"] == member_id)
   return {"id": member["id"], "name": member["name"]}

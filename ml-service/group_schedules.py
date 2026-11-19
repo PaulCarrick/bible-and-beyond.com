@@ -251,35 +251,10 @@ FIELDS = (
 )
 
 
-def leader_signature(group: dict, value) -> int | None:
-  """The signature chosen for a scheduled email (details["signature_id"]), checked to be one of the group leader's;
-  None (or "") for none."""
-  if value is None or value == "":
-    return None
-  if isinstance(value, str) and value.strip().isdigit():
-    value = int(value.strip())
-  if not isinstance(value, int) or isinstance(value, bool):
-    raise GroupProblem("Choose one of the leader's signatures, or no signature.")
-  with connect() as connection:
-    found = connection.execute("SELECT 1 FROM admin_signatures WHERE id = %s AND owner_uid = %s", (value, group["owner_uid"])).fetchone()
-  if found is None:
-    raise GroupProblem("That signature is not one of the group leader's (it may have been deleted).")
-  return value
-
-
-def _signature(schedule: dict) -> dict | None:
-  """The schedule's signature as the email needs it ({html, text}), or None."""
-  if not schedule.get("signature_id"):
-    return None
-  with connect() as connection:
-    row = connection.execute("SELECT html, text FROM admin_signatures WHERE id = %s", (schedule["signature_id"],)).fetchone()
-  return {"html": row[0], "text": row[1]} if row else None
-
-
 def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | None = None) -> dict:
   group = groups.get_group(group_id)
   schedule = check(details, now or datetime.now(timezone.utc))
-  schedule["signature_id"] = leader_signature(group, details.get("signature_id"))
+  schedule["signature_id"] = groups.leader_signature(group, details.get("signature_id"))
   with connect() as connection:
     if connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group_id,)).fetchone()[0] >= MAX_SCHEDULES_PER_GROUP:
       raise GroupProblem(f"A group can have at most {MAX_SCHEDULES_PER_GROUP} scheduled messages.")
@@ -295,7 +270,7 @@ def update_schedule(group_id: int, schedule_id: int, details: dict, now: datetim
   if _get(schedule_id, group_id)["member_id"] is not None:
     raise GroupProblem("A message to one member cannot be changed: remove it and write it again.")
   schedule = check(details, now or datetime.now(timezone.utc))
-  schedule["signature_id"] = leader_signature(groups.get_group(group_id), details.get("signature_id"))
+  schedule["signature_id"] = groups.leader_signature(groups.get_group(group_id), details.get("signature_id"))
   with connect() as connection:
     connection.execute(
       f"UPDATE group_schedules SET {', '.join(f'{name} = %s' for name in FIELDS)}, updated_at = now() WHERE id = %s",
@@ -324,7 +299,7 @@ def schedule_member_email(group_id: int, member_id: int, details: dict, created_
   schedule = {
     "kind": "message", "subject": groups.member_subject(group, str(details.get("subject") or "")), "text": text, "html": html, "repeat": "once",
     "on_date": on_date, "day_of_month": None, "weekday": None, "week_of_month": None, "send_time": send_time,
-    "timezone": str(details["timezone"]), "signature_id": None,
+    "timezone": str(details["timezone"]), "signature_id": groups.leader_signature(group, details.get("signature_id")),
   }
   schedule["next_run_at"] = next_occurrence(schedule, now or datetime.now(timezone.utc))
   if schedule["next_run_at"] is None:
@@ -371,7 +346,7 @@ def send_test(group_id: int, schedule_id: int) -> dict:
   time), to the group's leader only, exactly as a member gets it, stop links included (groups.send_test). The schedule is not changed: its next time, last time and
   result stay. Returns {"to": the leader's address, "schedule": the schedule}."""
   schedule = _get(schedule_id, group_id)
-  sent = groups.send_test(group_id, schedule["kind"], _details_for(schedule), schedule={"id": schedule["id"], "label": label(schedule), "signature": _signature(schedule)})
+  sent = groups.send_test(group_id, schedule["kind"], _details_for(schedule), schedule={"id": schedule["id"], "label": label(schedule), "signature": groups.signature_words(schedule["signature_id"])})
   return {"to": sent["to"], "schedule": _public(schedule)}
 
 
@@ -408,7 +383,7 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
             # A message to one member: the same email as Send on their box (groups.email_member).
             member = groups.email_member(
               schedule["group_id"], schedule["member_id"], schedule["text"], f"schedule ({schedule['created_by']})",
-              html=schedule["html"], subject=schedule["subject"],
+              html=schedule["html"], subject=schedule["subject"], signature=groups.signature_words(schedule["signature_id"]),
             )
             outcome = f"Emailed to {member['name'] or 'the member'}"
             result["sent"] += 1
@@ -417,7 +392,7 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
             continue
           counts = groups.send(
             schedule["group_id"], schedule["kind"], _details_for(schedule), f"schedule ({schedule['created_by']})", pause=pause,
-            schedule={"id": schedule["id"], "label": label(schedule), "signature": _signature(schedule)},
+            schedule={"id": schedule["id"], "label": label(schedule), "signature": groups.signature_words(schedule["signature_id"])},
           )
           outcome = f"{counts['emailed']} emailed, {counts['texted']} texted" + (f", {counts['skipped']} skipped" if counts["skipped"] else "") + (f", {counts['failed']} failed" if counts["failed"] else "")
           result["sent"] += 1
