@@ -158,10 +158,10 @@ sections:
       <p>In the members list, the <strong>name</strong> of someone with an account opens their entry on Site users
       (only for those who may use Site users; a Group leader sees the name only). Click a member's <strong>email
       address</strong> to write to that person alone: a box opens with an editor (headings, bold, italic, underline,
-      strikethrough, links, lists and quotations). <em>Send</em> emails it to them only, with your address as the one
-      it is to and for replies, like every group email; <em>Cancel</em> closes the box and sends nothing. It goes by
-      email even to someone who chose texts. It is not a group email, so it carries only your words: no "Sent by …
-      to the group" line and no stop link at the foot. It cannot go to someone who stopped the group's messages or has not
+      strikethrough, links, lists and quotations). <em>Send</em> emails it to them only, addressed openly to them (their
+      address is the To; there is no Bcc), with replies coming to your address; <em>Cancel</em> closes the box and
+      sends nothing. It goes by email even to someone who chose texts. It is not a group email, so it carries only
+      your words: no "Sent by … to the group" line and no stop link at the foot. It cannot go to someone who stopped the group's messages or has not
       confirmed their address (their address is not a link then). The Sent table lists it as "to one member".
       <strong>Send at</strong> is now to begin with: leave it to send at once, or choose a later date and time (in
       your own time zone) and press <em>Send</em> to have it go then. A message waiting to go is in the group's

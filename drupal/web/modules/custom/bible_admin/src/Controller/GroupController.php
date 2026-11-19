@@ -170,7 +170,10 @@ class GroupController extends ControllerBase {
       $header((string) $this->t('Subject'), ['#plain_text' => $copy['subject']]),
     ];
     $notes = [];
-    $notes[] = $this->t('Each address under Bcc got its own copy as a hidden recipient: no member saw another member\'s address.');
+    // An email to one member (2026-11-18) has its address as the To and no Bcc.
+    if ($bcc) {
+      $notes[] = $this->t('Each address under Bcc got its own copy as a hidden recipient: no member saw another member\'s address.');
+    }
     if ($copy['leader_copy']) {
       $notes[] = $this->t('The leader also got their own copy, with no stop links and a line saying how many it went to.');
     }

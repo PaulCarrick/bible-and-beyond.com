@@ -445,13 +445,15 @@ def preview_picture(text: str) -> dict:
 
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
-  personal: bool = False, html: str | None = None, schedule: dict | None = None,
+  personal: bool = False, html: str | None = None, schedule: dict | None = None, to_address: str | None = None,
 ) -> EmailMessage:
   """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
   it went to). personal: a message to that one member (email_member, sent at once or at its "Send at" time): only
   the leader's words, with **no foot** (no "Sent by ..." line, no stop link and no one-click header; the owner's
-  request, 2026-11-18: "This is not a group email so we don't need it"); token is then not used. html: the message
+  request, 2026-11-18: "This is not a group email so we don't need it"); token is then not used, and its To is
+  the member's own address (to_address; the same day: "make the to address the destination email and remove it from
+  the bcc"), so it is sent to them openly, not as a hidden recipient. html: the message
   as cleaned HTML (from the editor; text is then its plain-text copy), sent as an HTML part with the same foot.
   schedule ({id, label}): a scheduled email (group_schedules.send_due). Its foot has two more stop links, for this
   scheduled email only and for all the group's scheduled emails (schedule_stop_link; stop_schedule_with_token),
@@ -461,7 +463,7 @@ def compose_email(
   email = EmailMessage()
   email["Subject"] = subject
   email["From"] = settings["from_address"]
-  email["To"] = group["owner_email"] or settings["from_address"]
+  email["To"] = to_address if personal and to_address else (group["owner_email"] or settings["from_address"])
   if group["owner_email"]:
     email["Reply-To"] = group["owner_email"]
   if personal:
@@ -663,9 +665,9 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
 
 def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None) -> dict:
   """A message from the leader to **one member** (the Email link in the group's member list; added 2026-11-17 at
-  the owner's request). By email only, to that member alone: From the site, To the leader (the member is the
-  hidden recipient), Reply-To the leader, and only the leader's words, with no group foot or stop link (2026-11-18,
-  the owner's request: "This is not a group email"). Refused
+  the owner's request). By email only, to that member alone: From the site, **To the member's own address** (no
+  hidden recipients; 2026-11-18), Reply-To the leader, and only the leader's words, with no group foot or stop link
+  (2026-11-18, the owner's request: "This is not a group email"). Refused
   for a member who stopped the group's messages or whose site address is not confirmed yet (a group send skips
   them too). No leader's copy. Recorded in the group's Sent table as a message "to one member" (never who).
   html (from the Drupal box's editor, CKEditor 5) is cleaned like the contact form's messages
@@ -677,7 +679,8 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
   subject = member_subject(group)
   try:
     settings = load_mail_settings()
-    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html), [address])
+    # To the member openly (their address is the To, not a hidden recipient); replies go to the leader.
+    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html, to_address=address))
   except MailUnavailable as problem:
     raise GroupProblem(f"The email could not be sent: {problem}") from problem
   except Exception as problem:
@@ -688,8 +691,8 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
       "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1) RETURNING id",
       (group_id, subject + " (to one member)", text, sent_by),
     ).fetchone()[0]
-    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html)
-    keep_copy(connection, message_id, copy, [address], False)
+    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html, to_address=address)
+    keep_copy(connection, message_id, copy, [], False)
   member = next(member for member in group["members"] if member["id"] == member_id)
   return {"id": member["id"], "name": member["name"]}
 

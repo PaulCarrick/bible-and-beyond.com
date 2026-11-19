@@ -35,7 +35,8 @@ def outbox(monkeypatch):
   monkeypatch.setattr(groups, "load_mail_settings", lambda: {"from_address": "site@example.test"})
   # Each email with who it is really delivered to (its hidden recipients), kept as X-Delivered-To for the tests.
   def fake_send(settings, email, recipients=None):
-    email["X-Delivered-To"] = ", ".join(recipients or [])
+    # Without hidden recipients an email goes to its To (an email to one member, since 2026-11-18).
+    email["X-Delivered-To"] = ", ".join(recipients or [email["To"]])
     sent["emails"].append(email)
 
   monkeypatch.setattr(groups, "send_email", fake_send)
@@ -238,13 +239,15 @@ def test_one_member_can_be_emailed_alone(outbox):
   # One email, delivered to Bob alone: no other member, no leader's copy, no text (even to Ann, who takes texts).
   assert [email["X-Delivered-To"] for email in outbox["emails"]] == [f"bob@{DOMAIN}"] and outbox["texts"] == []
   email = outbox["emails"][0]
-  assert email["To"] == "dave@example.org" and email["Reply-To"] == "dave@example.org" and email["Bcc"] is None
+  # To one member openly: their address is the To (no hidden recipients); replies go to the leader.
+  assert email["To"] == f"bob@{DOMAIN}" and email["Reply-To"] == "dave@example.org" and email["Bcc"] is None
   assert email["Subject"] == "A message from Deacon Dave (Deacon group)"
   text = email.get_content()
   # Not a group email (the owner's request, 2026-11-18): the leader's words only, no foot, no stop link.
   assert text == "Hello Bob,\nsee you Sunday.\n"
   assert email["List-Unsubscribe"] is None and "unsubscribe" not in email.as_string() and "Sent by" not in email.as_string()
-  assert DOMAIN not in email.as_string().replace(f"X-Delivered-To: {email['X-Delivered-To']}", "")
+  # No other member's address is in it.
+  assert f"ann@{DOMAIN}" not in email.as_string() and f"cat@{DOMAIN}" not in email.as_string()
   sent = groups.list_sent(group["id"])[0]
   assert sent["subject"].endswith("(to one member)") and sent["emailed"] == 1 and "bob" not in sent["subject"].lower()
 
@@ -497,7 +500,7 @@ def test_a_copy_of_an_email_to_one_member_and_none_for_texts_only(outbox):
   member = groups.get_group(group["id"])["members"][0]
   groups.email_member(group["id"], member["id"], "Thinking of you.", "dave")
   copy = groups.get_copy(group["id"], groups.list_sent(group["id"])[0]["id"])
-  assert copy["bcc"] == ["pat@example.org"] and copy["leader_copy"] is False and copy["html"] is None
+  assert copy["to"] == "pat@example.org" and copy["bcc"] == [] and copy["leader_copy"] is False and copy["html"] is None
   # The copy is the email as sent: the words only (no foot, so no stop code).
   assert copy["text"].strip() == "Thinking of you." and groups.STOP_CODE_PLACEHOLDER not in copy["text"]
   # A send that emailed nobody (all failed) keeps no copy.
