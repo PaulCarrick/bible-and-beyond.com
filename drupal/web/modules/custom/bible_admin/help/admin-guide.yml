@@ -17,7 +17,7 @@ sections:
     body: |
       <p>Everything is in the menu on the left, in alphabetical order. The pages of this site are Admin guide (this
       page), Backup and restore, Bibles, Christian music, Commentaries, Conversations and Prayer Wall, Devotionals,
-      FAQ notes, Groups, Maps, Other books, Site settings, Site users and Verse a day pictures. The others (Content,
+      FAQ notes, Groups, Maps, Other books, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
       Structure, Appearance and so on) belong to Drupal itself and are rarely needed.</p>
       <figure><img data-guide="admin-menu" alt="The Administration page: the menu on the left in alphabetical order, starting with Admin guide, and the same list in the middle with a line about each page"><figcaption>The menu, and the Administration page that lists the same pages.</figcaption></figure>
       <p><strong>Who sees what</strong> depends on the roles of your Drupal account (People, then Edit beside a name, then Roles):</p>
@@ -25,7 +25,7 @@ sections:
         <li><strong>Administrator</strong>: everything, Drupal included.</li>
         <li><strong>Website administrator</strong>: every page of this site, but nothing of Drupal's own. Give this to the people who run the website.</li>
         <li><strong>Bible administrator</strong>: Bibles, Commentaries, Devotionals, Other books, Christian music, Maps and Verse a day pictures, and on Site settings only the verse-window numbers.</li>
-        <li><strong>Group leader</strong>: only Groups, and only the groups they made (for example a deacon and the people in their care).</li>
+        <li><strong>Group leader</strong>: only Groups, Signatures and Tasks, and only the ones they made (for example a deacon and the people in their care).</li>
       </ul>
       <p>To add someone, use People, then Add user: give them a user name, an email address (replies to their group
       emails go there) and a first password, tick the role, and tell them the password privately. The site cannot
@@ -257,6 +257,33 @@ sections:
       quotations. A link can go to a verse on the site (copy its address from the Bible reader), another FAQ answer,
       a page of the site, or another website. Links to a verse or another website open in a new tab.</p>
       <figure><img data-guide="faq-note-edit" alt="Edit a FAQ note: the question and the note in the editor"><figcaption>Edit a FAQ note.</figcaption></figure>
+
+  - id: signatures
+    title: Signatures
+    permissions: ['keep signatures and tasks', 'administer signatures and tasks']
+    body: |
+      <p>Your email signatures: each has a name, for you to tell them apart, and the signature itself, written in the
+      same editor as the group emails (bold, italic, links, lists and so on). Only you see your signatures; a Website
+      administrator sees everyone's, with an Owner column. They are not added to any email yet.</p>
+      <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first.</p>
+
+  - id: tasks
+    title: Tasks
+    permissions: ['keep signatures and tasks', 'administer signatures and tasks']
+    body: |
+      <p>Things that come round again: each task has a name, a description, how often it comes round and the words of
+      a first and a second notification. Only you see your tasks; a Website administrator sees everyone's, with an
+      Owner column. The list shows how often each comes round and its next date. The notifications are not sent
+      yet.</p>
+      <p><strong>Add a task</strong> (or Edit) and choose how often:</p>
+      <ul>
+        <li><strong>Every week</strong>, on a day of the week.</li>
+        <li><strong>Every two weeks</strong>, from a first date: the task falls on that day and every second week after
+        it, on the same day of the week.</li>
+        <li><strong>Every month</strong>, on a day of the month (1 to 31; the 29th, 30th and 31st mean the last day in
+        shorter months).</li>
+      </ul>
+      <p>The description and the two notifications are written in the editor and may be left empty.</p>
 
   - id: site-users
     title: Site users

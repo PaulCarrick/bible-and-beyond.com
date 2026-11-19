@@ -32,3 +32,13 @@ administer groups:
   title: 'Administer all groups'
   description: 'See, change and message every group, whoever made it (with Lead groups, or on its own).'
   restrict access: true
+
+keep signatures and tasks:
+  title: 'Keep signatures and tasks'
+  description: 'Add, change and delete one''s own email signatures and recurring tasks (with their notifications). Each person sees only the ones they made.'
+  restrict access: true
+
+administer signatures and tasks:
+  title: 'Administer all signatures and tasks'
+  description: 'See, change and delete everyone''s signatures and tasks, whoever made them (with Keep signatures and tasks, or on its own).'
+  restrict access: true

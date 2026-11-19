@@ -33,3 +33,15 @@ bible_admin.music_upload_action:
   title: 'Upload a song'
   appears_on:
     - bible_admin.music
+
+bible_admin.signature_add_action:
+  route_name: bible_admin.signature_add
+  title: 'Add a signature'
+  appears_on:
+    - bible_admin.signatures
+
+bible_admin.task_add_action:
+  route_name: bible_admin.task_add
+  title: 'Add a task'
+  appears_on:
+    - bible_admin.tasks

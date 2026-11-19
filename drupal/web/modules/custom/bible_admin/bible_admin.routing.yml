@@ -473,7 +473,7 @@ bible_admin.guide:
     _controller: '\Drupal\bible_admin\Controller\AdminGuideController::build'
     _title: 'Admin guide'
   requirements:
-    _permission: 'administer bibles+administer site settings+administer site users+administer faq notes+administer backups+lead groups+administer groups'
+    _permission: 'administer bibles+administer site settings+administer site users+administer faq notes+administer backups+lead groups+administer groups+keep signatures and tasks+administer signatures and tasks'
 
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page
@@ -513,3 +513,74 @@ bible_admin.backup_action:
     _permission: 'administer backups'
     _csrf_request_header_token: 'TRUE'
     action: 'start|discard|upload|restore|dismiss'
+
+# Signatures and tasks (signatures.py, admin_tasks.py): each belongs to the Drupal user who made it. "keep signatures
+# and tasks" (one's own) or "administer signatures and tasks" (everyone's); each signature's and task's pages also
+# check that it is the user's own (SignatureTaskAccess) unless they administer all of them.
+bible_admin.signatures:
+  path: '/admin/signatures'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\SignatureListController::build'
+    _title: 'Signatures'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
+bible_admin.signature_add:
+  path: '/admin/signatures/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SignatureForm'
+    _title: 'Add a signature'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
+bible_admin.signature_edit:
+  path: '/admin/signatures/{signature_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SignatureForm'
+    _title: 'Change a signature'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::signature'
+    signature_id: '\d+'
+
+bible_admin.signature_delete:
+  path: '/admin/signatures/{signature_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteSignatureForm'
+    _title: 'Delete a signature'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::signature'
+    signature_id: '\d+'
+
+bible_admin.tasks:
+  path: '/admin/tasks'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\TaskListController::build'
+    _title: 'Tasks'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
+bible_admin.task_add:
+  path: '/admin/tasks/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\TaskForm'
+    _title: 'Add a task'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
+bible_admin.task_edit:
+  path: '/admin/tasks/{task_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\TaskForm'
+    _title: 'Change a task'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::task'
+    task_id: '\d+'
+
+bible_admin.task_delete:
+  path: '/admin/tasks/{task_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteTaskForm'
+    _title: 'Delete a task'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::task'
+    task_id: '\d+'

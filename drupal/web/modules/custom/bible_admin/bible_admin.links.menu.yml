@@ -100,3 +100,15 @@ bible_admin.backup:
   route_name: bible_admin.backup
   parent: system.admin
   weight: -2
+
+bible_admin.signatures:
+  title: 'Signatures'
+  description: 'Your email signatures: a name and formatted words to go at the foot of emails.'
+  route_name: bible_admin.signatures
+  parent: system.admin
+
+bible_admin.tasks:
+  title: 'Tasks'
+  description: 'Your recurring tasks (every week, every two weeks or every month), with the words of their first and second notifications.'
+  route_name: bible_admin.tasks
+  parent: system.admin

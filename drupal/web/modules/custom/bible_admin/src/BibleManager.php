@@ -1094,6 +1094,123 @@ class BibleManager {
   }
 
   /**
+   * Whether this user may see and change a signature or task: the one who made it, or anyone who administers
+   * all signatures and tasks.
+   */
+  public function mayManageSignatureOrTask(array $item): bool {
+    return (int) $item['owner_uid'] === (int) $this->currentUser->id() || $this->currentUser->hasPermission('administer signatures and tasks');
+  }
+
+  /**
+   * The owner argument of a list: this user's own, unless they administer all signatures and tasks.
+   */
+  private function ownerArguments(): array {
+    return $this->currentUser->hasPermission('administer signatures and tasks') ? [] : ['--owner=' . (int) $this->currentUser->id()];
+  }
+
+  /**
+   * The signatures this user may see, by name. Each has id, name, html, text, preview, owner_uid, owner_name,
+   * created_at and updated_at.
+   */
+  public function listSignatures(): array {
+    return $this->run(['list', ...$this->ownerArguments()], 'manage_signatures.py')['signatures'];
+  }
+
+  /**
+   * One signature. Throws if this user may not manage it.
+   */
+  public function getSignature(int $signatureId): array {
+    $signature = $this->run(['get', '--id=' . $signatureId], 'manage_signatures.py')['signature'];
+    if (!$this->mayManageSignatureOrTask($signature)) {
+      throw new BibleManagerException('That signature is not one of yours.');
+    }
+    return $signature;
+  }
+
+  /**
+   * Adds a signature (belonging to this user) or changes one. $words is ['html' => ...] from the editor or
+   * ['text' => ...] from the plain box (GroupEditor::value); the ML service cleans the HTML.
+   */
+  public function saveSignature(?int $signatureId, string $name, array $words): array {
+    $input = $this->groupInput(['name' => $name, 'signature' => $words, 'owner_name' => $this->currentUser->getDisplayName()]);
+    if ($signatureId === NULL) {
+      $signature = $this->run(['create', '--owner=' . (int) $this->currentUser->id()], 'manage_signatures.py', $input)['signature'];
+    }
+    else {
+      $this->getSignature($signatureId);
+      $signature = $this->run(['update', '--id=' . $signatureId], 'manage_signatures.py', $input)['signature'];
+    }
+    $this->logSignatureOrTask($signatureId === NULL ? 'added' : 'changed', 'signature', $signature);
+    return $signature;
+  }
+
+  public function deleteSignature(int $signatureId): array {
+    $this->getSignature($signatureId);
+    $signature = $this->run(['delete', '--id=' . $signatureId], 'manage_signatures.py')['signature'];
+    $this->logSignatureOrTask('deleted', 'signature', $signature);
+    return $signature;
+  }
+
+  /**
+   * The tasks this user may see, by name. Each has id, name, description_html/_text, repeat, weekday,
+   * first_date, day_of_month, how_often (in words), next_date, first_notification_html/_text,
+   * second_notification_html/_text, preview, owner_uid, owner_name, created_at and updated_at.
+   */
+  public function listTasks(): array {
+    return $this->run(['list', ...$this->ownerArguments()], 'manage_tasks.py')['tasks'];
+  }
+
+  /**
+   * One task. Throws if this user may not manage it.
+   */
+  public function getTask(int $taskId): array {
+    $task = $this->run(['get', '--id=' . $taskId], 'manage_tasks.py')['task'];
+    if (!$this->mayManageSignatureOrTask($task)) {
+      throw new BibleManagerException('That task is not one of yours.');
+    }
+    return $task;
+  }
+
+  /**
+   * Adds a task (belonging to this user) or changes one.
+   *
+   * @param array $details
+   *   name, repeat (weekly, biweekly or monthly), weekday (0 Monday to 6 Sunday), first_date (Y-m-d),
+   *   day_of_month (1 to 31), and description, first_notification and second_notification, each ['html' => ...]
+   *   or ['text' => ...] (GroupEditor::value).
+   */
+  public function saveTask(?int $taskId, array $details): array {
+    $input = $this->groupInput($details + ['owner_name' => $this->currentUser->getDisplayName()]);
+    if ($taskId === NULL) {
+      $task = $this->run(['create', '--owner=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['task'];
+    }
+    else {
+      $this->getTask($taskId);
+      $task = $this->run(['update', '--id=' . $taskId], 'manage_tasks.py', $input)['task'];
+    }
+    $this->logSignatureOrTask($taskId === NULL ? 'added' : 'changed', 'task', $task);
+    return $task;
+  }
+
+  public function deleteTask(int $taskId): array {
+    $this->getTask($taskId);
+    $task = $this->run(['delete', '--id=' . $taskId], 'manage_tasks.py')['task'];
+    $this->logSignatureOrTask('deleted', 'task', $task);
+    return $task;
+  }
+
+  private function logSignatureOrTask(string $change, string $kind, array $item): void {
+    $this->logger->notice('@user @change the @kind “@name” (@id) of @owner.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@kind' => $kind,
+      '@name' => $item['name'],
+      '@id' => $item['id'],
+      '@owner' => $item['owner_name'],
+    ]);
+  }
+
+  /**
    * Largest verse a day picture, in bytes (verse_images.MAX_FILE_BYTES).
    */
   public const MAX_VERSE_IMAGE_BYTES = 25 * 1024 * 1024;

@@ -124,3 +124,30 @@ function bible_admin_update_11004(): string {
   }
   return $done ? ucfirst(implode(', ', $done)) . '.' : 'Nothing to do.';
 }
+
+/**
+ * Lets the Group leader and Website administrator roles keep their own signatures and tasks, and the Website
+ * administrator see everyone's (added 2026-11-19). New sites get them from config/install.
+ */
+function bible_admin_update_11005(): string {
+  $done = [];
+  $grants = [
+    'group_leader' => ['keep signatures and tasks'],
+    'website_administrator' => ['keep signatures and tasks', 'administer signatures and tasks'],
+  ];
+  foreach ($grants as $id => $permissions) {
+    $role = Role::load($id);
+    if (!$role) {
+      continue;
+    }
+    $added = array_values(array_filter($permissions, fn ($permission) => !$role->hasPermission($permission)));
+    foreach ($added as $permission) {
+      $role->grantPermission($permission);
+    }
+    if ($added) {
+      $role->save();
+      $done[] = 'let the ' . $role->label() . ' role ' . implode(' and ', $added);
+    }
+  }
+  return $done ? ucfirst(implode('; ', $done)) . '.' : 'Nothing to do.';
+}
