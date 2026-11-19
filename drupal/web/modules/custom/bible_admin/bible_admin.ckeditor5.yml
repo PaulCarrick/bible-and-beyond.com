@@ -1,0 +1,61 @@
+# The Font buttons of the admin editors (added 2026-11-19 at the owner's request: "add a font selector ... everywhere"
+# and "lets do size and even color"): CKEditor 5's own Font plugin, shipped by Drupal core, with fixed lists of
+# email-safe fonts, sizes and colours (no free colour picker, no other values: supportAllValues false). They write
+# <span style="font-family:...;font-size:...;color:...;background-color:...">. The ML service keeps a style only when
+# it is one of these (contact.FONT_FAMILIES, FONT_SIZES, FONT_COLOURS): change both together.
+bible_admin_font:
+  ckeditor5:
+    plugins:
+      - font.FontFamily
+      - font.FontSize
+      - font.FontColor
+      - font.FontBackgroundColor
+    config:
+      fontFamily:
+        supportAllValues: false
+        options:
+          - default
+          - 'Arial, Helvetica, sans-serif'
+          - 'Georgia, serif'
+          - 'Times New Roman, Times, serif'
+          - 'Verdana, Geneva, sans-serif'
+          - 'Trebuchet MS, Helvetica, sans-serif'
+          - 'Tahoma, Geneva, sans-serif'
+          - 'Courier New, Courier, monospace'
+      fontSize:
+        supportAllValues: false
+        options: [12, 14, default, 18, 20, 24, 28, 32]
+      fontColor:
+        colorPicker: false
+        columns: 6
+        colors: &colours
+          - { color: '#000000', label: 'Black' }
+          - { color: '#4d4d4d', label: 'Dark grey' }
+          - { color: '#999999', label: 'Grey' }
+          - { color: '#ffffff', label: 'White', hasBorder: true }
+          - { color: '#c0392b', label: 'Red' }
+          - { color: '#e67e22', label: 'Orange' }
+          - { color: '#f1c40f', label: 'Yellow' }
+          - { color: '#27ae60', label: 'Green' }
+          - { color: '#16a085', label: 'Teal' }
+          - { color: '#2980b9', label: 'Blue' }
+          - { color: '#1d3f8a', label: 'Dark blue' }
+          - { color: '#8e44ad', label: 'Purple' }
+      fontBackgroundColor:
+        colorPicker: false
+        columns: 6
+        colors: *colours
+  drupal:
+    label: Font, size and colour
+    library: bible_admin/ckeditor5.font
+    elements:
+      - <span style>
+    toolbar_items:
+      fontFamily:
+        label: Font
+      fontSize:
+        label: Font size
+      fontColor:
+        label: Font colour
+      fontBackgroundColor:
+        label: Highlight colour

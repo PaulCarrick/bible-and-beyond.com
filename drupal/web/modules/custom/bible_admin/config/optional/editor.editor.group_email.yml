@@ -1,13 +1,15 @@
 # The editor (CKEditor 5) for a leader's email to one group member. Optional: installed only where CKEditor 5
-# is enabled; without it the box is plain text. Only what the email keeps (contact.ALLOWED_TAGS): headings,
-# bold, italic, underline, strikethrough, links, lists and quotations. No colours, fonts, pictures, tables or
-# source editing: the cleaning would drop them.
+# is enabled; without it the box is plain text. Only what the email keeps (contact.FormattedCleaner): headings,
+# bold, italic, underline, strikethrough, a font, size, text colour and highlight from fixed lists (the Font
+# buttons, bible_admin.ckeditor5.yml; 2026-11-19), links, lists and quotations. No pictures, tables or source
+# editing: the cleaning would drop them.
 langcode: en
 status: true
 dependencies:
   config:
     - filter.format.group_email
   module:
+    - bible_admin
     - ckeditor5
   enforced:
     module:
@@ -23,6 +25,11 @@ settings:
       - italic
       - underline
       - strikethrough
+      - '|'
+      - fontFamily
+      - fontSize
+      - fontColor
+      - fontBackgroundColor
       - '|'
       - link
       - '|'

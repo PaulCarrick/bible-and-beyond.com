@@ -184,9 +184,10 @@ sections:
       View.</p>
       <ul>
         <li><strong>Send a message</strong>: a subject and your words, written in the editor (headings, bold,
-        italic, underline, strikethrough, links, lists and quotations), which the email keeps. No picture. A text is a
-        short version with the words only. A scheduled message, Email a member and the group's notes use the same
-        editor; the words for a picture stay plain, as they are written onto the picture.</li>
+        italic, underline, strikethrough, a font, size, text colour and highlight, links, lists and quotations), which
+        the email keeps. No picture. A text is a short version with the words only. A scheduled message, Email a
+        member, the group's notes, signatures and tasks use the same editor; the words for a picture stay plain, as
+        they are written onto the picture.</li>
         <li><strong>Send a verse card</strong>: a well-known Bible verse chosen at random, written over one of the
         verse a day pictures. Not the one you want? <em>Pick another verse</em>. In the email the verse is a link to it
         on the site; members who get texts get it as a picture message.</li>
@@ -258,8 +259,8 @@ sections:
       <p>Your own notes, shown in a box under the AI's answer on the FAQ page, one note per question.</p>
       <figure><img data-guide="faq-notes" alt="FAQ notes: Add a note, and a table of questions with the start of each note"><figcaption>FAQ notes.</figcaption></figure>
       <p><strong>Add a note</strong> (or Edit): choose the question (those with a note already are left out) and write
-      the note in the editor: headings, bold, italic, underline, superscript (for verse numbers), links, lists and
-      quotations. A link can go to a verse on the site (copy its address from the Bible reader), another FAQ answer,
+      the note in the editor: headings, bold, italic, underline, superscript (for verse numbers), a font, size, text
+      colour and highlight, links, lists and quotations. A link can go to a verse on the site (copy its address from the Bible reader), another FAQ answer,
       a page of the site, or another website. Links to a verse or another website open in a new tab.</p>
       <figure><img data-guide="faq-note-edit" alt="Edit a FAQ note: the question and the note in the editor"><figcaption>Edit a FAQ note.</figcaption></figure>
 

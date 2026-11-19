@@ -168,6 +168,77 @@ class _Cleaner(HTMLParser):
       self.parts.append(self.open_tags.pop()[1])
 
 
+# --- fonts, sizes and colours (the admin editors' Font buttons; added 2026-11-19 at the owner's request) ------------
+# The choices offered by the Font plugin of the Drupal admin editors (bible_admin.ckeditor5.yml, FONT_* there must
+# match). A <span> keeps a style only when every property in it is one of these; anything else (pasted styles,
+# positions, url(...)) is dropped. Only the site's own editors use FormattedCleaner; visitors' text never has fonts.
+FONT_FAMILIES = (
+  "Arial, Helvetica, sans-serif",
+  "Georgia, serif",
+  "Times New Roman, Times, serif",
+  "Verdana, Geneva, sans-serif",
+  "Trebuchet MS, Helvetica, sans-serif",
+  "Tahoma, Geneva, sans-serif",
+  "Courier New, Courier, monospace",
+)
+FONT_SIZES = ("12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px")
+FONT_COLOURS = (
+  "#000000", "#4d4d4d", "#999999", "#ffffff", "#c0392b", "#e67e22", "#f1c40f", "#27ae60", "#16a085", "#2980b9",
+  "#1d3f8a", "#8e44ad",
+)
+
+
+def _font_key(value: str) -> str:
+  """A font list compared without quotes, spaces or case ("'Times New Roman', Times" and "times new roman,times")."""
+  return re.sub(r"[\s'\"]", "", value).lower()
+
+
+_FAMILY_KEYS = {_font_key(family): family for family in FONT_FAMILIES}
+_COLOUR_PATTERN = re.compile(r"^#([0-9a-f]{3}|[0-9a-f]{6})$")
+
+
+def _colour(value: str) -> str | None:
+  value = value.strip().lower()
+  if _COLOUR_PATTERN.match(value):
+    if len(value) == 4:
+      value = "#" + "".join(character * 2 for character in value[1:])
+    return value if value in FONT_COLOURS else None
+  match = re.match(r"^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$", value)
+  if match and all(int(part) <= 255 for part in match.groups()):
+    hexadecimal = "#" + "".join(f"{int(part):02x}" for part in match.groups())
+    return hexadecimal if hexadecimal in FONT_COLOURS else None
+  return None
+
+
+def safe_font_style(style: str) -> str:
+  """The allowed part of a span's style ("font-family:Georgia, serif;font-size:18px;color:#c0392b"), or ""."""
+  kept = {}
+  for declaration in (style or "").split(";"):
+    name, _, value = declaration.partition(":")
+    name, value = name.strip().lower(), value.strip()
+    if name == "font-family" and _font_key(value) in _FAMILY_KEYS:
+      kept[name] = _FAMILY_KEYS[_font_key(value)]
+    elif name == "font-size" and value.lower() in FONT_SIZES:
+      kept[name] = value.lower()
+    elif name in ("color", "background-color") and _colour(value):
+      kept[name] = _colour(value)
+  return ";".join(f"{name}:{value}" for name, value in kept.items())
+
+
+class FormattedCleaner(_Cleaner):
+  """The cleaner for the Drupal admin's editors (group emails, signatures, tasks): the contact form's allowlist plus
+  <span> with a font, size, text colour or highlight from the lists above."""
+
+  allowed_tags = ALLOWED_TAGS | {"span"}
+
+  def opening(self, tag: str, attributes: dict) -> str | None:
+    if tag == "span":
+      style = safe_font_style(attributes.get("style") or "")
+      # A span with nothing allowed is dropped and its words kept (as for an unsafe link).
+      return f'<span style="{escape(style, quote=True)}">' if style else None
+    return super().opening(tag, attributes)
+
+
 def clean_message_html(html: str, cleaner_class: type[_Cleaner] = _Cleaner) -> str:
   cleaner = cleaner_class()
   cleaner.feed(html)

@@ -23,6 +23,11 @@ settings:
       - superscript
       - removeFormat
       - '|'
+      - fontFamily
+      - fontSize
+      - fontColor
+      - fontBackgroundColor
+      - '|'
       - link
       - '|'
       - bulletedList

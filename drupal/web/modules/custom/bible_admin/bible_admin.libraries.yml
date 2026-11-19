@@ -38,3 +38,16 @@ admin_guide:
   css:
     component:
       css/admin-guide.css: {}
+
+# CKEditor 5's Font plugin, which Drupal core ships (core/assets/vendor/ckeditor5/font) but does not offer as a
+# button: the admin editors' font, size, text colour and highlight (bible_admin.ckeditor5.yml; 2026-11-19).
+ckeditor5.font:
+  remote: https://github.com/ckeditor/ckeditor5
+  license:
+    name: GPL-2.0-or-later
+    gpl-compatible: true
+  js:
+    /core/assets/vendor/ckeditor5/font/font.js: { minified: true }
+  dependencies:
+    - core/ckeditor5
+    - core/ckeditor5.translations

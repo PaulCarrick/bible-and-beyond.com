@@ -45,7 +45,7 @@ import verse_a_day
 from accounts import AccountProblem, normalize_email, site_link
 from html import escape
 
-from contact import CONTROL_CHARACTERS, ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
+from contact import CONTROL_CHARACTERS, ContactProblem, FormattedCleaner, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from search import connect
 from site_settings import get_public_settings
 
@@ -138,7 +138,7 @@ def save_group(
     # when there is nothing in them. The group page shows them formatted.
     raw = str(details["description_html"])
     try:
-      description = check_rich_text(raw, DESCRIPTION_LIMIT * 10, DESCRIPTION_LIMIT, "notes")["html"]
+      description = check_rich_text(raw, DESCRIPTION_LIMIT * 10, DESCRIPTION_LIMIT, "notes", FormattedCleaner)["html"]
     except ContactProblem as problem:
       if "write something" not in str(problem):
         raise GroupProblem(str(problem)) from problem
@@ -528,7 +528,7 @@ def message_html(html: str) -> tuple[str, str]:
   cleaned like the contact form's messages (contact.check_rich_text: only its allowed tags, links only http(s) or
   mailto, no attributes). Returns (html, text): the HTML for the email and its plain-text copy for texts."""
   try:
-    cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message")
+    cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message", FormattedCleaner)
   except ContactProblem as problem:
     raise GroupProblem(str(problem)) from problem
   return cleaned["html"], cleaned["text"]
@@ -751,7 +751,7 @@ def member_message(text: str, html: str | None) -> tuple[str, str | None]:
   text becomes its plain-text copy; without it, text is checked as plain text."""
   if html is not None:
     try:
-      cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message")
+      cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message", FormattedCleaner)
     except ContactProblem as problem:
       raise GroupProblem(str(problem)) from problem
     return cleaned["text"], cleaned["html"]

@@ -151,3 +151,31 @@ function bible_admin_update_11005(): string {
   }
   return $done ? ucfirst(implode('; ', $done)) . '.' : 'Nothing to do.';
 }
+
+/**
+ * Adds the Font buttons (font, size, text colour and highlight; bible_admin.ckeditor5.yml) to the group email and
+ * FAQ note editors, after the text styles (added 2026-11-19). New sites get them from config/optional.
+ */
+function bible_admin_update_11006(): string {
+  $done = [];
+  $buttons = ['fontFamily', 'fontSize', 'fontColor', 'fontBackgroundColor'];
+  foreach (['group_email' => 'strikethrough', 'faq_note' => 'removeFormat'] as $id => $after) {
+    $editor = Editor::load($id);
+    if (!$editor) {
+      continue;
+    }
+    $settings = $editor->getSettings();
+    $items = $settings['toolbar']['items'] ?? [];
+    if (array_intersect($buttons, $items)) {
+      continue;
+    }
+    $position = array_search($after, $items, TRUE);
+    $position = $position === FALSE ? count($items) : $position + 1;
+    array_splice($items, $position, 0, ['|', ...$buttons]);
+    $settings['toolbar']['items'] = $items;
+    $editor->setSettings($settings);
+    $editor->save();
+    $done[] = 'added the Font buttons to the ' . $id . ' editor';
+  }
+  return $done ? ucfirst(implode('; ', $done)) . '.' : 'Nothing to do.';
+}

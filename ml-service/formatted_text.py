@@ -8,7 +8,7 @@ plain-text copy, ready for an email's HTML and text parts.
 
 from html import escape
 
-from contact import ContactProblem, check_rich_text
+from contact import ContactProblem, FormattedCleaner, check_rich_text
 
 HTML_LIMIT = 100_000
 TEXT_LIMIT = 20_000
@@ -40,7 +40,7 @@ def clean(value, what: str, required: bool) -> dict:
   if not isinstance(html, str):
     raise FormattedTextProblem(f"The {what} could not be read.")
   try:
-    return check_rich_text(html, HTML_LIMIT, TEXT_LIMIT, what)
+    return check_rich_text(html, HTML_LIMIT, TEXT_LIMIT, what, FormattedCleaner)
   except ContactProblem as problem:
     if not required and str(problem).startswith("Please write something"):
       return {"html": "", "text": ""}

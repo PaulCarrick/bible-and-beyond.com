@@ -17,7 +17,7 @@ import re
 from html import escape
 from urllib.parse import parse_qs, urlsplit
 
-from contact import ALLOWED_TAGS, SAFE_LINK, ContactProblem, _Cleaner, check_rich_text, clean_message_html, message_to_text
+from contact import ALLOWED_TAGS, SAFE_LINK, ContactProblem, _Cleaner, check_rich_text, clean_message_html, message_to_text, safe_font_style
 from faq import QUESTIONS
 from search import connect
 
@@ -26,7 +26,7 @@ NOTE_TEXT_LIMIT = 20_000
 PREVIEW_LENGTH = 160
 LABEL_LIMIT = 300
 
-NOTE_TAGS = ALLOWED_TAGS | {"sup", "sub", "cite", "footer", "h4"}
+NOTE_TAGS = ALLOWED_TAGS | {"sup", "sub", "cite", "footer", "h4", "span"}
 LANGUAGE_PATTERN = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$")
 # The addresses of this site, so a link copied from the browser (https://bible-and-beyond.com/...) is stored
 # as an address on this site and works locally and in the containers too.
@@ -74,6 +74,13 @@ class _NoteCleaner(_Cleaner):
   def opening(self, tag: str, attributes: dict) -> str | None:
     language = (attributes.get("lang") or "").strip()
     language_attribute = f' lang="{language}"' if LANGUAGE_PATTERN.match(language) else ""
+    if tag == "span":
+      # The Font buttons (2026-11-19): a font, size or colour from contact.FONT_* lists, else none.
+      style = safe_font_style(attributes.get("style") or "")
+      style_attribute = f' style="{escape(style, quote=True)}"' if style else ""
+      if not style_attribute and not language_attribute:
+        return None  # nothing to keep: the words stay without the span
+      return f"<span{style_attribute}{language_attribute}>"
     if tag != "a":
       return f"<{tag}{language_attribute}>"
     address = safe_note_address(attributes.get("href") or "")

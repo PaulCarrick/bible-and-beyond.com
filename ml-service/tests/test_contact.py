@@ -235,3 +235,24 @@ def test_outgoing_email_can_be_turned_off(monkeypatch):
 
   with pytest.raises(contact.MailUnavailable, match="turned off"):
     contact.load_mail_settings()
+
+
+# --- the admin editors' fonts, sizes and colours (2026-11-19) -----------------------------------------------
+
+
+def test_the_admin_cleaner_keeps_only_the_offered_fonts_sizes_and_colours():
+  from contact import FormattedCleaner, clean_message_html
+
+  html = (
+    '<p><span style="font-family:\'Times New Roman\', Times, serif;font-size:18px;color:#C0392B;background-color:rgb(241, 196, 15)">kept</span>'
+    '<span style="font-family:Comic Sans MS;font-size:99px;color:#123456;position:fixed;background:url(x)">plain</span>'
+    '<span style="color:#000">short hex</span><span>bare</span></p>'
+  )
+  assert clean_message_html(html, FormattedCleaner) == (
+    '<p><span style="font-family:Times New Roman, Times, serif;font-size:18px;color:#c0392b;background-color:#f1c40f">kept</span>'
+    'plain<span style="color:#000000">short hex</span>bare</p>'
+  )
+  # Visitors' text (the default cleaner) never keeps a span or a style.
+  assert clean_message_html('<p><span style="color:#c0392b">red</span></p>') == "<p>red</p>"
+  # A style cannot break out of its attribute.
+  assert clean_message_html('<span style="color:#c0392b&quot; onclick=&quot;x">x</span>', FormattedCleaner) == "x"

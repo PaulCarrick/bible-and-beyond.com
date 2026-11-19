@@ -190,3 +190,8 @@ def test_the_drupal_tool_reads_the_note_on_its_input():
 
 def test_the_owners_notes_keep_their_non_breaking_spaces():
   assert clean_note_html("<p>Romans 3:23</p>") == "<p>Romans 3:23</p>"
+
+
+def test_a_note_keeps_the_offered_fonts_and_a_words_language():
+  html = '<p><span style="font-size:24px;color:#1d3f8a" lang="grc">λόγος</span> <span style="font-size:7px">small</span></p>'
+  assert clean_note_html(html) == '<p><span style="font-size:24px;color:#1d3f8a" lang="grc">λόγος</span> small</p>'
