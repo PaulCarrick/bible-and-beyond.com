@@ -3604,3 +3604,19 @@ select:disabled {
   color: var(--muted-text, #666);
   font-size: 0.9em;
 }
+
+/* A Spotify item's player in the media page (2026-11-19): Spotify's own embed, as wide as the section. */
+.music-spotify {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  border: 0;
+  border-radius: 12px;
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* The space where a playlist tick would be, beside a Spotify item (it cannot go in a playlist). */
+.music-tick-none {
+  display: inline-block;
+  cursor: default;
+}

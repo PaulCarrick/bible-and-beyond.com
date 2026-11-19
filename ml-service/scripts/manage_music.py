@@ -9,7 +9,10 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_music.py upload FILE --name=Amazing.mp4 --id=amazing-grace
                                                           reads {"title", "author", "lyrics", "keywords"} as JSON on the input
                                                           (keywords left out: the song's are kept)
-    manage_music.py update --id=amazing-grace             the same details, without a new file
+    manage_music.py update --id=amazing-grace             the same details, without a new file (a Spotify item's
+                                                          details may have "spotify_link" to change its link)
+    manage_music.py spotify --id=worship-playlist         a Spotify item: reads {"spotify_link", "title", "author",
+                                                          "lyrics", "keywords"} (a link in place of a file)
     manage_music.py publish|unpublish|delete --id=amazing-grace
 
 upload and update also take --words=FILE --words-name=words.pdf (the words as a PDF or picture, shown in place
@@ -31,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from music import (  # noqa: E402
   MusicProblem,
+  add_spotify,
   delete,
   get_song,
   list_songs,
@@ -47,6 +51,7 @@ def parse_arguments():
   commands.add_parser("list")
   for name in ("get", "publish", "unpublish", "delete"):
     commands.add_parser(name).add_argument("--id", required=True)
+  commands.add_parser("spotify").add_argument("--id", required=True)
   updating = commands.add_parser("update")
   updating.add_argument("--id", required=True)
   updating.add_argument("--remove-words", action="store_true")
@@ -94,6 +99,9 @@ def run(arguments) -> dict:
     return {"ok": True, "song": set_published(arguments.id, arguments.command == "publish")}
   if arguments.command == "delete":
     return {"ok": True, "song": delete(arguments.id)}
+  if arguments.command == "spotify":
+    details = read_details()
+    return {"ok": True, "song": add_spotify(arguments.id, str(details.get("spotify_link") or ""), details)}
   if arguments.command == "update":
     song = update_details(arguments.id, read_details(), words_file(arguments), arguments.remove_words)
   else:

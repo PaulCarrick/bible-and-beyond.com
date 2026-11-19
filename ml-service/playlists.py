@@ -91,7 +91,8 @@ def save_playlist(user_id: int, name: str, song_ids: list[str]) -> tuple[dict, b
       published = {
         row[0]
         for row in connection.execute(
-          "SELECT id FROM music_tracks WHERE id = ANY(%s) AND is_published", (ordered,)
+          # Spotify items are never in a playlist: the site cannot tell when Spotify's player ends a track.
+          "SELECT id FROM music_tracks WHERE id = ANY(%s) AND is_published AND media_type <> 'spotify'", (ordered,)
         ).fetchall()
       }
       if len(published) != len(ordered):

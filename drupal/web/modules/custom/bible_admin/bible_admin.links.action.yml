@@ -34,6 +34,12 @@ bible_admin.music_upload_action:
   appears_on:
     - bible_admin.music
 
+bible_admin.music_spotify_add_action:
+  route_name: bible_admin.music_spotify_add
+  title: 'Add a Spotify item'
+  appears_on:
+    - bible_admin.music
+
 bible_admin.signature_add_action:
   route_name: bible_admin.signature_add
   title: 'Add a signature'

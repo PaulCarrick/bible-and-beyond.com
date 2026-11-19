@@ -476,7 +476,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                     )
                   })}
                 </ol>
-                {songs.some((song) => !editIds.includes(song.id)) ? (
+                {songs.some((song) => song.kind !== 'spotify' && !editIds.includes(song.id)) ? (
                   <div className="music-add-songs">
                     <label htmlFor="music-add-songs-list">Add songs</label>
                     <p className="music-playlist-hint" id="music-add-songs-hint">
@@ -491,7 +491,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                       onChange={(event) => setSongsToAdd([...event.target.selectedOptions].map((option) => option.value))}
                     >
                       {songs
-                        .filter((song) => !editIds.includes(song.id))
+                        .filter((song) => song.kind !== 'spotify' && !editIds.includes(song.id))
                         .map((song) => (
                           <option key={song.id} value={song.id}>
                             {song.title}
@@ -602,6 +602,12 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
               onToggle={(event) => {
                 if (!event.currentTarget.open) {
                   event.currentTarget.querySelectorAll<HTMLMediaElement>('audio, video').forEach((player) => player.pause())
+                  // Spotify's player cannot be paused from here: loading it again stops it.
+                  event.currentTarget.querySelectorAll<HTMLIFrameElement>('iframe.music-spotify').forEach((player) => {
+                    const address = player.src
+                    player.src = 'about:blank'
+                    player.src = address
+                  })
                 }
               }}
             >
@@ -610,7 +616,18 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                 {song.author && <span className="music-author">{song.author}</span>}
               </summary>
               <div className="music-body">
-                {song.kind === 'video' ? (
+                {song.kind === 'spotify' && song.spotify_embed ? (
+                  // Spotify's own player (2026-11-19): full tracks for a visitor signed in to Spotify in this browser,
+                  // 30-second previews otherwise. It loads only once the section is opened (lazy, inside closed details).
+                  <iframe
+                    className="music-spotify"
+                    src={song.spotify_embed}
+                    title={`${song.title} on Spotify`}
+                    height={song.spotify_link?.startsWith('track/') || song.spotify_link?.startsWith('episode/') ? 152 : 380}
+                    loading="lazy"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  />
+                ) : song.kind === 'video' ? (
                   <video
                     className="music-video"
                     controls
@@ -660,7 +677,12 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                 )}
               </div>
             </details>
-            {user && (
+            {user && song.kind === 'spotify' && (
+              // A Spotify item cannot go in a playlist (the site cannot tell when Spotify's player ends a track); an
+              // empty space keeps the column of ticks lined up.
+              <span className="music-tick music-tick-none" aria-hidden="true" />
+            )}
+            {user && song.kind !== 'spotify' && (
               <input
                 type="checkbox"
                 className="music-tick"

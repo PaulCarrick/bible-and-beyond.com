@@ -665,6 +665,19 @@ class BibleManager {
   }
 
   /**
+   * Adds a Spotify item (no file: a Spotify link, shown with Spotify's embedded player) or changes one.
+   *
+   * @param array $details
+   *   spotify_link (a Spotify link or URI, checked by the ML service), title, author, keywords and lyrics.
+   */
+  public function saveSpotifyMusic(string $songId, array $details, bool $isNew): array {
+    $input = json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    $song = $this->run([$isNew ? 'spotify' : 'update', '--id=' . $songId], 'manage_music.py', $input)['song'];
+    $this->logMusic($isNew ? 'added the Spotify item' : 'changed', $song);
+    return $song;
+  }
+
+  /**
    * Publishes, hides or deletes a song (deleting removes its file).
    */
   public function changeMusic(string $action, string $songId): array {

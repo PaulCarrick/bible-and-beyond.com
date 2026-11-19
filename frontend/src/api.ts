@@ -316,8 +316,12 @@ export interface MusicSong {
   lyrics: string
   // The words with their formatting, from a PDF or Word document; null when they were typed.
   lyrics_html?: string | null
-  kind: 'audio' | 'video'
+  // 'spotify': a Spotify item (no file), shown with Spotify's embedded player (spotify_embed); never in a playlist.
+  kind: 'audio' | 'video' | 'spotify'
   media_type: string
+  // A Spotify item's player address (https://open.spotify.com/embed/<kind>/<id>) and "kind/id"; null for a file.
+  spotify_embed?: string | null
+  spotify_link?: string | null
   // Changes when a file is replaced, so the addresses below ask for the new one.
   version: number
   // The words as a file (a PDF or a picture), shown in place of the typed words; null when there is none.
@@ -328,7 +332,7 @@ export interface MusicSearchResult {
   id: string
   title: string
   author: string
-  kind: 'audio' | 'video'
+  kind: 'audio' | 'video' | 'spotify'
   // An excerpt of the words (or the title), each word found wrapped in \u0001 and \u0002.
   text: string
 }

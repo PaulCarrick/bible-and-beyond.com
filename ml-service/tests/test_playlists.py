@@ -143,3 +143,16 @@ def test_deleting_the_user_deletes_their_playlists():
     count = connection.execute("SELECT count(*) FROM playlists WHERE user_id = %s", (user_id,)).fetchone()[0]
 
   assert count == 0
+
+
+def test_a_spotify_item_cannot_go_in_a_playlist():
+  import music
+
+  sign_up()
+  music.add_spotify("playlists-test-spotify", "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", {"title": "Spotify list"})
+  music.set_published("playlists-test-spotify", True)
+  try:
+    answer = save("With Spotify", ["playlists-test-spotify"])
+    assert answer.status_code == 422
+  finally:
+    music.delete("playlists-test-spotify")

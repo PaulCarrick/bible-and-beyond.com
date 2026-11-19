@@ -53,6 +53,8 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
   const [archiveSearch, setArchiveSearch] = useState<{ query: string; id: number } | null>(null)
   // Songs ticked for a playlist, in the order they were ticked, and the visitor's playlists (for the save box).
   const [tickedIds, setTickedIds] = useState<string[]>([])
+  // The Spotify items met in the results (2026-11-19): ticked for a list, never for a playlist.
+  const spotifyIds = useRef(new Set<string>())
   // The same ticks also save to a list (My lists; 2026-11-17): one checkbox per song, two ways to save. Saving or
   // cancelling either way clears both.
   const songPicks = useListPicks()
@@ -213,11 +215,15 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
                 total={response.total}
                 searchKey={JSON.stringify({ ...shown, page: 0 })}
                 fetchAll={(limit) =>
-                  collectPages((page) => searchMusic({ ...shown, page, perPage: 100 }, new AbortController().signal), limit).then((results) => results.map(songItem))
+                  collectPages((page) => searchMusic({ ...shown, page, perPage: 100 }, new AbortController().signal), limit).then((results) => {
+                    results.filter((result) => result.kind === 'spotify').forEach((result) => spotifyIds.current.add(result.id))
+                    return results.map(songItem)
+                  })
                 }
                 // The same songs are ticked (or unticked) for a playlist too.
                 onChange={(items, isTicked) => {
-                  const ids = items.map((item) => item.target.song ?? '')
+                  // Spotify items go in a list but never in a playlist.
+                  const ids = items.map((item) => item.target.song ?? '').filter((id) => !spotifyIds.current.has(id))
                   setTickedIds((current) => (isTicked ? [...current, ...ids.filter((id) => !current.includes(id))] : current.filter((id) => !ids.includes(id))))
                 }}
               />
@@ -229,7 +235,7 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
                     <div className="book-result-place">
                       <strong>{result.title}</strong>
                       {result.author ? ` · ${result.author}` : ''}
-                      {result.kind === 'video' ? ' · video' : ''}
+                      {result.kind === 'video' ? ' · video' : result.kind === 'spotify' ? ' · on Spotify' : ''}
                     </div>
                     <p className="book-result-text">{renderExcerpt(result.text)}</p>
                     <button type="button" className="link-button" onClick={() => onOpen(result.id)}>
@@ -240,13 +246,19 @@ function MusicSearchPage({ isHidden, onOpen }: MusicSearchPageProps) {
                     <input
                       type="checkbox"
                       className="music-tick"
-                      checked={tickedIds.includes(result.id)}
+                      checked={result.kind === 'spotify' ? songPicks.isPicked(songItem(result).key) : tickedIds.includes(result.id)}
                       onChange={(event) => {
-                        toggleTick(result.id, event.target.checked)
+                        // A Spotify item goes in a list, never in a playlist.
+                        if (result.kind === 'spotify') {
+                          spotifyIds.current.add(result.id)
+                        }
+                        if (result.kind !== 'spotify') {
+                          toggleTick(result.id, event.target.checked)
+                        }
                         songPicks.toggle(songItem(result), event.target.checked)
                       }}
-                      aria-label={`Add ${result.title} to a playlist`}
-                      title="Tick to add this song to a playlist"
+                      aria-label={result.kind === 'spotify' ? `Add ${result.title} to a list` : `Add ${result.title} to a playlist`}
+                      title={result.kind === 'spotify' ? 'Tick to add this to a list (Spotify items cannot go in a playlist)' : 'Tick to add this song to a playlist'}
                     />
                   )}
                 </li>

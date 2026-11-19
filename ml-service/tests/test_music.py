@@ -191,3 +191,56 @@ def test_keywords_are_found_by_the_search_kept_when_left_out_and_changed_when_gi
   assert all(result["id"] != "test-music-grace" for result in client.get("/search-music", params={"query": "recovery"}).json()["results"])
   with pytest.raises(music.MusicProblem, match="keywords"):
     music.update_details("test-music-grace", {"title": "Amazing Grace", "keywords": "x" * 501})
+
+
+# --- Spotify items (2026-11-19) ------------------------------------------------------------------------------
+
+
+def test_spotify_links_are_read_in_their_usual_forms():
+  playlist = "37i9dQZF1DXcBWIGoYBM5M"
+  for link in (
+    f"https://open.spotify.com/playlist/{playlist}?si=abc123",
+    f"https://open.spotify.com/intl-de/playlist/{playlist}",
+    f"https://open.spotify.com/embed/playlist/{playlist}",
+    f"spotify:playlist:{playlist}",
+  ):
+    assert music.check_spotify_link(link) == f"playlist/{playlist}"
+  assert music.check_spotify_link("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC") == "track/4uLU6hMCjMI75M1A2tKUQC"
+  for bad in ("", "https://example.org/playlist/37i9dQZF1DXcBWIGoYBM5M", "https://open.spotify.com/user/someone",
+              "https://open.spotify.com/playlist/short", "javascript:alert(1)", "https://open.spotify.com.evil.example/playlist/37i9dQZF1DXcBWIGoYBM5M"):
+    with pytest.raises(music.MusicProblem, match="Spotify link"):
+      music.check_spotify_link(bad)
+
+
+def test_a_spotify_item_is_listed_searched_and_played_by_spotify_not_by_a_file(folder):
+  item = music.add_spotify("test-music-spotify", "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x",
+                           {"title": "Hymns of praise", "author": "A Spotify playlist", "keywords": "worship hymns"})
+  assert item["kind"] == "spotify" and item["is_published"] is False and item["file_present"] is True
+  assert item["spotify_embed"] == "https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M"
+  music.set_published("test-music-spotify", True)
+  listed = [entry for entry in client.get("/music").json() if entry["id"] == "test-music-spotify"]
+  assert listed and listed[0]["kind"] == "spotify" and listed[0]["spotify_link"] == "playlist/37i9dQZF1DXcBWIGoYBM5M"
+  assert client.get("/music/test-music-spotify/file").status_code == 404
+  found = client.get("/search-music", params={"query": "worship", "match_mode": "all", "page": 1, "per_page": 10}).json()
+  assert any(hit["id"] == "test-music-spotify" and hit["kind"] == "spotify" for hit in found["results"])
+  # Its link and details change; a song with a file keeps its id from becoming one; delete has no file to remove.
+  changed = music.update_details("test-music-spotify", {"title": "Hymns", "spotify_link": "spotify:album:1ATL5GLyefJaxhQzSPVrLX"})
+  assert changed["title"] == "Hymns" and changed["spotify_link"] == "album/1ATL5GLyefJaxhQzSPVrLX"
+  music.upload(write(folder.parent, "a.mp3", MP3), "a.mp3", "test-music-file", DETAILS)
+  with pytest.raises(music.MusicProblem, match="song with a file"):
+    music.add_spotify("test-music-file", "spotify:track:4uLU6hMCjMI75M1A2tKUQC", {"title": "x"})
+  assert music.delete("test-music-spotify")["id"] == "test-music-spotify"
+
+
+def test_the_tool_adds_a_spotify_item():
+  completed = subprocess.run(
+    [sys.executable, str(SCRIPT), "spotify", "--id=test-music-tool-spotify"],
+    input=json.dumps({"spotify_link": "https://open.spotify.com/album/1ATL5GLyefJaxhQzSPVrLX", "title": "An album"}),
+    capture_output=True, text=True, check=False,
+  )
+  assert completed.returncode == 0 and json.loads(completed.stdout)["song"]["spotify_link"] == "album/1ATL5GLyefJaxhQzSPVrLX"
+  completed = subprocess.run(
+    [sys.executable, str(SCRIPT), "spotify", "--id=test-music-tool-bad"], input=json.dumps({"spotify_link": "https://example.org", "title": "x"}),
+    capture_output=True, text=True, check=False,
+  )
+  assert completed.returncode == 1 and "Spotify link" in json.loads(completed.stdout)["error"]

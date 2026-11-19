@@ -540,7 +540,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
             title) to see its player and its words; press play. Starting another pauses the first, and closing a song stops it. A recording keeps playing while
             you read another page of the site (a video pauses, since it could not be seen). Some songs show their words
             as a page of a hymnal (a picture or a PDF) rather than as text; a PDF also has a link to open it in a new
-            tab, for phones that cannot show it in the page.
+            tab, for phones that cannot show it in the page. Some are on <strong>Spotify</strong>: they open with
+            Spotify&apos;s own player, which plays them in full if you are signed in to Spotify in this browser and
+            30-second previews otherwise. A Spotify item cannot go in a playlist.
           </p>
           <Screenshot
             name="music-open"

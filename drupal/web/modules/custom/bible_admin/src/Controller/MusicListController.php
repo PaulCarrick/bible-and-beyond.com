@@ -27,7 +27,7 @@ class MusicListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('The songs of the Christian music section: an MP3 (sound) or MP4 (video) file each, with its title, author and words. A new song is hidden until you publish it; the section appears on the site once a song is published. Only upload recordings that are in the public domain or that you have permission to publish. The files are kept in the music folder set on the Site settings screen.'),
+        '#value' => $this->t('The songs of the Christian music section: an MP3 (sound) or MP4 (video) file each, with its title, author and words. A new song is hidden until you publish it; the section appears on the site once a song is published. Only upload recordings that are in the public domain or that you have permission to publish. The files are kept in the music folder set on the Site settings screen. <strong>Add a Spotify item</strong> adds a song, album or playlist on Spotify instead of a file: the site shows Spotify\'s own player for it (full songs for visitors signed in to Spotify in their browser, 30-second previews for others).'),
       ],
       // Several files at once, each a new song named after its file (js/bulk-upload.js).
       'bulk' => BulkUploadController::area('music'),
@@ -48,7 +48,7 @@ class MusicListController extends ControllerBase {
         $song['is_published']
           ? ['title' => $this->t('Hide'), 'url' => $change('unpublish')]
           : ['title' => $this->t('Publish'), 'url' => $change('publish')],
-        ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.music_edit', ['song_id' => $song['id']])],
+        ['title' => $this->t('Edit'), 'url' => Url::fromRoute($song['kind'] === 'spotify' ? 'bible_admin.music_spotify_edit' : 'bible_admin.music_edit', ['song_id' => $song['id']])],
         ['title' => $this->t('Delete'), 'url' => $change('delete')],
       ];
       $status = $song['is_published'] ? $this->t('Published') : $this->t('Hidden');
@@ -61,8 +61,12 @@ class MusicListController extends ControllerBase {
       $rows[] = [
         ['data' => ['#markup' => $this->t('@title<br><small>Link: /music?song=@id</small>', ['@title' => $song['title'], '@id' => $song['id']])]],
         ['data' => ['#plain_text' => $song['author']]],
-        ['data' => ['#plain_text' => $song['kind'] === 'video' ? $this->t('Video (MP4)') : $this->t('Sound (MP3)')]],
-        ['data' => ['#plain_text' => number_format($song['file_size'] / 1048576, 1) . ' MB']],
+        ['data' => ['#plain_text' => match ($song['kind']) {
+          'video' => $this->t('Video (MP4)'),
+          'spotify' => $this->t('Spotify'),
+          default => $this->t('Sound (MP3)'),
+        }]],
+        ['data' => ['#plain_text' => $song['kind'] === 'spotify' ? '—' : number_format($song['file_size'] / 1048576, 1) . ' MB']],
         ['data' => ['#plain_text' => match (TRUE) {
           $song['words_kind'] === 'pdf' => $this->t('PDF'),
           $song['words_kind'] === 'image' => $this->t('Picture'),

@@ -89,6 +89,14 @@ sections:
       have one, <strong>the words as a PDF or picture</strong> (a scan of the hymnal page, shown in place of the typed
       words).</p>
       <figure><img data-guide="music-edit" alt="Edit a song: title, author, file, words, words file and keywords"><figcaption>Edit a song. A new file is optional when editing.</figcaption></figure>
+      <p><strong>Add a Spotify item</strong> puts a song, album or playlist that is on Spotify in the list, instead of
+      a file: in Spotify, choose Share, then Copy link, and paste it in <em>Spotify link</em>; give it an id, a title and,
+      if you like, an author, keywords and words. The site shows Spotify's own player for it: visitors signed in to
+      Spotify in their browser hear it in full, others hear 30-second previews. Like a song it is hidden until you
+      publish it, and Search the media finds it by its title, author, keywords and words (the site cannot search
+      inside Spotify). It cannot go in a visitor's playlist. The list shows its kind as Spotify, and Edit opens its own
+      form. (Spotify's player for Premium accounts inside other sites needs Spotify's approval, which since 2025 is
+      given only to large companies, so it is not used.)</p>
 
   - id: maps
     title: Maps

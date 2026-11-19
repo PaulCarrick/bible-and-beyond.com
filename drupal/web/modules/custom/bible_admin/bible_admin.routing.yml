@@ -241,6 +241,24 @@ bible_admin.music_edit:
     _permission: 'administer bibles'
     song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
 
+# A Spotify item (music.add_spotify): a Spotify link in place of a file, shown with Spotify's embedded player.
+bible_admin.music_spotify_add:
+  path: '/admin/music/spotify/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MusicSpotifyForm'
+    _title: 'Add a Spotify item'
+  requirements:
+    _permission: 'administer bibles'
+
+bible_admin.music_spotify_edit:
+  path: '/admin/music/spotify/{song_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\MusicSpotifyForm'
+    _title: 'Edit a Spotify item'
+  requirements:
+    _permission: 'administer bibles'
+    song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
 bible_admin.music_change:
   path: '/admin/music/{action}/{song_id}'
   defaults:

@@ -13,6 +13,12 @@ files there and changing the setting: no server configuration names it.
 The Drupal "Christian music" page manages the songs through scripts/manage_music.py: upload (a new song is
 hidden until published; uploading again with the same id replaces its file and details and keeps its
 state), change the details, publish, hide and delete (which removes the file too).
+
+A Spotify item (migration 060, added 2026-11-19 at the owner's request) has no file: a Spotify link instead
+(add_spotify), kept as its kind and id ("playlist/37i9dQZF1DX..."), which the music page shows with Spotify's own
+embedded player (full tracks for a visitor signed in to Spotify in that browser, 30-second previews otherwise). It has
+a title, author, words and keywords like a song, is found by the search and is published or hidden the same way, but
+it is never in a playlist (the site cannot tell when Spotify's player ends a track).
 """
 
 import os
@@ -40,6 +46,14 @@ WORDS_TYPES = {
   ".webp": "image/webp", ".gif": "image/gif",
 }
 CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+SPOTIFY = "spotify"
+SPOTIFY_KINDS = ("track", "album", "playlist", "episode", "show", "artist")
+# A Spotify link as copied from its Share menu (https://open.spotify.com/intl-de/playlist/<id>?si=...), or a Spotify
+# URI (spotify:playlist:<id>). Ids are 22 letters and digits.
+SPOTIFY_ADDRESS = re.compile(
+  r"^https?://open\.spotify\.com/(?:intl-[a-z]{2}(?:-[a-z]{2})?/)?(?:embed/)?(" + "|".join(SPOTIFY_KINDS) + r")/([A-Za-z0-9]{22})(?:[/?#].*)?$"
+)
+SPOTIFY_URI = re.compile(r"^spotify:(" + "|".join(SPOTIFY_KINDS) + r"):([A-Za-z0-9]{22})$")
 
 
 class MusicProblem(Exception):
@@ -115,6 +129,23 @@ def _store(path: Path, file_name: str) -> None:
     raise MusicProblem(f"The file could not be saved in the music folder ({folder}): {error.strerror}.") from error
 
 
+def check_spotify_link(value) -> str:
+  """A Spotify link or URI as "kind/id" ("playlist/37i9dQZF1DXcBWIGoYBM5M"); raises MusicProblem for anything else."""
+  value = str(value or "").strip()
+  match = SPOTIFY_ADDRESS.match(value) or SPOTIFY_URI.match(value)
+  if not match:
+    raise MusicProblem(
+      "Paste a Spotify link to a song, album, playlist, podcast episode or show, or artist: in Spotify, Share, then "
+      "Copy link (such as https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M)."
+    )
+  return f"{match.group(1)}/{match.group(2)}"
+
+
+def spotify_embed_address(link: str) -> str:
+  """Spotify's embedded player for a "kind/id" link."""
+  return f"https://open.spotify.com/embed/{link}"
+
+
 def check_details(details: dict) -> dict:
   """The title, author, words and keywords as typed, cleaned; raises MusicProblem when one is wrong. keywords
   is None when not given, which keeps the song's keywords as they are."""
@@ -148,13 +179,17 @@ def check_id(song_id: str) -> str:
 
 COLUMNS = (
   "id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at, "
-  "words_file_name, words_media_type, lyrics_html, keywords"
+  "words_file_name, words_media_type, lyrics_html, keywords, spotify_link"
 )
+
+
+def _kind(media_type: str) -> str:
+  return {"video/mp4": "video", SPOTIFY: SPOTIFY}.get(media_type, "audio")
 
 
 def _describe(row, with_file_check: bool = False) -> dict:
   (song_id, title, author, lyrics, file_name, media_type, file_size, is_published, created_at, updated_at,
-   words_file_name, words_media_type, lyrics_html, keywords) = row
+   words_file_name, words_media_type, lyrics_html, keywords, spotify_link) = row
   song = {
     "id": song_id,
     "title": title,
@@ -164,8 +199,11 @@ def _describe(row, with_file_check: bool = False) -> dict:
     "lyrics_html": lyrics_html,
     "keywords": keywords,
     "media_type": media_type,
-    "kind": "video" if media_type == "video/mp4" else "audio",
+    "kind": _kind(media_type),
     "file_size": file_size,
+    # A Spotify item: its "kind/id" and Spotify's embedded player; None for a song with a file.
+    "spotify_link": spotify_link,
+    "spotify_embed": spotify_embed_address(spotify_link) if spotify_link else None,
     "is_published": is_published,
     "created_at": created_at.isoformat(),
     "updated_at": updated_at.isoformat(),
@@ -176,7 +214,8 @@ def _describe(row, with_file_check: bool = False) -> dict:
   }
   if with_file_check:
     song["file_name"] = file_name
-    song["file_present"] = file_path(file_name).is_file()
+    # A Spotify item has no file to miss.
+    song["file_present"] = media_type == SPOTIFY or file_path(file_name).is_file()
     song["words_file_name"] = words_file_name
     song["words_file_present"] = words_file_name is not None and file_path(words_file_name).is_file()
   return song
@@ -201,7 +240,7 @@ def song_file(song_id: str) -> tuple[Path, str] | None:
   """The file of a published song and its media type, or None (not published, or the file is missing)."""
   with connect() as connection:
     row = connection.execute(
-      "SELECT file_name, media_type FROM music_tracks WHERE id = %s AND is_published", (song_id,)
+      "SELECT file_name, media_type FROM music_tracks WHERE id = %s AND is_published AND media_type <> %s", (song_id, SPOTIFY)
     ).fetchone()
   if row is None:
     return None
@@ -279,12 +318,41 @@ def upload(path: Path, original_name: str, song_id: str, details: dict, words: t
   return _describe(row, with_file_check=True)
 
 
+def add_spotify(song_id: str, link: str, details: dict) -> dict:
+  """Saves a Spotify item (a link in place of a file) with its details. A new one is hidden until published; one
+  already there keeps its state and gets the new link and details. A song with a file cannot be turned into one (or
+  the other way round): use another id."""
+  song_id = check_id(song_id)
+  spotify_link = check_spotify_link(link)
+  checked = check_details(details)
+  with connect() as connection:
+    old = connection.execute("SELECT media_type FROM music_tracks WHERE id = %s", (song_id,)).fetchone()
+    if old and old[0] != SPOTIFY:
+      raise MusicProblem("That id is a song with a file. Choose another id for the Spotify item.")
+    row = connection.execute(
+      f"""
+      INSERT INTO music_tracks (id, title, author, lyrics, file_name, media_type, file_size, keywords, spotify_link)
+      VALUES (%s, %s, %s, %s, '', %s, 0, COALESCE(%s, ''), %s)
+      ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, author = EXCLUDED.author, lyrics = EXCLUDED.lyrics,
+        spotify_link = EXCLUDED.spotify_link, keywords = COALESCE(%s, music_tracks.keywords), updated_at = now()
+      RETURNING {COLUMNS}
+      """,
+      (song_id, checked["title"], checked["author"], checked["lyrics"], SPOTIFY, checked["keywords"], spotify_link, checked["keywords"]),
+    ).fetchone()
+  return _describe(row, with_file_check=True)
+
+
 def update_details(song_id: str, details: dict, words: tuple[Path, str] | None = None, remove_words: bool = False) -> dict:
   """Changes a song's title, author and words, and its words file when one is given or removed; the song's
-  own file stays."""
+  own file stays. For a Spotify item, details["spotify_link"] (when given) changes its link."""
   checked = check_details(details)
   if words is not None:
     check_words_file(*words)
+  if details.get("spotify_link"):
+    with connect() as connection:
+      kind = connection.execute("SELECT media_type FROM music_tracks WHERE id = %s", (song_id,)).fetchone()
+      if kind and kind[0] == SPOTIFY:
+        connection.execute("UPDATE music_tracks SET spotify_link = %s WHERE id = %s", (check_spotify_link(details["spotify_link"]), song_id))
   with connect() as connection:
     row = connection.execute(
       f"""
@@ -345,7 +413,8 @@ def delete(song_id: str) -> dict:
   if row is None:
     raise MusicProblem("That song does not exist (it may have been deleted).")
   song = _describe(row, with_file_check=True)
-  file_path(song["file_name"]).unlink(missing_ok=True)
+  if song["file_name"]:
+    file_path(song["file_name"]).unlink(missing_ok=True)
   if song["words_file_name"]:
     file_path(song["words_file_name"]).unlink(missing_ok=True)
   return song
@@ -389,7 +458,7 @@ def search_music(query: str, match_mode: str, page: int, per_page: int) -> dict:
     "page": page,
     "per_page": per_page,
     "results": [
-      {"id": song_id, "title": title, "author": author, "kind": "video" if media_type == "video/mp4" else "audio", "text": excerpt}
+      {"id": song_id, "title": title, "author": author, "kind": _kind(media_type), "text": excerpt}
       for song_id, title, author, media_type, excerpt in rows
     ],
   }
