@@ -127,7 +127,6 @@ class BibleManager {
       'related_verses_limit' => '--related-verses-limit=',
       'site_title' => '--site-title=',
       'copyright_text' => '--copyright-text=',
-      'welcome_text' => '--welcome-text=',
       // 'yes' or 'no'.
       'login_required' => '--login-required=',
     ];
@@ -138,6 +137,13 @@ class BibleManager {
         $arguments[] = $option . $values[$key];
         $changed[] = $key;
       }
+    }
+    // The welcome paragraph: ['html' => ...] from the editor or ['text' => ...] from the plain box.
+    if (isset($values['welcome_text']) && is_array($values['welcome_text'])) {
+      $arguments[] = array_key_exists('html', $values['welcome_text'])
+        ? '--welcome-html=' . $values['welcome_text']['html']
+        : '--welcome-text=' . ($values['welcome_text']['text'] ?? '');
+      $changed[] = 'welcome_text';
     }
     $result = $this->run($arguments, 'manage_settings.py');
     $this->logger->notice('@user changed the site settings: @changed.', [

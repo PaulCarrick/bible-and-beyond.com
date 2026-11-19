@@ -403,8 +403,8 @@ sections:
       administrator sees only the verse-window numbers.</p>
       <figure><img data-guide="site-settings-1" alt="The site: title, copyright line, header emblem and browser-tab icon"><figcaption><em>The site</em>: the title (top of every page), the copyright line (the footer), and the two icons.</figcaption></figure>
       <p><strong>The site</strong>: the <em>Title</em> beside the emblem at the top of every page, the
-      <em>Copyright</em> line at the foot, the <em>Welcome paragraph</em> (the first paragraph of the Welcome page,
-      plain text), <em>Login required</em>, and the <em>Header emblem</em> and <em>Browser-tab icon</em>: upload a
+      <em>Copyright</em> line at the foot, the <em>Welcome paragraph</em> (the opening words of the Welcome page,
+      in the editor, so it can have links and formatting), <em>Login required</em>, and the <em>Header emblem</em> and <em>Browser-tab icon</em>: upload a
       picture to replace one, or <em>Go back to the site's own icon</em>.</p>
       <p><strong>Login required</strong> (off unless ticked): visitors who are not logged in see only the log-in and
       password pages, and nothing else on the site works for them. The <em>Set up account</em> links are gone and

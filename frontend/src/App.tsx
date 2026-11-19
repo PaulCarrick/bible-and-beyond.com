@@ -513,7 +513,7 @@ function App() {
               {activeView === 'welcome' && (
                 <WelcomePage
                 siteTitle={siteSettings.title}
-                  welcomeText={siteSettings.welcome_text}
+                  welcomeHtml={siteSettings.welcome_html}
                   translations={translations}
                   commentaries={commentaries}
                   devotionals={devotionals}

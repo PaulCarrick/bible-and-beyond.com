@@ -841,6 +841,11 @@ select:disabled {
   font-size: 17px;
 }
 
+/* The welcome words from the Site settings editor are paragraphs inside a div: the same spacing as one paragraph. */
+div.welcome-lead > p {
+  margin: 0 0 1em;
+}
+
 /* Each card is a heading, a paragraph and its buttons. The cards share those three rows (subgrid), so the
    first buttons of cards side by side line up however long each paragraph is. */
 .welcome-cards {

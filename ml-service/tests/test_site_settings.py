@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from main import app
 from search import connect
 import main
-from site_settings import DEFAULTS, WELCOME_TEXT, SettingsProblem, get_public_settings, get_settings, save_settings
+from site_settings import DEFAULTS, SettingsProblem, get_public_settings, get_settings, save_settings
 
 client = TestClient(app)
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "manage_settings.py"
@@ -111,7 +111,7 @@ def test_a_stored_value_that_is_not_allowed_falls_back_to_the_default():
 def test_the_public_answer_has_the_title_and_the_copyright_line_and_nothing_else():
   save_settings({"site_title": "Shown", "copyright_text": "Mine", "context_verses_before": 9})
 
-  public = {"title": "Shown", "copyright": "Mine", "welcome_text": WELCOME_TEXT, "login_required": False}
+  public = {"title": "Shown", "copyright": "Mine", "welcome_html": DEFAULTS["welcome_text"], "login_required": False}
   assert get_public_settings() == public
   # The API adds only the addresses of the uploaded icons (none here).
   assert client.get("/site-settings").json() == {**public, "header_icon": None, "tab_icon": None}
@@ -119,7 +119,7 @@ def test_the_public_answer_has_the_title_and_the_copyright_line_and_nothing_else
 
 def test_the_api_serves_the_current_values_when_nothing_has_been_saved():
   assert client.get("/site-settings").json() == {
-    "title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT, "welcome_text": WELCOME_TEXT,
+    "title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT, "welcome_html": DEFAULTS["welcome_text"],
     "login_required": False, "header_icon": None, "tab_icon": None,
   }
 
@@ -133,7 +133,7 @@ def test_the_settings_tool_sets_and_reads_the_texts():
   assert status == 0
   assert result["settings"]["site_title"] == "Daily Bread"
   assert result["settings"]["copyright_text"] == "© 2026 Paul “the author”. All rights reserved."
-  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}, "welcome_text": {"min": 1, "max": 1500}}
+  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}}
 
   status, result = run("set", "--copyright-text=")
   assert status == 0 and result["settings"]["copyright_text"] == "" and result["settings"]["site_title"] == "Daily Bread"
@@ -152,16 +152,24 @@ def test_the_stored_value_is_a_json_string():
   assert value == "Stored"
 
 
-def test_the_welcome_paragraph_is_one_paragraph_of_plain_text():
-  assert get_settings()["welcome_text"].startswith("Bible and Beyond is a free, non-commercial site")
+def test_the_welcome_paragraph_is_formatted_and_can_have_links():
+  assert get_settings()["welcome_text"].startswith("<p>Bible and Beyond is a free, non-commercial site")
 
-  saved = save_settings({"welcome_text": "  A place to read\n\nthe   Bible.  "})
+  saved = save_settings({"welcome_text": {"html": '<p>Read <a href="https://example.com/guide">the guide</a>.</p><script>alert(1)</script>'}})
 
-  assert saved["welcome_text"] == "A place to read the Bible."
-  with pytest.raises(SettingsProblem, match="welcome text must be from 1 to 1500"):
-    save_settings({"welcome_text": "  \n "})
-  with pytest.raises(SettingsProblem, match="welcome text must be from 1 to 1500"):
-    save_settings({"welcome_text": "x" * 1501})
+  assert 'href="https://example.com/guide"' in saved["welcome_text"]
+  assert "<script" not in saved["welcome_text"] and "alert" not in saved["welcome_text"]
+  # From the plain box (no editor): paragraphs.
+  assert save_settings({"welcome_text": {"text": "One.\n\nTwo <b>"}})["welcome_text"] == "<p>One.</p><p>Two &lt;b&gt;</p>"
+  with pytest.raises(SettingsProblem, match="Please write something in the welcome paragraph"):
+    save_settings({"welcome_text": {"html": "<p> </p>"}})
+
+
+def test_a_welcome_paragraph_saved_as_plain_text_before_the_editor_is_shown_as_a_paragraph():
+  with connect() as connection:
+    connection.execute("INSERT INTO site_settings (key, value) VALUES ('welcome_text', to_jsonb('Old & plain'::text))")
+
+  assert get_settings()["welcome_text"] == "<p>Old &amp; plain</p>"
 
 
 def test_login_required_is_off_unless_turned_on():
@@ -198,13 +206,13 @@ def test_while_login_is_required_a_visitor_gets_only_the_sign_in_pages(monkeypat
 
 def test_the_settings_tool_sets_login_required_and_the_welcome_text():
   completed = subprocess.run(
-    [sys.executable, str(SCRIPT), "set", "--login-required=yes", "--welcome-text=Hello there."],
+    [sys.executable, str(SCRIPT), "set", "--login-required=yes", '--welcome-html=<p>Hello <a href="https://example.com">there</a>.</p>'],
     capture_output=True, text=True, check=False,
   )
   result = json.loads(completed.stdout)
 
   assert completed.returncode == 0 and result["settings"]["login_required"] is True
-  assert result["settings"]["welcome_text"] == "Hello there."
+  assert 'Hello <a href="https://example.com"' in result["settings"]["welcome_text"]
 
 
 def test_while_login_is_required_visitors_cannot_set_up_accounts():

@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\bible_admin\MailSettings;
 use Drupal\Component\Utility\EmailValidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -130,15 +131,14 @@ class SiteSettingsForm extends FormBase {
         '#maxlength' => $textLimits['copyright_text']['max'],
         '#size' => 80,
       ];
-      $form['site']['welcome_text'] = [
-        '#type' => 'textarea',
-        '#title' => $this->t('Welcome paragraph'),
-        '#description' => $this->t('The first paragraph of the Welcome page, under "Welcome to …". Plain text, one paragraph (line breaks become spaces), up to @max characters.', ['@max' => $textLimits['welcome_text']['max']]),
-        '#default_value' => $settings['welcome_text'],
-        '#maxlength' => $textLimits['welcome_text']['max'],
-        '#rows' => 5,
-        '#required' => TRUE,
-      ];
+      // In the editor (the owner's rule: multi-line boxes use it), so it can have links and formatting.
+      $form['site']['welcome_text'] = GroupEditor::field(
+        (string) $this->t('Welcome paragraph'),
+        (string) $settings['welcome_text'],
+        6,
+        TRUE,
+        (string) $this->t('The opening words of the Welcome page, under "Welcome to …". Links and formatting are kept.'),
+      );
       $form['site']['login_required'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Login required'),
@@ -309,10 +309,6 @@ class SiteSettingsForm extends FormBase {
       elseif ($file->getSize() > BibleManager::MAX_ICON_BYTES) {
         $form_state->setErrorByName($kind . '_icon', $this->t('The @label is larger than @size KB.', ['@label' => mb_strtolower($label), '@size' => (int) (BibleManager::MAX_ICON_BYTES / 1024)]));
       }
-    }
-    $welcome = trim((string) $form_state->getValue('welcome_text'));
-    if ($welcome === '' || mb_strlen($welcome) > (int) $textLimits['welcome_text']['max']) {
-      $form_state->setErrorByName('welcome_text', $this->t('The welcome paragraph must be from 1 to @max characters.', ['@max' => $textLimits['welcome_text']['max']]));
     }
     $copyright = trim((string) $form_state->getValue('copyright_text'));
     if (mb_strlen($copyright) > (int) $textLimits['copyright_text']['max']) {
@@ -558,7 +554,8 @@ class SiteSettingsForm extends FormBase {
     if ($this->canEditSite()) {
       $values['site_title'] = trim((string) $form_state->getValue('site_title'));
       $values['copyright_text'] = trim((string) $form_state->getValue('copyright_text'));
-      $values['welcome_text'] = trim((string) $form_state->getValue('welcome_text'));
+      // ['html' => ...] from the editor or ['text' => ...] from the plain box; the tool cleans it.
+      $values['welcome_text'] = GroupEditor::value($form_state->getValue('welcome_text'));
       $values['login_required'] = $form_state->getValue('login_required') ? 'yes' : 'no';
     }
 
