@@ -1061,6 +1061,18 @@ export interface MapInfo {
 }
 
 // The published maps by title; with a verse, only the maps linked to it.
+// An external site the administrators chose to show in the sidebar (the Drupal "External sites" page): its name and
+// address only.
+export interface ExternalSite {
+  name: string
+  address: string
+  host: string
+}
+
+export async function fetchExternalSites(): Promise<ExternalSite[]> {
+  return (await readJson<{ sites: ExternalSite[] }>(await fetch(`${mlServiceUrl}/external-sites`))).sites
+}
+
 export async function fetchMaps(verse?: { book: number; chapter: number; verse: number }): Promise<MapInfo[]> {
   const queryString = verse ? `?${new URLSearchParams({ book: String(verse.book), chapter: String(verse.chapter), verse: String(verse.verse) })}` : ''
   return (await readJson<{ maps: MapInfo[] }>(await fetch(`${mlServiceUrl}/maps${queryString}`))).maps

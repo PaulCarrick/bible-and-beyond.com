@@ -267,6 +267,11 @@ sections:
       in its window. For a site that does not show its own Sign in, fill in its <strong>Sign-in address</strong>: the
       list then has a <strong>Sign in</strong> button beside Open, which opens that page in the same window. The
       Kindle reader shows its own Sign in, so it needs none. Never put a password in the address or the notes.</p>
+      <p><strong>On the site</strong>: a site with <strong>Show it in the site's sidebar</strong> ticked (the box starts
+      ticked) is listed for visitors under <em>External sites</em> in the site's sidebar, as its name and a link that
+      opens in a new tab. Visitors never see the notes or the sign-in address. The group appears only when at least one
+      site is shown; clear the box for a site that is only for you. The list's <em>Sidebar</em> column says which are
+      shown.</p>
       <figure><img data-guide="external-sites" alt="External sites: Add a site, and a table of two sites, one with Open and Sign in buttons and the Kindle reader with Open, each with its site and notes"><figcaption>External sites: Open opens each in its own window.</figcaption></figure>
 
   - id: faq-notes

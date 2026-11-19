@@ -18,6 +18,7 @@ const addresses: Record<View, string> = {
   maps: '/maps',
   searchMaps: '/search-maps',
   searchAll: '/search-all',
+  externalSites: '/external-sites',
   verseOfTheDay: '/verse-of-the-day',
   devotionalOfTheDay: '/devotional-of-the-day',
   faq: '/faq',

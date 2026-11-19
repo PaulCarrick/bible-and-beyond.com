@@ -5,8 +5,8 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
 
     manage_external_sites.py list
     manage_external_sites.py get --id=ID
-    manage_external_sites.py create          input {name, address, notes, sign_in_address, created_by}
-    manage_external_sites.py update --id=ID  input {name, address, notes, sign_in_address}
+    manage_external_sites.py create          input {name, address, notes, sign_in_address, show_on_site, created_by}
+    manage_external_sites.py update --id=ID  input {name, address, notes, sign_in_address, show_on_site}
     manage_external_sites.py delete --id=ID
 """
 

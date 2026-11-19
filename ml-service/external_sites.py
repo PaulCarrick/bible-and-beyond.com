@@ -19,7 +19,7 @@ ADDRESS_LIMIT = 2000
 NOTES_LIMIT = 2000
 MAX_SITES = 200
 
-COLUMNS = "id, name, address, notes, created_by, created_at, updated_at, sign_in_address"
+COLUMNS = "id, name, address, notes, created_by, created_at, updated_at, sign_in_address, show_on_site"
 
 
 class ExternalSiteProblem(FormattedTextProblem):
@@ -30,6 +30,7 @@ def _describe(row) -> dict:
   return {
     "id": row[0], "name": row[1], "address": row[2], "host": urlsplit(row[2]).hostname or "", "notes": row[3],
     "created_by": row[4], "created_at": row[5].isoformat(), "updated_at": row[6].isoformat(), "sign_in_address": row[7],
+    "show_on_site": row[8],
   }
 
 
@@ -52,7 +53,7 @@ def check_address(value, what: str = "address") -> str:
   return address
 
 
-def _check(details: dict) -> tuple[str, str, str, str]:
+def _check(details: dict) -> tuple[str, str, str, str, bool]:
   if not isinstance(details, dict):
     raise ExternalSiteProblem("The site could not be read.")
   try:
@@ -69,13 +70,26 @@ def _check(details: dict) -> tuple[str, str, str, str]:
     raise ExternalSiteProblem("The notes have characters that cannot be kept.")
   sign_in = details.get("sign_in_address") or ""
   sign_in = check_address(sign_in, "sign-in address") if isinstance(sign_in, str) and sign_in.strip() else ""
-  return name, check_address(details.get("address")), notes, sign_in
+  # Shown in the public sidebar unless the box was cleared (an older caller that sends nothing keeps it shown).
+  show = details.get("show_on_site", True)
+  show = show not in (False, 0, "0", "", "false")
+  return name, check_address(details.get("address")), notes, sign_in, show
 
 
 def list_sites() -> list[dict]:
   with connect() as connection:
     rows = connection.execute(f"SELECT {COLUMNS} FROM admin_external_sites ORDER BY lower(name), id").fetchall()
   return [_describe(row) for row in rows]
+
+
+def list_public_sites() -> list[dict]:
+  """The sites the public site's sidebar lists (show_on_site), by name: only name, address and host, never the
+  administrators' notes, sign-in address or who added it."""
+  with connect() as connection:
+    rows = connection.execute(
+      "SELECT name, address FROM admin_external_sites WHERE show_on_site ORDER BY lower(name), id"
+    ).fetchall()
+  return [{"name": row[0], "address": row[1], "host": urlsplit(row[1]).hostname or ""} for row in rows]
 
 
 def get_site(site_id: int) -> dict:
@@ -87,24 +101,25 @@ def get_site(site_id: int) -> dict:
 
 
 def create_site(details: dict, created_by: str) -> dict:
-  name, address, notes, sign_in = _check(details)
+  name, address, notes, sign_in, show = _check(details)
   with connect() as connection:
     if connection.execute("SELECT count(*) FROM admin_external_sites").fetchone()[0] >= MAX_SITES:
       raise ExternalSiteProblem(f"There can be up to {MAX_SITES} sites. Delete one first.")
     row = connection.execute(
-      f"INSERT INTO admin_external_sites (name, address, notes, sign_in_address, created_by) VALUES (%s, %s, %s, %s, %s) RETURNING {COLUMNS}",
-      (name, address, notes, sign_in, " ".join((created_by or "").split())[:NAME_LIMIT]),
+      f"""INSERT INTO admin_external_sites (name, address, notes, sign_in_address, show_on_site, created_by)
+      VALUES (%s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
+      (name, address, notes, sign_in, show, " ".join((created_by or "").split())[:NAME_LIMIT]),
     ).fetchone()
   return _describe(row)
 
 
 def update_site(site_id: int, details: dict) -> dict:
-  name, address, notes, sign_in = _check(details)
+  name, address, notes, sign_in, show = _check(details)
   with connect() as connection:
     row = connection.execute(
-      f"""UPDATE admin_external_sites SET name = %s, address = %s, notes = %s, sign_in_address = %s, updated_at = now()
-      WHERE id = %s RETURNING {COLUMNS}""",
-      (name, address, notes, sign_in, site_id),
+      f"""UPDATE admin_external_sites SET name = %s, address = %s, notes = %s, sign_in_address = %s, show_on_site = %s,
+      updated_at = now() WHERE id = %s RETURNING {COLUMNS}""",
+      (name, address, notes, sign_in, show, site_id),
     ).fetchone()
   if row is None:
     raise ExternalSiteProblem("That site was not found. It may have been deleted.")

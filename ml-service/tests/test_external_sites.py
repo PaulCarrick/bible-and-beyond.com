@@ -74,3 +74,22 @@ def test_the_tool():
   assert completed.returncode == 1 and "web address" in json.loads(completed.stdout)["error"]
   completed = subprocess.run([sys.executable, str(SCRIPT), "list"], capture_output=True, text=True, check=False)
   assert [site["name"] for site in json.loads(completed.stdout)["sites"]] == ["Kindle"]
+
+
+def test_the_public_list_has_only_the_shown_sites_names_and_links():
+  from fastapi.testclient import TestClient
+
+  from main import app
+
+  external_sites.create_site({"name": "Kindle reader", "address": "read.amazon.com", "notes": "My own", "sign_in_address": "https://www.amazon.com/ap/signin"}, "paul")
+  hidden = external_sites.create_site({"name": "Private tool", "address": "https://example.org/tool", "show_on_site": False}, "paul")
+  assert hidden["show_on_site"] is False
+  answer = TestClient(app).get("/external-sites")
+  assert answer.status_code == 200
+  assert answer.json() == {"sites": [{"name": "Kindle reader", "address": "https://read.amazon.com", "host": "read.amazon.com"}]}
+  # Shown again when the box is ticked; none shown makes the list empty (no sidebar group).
+  external_sites.update_site(hidden["id"], {"name": "Private tool", "address": "https://example.org/tool", "show_on_site": "1"})
+  assert [site["name"] for site in external_sites.list_public_sites()] == ["Kindle reader", "Private tool"]
+  for site in external_sites.list_sites():
+    external_sites.update_site(site["id"], {"name": site["name"], "address": site["address"], "show_on_site": False})
+  assert TestClient(app).get("/external-sites").json() == {"sites": []}

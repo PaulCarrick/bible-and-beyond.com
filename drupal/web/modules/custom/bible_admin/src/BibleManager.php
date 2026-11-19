@@ -1296,10 +1296,11 @@ class BibleManager {
   }
 
   /**
-   * Adds a site or changes one, with its optional sign-in page. The ML service keeps only http(s) addresses.
+   * Adds a site or changes one, with its optional sign-in page and whether the public sidebar lists it (name and link
+   * only). The ML service keeps only http(s) addresses.
    */
-  public function saveExternalSite(?int $siteId, string $name, string $address, string $notes, string $signInAddress = ''): array {
-    $input = $this->groupInput(['name' => $name, 'address' => $address, 'notes' => $notes, 'sign_in_address' => $signInAddress, 'created_by' => $this->currentUser->getAccountName()]);
+  public function saveExternalSite(?int $siteId, string $name, string $address, string $notes, string $signInAddress = '', bool $showOnSite = TRUE): array {
+    $input = $this->groupInput(['name' => $name, 'address' => $address, 'notes' => $notes, 'sign_in_address' => $signInAddress, 'show_on_site' => $showOnSite, 'created_by' => $this->currentUser->getAccountName()]);
     $site = $siteId === NULL
       ? $this->run(['create'], 'manage_external_sites.py', $input)['site']
       : $this->run(['update', '--id=' . $siteId], 'manage_external_sites.py', $input)['site'];

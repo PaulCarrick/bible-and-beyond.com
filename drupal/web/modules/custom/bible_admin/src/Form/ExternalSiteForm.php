@@ -63,12 +63,18 @@ class ExternalSiteForm extends FormBase {
       '#maxlength' => 2000,
       '#description' => $this->t('The site’s sign-in page. When it is filled in, the list has a Sign in button beside Open, for when the site has signed you out (this page cannot see whether you are signed in to another site). Leave it empty for a site that shows its own Sign in, such as the Kindle web reader.'),
     ];
+    $form['show_on_site'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Show it in the site’s sidebar'),
+      '#default_value' => $site['show_on_site'] ?? TRUE,
+      '#description' => $this->t('Visitors to the site then see its name, as a link, under “External sites” in the sidebar (the group appears only when a site is shown). Your notes and the sign-in address are never shown to them. Clear it for a site that is only for you.'),
+    ];
     $form['notes'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Notes'),
       '#default_value' => $site['notes'] ?? '',
       '#rows' => 3,
-      '#description' => $this->t('Anything to remember about the site, shown in the list. Not a password.'),
+      '#description' => $this->t('Anything to remember about the site, shown in this list only (never to visitors). Not a password.'),
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $site === NULL ? $this->t('Add the site') : $this->t('Save')];
@@ -90,6 +96,7 @@ class ExternalSiteForm extends FormBase {
         (string) $form_state->getValue('address'),
         (string) $form_state->getValue('notes'),
         trim((string) $form_state->getValue('sign_in_address')),
+        (bool) $form_state->getValue('show_on_site'),
       );
     }
     catch (BibleManagerException $exception) {

@@ -5,6 +5,7 @@ import {
   fetchCommentarySources,
   fetchCurrentUser,
   fetchDevotionals,
+  fetchExternalSites,
   fetchMaps,
   fetchMusic,
   fetchOtherBooks,
@@ -14,7 +15,7 @@ import {
   logOut,
   resendVerification,
 } from './api'
-import type { MapInfo, MusicSong } from './api'
+import type { ExternalSite, MapInfo, MusicSong } from './api'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
@@ -36,6 +37,7 @@ import MapSearchPage from './MapSearchPage'
 import FaqPage from './FaqPage'
 import HelpPage from './HelpPage'
 import TutorialPage from './TutorialPage'
+import ExternalSitesPage from './ExternalSitesPage'
 import DayCardPage from './DayCardPage'
 import PrivacyPage from './PrivacyPage'
 import MyAccountPage from './MyAccountPage'
@@ -110,6 +112,8 @@ function App() {
   })
   // The published maps; their sidebar group shows only when there are some.
   const [maps, setMaps] = useState<MapInfo[]>([])
+  // The external sites the administrators chose to show; their sidebar group shows only when there are some.
+  const [externalSites, setExternalSites] = useState<ExternalSite[]>([])
   // The published songs of the Christian music section; its sidebar group shows only when there are some.
   const [songs, setSongs] = useState<MusicSong[]>([])
   const [translations, setTranslations] = useState<Translation[]>([])
@@ -179,6 +183,9 @@ function App() {
     fetchMaps()
       .then(setMaps)
       .catch(() => setMaps([]))
+    fetchExternalSites()
+      .then(setExternalSites)
+      .catch(() => setExternalSites([]))
   }, [])
 
   // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
@@ -390,6 +397,11 @@ function App() {
           },
         ]
       : []),
+    // Other sites the administrators set up and chose to show (the Drupal "External sites" page): only when there are
+    // some (the owner's request, 2026-11-19).
+    ...(externalSites.length > 0
+      ? [{ heading: 'External sites', entries: [{ view: 'externalSites' as View, label: 'Other sites we use' }] }]
+      : []),
     // The FAQ is about the faith, not about this site, so it has a group of its own rather than sitting under About.
     { heading: 'Questions', entries: [{ view: 'faq' as View, label: 'FAQ' }] },
     // A picture of a random verse, and of today's reading of a daily devotional (DayCardPage.tsx).
@@ -528,6 +540,7 @@ function App() {
               )}
               {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} hasMaps={maps.length > 0} />}
               {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
+              {activeView === 'externalSites' && <ExternalSitesPage sites={externalSites} />}
               {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
               {(activeView === 'verseOfTheDay' || activeView === 'devotionalOfTheDay') && (
                 <DayCardPage

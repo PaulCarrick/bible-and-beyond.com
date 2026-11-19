@@ -69,6 +69,7 @@ from faq_notes import owner_note_or_nothing
 from internet_archive import ArchiveProblem, search_archive
 from music import list_songs, search_music, song_file, song_words_file
 from maps import list_maps, map_file, search_maps
+import external_sites
 from map_marks import MarkProblem, create_mark, delete_mark, list_marks, update_mark
 from context import get_chapter, get_context, get_parallel, get_related
 from subscriptions import (
@@ -651,6 +652,13 @@ def search_the_music(
     return search_music(query, match_mode, page, per_page)
   except ValueError as error:
     raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/external-sites")
+def external_sites_list():
+  """The external sites the administrators chose to show in the sidebar (name, address and host only); the sidebar's
+  "External sites" group appears only when there are some."""
+  return {"sites": external_sites.list_public_sites()}
 
 
 @app.get("/maps")

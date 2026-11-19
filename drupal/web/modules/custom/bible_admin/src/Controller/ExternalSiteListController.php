@@ -31,7 +31,7 @@ class ExternalSiteListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('Other sites you use, such as the Kindle web reader. <strong>Open</strong> opens a site in its own window beside this one: sign in there the first time, and it stays signed in like any other tab. If the site has signed you out, sign in again in that window (its own Sign in, or the <strong>Sign in</strong> button here when the site has a sign-in address). (A site such as Amazon cannot be shown inside this page: it refuses, to protect its sign-in.)'),
+        '#value' => $this->t('Other sites you use, such as the Kindle web reader. <strong>Open</strong> opens a site in its own window beside this one: sign in there the first time, and it stays signed in like any other tab. If the site has signed you out, sign in again in that window (its own Sign in, or the <strong>Sign in</strong> button here when the site has a sign-in address). (A site such as Amazon cannot be shown inside this page: it refuses, to protect its sign-in.) A site marked <em>Shown</em> is also listed for visitors under “External sites” in the site’s sidebar, by its name and link only.'),
       ],
     ];
     try {
@@ -53,6 +53,7 @@ class ExternalSiteListController extends ControllerBase {
         ['data' => ['#plain_text' => $site['name']]],
         ['data' => $buttons],
         ['data' => ['#plain_text' => $site['host']]],
+        ['data' => ['#plain_text' => $site['show_on_site'] ? (string) $this->t('Shown') : (string) $this->t('Not shown')]],
         ['data' => ['#markup' => nl2br(Html::escape($site['notes']), FALSE)]],
         ['data' => ['#type' => 'operations', '#links' => [
           ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.external_site_edit', ['site_id' => $site['id']])],
@@ -62,7 +63,7 @@ class ExternalSiteListController extends ControllerBase {
     }
     $build['table'] = [
       '#type' => 'table',
-      '#header' => [$this->t('Name'), '', $this->t('Site'), $this->t('Notes'), $this->t('Operations')],
+      '#header' => [$this->t('Name'), '', $this->t('Site'), $this->t('Sidebar'), $this->t('Notes'), $this->t('Operations')],
       '#rows' => $rows,
       '#empty' => $this->t('There are no sites yet. Use Add a site, for example the Kindle web reader at https://read.amazon.com.'),
     ];
