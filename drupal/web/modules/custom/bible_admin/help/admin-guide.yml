@@ -17,7 +17,7 @@ sections:
     body: |
       <p>Everything is in the menu on the left, in alphabetical order. The pages of this site are Admin guide (this
       page), Backup and restore, Bibles, Christian music, Commentaries, Conversations and Prayer Wall, Devotionals,
-      FAQ notes, Groups, Maps, Other books, Scheduled tasks, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
+      External sites, FAQ notes, Groups, Maps, Other books, Scheduled tasks, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
       Structure, Appearance and so on) belong to Drupal itself and are rarely needed.</p>
       <figure><img data-guide="admin-menu" alt="The Administration page: the menu on the left in alphabetical order, starting with Admin guide, and the same list in the middle with a line about each page"><figcaption>The menu, and the Administration page that lists the same pages.</figcaption></figure>
       <p><strong>Who sees what</strong> depends on the roles of your Drupal account (People, then Edit beside a name, then Roles):</p>
@@ -251,6 +251,23 @@ sections:
       or the whole post (with its replies) with the button; both ask first. The author is not told.</p>
       <figure><img data-guide="conversation-post" alt="A post with its replies and the delete buttons"><figcaption>One post, with its replies.</figcaption></figure>
       <p>Who may write is set per member on Site users (<em>Conversations</em>); anyone may read.</p>
+
+  - id: external-sites
+    title: External sites
+    permissions: ['use external sites']
+    body: |
+      <p>Other sites you use, such as the <strong>Kindle web reader</strong> (https://read.amazon.com), in one shared
+      list. <strong>Add a site</strong> takes a name, its address (only web addresses starting with https:// or
+      http://) and notes; Edit and Delete are in each site's Operations (deleting only takes it off this list).</p>
+      <p><strong>Open</strong> opens the site in its own window beside the admin page. Sign in there the first time:
+      it stays signed in like any other tab. A site such as Amazon cannot be shown inside the admin page itself: it
+      refuses, to protect its sign-in, and a site shown inside another one is kept signed out by the browser. If your
+      browser blocks the window, the site opens in a new tab instead.</p>
+      <p>This page cannot see whether you are signed in to another site. If the site has signed you out, sign in again
+      in its window. For a site that does not show its own Sign in, fill in its <strong>Sign-in address</strong>: the
+      list then has a <strong>Sign in</strong> button beside Open, which opens that page in the same window. The
+      Kindle reader shows its own Sign in, so it needs none. Never put a password in the address or the notes.</p>
+      <figure><img data-guide="external-sites" alt="External sites: Add a site, and a table of two sites, one with Open and Sign in buttons and the Kindle reader with Open, each with its site and notes"><figcaption>External sites: Open opens each in its own window.</figcaption></figure>
 
   - id: faq-notes
     title: FAQ notes

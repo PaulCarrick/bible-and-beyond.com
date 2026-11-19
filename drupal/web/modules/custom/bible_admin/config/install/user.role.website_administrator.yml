@@ -26,4 +26,5 @@ permissions:
   - 'lead groups'
   - 'use text format faq_note'
   - 'use text format group_email'
+  - 'use external sites'
   - 'view the administration theme'

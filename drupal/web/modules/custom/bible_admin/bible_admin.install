@@ -179,3 +179,17 @@ function bible_admin_update_11006(): string {
   }
   return $done ? ucfirst(implode('; ', $done)) . '.' : 'Nothing to do.';
 }
+
+/**
+ * Lets the Website administrator role use the External sites page (added 2026-11-19). New sites get it from
+ * config/install.
+ */
+function bible_admin_update_11007(): string {
+  $role = Role::load('website_administrator');
+  if (!$role || $role->hasPermission('use external sites')) {
+    return 'Nothing to do.';
+  }
+  $role->grantPermission('use external sites');
+  $role->save();
+  return 'Let the ' . $role->label() . ' role use the external sites.';
+}

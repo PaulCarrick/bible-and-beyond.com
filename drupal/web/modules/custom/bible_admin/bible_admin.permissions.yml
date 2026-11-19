@@ -42,3 +42,8 @@ administer signatures and tasks:
   title: 'Administer all signatures and tasks'
   description: 'See, change and delete everyone''s signatures and tasks, whoever made them (with Keep signatures and tasks, or on its own).'
   restrict access: true
+
+use external sites:
+  title: 'Use the external sites'
+  description: 'See, open, add, change and delete the shared list of external sites (such as the Kindle web reader), each opened in its own browser window.'
+  restrict access: true

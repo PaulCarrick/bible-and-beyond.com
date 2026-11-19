@@ -118,3 +118,9 @@ bible_admin.scheduled_tasks:
   description: 'Who does which task on which date: a task given to a site user on one of its next four dates.'
   route_name: bible_admin.scheduled_tasks
   parent: system.admin
+
+bible_admin.external_sites:
+  title: 'External sites'
+  description: 'Other sites you use, such as the Kindle web reader: each opens in its own window beside this one.'
+  route_name: bible_admin.external_sites
+  parent: system.admin

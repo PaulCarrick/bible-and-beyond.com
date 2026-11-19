@@ -473,7 +473,7 @@ bible_admin.guide:
     _controller: '\Drupal\bible_admin\Controller\AdminGuideController::build'
     _title: 'Admin guide'
   requirements:
-    _permission: 'administer bibles+administer site settings+administer site users+administer faq notes+administer backups+lead groups+administer groups+keep signatures and tasks+administer signatures and tasks'
+    _permission: 'administer bibles+administer site settings+administer site users+administer faq notes+administer backups+lead groups+administer groups+keep signatures and tasks+administer signatures and tasks+use external sites'
 
 # Backing up the whole site into a zip saved on the administrator's computer, and restoring it from one
 # (site_backup.py). Restoring replaces Drupal's own database too, so it is for administrators only. The page
@@ -621,3 +621,39 @@ bible_admin.scheduled_task_remove:
   requirements:
     _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::schedule'
     schedule_id: '\d+'
+
+# External sites (external_sites.py): a shared list of sites, each opened in its own browser window (js/external-sites.js),
+# never in a frame (Amazon refuses to show its sign-in inside another site).
+bible_admin.external_sites:
+  path: '/admin/external-sites'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\ExternalSiteListController::build'
+    _title: 'External sites'
+  requirements:
+    _permission: 'use external sites'
+
+bible_admin.external_site_add:
+  path: '/admin/external-sites/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ExternalSiteForm'
+    _title: 'Add an external site'
+  requirements:
+    _permission: 'use external sites'
+
+bible_admin.external_site_edit:
+  path: '/admin/external-sites/{site_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ExternalSiteForm'
+    _title: 'Change an external site'
+  requirements:
+    _permission: 'use external sites'
+    site_id: '\d+'
+
+bible_admin.external_site_delete:
+  path: '/admin/external-sites/{site_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteExternalSiteForm'
+    _title: 'Delete an external site'
+  requirements:
+    _permission: 'use external sites'
+    site_id: '\d+'

@@ -1283,6 +1283,45 @@ class BibleManager {
     return $this->run(['list', '--owner=' . (int) $group['owner_uid']], 'manage_signatures.py')['signatures'];
   }
 
+  /**
+   * The external sites (external_sites.py), by name: id, name, address, host, notes, created_by, created_at and
+   * updated_at.
+   */
+  public function listExternalSites(): array {
+    return $this->run(['list'], 'manage_external_sites.py')['sites'];
+  }
+
+  public function getExternalSite(int $siteId): array {
+    return $this->run(['get', '--id=' . $siteId], 'manage_external_sites.py')['site'];
+  }
+
+  /**
+   * Adds a site or changes one, with its optional sign-in page. The ML service keeps only http(s) addresses.
+   */
+  public function saveExternalSite(?int $siteId, string $name, string $address, string $notes, string $signInAddress = ''): array {
+    $input = $this->groupInput(['name' => $name, 'address' => $address, 'notes' => $notes, 'sign_in_address' => $signInAddress, 'created_by' => $this->currentUser->getAccountName()]);
+    $site = $siteId === NULL
+      ? $this->run(['create'], 'manage_external_sites.py', $input)['site']
+      : $this->run(['update', '--id=' . $siteId], 'manage_external_sites.py', $input)['site'];
+    $this->logExternalSite($siteId === NULL ? 'added' : 'changed', $site);
+    return $site;
+  }
+
+  public function deleteExternalSite(int $siteId): array {
+    $site = $this->run(['delete', '--id=' . $siteId], 'manage_external_sites.py')['site'];
+    $this->logExternalSite('deleted', $site);
+    return $site;
+  }
+
+  private function logExternalSite(string $change, array $site): void {
+    $this->logger->notice('@user @change the external site “@name” (@host).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@name' => $site['name'],
+      '@host' => $site['host'],
+    ]);
+  }
+
   private function logSignatureOrTask(string $change, string $kind, array $item): void {
     $this->logger->notice('@user @change the @kind “@name” (@id) of @owner.', [
       '@user' => $this->currentUser->getAccountName(),
