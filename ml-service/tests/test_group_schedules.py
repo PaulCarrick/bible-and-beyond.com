@@ -371,7 +371,8 @@ def test_a_message_to_one_member_can_wait_for_its_time(outbox):
   assert len(outbox["emails"]) == 1
   email = outbox["emails"][0]
   assert email["Subject"] == "A message from Deacon Dave (Care list)" and email["To"] == "dave@example.org"
-  assert "Pat" in email.get_body(("html",)).get_content() and "to you alone" in email.get_body(("plain",)).get_content()
+  # Like Send on the box: the words only, no group foot or stop link (2026-11-18).
+  assert "Pat" in email.get_body(("html",)).get_content() and "Sent by" not in email.as_string() and email["List-Unsubscribe"] is None
   after = group_schedules.get_schedule(group["id"], schedule["id"])
   assert after["next_run_at"] is None and after["last_result"] == "Emailed to Pat"
   assert group_schedules.send_due(now=due + timedelta(minutes=10), pause=0)["sent"] == 0 and len(outbox["emails"]) == 1

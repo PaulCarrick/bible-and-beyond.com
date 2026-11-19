@@ -241,7 +241,9 @@ def test_one_member_can_be_emailed_alone(outbox):
   assert email["To"] == "dave@example.org" and email["Reply-To"] == "dave@example.org" and email["Bcc"] is None
   assert email["Subject"] == "A message from Deacon Dave (Deacon group)"
   text = email.get_content()
-  assert "Hello Bob,\nsee you Sunday." in text and "to you alone" in text and "To stop messages from this group" in text
+  # Not a group email (the owner's request, 2026-11-18): the leader's words only, no foot, no stop link.
+  assert text == "Hello Bob,\nsee you Sunday.\n"
+  assert email["List-Unsubscribe"] is None and "unsubscribe" not in email.as_string() and "Sent by" not in email.as_string()
   assert DOMAIN not in email.as_string().replace(f"X-Delivered-To: {email['X-Delivered-To']}", "")
   sent = groups.list_sent(group["id"])[0]
   assert sent["subject"].endswith("(to one member)") and sent["emailed"] == 1 and "bob" not in sent["subject"].lower()
@@ -282,7 +284,7 @@ def test_a_member_email_from_the_editor_is_cleaned_html_with_a_text_copy(outbox)
   assert email["X-Delivered-To"] == "pat@example.org" and email.is_multipart()
   plain = email.get_body(("plain",)).get_content()
   sent_html = email.get_body(("html",)).get_content()
-  assert "Hi Pat, old see this and that." in plain and "To stop messages from this group" in plain
+  assert "Hi Pat, old see this and that." in plain and "To stop messages" not in plain and "Sent by" not in plain
   # Kept: the editor's formatting and the safe link. Dropped: the script, the handler, the javascript: link,
   # the style and the picture.
   assert "<h2>Sunday</h2>" in sent_html and "<strong>Pat</strong>" in sent_html and "<s>old</s>" in sent_html
@@ -290,7 +292,7 @@ def test_a_member_email_from_the_editor_is_cleaned_html_with_a_text_copy(outbox)
   assert ">that</a>" not in sent_html and " and that." in sent_html
   for gone in ("script", "onclick", "javascript:", "style=", "<img", "tracker.example"):
     assert gone not in sent_html
-  assert "to you alone" in sent_html and 'href="https://site.example/?unsubscribe=' in sent_html
+  assert "Sent by" not in sent_html and "unsubscribe" not in sent_html and "<hr>" not in sent_html
   assert groups.list_sent(group["id"])[0]["text"].startswith("Sunday")
   with pytest.raises(GroupProblem, match="write something"):
     groups.email_member(group["id"], member_id, "", "dave", html="<p> </p><img src='x'>")
@@ -496,7 +498,8 @@ def test_a_copy_of_an_email_to_one_member_and_none_for_texts_only(outbox):
   groups.email_member(group["id"], member["id"], "Thinking of you.", "dave")
   copy = groups.get_copy(group["id"], groups.list_sent(group["id"])[0]["id"])
   assert copy["bcc"] == ["pat@example.org"] and copy["leader_copy"] is False and copy["html"] is None
-  assert "Thinking of you." in copy["text"] and "to you alone" in copy["text"] and groups.STOP_CODE_PLACEHOLDER in copy["text"]
+  # The copy is the email as sent: the words only (no foot, so no stop code).
+  assert copy["text"].strip() == "Thinking of you." and groups.STOP_CODE_PLACEHOLDER not in copy["text"]
   # A send that emailed nobody (all failed) keeps no copy.
   empty = new_group("Empty")
   groups.send(empty["id"], "message", {"subject": "Hi", "text": "Hello"}, "dave", pause=0)
