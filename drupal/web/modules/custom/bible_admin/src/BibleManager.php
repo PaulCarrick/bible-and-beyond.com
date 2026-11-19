@@ -948,18 +948,32 @@ class BibleManager {
    * member's id and name. Throws if this user may not manage the group, or the member stopped the group's
    * messages or has not confirmed their address.
    */
-  public function emailGroupMember(int $groupId, int $memberId, array $message): array {
+  /**
+   * An email to one member of a group: now, or (with $sendAt: on_date Y-m-d, send_time H:i, timezone) kept as a
+   * one-time scheduled email to that member (the "Send at" field, 2026-11-18). Returns the member, and the
+   * schedule under 'schedule' when it was kept for later.
+   */
+  public function emailGroupMember(int $groupId, int $memberId, array $message, ?array $sendAt = NULL): array {
     $group = $this->getGroup($groupId);
     // $message: html (from the editor; the ML service cleans it) or text (the plain box).
     $details = array_intersect_key($message, ['html' => TRUE, 'text' => TRUE]);
     $details['sent_by'] = $this->currentUser->getAccountName();
-    $member = $this->run(['email-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details))['member'];
-    $this->logger->notice('@user emailed member @member of the group “@name” (@id).', [
-      '@user' => $this->currentUser->getAccountName(),
-      '@member' => $member['id'],
-      '@name' => $group['name'],
-      '@id' => $group['id'],
-    ]);
+    if ($sendAt !== NULL) {
+      $details += array_intersect_key($sendAt, ['on_date' => TRUE, 'send_time' => TRUE, 'timezone' => TRUE]);
+    }
+    $answer = $this->run(['email-member', '--group=' . $groupId, '--member=' . $memberId], 'manage_groups.py', $this->groupInput($details));
+    $member = $answer['member'];
+    $this->logger->notice($sendAt === NULL
+      ? '@user emailed member @member of the group “@name” (@id).'
+      : '@user scheduled an email to member @member of the group “@name” (@id).', [
+        '@user' => $this->currentUser->getAccountName(),
+        '@member' => $member['id'],
+        '@name' => $group['name'],
+        '@id' => $group['id'],
+      ]);
+    if (isset($answer['schedule'])) {
+      $member['schedule'] = $answer['schedule'];
+    }
     return $member;
   }
 

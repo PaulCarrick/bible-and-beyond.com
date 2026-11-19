@@ -81,7 +81,8 @@ class GroupController extends ControllerBase {
     $rows = [];
     foreach ($group['schedules'] ?? [] as $schedule) {
       $parameters = ['group_id' => $group['id'], 'schedule_id' => $schedule['id']];
-      $what = match ($schedule['kind']) {
+      $toOne = !empty($schedule['member_id']);
+      $what = $toOne ? $this->t('Message to @name only', ['@name' => $schedule['member_name'] ?: $this->t('one member')]) : match ($schedule['kind']) {
         'verse' => $this->t('Verse card'),
         'picture' => $this->t('Picture message: @subject', ['@subject' => $schedule['subject']]),
         default => $this->t('Message: @subject', ['@subject' => $schedule['subject']]),
@@ -99,7 +100,10 @@ class GroupController extends ControllerBase {
         ['data' => ['#plain_text' => (string) $what]],
         ['data' => ['#plain_text' => $schedule['next_run_local'] ?? (string) $this->t('Done (it was sent once)')]],
         ['data' => ['#plain_text' => $schedule['last_result'] ?: '—']],
-        ['data' => ['#type' => 'operations', '#links' => [
+        // A message to one member (Send at on their Email box) can only be removed: write it again to change it.
+        ['data' => ['#type' => 'operations', '#links' => $toOne ? [
+          ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_schedule_remove', $parameters)],
+        ] : [
           ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.group_schedule_edit', $parameters)],
           ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.group_schedule_remove', $parameters)],
           // Sends it now to the group's leader only, to check it (2026-11-17, the owner's request).

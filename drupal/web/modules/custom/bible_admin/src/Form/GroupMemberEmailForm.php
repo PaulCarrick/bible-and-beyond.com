@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -18,6 +19,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * (core/drupal.dialog.ajax); without JavaScript it is a page of its own. Send emails the words to that member
  * only (groups.email_member: the leader as the visible To, the member the hidden recipient, Reply-To the
  * leader); Cancel closes the box (the "dialog-cancel" class) or goes back to the group, sending nothing.
+ *
+ * Send at (added 2026-11-18 at the owner's request): a date and time, now to start with. Left at now (or any
+ * time up to a minute from now) it goes at once; a later time keeps it as a one-time scheduled email to that
+ * member, in the group's Scheduled emails, which the five-minute job sends then (group_schedules.py). The time
+ * is in the leader's own Drupal time zone.
  */
 class GroupMemberEmailForm extends FormBase {
 
@@ -67,6 +73,21 @@ class GroupMemberEmailForm extends FormBase {
     // The editor (GroupEditor: CKEditor 5, text format group_email; the owner's request, 2026-11-17). The ML
     // service cleans what it writes. Without the format, a plain box.
     $form['text'] = GroupEditor::field((string) $this->t('Message'), '', 8, TRUE);
+    $zone = $this->timeZone();
+    // Now, to the minute: with seconds the browser would only take times ending in those seconds.
+    $now = new DrupalDateTime('now', $zone);
+    $now->setTime((int) $now->format('G'), (int) $now->format('i'), 0);
+    $form['send_at'] = [
+      '#type' => 'datetime',
+      '#title' => $this->t('Send at'),
+      '#default_value' => $now,
+      '#date_timezone' => $zone,
+      '#date_increment' => 60,
+      // Hours and minutes, no seconds.
+      '#date_time_format' => 'H:i',
+      '#required' => TRUE,
+      '#description' => $this->t('Now, to start with: leave it to send the message at once, or choose a later date and time to send it then (@zone).', ['@zone' => $zone]),
+    ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
@@ -82,13 +103,36 @@ class GroupMemberEmailForm extends FormBase {
     return $form;
   }
 
+  /**
+   * The leader's own time zone (their Drupal account's, else the site's).
+   */
+  private function timeZone(): string {
+    return $this->currentUser()->getTimeZone() ?: ($this->config('system.date')->get('timezone.default') ?: 'UTC');
+  }
+
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $groupId = (int) $form_state->get('group_id');
     // From the editor: HTML; from the plain box: text.
     $details = GroupEditor::value($form_state->getValue('text'));
+    // Up to a minute from now counts as now (the box was opened at "now" and the message written after).
+    $sendAt = NULL;
+    $when = $form_state->getValue('send_at');
+    if ($when instanceof DrupalDateTime && $when->getTimestamp() > time() + 60) {
+      $when->setTimezone(new \DateTimeZone($this->timeZone()));
+      $sendAt = ['on_date' => $when->format('Y-m-d'), 'send_time' => $when->format('H:i'), 'timezone' => $this->timeZone()];
+    }
     try {
-      $member = $this->manager->emailGroupMember($groupId, (int) $form_state->get('member_id'), $details);
-      $this->messenger()->addStatus($this->t('Your message was emailed to @name.', ['@name' => $member['name'] ?: $this->t('the member')]));
+      $member = $this->manager->emailGroupMember($groupId, (int) $form_state->get('member_id'), $details, $sendAt);
+      $name = $member['name'] ?: $this->t('the member');
+      if (isset($member['schedule'])) {
+        $this->messenger()->addStatus($this->t('Your message to @name will be emailed on @when. It is under Scheduled emails, where you can remove it before then.', [
+          '@name' => $name,
+          '@when' => $member['schedule']['next_run_local'],
+        ]));
+      }
+      else {
+        $this->messenger()->addStatus($this->t('Your message was emailed to @name.', ['@name' => $name]));
+      }
       $form_state->setRedirect('bible_admin.group', ['group_id' => $groupId]);
     }
     catch (BibleManagerException $exception) {

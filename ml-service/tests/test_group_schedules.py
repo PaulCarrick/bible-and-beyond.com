@@ -344,3 +344,57 @@ def test_deleting_the_group_removes_its_schedules():
   groups.delete_group(group["id"])
   with connect() as connection:
     assert connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group["id"],)).fetchone()[0] == 0
+
+
+def test_a_message_to_one_member_can_wait_for_its_time(outbox):
+  """"Send at" on a member's Email box (2026-11-18): a later time keeps it as a one-time email to that member."""
+  group = group_with_a_member()
+  groups.add_member(group["id"], {"email": "sam@example.org", "name": "Sam"})
+  members = {member["name"]: member["id"] for member in groups.get_group(group["id"])["members"]}
+  details = {"html": "<p>Hi <strong>Pat</strong>, see you Sunday.</p>", "on_date": "2026-11-17", "send_time": "10:30", "timezone": "America/Chicago"}
+  schedule = group_schedules.schedule_member_email(group["id"], members["Pat"], details, "dave", now=NOW)
+  assert schedule["member_id"] == members["Pat"] and schedule["repeat"] == "once"
+  assert local(schedule["next_run_at"]) == "Tue 2026-11-17 10:30"
+  listed = group_schedules.list_schedules(group["id"])
+  assert [(each["member_name"], each["subject"]) for each in listed] == [("Pat", "A message from Deacon Dave (Care list)")]
+  assert listed[0]["stopped_count"] == 0
+
+  # Not before its time; then once, to Pat alone, as Send on the box would.
+  assert group_schedules.send_due(now=NOW)["sent"] == 0 and outbox["emails"] == []
+  due = datetime.fromisoformat(schedule["next_run_at"]) + timedelta(minutes=2)
+  assert group_schedules.send_due(now=due, pause=0)["sent"] == 1
+  assert len(outbox["emails"]) == 1
+  email = outbox["emails"][0]
+  assert email["Subject"] == "A message from Deacon Dave (Care list)" and email["To"] == "dave@example.org"
+  assert "Pat" in email.get_body(("html",)).get_content() and "to you alone" in email.get_body(("plain",)).get_content()
+  after = group_schedules.get_schedule(group["id"], schedule["id"])
+  assert after["next_run_at"] is None and after["last_result"] == "Emailed to Pat"
+  assert group_schedules.send_due(now=due + timedelta(minutes=10), pause=0)["sent"] == 0 and len(outbox["emails"]) == 1
+  assert groups.list_sent(group["id"])[0]["subject"].endswith("(to one member)")
+
+
+def test_a_message_to_one_member_is_checked_and_follows_the_member(outbox):
+  group = group_with_a_member()
+  pat = groups.get_group(group["id"])["members"][0]["id"]
+  later = {"text": "Hello", "on_date": "2026-11-20", "send_time": "08:00", "timezone": "America/Chicago"}
+  with pytest.raises(GroupProblem, match="already passed"):
+    group_schedules.schedule_member_email(group["id"], pat, dict(later, on_date="2026-11-15"), "dave", now=NOW)
+  with pytest.raises(GroupProblem, match="date and time"):
+    group_schedules.schedule_member_email(group["id"], pat, dict(later, send_time="later"), "dave", now=NOW)
+  with pytest.raises(GroupProblem, match="message"):
+    group_schedules.schedule_member_email(group["id"], pat, dict(later, text="  "), "dave", now=NOW)
+  with pytest.raises(GroupProblem, match="not in the group"):
+    group_schedules.schedule_member_email(group["id"], pat + 100000, later, "dave", now=NOW)
+  schedule = group_schedules.schedule_member_email(group["id"], pat, later, "dave", now=NOW)
+  # It cannot be edited as a group's scheduled email (remove it and write it again).
+  with pytest.raises(GroupProblem, match="cannot be changed"):
+    group_schedules.update_schedule(group["id"], schedule["id"], {"kind": "message"}, now=NOW)
+  # A member who stopped the group's messages meanwhile is not emailed; the result says why.
+  with connect() as connection:
+    connection.execute("UPDATE group_members SET stopped_at = now() WHERE id = %s", (pat,))
+  due = datetime.fromisoformat(schedule["next_run_at"]) + timedelta(minutes=1)
+  assert group_schedules.send_due(now=due, pause=0)["failed"] == 1 and outbox["emails"] == []
+  assert "stopped the group's messages" in group_schedules.get_schedule(group["id"], schedule["id"])["last_result"]
+  # Removing the member removes what was waiting for them.
+  groups.remove_member(group["id"], pat)
+  assert group_schedules.list_schedules(group["id"]) == []

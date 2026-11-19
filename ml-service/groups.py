@@ -649,15 +649,48 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
   html (from the Drupal box's editor, CKEditor 5) is cleaned like the contact form's messages
   (contact.check_rich_text: only its allowed tags, links only http(s) or mailto, no attributes) and sent as HTML
   with a plain-text copy; without it, text is sent as plain text. Returns the member (id, name)."""
+  text, html = member_message(text, html)
+  group = get_group(group_id)
+  address, token = member_recipient(group_id, member_id)
+  subject = member_subject(group)
+  try:
+    settings = load_mail_settings()
+    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html), [address])
+  except MailUnavailable as problem:
+    raise GroupProblem(f"The email could not be sent: {problem}") from problem
+  except Exception as problem:
+    logger.error("Group %s message to member %s not sent: %s", group_id, member_id, type(problem).__name__)
+    raise GroupProblem("The email could not be sent; try again later.") from problem
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1)",
+      (group_id, subject + " (to one member)", text, sent_by),
+    )
+  member = next(member for member in group["members"] if member["id"] == member_id)
+  return {"id": member["id"], "name": member["name"]}
+
+
+def member_message(text: str, html: str | None) -> tuple[str, str | None]:
+  """A message to one member, checked: (text, html). html (the editor's) is cleaned like the contact form's and
+  text becomes its plain-text copy; without it, text is checked as plain text."""
   if html is not None:
     try:
       cleaned = check_rich_text(html, MESSAGE_LIMIT * 10, MESSAGE_LIMIT, "message")
     except ContactProblem as problem:
       raise GroupProblem(str(problem)) from problem
-    html, text = cleaned["html"], cleaned["text"]
-  else:
-    text = _text(text, "message", MESSAGE_LIMIT)
-  group = get_group(group_id)
+    return cleaned["text"], cleaned["html"]
+  return _text(text, "message", MESSAGE_LIMIT), None
+
+
+def member_subject(group: dict) -> str:
+  """The subject of a message to one member: "A message from <the leader> (<the group>)"."""
+  sender = group["owner_name"] or "your group's leader"
+  return f"A message from {sender} ({group['name']})"
+
+
+def member_recipient(group_id: int, member_id: int) -> tuple[str, str]:
+  """The address and stop token of a member who can be emailed now; raises GroupProblem saying why not (closed
+  account, stopped the group's messages, no email address, address not confirmed)."""
   with connect() as connection:
     row = connection.execute(
       """
@@ -678,23 +711,7 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
     raise GroupProblem("This member's account has no email address (they log in with their phone), so it cannot be emailed.")
   if not confirmed:
     raise GroupProblem("This member has not confirmed their email address yet, so nothing can be sent to them.")
-  sender = group["owner_name"] or "your group's leader"
-  subject = f"A message from {sender} ({group['name']})"
-  try:
-    settings = load_mail_settings()
-    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html), [address])
-  except MailUnavailable as problem:
-    raise GroupProblem(f"The email could not be sent: {problem}") from problem
-  except Exception as problem:
-    logger.error("Group %s message to member %s not sent: %s", group_id, member_id, type(problem).__name__)
-    raise GroupProblem("The email could not be sent; try again later.") from problem
-  with connect() as connection:
-    connection.execute(
-      "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1)",
-      (group_id, subject + " (to one member)", text, sent_by),
-    )
-  member = next(member for member in group["members"] if member["id"] == member_id)
-  return {"id": member["id"], "name": member["name"]}
+  return address, token
 
 
 def send_prayer_request(

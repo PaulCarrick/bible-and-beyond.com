@@ -15,7 +15,8 @@ tool's standard input as JSON, never as arguments, so they never show in the ser
     manage_groups.py add-accounts --group=ID           input {user_ids: [...]}: those accounts
     manage_groups.py update-member --group=ID --member=ID   input {email, name, phone}
     manage_groups.py remove-member --group=ID --member=ID
-    manage_groups.py email-member --group=ID --member=ID    input {html or text, sent_by}: an email to that member only
+    manage_groups.py email-member --group=ID --member=ID    input {html or text, sent_by}: an email to that member only;
+                                                       with {on_date, send_time, timezone} it is kept to send then
     manage_groups.py preview-verse                     a random verse card (its name, picture and verse)
     manage_groups.py preview-picture                   input {text}: the words on a random picture
     manage_groups.py send --group=ID --kind=message|verse|picture   input {subject, text, card, verse, sent_by}
@@ -106,6 +107,11 @@ def run(arguments) -> dict:
   if command == "email-member":
     details = read_input()
     html = details.get("html")
+    if details.get("on_date"):
+      # "Send at" a later time: kept as a one-time scheduled email to that member (group_schedules.py).
+      schedule = group_schedules.schedule_member_email(arguments.group, arguments.member, details, str(details.get("sent_by", "")))
+      member = next(each for each in groups.get_group(arguments.group)["members"] if each["id"] == arguments.member)
+      return {"ok": True, "member": {"id": member["id"], "name": member["name"]}, "schedule": schedule}
     member = groups.email_member(
       arguments.group, arguments.member, str(details.get("text", "")), str(details.get("sent_by", "")),
       html=str(html) if html is not None else None,

@@ -102,7 +102,7 @@ def describe(schedule: dict) -> str:
 
 COLUMNS = (
   "id, group_id, kind, subject, text, repeat, on_date, day_of_month, weekday, week_of_month, send_time, timezone, "
-  "next_run_at, last_run_at, last_result, created_by, html"
+  "next_run_at, last_run_at, last_result, created_by, html, member_id"
 )
 
 
@@ -134,6 +134,8 @@ def _public(schedule: dict) -> dict:
     "created_by": schedule["created_by"],
     # A message written in the editor (migration 050); None for a picture, a verse card or an older message.
     "html": schedule["html"],
+    # A message to one member (migration 052): that member's id; None for the group's own scheduled emails.
+    "member_id": schedule["member_id"],
   }
 
 
@@ -154,11 +156,21 @@ def list_schedules(group_id: int) -> list[dict]:
       SELECT s.id, count(m.id) FROM group_schedules s
       JOIN group_members m ON m.group_id = s.group_id AND m.stopped_at IS NULL
         AND (m.schedules_stopped_at IS NOT NULL OR EXISTS (SELECT 1 FROM group_schedule_stops t WHERE t.schedule_id = s.id AND t.member_id = m.id))
-      WHERE s.group_id = %s GROUP BY s.id
+      WHERE s.group_id = %s AND s.member_id IS NULL GROUP BY s.id
       """,
       (group_id,),
     ).fetchall())
-  return [_public(_row(row)) | {"stopped_count": stopped.get(row[0], 0)} for row in rows]
+    names = dict(connection.execute(
+      """
+      SELECT m.id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), NULLIF(m.name, ''), COALESCE(u.email, m.email), '')
+      FROM group_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.group_id = %s
+      """,
+      (group_id,),
+    ).fetchall())
+  return [
+    _public(_row(row)) | {"stopped_count": stopped.get(row[0], 0), "member_name": names.get(row[-1]) if row[-1] else None}
+    for row in rows
+  ]
 
 
 def _get(schedule_id: int, group_id: int) -> dict:
@@ -242,13 +254,49 @@ def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | 
 
 def update_schedule(group_id: int, schedule_id: int, details: dict, now: datetime | None = None) -> dict:
   """Replaces a schedule's message and timing; its next time is worked out again from now."""
-  _get(schedule_id, group_id)
+  if _get(schedule_id, group_id)["member_id"] is not None:
+    raise GroupProblem("A message to one member cannot be changed: remove it and write it again.")
   schedule = check(details, now or datetime.now(timezone.utc))
   with connect() as connection:
     connection.execute(
       f"UPDATE group_schedules SET {', '.join(f'{name} = %s' for name in FIELDS)}, updated_at = now() WHERE id = %s",
       (*[schedule[name] for name in FIELDS], schedule_id),
     )
+  return _public(_get(schedule_id, group_id))
+
+
+def schedule_member_email(group_id: int, member_id: int, details: dict, created_by: str, now: datetime | None = None) -> dict:
+  """A message to one member sent later ("Send at" on a member's Email box; added 2026-11-18 at the owner's
+  request): a one-time scheduled email with member_id set, on details' on_date at send_time in timezone, holding
+  the message (html from the editor, or text). The member is checked now, and again when it goes (they may stop
+  the group's messages or be removed meanwhile; removing them removes it). Returns the schedule."""
+  group = groups.get_group(group_id)
+  if not any(member["id"] == member_id for member in group["members"]):
+    raise GroupProblem("That member is not in the group (they may have been removed).")
+  groups.member_recipient(group_id, member_id)
+  html = details.get("html")
+  text, html = groups.member_message(str(details.get("text", "")), str(html) if html is not None else None)
+  try:
+    send_time = parse_time(str(details.get("send_time", "")))
+    check_timezone(str(details.get("timezone", "")))
+    on_date = date.fromisoformat(str(details.get("on_date", "")))
+  except (SubscriptionProblem, ValueError):
+    raise GroupProblem("Please choose the date and time to send it.")
+  schedule = {
+    "kind": "message", "subject": groups.member_subject(group), "text": text, "html": html, "repeat": "once",
+    "on_date": on_date, "day_of_month": None, "weekday": None, "week_of_month": None, "send_time": send_time,
+    "timezone": str(details["timezone"]),
+  }
+  schedule["next_run_at"] = next_occurrence(schedule, now or datetime.now(timezone.utc))
+  if schedule["next_run_at"] is None:
+    raise GroupProblem("That date and time have already passed.")
+  with connect() as connection:
+    if connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group_id,)).fetchone()[0] >= MAX_SCHEDULES_PER_GROUP:
+      raise GroupProblem(f"A group can have at most {MAX_SCHEDULES_PER_GROUP} scheduled messages.")
+    schedule_id = connection.execute(
+      f"INSERT INTO group_schedules (group_id, created_by, member_id, {', '.join(FIELDS)}) VALUES (%s, %s, %s, {', '.join(['%s'] * len(FIELDS))}) RETURNING id",
+      (group_id, created_by, member_id, *[schedule[name] for name in FIELDS]),
+    ).fetchone()[0]
   return _public(_get(schedule_id, group_id))
 
 
@@ -317,6 +365,17 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
         result["late"] += 1
       else:
         try:
+          if schedule["member_id"] is not None:
+            # A message to one member: the same email as Send on their box (groups.email_member).
+            member = groups.email_member(
+              schedule["group_id"], schedule["member_id"], schedule["text"], f"schedule ({schedule['created_by']})",
+              html=schedule["html"],
+            )
+            outcome = f"Emailed to {member['name'] or 'the member'}"
+            result["sent"] += 1
+            with connect() as connection:
+              connection.execute("UPDATE group_schedules SET last_result = %s WHERE id = %s", (outcome, schedule["id"]))
+            continue
           counts = groups.send(
             schedule["group_id"], schedule["kind"], _details_for(schedule), f"schedule ({schedule['created_by']})", pause=pause,
             schedule={"id": schedule["id"], "label": label(schedule)},
