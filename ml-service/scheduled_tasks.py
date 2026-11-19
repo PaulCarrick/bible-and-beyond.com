@@ -67,8 +67,9 @@ def _user_label(name: str, address: str) -> str:
 def _rule(task: dict) -> dict:
   """The task's repeat fields as next_date takes them (get_task gives the first date as text)."""
   return {
-    "repeat": task["repeat"], "weekday": task["weekday"], "day_of_month": task["day_of_month"],
-    "first_date": date.fromisoformat(task["first_date"]) if task["first_date"] else None,
+    "repeat": task["repeat"], "interval_count": task["interval_count"], "weekdays": task["weekdays"],
+    "weeks_of_month": task["weeks_of_month"], "day_of_month": task["day_of_month"],
+    "first_date": date.fromisoformat(task["first_date"]),
   }
 
 

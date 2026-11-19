@@ -110,6 +110,8 @@ def task_details(**changes) -> dict:
     "description": {"html": "<p>Chairs and <em>coffee</em>.</p>"},
     "repeat": "weekly",
     "weekday": 3,
+    # A fixed start, so the dates in these tests do not depend on the day they run.
+    "first_date": "2026-01-01",
     "first_notification": {"html": "<p>Tomorrow: set up the room.</p>"},
     "second_notification": {"text": ""},
   }
@@ -117,17 +119,46 @@ def task_details(**changes) -> dict:
   return details
 
 
-def test_the_next_date_of_each_repeat():
+def rule(repeat, start="2026-01-01", every=1, weekdays=(), weeks=(), day=None) -> dict:
+  return {
+    "repeat": repeat, "first_date": date.fromisoformat(start), "interval_count": every, "weekdays": list(weekdays),
+    "weeks_of_month": list(weeks), "day_of_month": day,
+  }
+
+
+def dates(task: dict, today: date, count: int = 4) -> list[str]:
+  return [day.isoformat() for day in admin_tasks.next_dates(task, today, count)]
+
+
+def test_the_next_dates_of_each_repeat():
   thursday = date(2026, 11, 19)
-  assert next_date({"repeat": "weekly", "weekday": 3}, thursday) == thursday
-  assert next_date({"repeat": "weekly", "weekday": 0}, thursday) == date(2026, 11, 23)
-  first = date(2026, 11, 5)
-  assert next_date({"repeat": "biweekly", "first_date": first}, date(2026, 11, 1)) == first
-  assert next_date({"repeat": "biweekly", "first_date": first}, thursday) == thursday
-  assert next_date({"repeat": "biweekly", "first_date": first}, date(2026, 11, 20)) == date(2026, 12, 3)
-  assert next_date({"repeat": "monthly", "day_of_month": 25}, thursday) == date(2026, 11, 25)
-  assert next_date({"repeat": "monthly", "day_of_month": 10}, thursday) == date(2026, 12, 10)
-  assert next_date({"repeat": "monthly", "day_of_month": 31}, date(2027, 2, 1)) == date(2027, 2, 28)
+  # Weekly, on one or several weekdays.
+  assert dates(rule("weekly", weekdays=[3]), thursday, 2) == ["2026-11-19", "2026-11-26"]
+  assert dates(rule("weekly", weekdays=[2, 6]), thursday) == ["2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02"]
+  # Every two or three weeks, counted from the week of the start; nothing before the start.
+  assert dates(rule("weekly", start="2026-11-05", every=2, weekdays=[3]), date(2026, 11, 1)) == ["2026-11-05", "2026-11-19", "2026-12-03", "2026-12-17"]
+  assert dates(rule("weekly", start="2026-11-20", every=3, weekdays=[4]), thursday, 2) == ["2026-11-20", "2026-12-11"]
+  # Monthly on a day (the 31st is the last day of a shorter month), every three months, once a year.
+  assert dates(rule("monthly_day", day=31), date(2027, 1, 1)) == ["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]
+  assert dates(rule("monthly_day", start="2026-10-01", every=3, day=1), thursday, 3) == ["2027-01-01", "2027-04-01", "2027-07-01"]
+  assert dates(rule("monthly_day", start="2026-12-01", every=12, day=25), thursday, 2) == ["2026-12-25", "2027-12-25"]
+  # The first Sunday (communion), the first and third Sunday, the last Thursday of November each year.
+  assert dates(rule("monthly_weekday", weekdays=[6], weeks=[1]), thursday, 3) == ["2026-12-06", "2027-01-03", "2027-02-07"]
+  assert dates(rule("monthly_weekday", weekdays=[6], weeks=[1, 3]), thursday, 3) == ["2026-12-06", "2026-12-20", "2027-01-03"]
+  assert dates(rule("monthly_weekday", start="2026-11-01", every=12, weekdays=[3], weeks=[5]), date(2026, 11, 1), 2) == ["2026-11-26", "2027-11-25"]
+  # The fourth and the last can be the same day; it comes once.
+  assert dates(rule("monthly_weekday", weekdays=[0], weeks=[4, 5]), date(2026, 2, 1), 3) == ["2026-02-23", "2026-03-23", "2026-03-30"]
+
+
+def test_how_often_in_words():
+  start = "2026-11-20"
+  assert admin_tasks.describe(rule("weekly", weekdays=[6, 2])) == "Every week on Wednesday and Sunday"
+  assert admin_tasks.describe(rule("weekly", start=start, every=2, weekdays=[4])) == "Every two weeks on Friday, from November 20, 2026"
+  assert admin_tasks.describe(rule("monthly_day", day=30)) == "Every month on the 30th (the last day in shorter months)"
+  assert admin_tasks.describe(rule("monthly_day", start="2027-01-01", every=3, day=1)) == "Every three months on the 1st, from January 2027"
+  assert admin_tasks.describe(rule("monthly_weekday", weekdays=[6], weeks=[1])) == "Every month on the first Sunday"
+  assert admin_tasks.describe(rule("monthly_weekday", weekdays=[6], weeks=[3, 1])) == "Every month on the first and third Sunday"
+  assert admin_tasks.describe(rule("monthly_weekday", start="2026-11-01", every=12, weekdays=[3], weeks=[5])) == "Every year in November on the last Thursday"
 
 
 def test_a_task_is_kept_with_its_formatted_fields():
@@ -139,13 +170,19 @@ def test_a_task_is_kept_with_its_formatted_fields():
   assert task["owner_uid"] == OWNER
 
 
-def test_only_the_field_of_the_repeat_is_kept():
-  task = admin_tasks.create_task(task_details(repeat="biweekly", weekday=3, first_date="2026-11-20", day_of_month=4), OWNER, "Paul")
-  assert task["weekday"] is None and task["day_of_month"] is None and task["first_date"] == "2026-11-20"
-  assert task["how_often"] == "Every two weeks on Friday, from November 20, 2026"
-  changed = admin_tasks.update_task(task["id"], task_details(repeat="monthly", day_of_month="30"))
-  assert changed["first_date"] is None and changed["day_of_month"] == 30
-  assert changed["how_often"] == "Every month on the 30th (the last day in shorter months)"
+def test_communion_on_the_first_sunday_and_only_the_repeats_fields_kept():
+  communion = admin_tasks.create_task(
+    task_details(name="Communion", repeat="monthly_weekday", weekdays=["6"], weeks_of_month=["1"], first_date="2026-11-19", day_of_month=4),
+    OWNER, "Paul",
+  )
+  assert communion["how_often"] == "Every month on the first Sunday" and communion["next_date"] == "2026-12-06"
+  assert communion["day_of_month"] is None and communion["weekdays"] == [6] and communion["weeks_of_month"] == [1]
+  changed = admin_tasks.update_task(communion["id"], task_details(repeat="monthly_day", day_of_month="30", interval_count=6, first_date="2026-12-01"))
+  assert changed["weekdays"] == [] and changed["weeks_of_month"] == [] and changed["day_of_month"] == 30
+  assert changed["how_often"] == "Every six months on the 30th (the last day in shorter months), from December 2026"
+  # Older input still taken: every two weeks on the first date's weekday, monthly on a day.
+  older = admin_tasks.create_task(task_details(repeat="biweekly", weekday=3, first_date="2026-11-20"), OWNER, "Paul")
+  assert older["how_often"] == "Every two weeks on Friday, from November 20, 2026" and older["interval_count"] == 2
 
 
 def test_a_task_is_refused_without_what_it_needs():
@@ -155,10 +192,18 @@ def test_a_task_is_refused_without_what_it_needs():
     admin_tasks.create_task(task_details(repeat="daily"), OWNER, "Paul")
   with pytest.raises(TaskProblem, match="day of the week"):
     admin_tasks.create_task(task_details(weekday=7), OWNER, "Paul")
-  with pytest.raises(TaskProblem, match="first date"):
-    admin_tasks.create_task(task_details(repeat="biweekly", first_date="not a date"), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="starts from"):
+    admin_tasks.create_task(task_details(first_date="not a date"), OWNER, "Paul")
   with pytest.raises(TaskProblem, match="day of the month"):
-    admin_tasks.create_task(task_details(repeat="monthly", day_of_month=0), OWNER, "Paul")
+    admin_tasks.create_task(task_details(repeat="monthly_day", day_of_month=0), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="1 to 8 weeks"):
+    admin_tasks.create_task(task_details(interval_count=9), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="once a year"):
+    admin_tasks.create_task(task_details(repeat="monthly_day", day_of_month=1, interval_count=5), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="first, second, third, fourth or last"):
+    admin_tasks.create_task(task_details(repeat="monthly_weekday", weekdays=[6], weeks_of_month=[]), OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="day of the week"):
+    admin_tasks.create_task(task_details(repeat="monthly_weekday", weekday=None, weekdays=[], weeks_of_month=[1]), OWNER, "Paul")
 
 
 def test_tasks_are_listed_per_owner_and_deleted():
@@ -214,9 +259,9 @@ def test_the_options_are_the_next_four_dates_and_the_open_accounts(site_users):
   user_ids = [user["id"] for user in offered["users"]]
   assert open_id in user_ids and closed_id not in user_ids
   assert {"id": open_id, "label": "Ruth Test (scheduled-ruth@example.org)"} in offered["users"]
-  every_two_weeks = admin_tasks.create_task(task_details(repeat="biweekly", first_date="2026-11-05"), OWNER, "Paul")
+  every_two_weeks = admin_tasks.create_task(task_details(interval_count=2, first_date="2026-11-05"), OWNER, "Paul")
   assert [day["value"] for day in scheduled_tasks.options(every_two_weeks["id"], THURSDAY)["dates"]] == ["2026-11-19", "2026-12-03", "2026-12-17", "2026-12-31"]
-  monthly = admin_tasks.create_task(task_details(repeat="monthly", day_of_month=31), OWNER, "Paul")
+  monthly = admin_tasks.create_task(task_details(repeat="monthly_day", day_of_month=31, first_date="2026-11-01"), OWNER, "Paul")
   assert [day["value"] for day in scheduled_tasks.options(monthly["id"], date(2027, 1, 1))["dates"]] == ["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]
 
 

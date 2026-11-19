@@ -3,10 +3,14 @@ and the words of a first and a second notification, each sent so many days befor
 second_notice_days; migration 056), kept in admin_tasks (migration 054). The reminders are emailed to the site user a
 task is scheduled for (scheduled_tasks.send_due) at 8:00 AM in the task's time zone (the owner's when they saved it).
 
-How often (repeat):
-  weekly     every week on a weekday (weekday: 0 Monday to 6 Sunday)
-  biweekly   every two weeks, starting on a first date (first_date; its weekday is the task's day)
-  monthly    every month on a day (day_of_month 1 to 31; 29 to 31 mean the last day in shorter months)
+How often (repeat; migration 058, the owner's request: "the first .. of the ...", "It's not just the month"):
+  weekly           every interval_count weeks (1 to 8) on the weekdays (0 Monday to 6 Sunday)
+  monthly_day      every interval_count months (1, 2, 3, 4, 6 or 12; 12 is once a year) on day_of_month (1 to 31;
+                   29 to 31 mean the last day in shorter months)
+  monthly_weekday  every interval_count months on the weeks_of_month (1 to 4 the first to the fourth, 5 the last) of
+                   the weekdays: the first Sunday, the first and third Sunday, the last Thursday of November
+first_date is the start: no date comes before it, and every few weeks or months counts from its week or month (so a
+once-a-year task falls in its month). Older input (biweekly with a first date, monthly) is still taken.
 
 Each belongs to the Drupal user who made it (owner_uid); Drupal decides who may see which (the owner only, or
 anyone with "administer all signatures and tasks"). The Drupal "Tasks" page runs scripts/manage_tasks.py.
@@ -24,13 +28,20 @@ NAME_LIMIT = 200
 PREVIEW_LENGTH = 160
 MAX_PER_OWNER = 200
 MAX_NOTICE_DAYS = 90
-REPEATS = ("weekly", "biweekly", "monthly")
+REPEATS = ("weekly", "monthly_day", "monthly_weekday")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+WEEKS = {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "last"}
+MAX_WEEKS_APART = 8
+MONTHS_APART = (1, 2, 3, 4, 6, 12)
+NUMBERS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 12: "twelve"}
+# How far ahead next_date looks (a once-a-year task on the 31st of a month falls within this).
+LOOK_AHEAD_DAYS = 800
 
 COLUMNS = """
   id, name, description_html, description_text, repeat, weekday, first_date, day_of_month,
   first_notification_html, first_notification_text, second_notification_html, second_notification_text,
-  owner_uid, owner_name, created_at, updated_at, first_notice_days, second_notice_days, timezone, owner_email
+  owner_uid, owner_name, created_at, updated_at, first_notice_days, second_notice_days, timezone, owner_email,
+  interval_count, weekdays, weeks_of_month
 """
 
 
@@ -48,24 +59,43 @@ def _ordinal(number: int) -> str:
   return f"{number}{suffix}"
 
 
-def _day_in_month(year: int, month: int, day_of_month: int) -> date:
-  return date(year, month, min(day_of_month, calendar.monthrange(year, month)[1]))
+def _months_between(start: date, day: date) -> int:
+  return (day.year - start.year) * 12 + day.month - start.month
+
+
+def _last_day(day: date) -> int:
+  return calendar.monthrange(day.year, day.month)[1]
+
+
+def occurs_on(task: dict, day: date) -> bool:
+  """Whether the task falls on that day (task: repeat, interval_count, weekdays, weeks_of_month, day_of_month and
+  first_date as a date)."""
+  start = task["first_date"]
+  if day < start:
+    return False
+  every = task.get("interval_count") or 1
+  if task["repeat"] == "weekly":
+    weeks = ((day - timedelta(days=day.weekday())) - (start - timedelta(days=start.weekday()))).days // 7
+    return day.weekday() in task["weekdays"] and weeks % every == 0
+  if _months_between(start, day) % every != 0:
+    return False
+  if task["repeat"] == "monthly_day":
+    return day.day == min(task["day_of_month"], _last_day(day))
+  if day.weekday() not in task["weekdays"]:
+    return False
+  week = (day.day - 1) // 7 + 1
+  last = day.day + 7 > _last_day(day)
+  return week in task["weeks_of_month"] or (last and 5 in task["weeks_of_month"])
 
 
 def next_date(task: dict, today: date) -> date:
-  """The first day on or after `today` that the task falls on."""
-  if task["repeat"] == "weekly":
-    return today + timedelta(days=(task["weekday"] - today.weekday()) % 7)
-  if task["repeat"] == "biweekly":
-    first = task["first_date"]
-    if today <= first:
-      return first
-    return today + timedelta(days=(first - today).days % 14)
-  this_month = _day_in_month(today.year, today.month, task["day_of_month"])
-  if this_month >= today:
-    return this_month
-  year, month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
-  return _day_in_month(year, month, task["day_of_month"])
+  """The first day on or after `today` (and its start) that the task falls on."""
+  day = max(today, task["first_date"])
+  for _ in range(LOOK_AHEAD_DAYS):
+    if occurs_on(task, day):
+      return day
+    day += timedelta(days=1)
+  raise TaskProblem("That task has no date in the next two years.")
 
 
 def next_dates(task: dict, today: date, count: int) -> list[date]:
@@ -76,16 +106,31 @@ def next_dates(task: dict, today: date, count: int) -> list[date]:
   return days
 
 
+def _and(words: list[str]) -> str:
+  return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
 def describe(task: dict) -> str:
-  """How often, in words, such as "Every two weeks on Thursday, from November 20, 2026"."""
+  """How often, in words, such as "Every month on the first Sunday" or "Every three months on the 1st, from
+  January 2027"."""
+  every = task.get("interval_count") or 1
+  start = task["first_date"]
+  weekdays = sorted(task.get("weekdays") or [])
+  days = _and([WEEKDAYS[weekday] for weekday in weekdays]) if weekdays else ""
   if task["repeat"] == "weekly":
-    return f"Every week on {WEEKDAYS[task['weekday']]}"
-  if task["repeat"] == "biweekly":
-    first = task["first_date"]
-    return f"Every two weeks on {WEEKDAYS[first.weekday()]}, from {first.strftime('%B')} {first.day}, {first.year}"
-  day = task["day_of_month"]
-  note = " (the last day in shorter months)" if day > 28 else ""
-  return f"Every month on the {_ordinal(day)}{note}"
+    if every == 1:
+      return f"Every week on {days}"
+    return f"Every {NUMBERS.get(every, every)} weeks on {days}, from {start.strftime('%B')} {start.day}, {start.year}"
+  if task["repeat"] == "monthly_day":
+    day = task["day_of_month"]
+    on = f"the {_ordinal(day)}" + (" (the last day in shorter months)" if day > 28 else "")
+  else:
+    on = "the " + _and([WEEKS[week] for week in sorted(task["weeks_of_month"])]) + " " + days
+  if every == 12:
+    return f"Every year in {start.strftime('%B')} on {on}"
+  if every == 1:
+    return f"Every month on {on}"
+  return f"Every {NUMBERS.get(every, every)} months on {on}, from {start.strftime('%B %Y')}"
 
 
 def _describe(row, today: date | None = None) -> dict:
@@ -96,6 +141,7 @@ def _describe(row, today: date | None = None) -> dict:
     "second_notification_html": row[10], "second_notification_text": row[11],
     "owner_uid": row[12], "owner_name": row[13], "created_at": row[14].isoformat(), "updated_at": row[15].isoformat(),
     "first_notice_days": row[16], "second_notice_days": row[17], "timezone": row[18], "owner_email": row[19],
+    "interval_count": row[20], "weekdays": list(row[21] or []), "weeks_of_month": list(row[22] or []),
   }
   task["how_often"] = describe(task)
   task["next_date"] = next_date(task, today or date.today()).isoformat()
@@ -125,23 +171,7 @@ def _check(details: dict) -> dict:
     }
   except FormattedTextProblem as problem:
     raise TaskProblem(str(problem)) from problem
-  repeat = details.get("repeat")
-  if repeat not in REPEATS:
-    raise TaskProblem("Choose how often the task comes round: every week, every two weeks or every month.")
-  values.update({"repeat": repeat, "weekday": None, "first_date": None, "day_of_month": None})
-  if repeat == "weekly":
-    values["weekday"] = _integer(details.get("weekday"), 0, 6)
-    if values["weekday"] is None:
-      raise TaskProblem("Choose the day of the week.")
-  elif repeat == "biweekly":
-    try:
-      values["first_date"] = date.fromisoformat(str(details.get("first_date") or ""))
-    except ValueError as error:
-      raise TaskProblem("Choose the first date (every two weeks counts from it).") from error
-  else:
-    values["day_of_month"] = _integer(details.get("day_of_month"), 1, 31)
-    if values["day_of_month"] is None:
-      raise TaskProblem("Choose a day of the month from 1 to 31.")
+  values.update(_check_repeat(details))
   for which in ("first", "second"):
     days = details.get(f"{which}_notice_days")
     if days is None or days == "":
@@ -166,6 +196,61 @@ def _check(details: dict) -> dict:
   return values
 
 
+def _integers(value, low: int, high: int) -> list[int] | None:
+  """A list of whole numbers in range (one is taken as a list of one), sorted without repeats; None if any is not."""
+  if value is None or value == "":
+    return []
+  items = value if isinstance(value, list) else [value]
+  numbers = [_integer(item, low, high) for item in items]
+  return None if any(number is None for number in numbers) else sorted(set(numbers))
+
+
+def _check_repeat(details: dict) -> dict:
+  """How often, checked: repeat, interval_count, weekdays, weeks_of_month, day_of_month, first_date (the start) and
+  weekday (the first of the weekdays). Only the fields the repeat uses are kept; the others are empty."""
+  repeat = details.get("repeat")
+  every = details.get("interval_count") or 1
+  # Older input: every two weeks from a first date, or monthly on a day.
+  if repeat == "biweekly":
+    repeat, every = "weekly", 2
+  elif repeat == "monthly":
+    repeat = "monthly_day"
+  if repeat not in REPEATS:
+    raise TaskProblem("Choose how often the task comes round: weekly, monthly on a day, or monthly on a weekday.")
+  try:
+    start = date.fromisoformat(str(details.get("first_date") or "")) if details.get("first_date") else date.today()
+  except ValueError as error:
+    raise TaskProblem("Choose the date the task starts from.") from error
+  values = {"repeat": repeat, "first_date": start, "weekdays": [], "weeks_of_month": [], "day_of_month": None}
+  if repeat == "weekly":
+    values["interval_count"] = _integer(every, 1, MAX_WEEKS_APART)
+    if values["interval_count"] is None:
+      raise TaskProblem(f"Choose every 1 to {MAX_WEEKS_APART} weeks.")
+  else:
+    values["interval_count"] = _integer(every, 1, 12)
+    if values["interval_count"] not in MONTHS_APART:
+      raise TaskProblem("Choose every month, every 2, 3, 4 or 6 months, or once a year.")
+  if repeat in ("weekly", "monthly_weekday"):
+    weekdays = details.get("weekdays")
+    if details.get("repeat") == "biweekly":
+      weekdays = [start.weekday()]  # older input: every two weeks on the first date's weekday
+    elif weekdays in (None, "", []) and details.get("weekday") not in (None, ""):
+      weekdays = [details.get("weekday")]
+    values["weekdays"] = _integers(weekdays, 0, 6)
+    if not values["weekdays"]:
+      raise TaskProblem("Choose the day of the week." if repeat == "weekly" else "Choose the day of the week (such as Sunday).")
+  if repeat == "monthly_weekday":
+    values["weeks_of_month"] = _integers(details.get("weeks_of_month"), 1, 5)
+    if not values["weeks_of_month"]:
+      raise TaskProblem("Choose which one in the month: the first, second, third, fourth or last.")
+  if repeat == "monthly_day":
+    values["day_of_month"] = _integer(details.get("day_of_month"), 1, 31)
+    if values["day_of_month"] is None:
+      raise TaskProblem("Choose a day of the month from 1 to 31.")
+  values["weekday"] = values["weekdays"][0] if values["weekdays"] else None
+  return values
+
+
 def _parameters(values: dict) -> tuple:
   return (
     values["name"], values["description"]["html"], values["description"]["text"], values["repeat"], values["weekday"],
@@ -173,6 +258,7 @@ def _parameters(values: dict) -> tuple:
     values["first_notification"]["html"], values["first_notification"]["text"],
     values["second_notification"]["html"], values["second_notification"]["text"],
     values["first_notice_days"], values["second_notice_days"],
+    values["interval_count"], values["weekdays"] or None, values["weeks_of_month"] or None,
   )
 
 
@@ -204,8 +290,9 @@ def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
       f"""INSERT INTO admin_tasks (
         name, description_html, description_text, repeat, weekday, first_date, day_of_month,
         first_notification_html, first_notification_text, second_notification_html, second_notification_text,
-        first_notice_days, second_notice_days, owner_uid, owner_name, timezone, owner_email
-      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
+        first_notice_days, second_notice_days, interval_count, weekdays, weeks_of_month,
+        owner_uid, owner_name, timezone, owner_email
+      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
       (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT], values["timezone"] or "UTC", values["owner_email"] or ""),
     ).fetchone()
   return _describe(row)
@@ -219,7 +306,8 @@ def update_task(task_id: int, details: dict) -> dict:
         name = %s, description_html = %s, description_text = %s, repeat = %s, weekday = %s, first_date = %s,
         day_of_month = %s, first_notification_html = %s, first_notification_text = %s,
         second_notification_html = %s, second_notification_text = %s, first_notice_days = %s,
-        second_notice_days = %s, timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email),
+        second_notice_days = %s, interval_count = %s, weekdays = %s, weeks_of_month = %s,
+        timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email),
         updated_at = now()
       WHERE id = %s RETURNING {COLUMNS}""",
       (*_parameters(values), values["timezone"], values["owner_email"], task_id),

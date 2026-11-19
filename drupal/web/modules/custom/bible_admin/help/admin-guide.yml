@@ -283,12 +283,18 @@ sections:
       Owner column. The list shows how often each comes round and its next date.</p>
       <p><strong>Add a task</strong> (or Edit) and choose how often:</p>
       <ul>
-        <li><strong>Every week</strong>, on a day of the week.</li>
-        <li><strong>Every two weeks</strong>, from a first date: the task falls on that day and every second week after
-        it, on the same day of the week.</li>
-        <li><strong>Every month</strong>, on a day of the month (1 to 31; the 29th, 30th and 31st mean the last day in
-        shorter months).</li>
+        <li><strong>Weekly</strong>: every week, or every 2 to 8 weeks, on one or more days of the week (every week on
+        Sunday and Wednesday; every 3 weeks on Thursday).</li>
+        <li><strong>Monthly, on a day of the month</strong>: the 1st to the 31st (the 29th, 30th and 31st mean the last
+        day in shorter months).</li>
+        <li><strong>Monthly, on a weekday</strong>: the first, second, third, fourth or last (tick one or more) of one
+        or more days of the week. Communion on the first Sunday is <em>First</em> and <em>Sunday</em>; the first and
+        third Sunday is <em>First</em>, <em>Third</em> and <em>Sunday</em>.</li>
       </ul>
+      <p>For both monthly choices, <strong>How many months apart</strong> is every month, every 2, 3 (quarterly), 4 or
+      6 months, or <strong>once a year</strong>. <strong>Starting</strong> is the first date that can count: every few
+      weeks or months counts from its week or month, and a task once a year comes in its month (the last Thursday of
+      November: Starting in November, once a year, Last, Thursday).</p>
       <p>The description and the two notifications are written in the editor. Under each notification, <strong>Days
       before</strong> says when it is emailed to the person a date is scheduled for: for example 7 for a week before
       and 1 for the day before (0 is the day itself). The second needs fewer days than the first. It goes at 8:00 AM

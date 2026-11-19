@@ -109,7 +109,7 @@ bible_admin.signatures:
 
 bible_admin.tasks:
   title: 'Tasks'
-  description: 'Your recurring tasks (every week, every two weeks or every month), with the words of their first and second notifications.'
+  description: 'Your recurring tasks (weekly, monthly on a day, or monthly on a weekday such as the first Sunday), with the words of their first and second notifications.'
   route_name: bible_admin.tasks
   parent: system.admin
 
