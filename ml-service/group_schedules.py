@@ -283,7 +283,7 @@ def schedule_member_email(group_id: int, member_id: int, details: dict, created_
   except (SubscriptionProblem, ValueError):
     raise GroupProblem("Please choose the date and time to send it.")
   schedule = {
-    "kind": "message", "subject": groups.member_subject(group), "text": text, "html": html, "repeat": "once",
+    "kind": "message", "subject": groups.member_subject(group, str(details.get("subject") or "")), "text": text, "html": html, "repeat": "once",
     "on_date": on_date, "day_of_month": None, "weekday": None, "week_of_month": None, "send_time": send_time,
     "timezone": str(details["timezone"]),
   }
@@ -369,7 +369,7 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
             # A message to one member: the same email as Send on their box (groups.email_member).
             member = groups.email_member(
               schedule["group_id"], schedule["member_id"], schedule["text"], f"schedule ({schedule['created_by']})",
-              html=schedule["html"],
+              html=schedule["html"], subject=schedule["subject"],
             )
             outcome = f"Emailed to {member['name'] or 'the member'}"
             result["sent"] += 1

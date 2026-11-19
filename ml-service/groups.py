@@ -663,7 +663,7 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
   return {"to": group["owner_email"]}
 
 
-def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None) -> dict:
+def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None, subject: str | None = None) -> dict:
   """A message from the leader to **one member** (the Email link in the group's member list; added 2026-11-17 at
   the owner's request). By email only, to that member alone: From the site, **To the member's own address** (no
   hidden recipients; 2026-11-18), Reply-To the leader, and only the leader's words, with no group foot or stop link
@@ -676,7 +676,7 @@ def email_member(group_id: int, member_id: int, text: str, sent_by: str, html: s
   text, html = member_message(text, html)
   group = get_group(group_id)
   address, token = member_recipient(group_id, member_id)
-  subject = member_subject(group)
+  subject = member_subject(group, subject)
   try:
     settings = load_mail_settings()
     # To the member openly (their address is the To, not a hidden recipient); replies go to the leader.
@@ -709,8 +709,13 @@ def member_message(text: str, html: str | None) -> tuple[str, str | None]:
   return _text(text, "message", MESSAGE_LIMIT), None
 
 
-def member_subject(group: dict) -> str:
-  """The subject of a message to one member: "A message from <the leader> (<the group>)"."""
+def member_subject(group: dict, typed: str | None = None) -> str:
+  """The subject of a message to one member: the one the leader typed in the box's Subject (added 2026-11-18 at the
+  owner's request), checked as one line of plain text, else "A message from <the leader> (<the group>)" (which the
+  box starts with)."""
+  chosen = _one_line(typed or "", "subject", SUBJECT_LIMIT, required=False)
+  if chosen:
+    return chosen
   sender = group["owner_name"] or "your group's leader"
   return f"A message from {sender} ({group['name']})"
 

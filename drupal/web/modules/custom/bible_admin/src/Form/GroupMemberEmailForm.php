@@ -70,6 +70,17 @@ class GroupMemberEmailForm extends FormBase {
         '@address' => $group['owner_email'] ?: $this->t('the site\'s address (set one on your Drupal account)'),
       ]),
     ];
+    // The email's subject (added 2026-11-18 at the owner's request), starting with the one it had before.
+    $form['subject'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Subject'),
+      '#default_value' => (string) $this->t('A message from @leader (@group)', [
+        '@leader' => $group['owner_name'] ?: $this->t('your group\'s leader'),
+        '@group' => $group['name'],
+      ]),
+      '#maxlength' => 200,
+      '#required' => TRUE,
+    ];
     // The editor (GroupEditor: CKEditor 5, text format group_email; the owner's request, 2026-11-17). The ML
     // service cleans what it writes. Without the format, a plain box.
     $form['text'] = GroupEditor::field((string) $this->t('Message'), '', 8, TRUE);
@@ -114,6 +125,7 @@ class GroupMemberEmailForm extends FormBase {
     $groupId = (int) $form_state->get('group_id');
     // From the editor: HTML; from the plain box: text.
     $details = GroupEditor::value($form_state->getValue('text'));
+    $details['subject'] = trim((string) $form_state->getValue('subject'));
     // Up to a minute from now counts as now (the box was opened at "now" and the message written after).
     $sendAt = NULL;
     $when = $form_state->getValue('send_at');

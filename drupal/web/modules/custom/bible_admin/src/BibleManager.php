@@ -956,7 +956,8 @@ class BibleManager {
   public function emailGroupMember(int $groupId, int $memberId, array $message, ?array $sendAt = NULL): array {
     $group = $this->getGroup($groupId);
     // $message: html (from the editor; the ML service cleans it) or text (the plain box).
-    $details = array_intersect_key($message, ['html' => TRUE, 'text' => TRUE]);
+    // subject: the box's Subject (the ML service checks it, and uses its own wording when it is empty).
+    $details = array_intersect_key($message, ['html' => TRUE, 'text' => TRUE, 'subject' => TRUE]);
     $details['sent_by'] = $this->currentUser->getAccountName();
     if ($sendAt !== NULL) {
       $details += array_intersect_key($sendAt, ['on_date' => TRUE, 'send_time' => TRUE, 'timezone' => TRUE]);

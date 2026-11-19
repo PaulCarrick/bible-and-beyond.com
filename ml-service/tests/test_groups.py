@@ -301,6 +301,22 @@ def test_a_member_email_from_the_editor_is_cleaned_html_with_a_text_copy(outbox)
     groups.email_member(group["id"], member_id, "", "dave", html="<p> </p><img src='x'>")
 
 
+def test_a_member_email_has_the_subject_typed_in_the_box(outbox):
+  group = new_group()
+  groups.add_member(group["id"], {"email": "pat@example.org", "name": "Pat"})
+  member_id = groups.get_group(group["id"])["members"][0]["id"]
+  groups.email_member(group["id"], member_id, "See you at 7.", "dave", subject="  Bible study   tonight ")
+  email = outbox["emails"][0]
+  assert email["Subject"] == "Bible study tonight" and email["To"] == "pat@example.org"
+  assert groups.list_sent(group["id"])[0]["subject"] == "Bible study tonight (to one member)"
+  # Left empty, it has the subject it always had; a subject on two lines is refused.
+  outbox["emails"].clear()
+  groups.email_member(group["id"], member_id, "Hi", "dave", subject="")
+  assert outbox["emails"][0]["Subject"] == "A message from Deacon Dave (Deacon group)"
+  with pytest.raises(GroupProblem, match="subject"):
+    groups.email_member(group["id"], member_id, "Hi", "dave", subject="Line one\x07")
+
+
 def test_emailing_a_member_says_so_when_mail_is_off(outbox, monkeypatch):
   import contact
 

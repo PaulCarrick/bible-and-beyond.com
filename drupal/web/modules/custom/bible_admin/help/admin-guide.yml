@@ -157,7 +157,8 @@ sections:
       if any, stays).</p>
       <p>In the members list, the <strong>name</strong> of someone with an account opens their entry on Site users
       (only for those who may use Site users; a Group leader sees the name only). Click a member's <strong>email
-      address</strong> to write to that person alone: a box opens with an editor (headings, bold, italic, underline,
+      address</strong> to write to that person alone: a box opens with a <strong>Subject</strong> (it starts as "A
+      message from <em>you</em> (<em>the group</em>)"; type your own) and an editor (headings, bold, italic, underline,
       strikethrough, links, lists and quotations). <em>Send</em> emails it to them only, addressed openly to them (their
       address is the To; there is no Bcc), with replies coming to your address; <em>Cancel</em> closes the box and
       sends nothing. It goes by email even to someone who chose texts. It is not a group email, so it carries only

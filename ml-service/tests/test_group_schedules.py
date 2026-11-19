@@ -356,12 +356,13 @@ def test_a_message_to_one_member_can_wait_for_its_time(outbox):
   group = group_with_a_member()
   groups.add_member(group["id"], {"email": "sam@example.org", "name": "Sam"})
   members = {member["name"]: member["id"] for member in groups.get_group(group["id"])["members"]}
-  details = {"html": "<p>Hi <strong>Pat</strong>, see you Sunday.</p>", "on_date": "2026-11-17", "send_time": "10:30", "timezone": "America/Chicago"}
+  details = {"subject": "Sunday lunch", "html": "<p>Hi <strong>Pat</strong>, see you Sunday.</p>", "on_date": "2026-11-17", "send_time": "10:30", "timezone": "America/Chicago"}
   schedule = group_schedules.schedule_member_email(group["id"], members["Pat"], details, "dave", now=NOW)
   assert schedule["member_id"] == members["Pat"] and schedule["repeat"] == "once"
   assert local(schedule["next_run_at"]) == "Tue 2026-11-17 10:30"
   listed = group_schedules.list_schedules(group["id"])
-  assert [(each["member_name"], each["subject"]) for each in listed] == [("Pat", "A message from Deacon Dave (Care list)")]
+  # The subject typed in the box (2026-11-18).
+  assert [(each["member_name"], each["subject"]) for each in listed] == [("Pat", "Sunday lunch")]
   assert listed[0]["stopped_count"] == 0
 
   # Not before its time; then once, to Pat alone, as Send on the box would.
@@ -370,7 +371,7 @@ def test_a_message_to_one_member_can_wait_for_its_time(outbox):
   assert group_schedules.send_due(now=due, pause=0)["sent"] == 1
   assert len(outbox["emails"]) == 1
   email = outbox["emails"][0]
-  assert email["Subject"] == "A message from Deacon Dave (Care list)" and email["To"] == "pat@example.org"
+  assert email["Subject"] == "Sunday lunch" and email["To"] == "pat@example.org"
   # Like Send on the box: the words only, no group foot or stop link (2026-11-18).
   assert "Pat" in email.get_body(("html",)).get_content() and "Sent by" not in email.as_string() and email["List-Unsubscribe"] is None
   after = group_schedules.get_schedule(group["id"], schedule["id"])
