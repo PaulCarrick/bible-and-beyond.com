@@ -1083,6 +1083,25 @@ export async function fetchExternalSites(): Promise<ExternalSite[]> {
   return (await readJson<{ sites: ExternalSite[] }>(await fetch(`${mlServiceUrl}/external-sites`))).sites
 }
 
+// Kindle books (Devotionals and Other books): links to Amazon's Kindle web reader, with an optional picture.
+export interface KindleBook {
+  id: number
+  collection: 'devotionals' | 'books'
+  title: string
+  author: string
+  address: string
+  // The picture's address on the service ("/kindle-book-cover/3?v=..."), or null.
+  cover: string | null
+}
+
+export async function fetchKindleBooks(): Promise<KindleBook[]> {
+  return (await readJson<{ books: KindleBook[] }>(await fetch(`${mlServiceUrl}/kindle-books`, { credentials: 'include' }))).books
+}
+
+export function kindleCoverAddress(path: string): string {
+  return `${mlServiceUrl}${path}`
+}
+
 export async function fetchMaps(verse?: { book: number; chapter: number; verse: number }): Promise<MapInfo[]> {
   const queryString = verse ? `?${new URLSearchParams({ book: String(verse.book), chapter: String(verse.chapter), verse: String(verse.verse) })}` : ''
   return (await readJson<{ maps: MapInfo[] }>(await fetch(`${mlServiceUrl}/maps${queryString}`))).maps

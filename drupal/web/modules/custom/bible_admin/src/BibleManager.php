@@ -1315,6 +1315,75 @@ class BibleManager {
    * The external sites (external_sites.py), by name: id, name, address, host, notes, created_by, created_at and
    * updated_at.
    */
+  /**
+   * The Kindle books of the Devotionals ("devotionals") or the Other books ("books"): links to Amazon's Kindle web
+   * reader with an optional picture (kindle_books.py).
+   */
+  public function listKindleBooks(string $collection): array {
+    return $this->run(['list', '--collection=' . $collection], 'manage_kindle_books.py')['books'];
+  }
+
+  /**
+   * One Kindle book, with its picture as a data: address (cover_data_uri) for a preview.
+   */
+  public function getKindleBook(int $bookId): array {
+    return $this->run(['get', '--id=' . $bookId], 'manage_kindle_books.py')['book'];
+  }
+
+  public function saveKindleBook(?int $bookId, string $collection, string $title, string $author, string $address, bool $published): array {
+    $input = $this->groupInput(['collection' => $collection, 'title' => $title, 'author' => $author, 'address' => $address, 'is_published' => $published, 'created_by' => $this->currentUser->getAccountName()]);
+    $book = $bookId === NULL
+      ? $this->run(['create'], 'manage_kindle_books.py', $input)['book']
+      : $this->run(['update', '--id=' . $bookId], 'manage_kindle_books.py', $input)['book'];
+    $this->logKindleBook($bookId === NULL ? 'added' : 'changed', $book);
+    return $book;
+  }
+
+  public function deleteKindleBook(int $bookId): array {
+    $book = $this->run(['delete', '--id=' . $bookId], 'manage_kindle_books.py')['book'];
+    $this->logKindleBook('deleted', $book);
+    return $book;
+  }
+
+  /**
+   * Replaces a Kindle book's picture with an uploaded file, which waits in the private upload folder only while the
+   * tool copies it.
+   */
+  public function saveKindleCover(int $bookId, UploadedFile $file): array {
+    $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+    if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+      throw new BibleManagerException('The upload could not be saved.');
+    }
+    try {
+      $extension = strtolower($file->getClientOriginalExtension());
+      $file->move($directory, 'cover.' . $extension);
+      $book = $this->run(
+        ['cover', '--id=' . $bookId, '--file=' . $directory . '/cover.' . $extension, '--name=cover.' . $extension],
+        'manage_kindle_books.py',
+      )['book'];
+    }
+    finally {
+      $this->fileSystem->deleteRecursive($directory);
+    }
+    $this->logKindleBook('replaced the picture of', $book);
+    return $book;
+  }
+
+  public function removeKindleCover(int $bookId): array {
+    $book = $this->run(['remove-cover', '--id=' . $bookId], 'manage_kindle_books.py')['book'];
+    $this->logKindleBook('removed the picture of', $book);
+    return $book;
+  }
+
+  private function logKindleBook(string $change, array $book): void {
+    $this->logger->notice('@user @change the Kindle book “@title” (@collection).', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@title' => $book['title'],
+      '@collection' => $book['collection'],
+    ]);
+  }
+
   public function listExternalSites(): array {
     return $this->run(['list'], 'manage_external_sites.py')['sites'];
   }

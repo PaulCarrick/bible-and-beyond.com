@@ -8,6 +8,7 @@ ml-service/data/service_settings.json*
 ml-service/data/api_bible_usage.json
 # The owner's uploaded site icons: each install starts with the site's own.
 ml-service/data/site-icons/
+ml-service/data/kindle-covers/
 # The pictures of documents uploaded on this site.
 ml-service/data/library-images/
 ml-service/data/library-pages/

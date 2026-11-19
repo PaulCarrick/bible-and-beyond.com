@@ -675,3 +675,34 @@ bible_admin.external_site_delete:
   requirements:
     _permission: 'use external sites'
     site_id: '\d+'
+
+# Kindle books (2026-11-19): links to Amazon's Kindle web reader, with a picture, listed with the Devotionals or the
+# Other books ({collection}); their part of those pages is in LibraryListController.
+bible_admin.kindle_book_add:
+  path: '/admin/{collection}/kindle/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\KindleBookForm'
+    _title: 'Add a Kindle book'
+  requirements:
+    _permission: 'administer bibles'
+    collection: 'devotionals|books'
+
+bible_admin.kindle_book_edit:
+  path: '/admin/{collection}/kindle/{book_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\KindleBookForm'
+    _title: 'Edit a Kindle book'
+  requirements:
+    _permission: 'administer bibles'
+    collection: 'devotionals|books'
+    book_id: '\d+'
+
+bible_admin.kindle_book_delete:
+  path: '/admin/{collection}/kindle/{book_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteKindleBookForm'
+    _title: 'Delete a Kindle book'
+  requirements:
+    _permission: 'administer bibles'
+    collection: 'devotionals|books'
+    book_id: '\d+'

@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   fetchDevotionals,
   fetchExternalSites,
+  fetchKindleBooks,
   fetchMaps,
   fetchMusic,
   fetchOtherBooks,
@@ -15,7 +16,8 @@ import {
   logOut,
   resendVerification,
 } from './api'
-import type { ExternalSite, MapInfo, MusicSong } from './api'
+import type { ExternalSite, KindleBook, MapInfo, MusicSong } from './api'
+import KindleShelf from './KindleShelf'
 import BibleTab from './BibleTab'
 import BrowseTab from './BrowseTab'
 import { AccountContext } from './AccountContext'
@@ -119,6 +121,8 @@ function App() {
   const [maps, setMaps] = useState<MapInfo[]>([])
   // The external sites the administrators chose to show; their sidebar group shows only when there are some.
   const [externalSites, setExternalSites] = useState<ExternalSite[]>([])
+  // Books in Amazon's Kindle reader, listed with the Devotionals or the Other books (KindleShelf).
+  const [kindleBooks, setKindleBooks] = useState<KindleBook[]>([])
   // The published songs of the Christian music section; its sidebar group shows only when there are some.
   const [songs, setSongs] = useState<MusicSong[]>([])
   const [translations, setTranslations] = useState<Translation[]>([])
@@ -191,6 +195,9 @@ function App() {
     fetchExternalSites()
       .then(setExternalSites)
       .catch(() => setExternalSites([]))
+    fetchKindleBooks()
+      .then(setKindleBooks)
+      .catch(() => setKindleBooks([]))
   }, [])
 
   // The title and the copyright line are set in the Drupal admin. A failure to load them must not stop
@@ -352,6 +359,9 @@ function App() {
     window.scrollTo(0, 0)
   }
 
+  const kindleDevotionals = kindleBooks.filter((book) => book.collection === 'devotionals')
+  const kindleOtherBooks = kindleBooks.filter((book) => book.collection === 'books')
+
   // The commentaries and the devotionals only appear in the sidebar once there are some.
   const navGroups: NavGroup[] = [
     {
@@ -378,16 +388,17 @@ function App() {
           },
         ]
       : []),
-    ...(devotionals.length > 0
+    // A collection with only Kindle books still has its entry (there is nothing to search in them).
+    ...(devotionals.length > 0 || kindleDevotionals.length > 0
       ? [{ heading: 'Devotionals', entries: [{ view: 'devotionals' as View, label: 'Read the devotionals' }] }]
       : []),
-    ...(otherBooks.length > 0
+    ...(otherBooks.length > 0 || kindleOtherBooks.length > 0
       ? [
           {
             heading: 'Other books',
             entries: [
               { view: 'books' as View, label: 'Read other books' },
-              { view: 'searchBooks' as View, label: 'Search other books' },
+              ...(otherBooks.length > 0 ? [{ view: 'searchBooks' as View, label: 'Search other books' }] : []),
             ],
           },
         ]
@@ -653,7 +664,11 @@ function App() {
                   translations={translations}
                   isHidden={activeView !== 'devotionals'}
                   destination={destination?.kind === 'devotional' && isOtherBook(destination.devotional) ? null : destination}
+                  kindleBooks={kindleDevotionals}
                 />
+              )}
+              {devotionals.length === 0 && (
+                <KindleShelf books={kindleDevotionals} isHidden={activeView !== 'devotionals'} pageHeading="Read the devotionals" />
               )}
               {otherBooks.length > 0 && (
                 <DevotionalsTab
@@ -662,7 +677,11 @@ function App() {
                   translations={translations}
                   isHidden={activeView !== 'books'}
                   destination={destination?.kind === 'devotional' && isOtherBook(destination.devotional) ? destination : null}
+                  kindleBooks={kindleOtherBooks}
                 />
+              )}
+              {otherBooks.length === 0 && (
+                <KindleShelf books={kindleOtherBooks} isHidden={activeView !== 'books'} pageHeading="Read other books" />
               )}
               {otherBooks.length > 0 && (
                 <BookSearchPage

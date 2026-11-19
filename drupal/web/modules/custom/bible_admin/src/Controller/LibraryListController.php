@@ -157,7 +157,64 @@ class LibraryListController extends ControllerBase {
         '#weight' => -1,
       ];
     }
+    if ($collection === 'devotionals' || $collection === 'books') {
+      $build['kindle'] = $this->kindleBooks($collection);
+    }
     return $build;
+  }
+
+  /**
+   * The Kindle books of the Devotionals or the Other books (2026-11-19): links to Amazon's Kindle web reader, shown on
+   * the site with the others, each with an optional picture.
+   */
+  private function kindleBooks(string $collection): array {
+    $section = [
+      '#type' => 'details',
+      '#title' => $this->t('Kindle books'),
+      '#open' => TRUE,
+      '#weight' => 50,
+      'intro' => [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => $this->t('Books read in Amazon’s Kindle web reader, listed on the site with these. Only the link is kept: each reader opens it with their own Amazon account, so it works for those who have the book in their own Kindle library.'),
+      ],
+      'add' => [
+        '#type' => 'link',
+        '#title' => $this->t('Add a Kindle book'),
+        '#url' => Url::fromRoute('bible_admin.kindle_book_add', ['collection' => $collection]),
+        '#attributes' => ['class' => ['button', 'button--small']],
+        '#prefix' => '<p>',
+        '#suffix' => '</p>',
+      ],
+    ];
+    try {
+      $books = $this->manager->listKindleBooks($collection);
+    }
+    catch (BibleManagerException $exception) {
+      $section['error'] = ['#markup' => '<p>' . $this->t('The Kindle books could not be read: @message', ['@message' => $exception->getMessage()]) . '</p>'];
+      return $section;
+    }
+    $rows = [];
+    foreach ($books as $book) {
+      $rows[] = [
+        $book['title'],
+        $book['author'] ?: '—',
+        ['data' => ['#type' => 'link', '#title' => $this->t('Open'), '#url' => Url::fromUri($book['address']), '#attributes' => ['target' => '_blank', 'rel' => 'noopener noreferrer']]],
+        $book['cover'] ? $this->t('Yes') : $this->t('No'),
+        $book['is_published'] ? $this->t('Shown') : $this->t('Hidden'),
+        ['data' => ['#type' => 'operations', '#links' => [
+          'edit' => ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.kindle_book_edit', ['collection' => $collection, 'book_id' => $book['id']])],
+          'delete' => ['title' => $this->t('Delete'), 'url' => Url::fromRoute('bible_admin.kindle_book_delete', ['collection' => $collection, 'book_id' => $book['id']])],
+        ]]],
+      ];
+    }
+    $section['table'] = [
+      '#type' => 'table',
+      '#header' => [$this->t('Title'), $this->t('Author'), $this->t('Link'), $this->t('Picture'), $this->t('On the site'), $this->t('Operations')],
+      '#rows' => $rows,
+      '#empty' => $this->t('No Kindle books yet.'),
+    ];
+    return $section;
   }
 
 }

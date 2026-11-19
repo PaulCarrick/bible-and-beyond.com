@@ -487,6 +487,12 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
           press <em>Read</em>. The reader works like the devotionals: scroll on through the chapters, follow the
           Scripture references, and use <em>Notes</em> on any chapter. <em>All books</em> returns to the list.
         </p>
+        <p>
+          Under the list of devotionals or of other books there may be books <em>On Kindle</em>. These are not kept on
+          this site: <em>Open in Kindle</em> opens them in Amazon&rsquo;s Kindle reader in a new window, where you sign in
+          with your own Amazon account, and a book opens if it is in your Kindle library. Their words cannot be searched
+          here.
+        </p>
         <Screenshot
           name="other-books"
           width={1152}

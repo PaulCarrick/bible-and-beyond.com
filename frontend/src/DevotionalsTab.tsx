@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDevotionalContents, fetchDevotionalUnit } from './api'
+import type { KindleBook } from './api'
 import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
 import DevotionalEmailPanel from './DevotionalEmailPanel'
 import { chooseContextTranslation } from './contextTranslation'
 import DevotionalCredit from './DevotionalCredit'
+import KindleShelf from './KindleShelf'
 import LibraryList from './LibraryList'
 import type { LibraryChoices } from './LibraryList'
 import NoteText from './NoteText'
@@ -22,6 +24,8 @@ interface DevotionalsTabProps {
   isHidden: boolean
   // Where a followed link (a note's) asks the reader to open.
   destination: Destination | null
+  // The collection's Kindle books, listed under the books kept here (KindleShelf).
+  kindleBooks?: KindleBook[]
 }
 
 // A day or chapter as the reader scrolls through them. The reader's engine knows chapters of books, so
@@ -86,7 +90,7 @@ async function loadReading(devotional: string, section: number, unit: number, si
 // Read the public-domain devotionals. Choose a devotional and the month and day (or the part and
 // chapter) and the page goes there, a daily devotional starting at today. Scroll on in either
 // direction to read the days or chapters before and after.
-function DevotionalsTab({ collection = 'devotionals', devotionals, translations, isHidden, destination }: DevotionalsTabProps) {
+function DevotionalsTab({ collection = 'devotionals', devotionals, translations, isHidden, destination, kindleBooks = [] }: DevotionalsTabProps) {
   const isBooks = collection === 'books'
   const [contents, setContents] = useState<DevotionalContents | null>(null)
   const [devotionalId, setDevotionalId] = useState('')
@@ -226,6 +230,7 @@ function DevotionalsTab({ collection = 'devotionals', devotionals, translations,
         loadChoices={loadDevotionalChoices}
         onRead={readFromList}
       />
+      <KindleShelf books={kindleBooks} isHidden={isHidden || !showList} />
       <div className="browse-tab" hidden={isHidden || showList}>
         <div className="browse-controls" hidden={windowIsOpen}>
           <button type="button" className="secondary-button browse-list-link" onClick={backToList}>

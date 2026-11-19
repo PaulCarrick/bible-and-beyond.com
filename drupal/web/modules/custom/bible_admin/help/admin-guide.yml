@@ -67,6 +67,13 @@ sections:
       </ul>
       <figure><img data-guide="devotionals" alt="The Devotionals page, with the daily and chapter devotionals"><figcaption>Devotionals: daily ones (a reading for each date) and ones read chapter by chapter.</figcaption></figure>
       <figure><img data-guide="books" alt="The Other books page with its drop area and list of books"><figcaption>Other books: books read a chapter at a time, such as Wesley's sermons or the Apostles' Creed.</figcaption></figure>
+      <p><strong>Kindle books</strong>, at the foot of the Devotionals and Other books pages: books read in Amazon's
+      Kindle web reader, listed on the site under those pages' books, with an <em>Open in Kindle</em> button. Click
+      <em>Add a Kindle book</em> and give a title, an author if you like, the <em>Kindle link</em> (open the book at
+      read.amazon.com and copy the address bar; it must be an amazon.com address) and, if you like, a picture such as
+      its cover (PNG, JPEG, WebP or GIF, up to 2 MB). Clear <em>Show it on the site</em> to hide one without deleting
+      it. Only the link is kept: each reader opens the book with their own Amazon account, so it works for those who
+      have it in their own Kindle library, and its words cannot be searched.</p>
       <p><strong>To upload one:</strong> click <em>Upload</em>. A <strong>PDF, Word document or EPUB ebook</strong> can be
       uploaded as it is (its headings, bold, lists and pictures are kept); a scanned PDF is read by text recognition, so
       check its words in the preview. A spreadsheet saved as tab-separated text works too, as the page explains. Give

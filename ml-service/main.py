@@ -113,6 +113,7 @@ from search import (
   search_verses,
 )
 import document_import
+import kindle_books
 import site_icons
 from site_settings import get_public_settings, get_settings, is_login_required
 
@@ -834,6 +835,23 @@ def library_page(document: str, page: str):
     path, media_type="image/webp",
     headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
   )
+
+
+@app.get("/kindle-books")
+def kindle_books_index():
+  """The published Kindle books (Read other books): title, author, the Kindle link and the cover's address."""
+  return {"books": kindle_books.list_public_books()}
+
+
+@app.get("/kindle-book-cover/{book_id}")
+def kindle_book_cover(book_id: int):
+  """A published Kindle book's picture (PNG, JPEG, WebP or GIF only). Cached for a month: the page adds ?v=, which
+  changes when the picture is replaced."""
+  found = kindle_books.cover_file(book_id)
+  if found is None:
+    raise HTTPException(status_code=404, detail="That book has no picture.")
+  path, media_type = found
+  return FileResponse(path, media_type=media_type, headers={"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"})
 
 
 @app.get("/site-icon/{kind}")

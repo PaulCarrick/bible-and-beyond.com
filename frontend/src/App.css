@@ -3630,3 +3630,64 @@ div.welcome-lead > p {
   display: inline-block;
   cursor: default;
 }
+
+/* Kindle books (KindleShelf.tsx): under the Devotionals or Other books list, each with its picture, title, author and
+   Open in Kindle. */
+.kindle-shelf {
+  margin-top: 28px;
+}
+
+.kindle-shelf-note {
+  color: var(--muted, #555);
+  font-size: 14px;
+}
+
+.kindle-books {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.kindle-book {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+}
+
+.kindle-book-cover {
+  width: 72px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: none;
+  background: var(--surface-muted, #f2f2f2);
+}
+
+.kindle-book-no-cover {
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+}
+
+.kindle-book-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kindle-book-author {
+  color: var(--muted, #555);
+  font-size: 14px;
+}
+
+.kindle-book-details .secondary-button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
