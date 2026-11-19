@@ -1199,6 +1199,74 @@ class BibleManager {
     return $task;
   }
 
+  /**
+   * What the Schedule form offers for a task this user may see: task, dates (its next four, each value Y-m-d and
+   * label) and users (the site's open accounts, each id and label).
+   */
+  public function taskScheduleOptions(int $taskId): array {
+    $this->getTask($taskId);
+    return $this->run(['schedule-options', '--id=' . $taskId], 'manage_tasks.py');
+  }
+
+  /**
+   * The scheduled tasks of the tasks this user may see, by date. Each has id, task_id, task_name, owner_uid,
+   * owner_name, user_id, user_label, on_date (Y-m-d), past, created_by_name, created_at and updated_at.
+   */
+  public function listScheduledTasks(): array {
+    return $this->run(['schedules', ...$this->ownerArguments()], 'manage_tasks.py')['schedules'];
+  }
+
+  /**
+   * One scheduled task. Throws if this user may not see its task.
+   */
+  public function getScheduledTask(int $scheduleId): array {
+    $schedule = $this->run(['get-schedule', '--schedule=' . $scheduleId], 'manage_tasks.py')['schedule'];
+    if (!$this->mayManageSignatureOrTask($schedule)) {
+      throw new BibleManagerException('That scheduled task is not one of yours.');
+    }
+    return $schedule;
+  }
+
+  /**
+   * Gives a task to a site user on one of its next four dates (Y-m-d).
+   */
+  public function addScheduledTask(int $taskId, int $userId, string $onDate): array {
+    $this->getTask($taskId);
+    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'created_by_name' => $this->currentUser->getDisplayName()]);
+    $schedule = $this->run(['add-schedule', '--id=' . $taskId, '--by=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['schedule'];
+    $this->logScheduledTask('scheduled', $schedule);
+    return $schedule;
+  }
+
+  public function updateScheduledTask(int $scheduleId, int $userId, string $onDate): array {
+    $this->getScheduledTask($scheduleId);
+    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate]);
+    $schedule = $this->run(['update-schedule', '--schedule=' . $scheduleId], 'manage_tasks.py', $input)['schedule'];
+    $this->logScheduledTask('changed the schedule of', $schedule);
+    return $schedule;
+  }
+
+  public function removeScheduledTask(int $scheduleId): array {
+    $this->getScheduledTask($scheduleId);
+    $schedule = $this->run(['remove-schedule', '--schedule=' . $scheduleId], 'manage_tasks.py')['schedule'];
+    $this->logScheduledTask('removed the schedule of', $schedule);
+    return $schedule;
+  }
+
+  /**
+   * The log names the task, the date and the account's number, never the person's name or address.
+   */
+  private function logScheduledTask(string $change, array $schedule): void {
+    $this->logger->notice('@user @change the task “@task” (@id) for site user @account on @date.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@task' => $schedule['task_name'],
+      '@id' => $schedule['task_id'],
+      '@account' => $schedule['user_id'],
+      '@date' => $schedule['on_date'],
+    ]);
+  }
+
   private function logSignatureOrTask(string $change, string $kind, array $item): void {
     $this->logger->notice('@user @change the @kind “@name” (@id) of @owner.', [
       '@user' => $this->currentUser->getAccountName(),

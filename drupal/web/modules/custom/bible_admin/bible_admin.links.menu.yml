@@ -112,3 +112,9 @@ bible_admin.tasks:
   description: 'Your recurring tasks (every week, every two weeks or every month), with the words of their first and second notifications.'
   route_name: bible_admin.tasks
   parent: system.admin
+
+bible_admin.scheduled_tasks:
+  title: 'Scheduled tasks'
+  description: 'Who does which task on which date: a task given to a site user on one of its next four dates.'
+  route_name: bible_admin.scheduled_tasks
+  parent: system.admin

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import admin_tasks
+import scheduled_tasks
 import signatures
 from admin_tasks import TaskProblem, next_date
 from search import connect
@@ -25,12 +26,15 @@ def empty_tables():
   """Sets the stored signatures and tasks aside and puts them back, with their ids, after the test."""
   saved = {}
   with connect() as connection:
-    for table in ("admin_signatures", "admin_tasks"):
+    for table in ("admin_signatures", "admin_tasks", "admin_scheduled_tasks"):
       cursor = connection.execute(f"SELECT * FROM {table}")
       saved[table] = ([column.name for column in cursor.description], cursor.fetchall())
-      connection.execute(f"DELETE FROM {table}")
+    connection.execute("DELETE FROM admin_scheduled_tasks")
+    connection.execute("DELETE FROM admin_signatures")
+    connection.execute("DELETE FROM admin_tasks")
   yield
   with connect() as connection:
+    connection.execute("DELETE FROM admin_scheduled_tasks")
     for table, (columns, rows) in saved.items():
       connection.execute(f"DELETE FROM {table}")
       for row in rows:
@@ -176,4 +180,100 @@ def test_the_tasks_tool():
   status, answer = run_tool("manage_tasks.py", ["update", f"--id={task_id}"], task_details(repeat="daily"))
   assert status == 1 and "how often" in answer["error"]
   status, answer = run_tool("manage_tasks.py", ["delete", f"--id={task_id}"])
+  assert status == 0
+
+
+# --- scheduled tasks ---------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def site_users():
+  """Two made-up site accounts (one closed), deleted afterwards."""
+  with connect() as connection:
+    open_id = connection.execute(
+      "INSERT INTO users (email, password_hash, first_name, last_name) VALUES ('scheduled-ruth@example.org', 'x', 'Ruth', 'Test') RETURNING id"
+    ).fetchone()[0]
+    closed_id = connection.execute(
+      "INSERT INTO users (email, password_hash, disabled_at) VALUES ('scheduled-closed@example.org', 'x', now()) RETURNING id"
+    ).fetchone()[0]
+  yield open_id, closed_id
+  with connect() as connection:
+    connection.execute("DELETE FROM users WHERE id IN (%s, %s)", (open_id, closed_id))
+
+
+SUNDAY_TASK = task_details(name="Greeter", weekday=6)
+THURSDAY = date(2026, 11, 19)
+
+
+def test_the_options_are_the_next_four_dates_and_the_open_accounts(site_users):
+  open_id, closed_id = site_users
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  offered = scheduled_tasks.options(task["id"], THURSDAY)
+  assert [day["value"] for day in offered["dates"]] == ["2026-11-22", "2026-11-29", "2026-12-06", "2026-12-13"]
+  assert offered["dates"][0]["label"] == "Sunday, November 22, 2026"
+  user_ids = [user["id"] for user in offered["users"]]
+  assert open_id in user_ids and closed_id not in user_ids
+  assert {"id": open_id, "label": "Ruth Test (scheduled-ruth@example.org)"} in offered["users"]
+  every_two_weeks = admin_tasks.create_task(task_details(repeat="biweekly", first_date="2026-11-05"), OWNER, "Paul")
+  assert [day["value"] for day in scheduled_tasks.options(every_two_weeks["id"], THURSDAY)["dates"]] == ["2026-11-19", "2026-12-03", "2026-12-17", "2026-12-31"]
+  monthly = admin_tasks.create_task(task_details(repeat="monthly", day_of_month=31), OWNER, "Paul")
+  assert [day["value"] for day in scheduled_tasks.options(monthly["id"], date(2027, 1, 1))["dates"]] == ["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]
+
+
+def test_a_task_is_scheduled_changed_and_removed(site_users):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": str(open_id), "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  assert scheduled["task_name"] == "Greeter" and scheduled["user_name"] == "Ruth Test"
+  assert scheduled["on_date"] == "2026-11-29" and scheduled["owner_uid"] == OWNER and scheduled["created_by_name"] == "Paul"
+  with pytest.raises(TaskProblem, match="already has this task"):
+    scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  # A week later the 29th is still offered; three weeks later it is not, but the scheduled one may keep it.
+  later = date(2026, 12, 7)
+  changed = scheduled_tasks.update_scheduled(scheduled["id"], {"user_id": open_id, "on_date": "2026-11-29"}, later)
+  assert changed["on_date"] == "2026-11-29" and changed["past"]
+  changed = scheduled_tasks.update_scheduled(scheduled["id"], {"user_id": open_id, "on_date": "2026-12-13"}, later)
+  assert changed["on_date"] == "2026-12-13" and not changed["past"]
+  assert [item["id"] for item in scheduled_tasks.list_scheduled(OWNER)] == [scheduled["id"]]
+  assert scheduled_tasks.list_scheduled(OTHER_OWNER) == []
+  scheduled_tasks.remove_scheduled(scheduled["id"])
+  assert scheduled_tasks.list_scheduled() == []
+
+
+def test_a_schedule_is_refused_without_a_good_person_or_date(site_users):
+  open_id, closed_id = site_users
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  with pytest.raises(TaskProblem, match="site user"):
+    scheduled_tasks.add_scheduled(task["id"], {"on_date": "2026-11-22"}, OWNER, "Paul", THURSDAY)
+  with pytest.raises(TaskProblem, match="closed"):
+    scheduled_tasks.add_scheduled(task["id"], {"user_id": closed_id, "on_date": "2026-11-22"}, OWNER, "Paul", THURSDAY)
+  with pytest.raises(TaskProblem, match="next 4 dates"):
+    scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-23"}, OWNER, "Paul", THURSDAY)
+  with pytest.raises(TaskProblem, match="next 4 dates"):
+    scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-12-20"}, OWNER, "Paul", THURSDAY)
+
+
+def test_deleting_the_task_or_the_account_removes_its_schedules(site_users):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  first_day = scheduled_tasks.options(task["id"])["dates"][0]["value"]
+  scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": first_day}, OWNER, "Paul")
+  admin_tasks.delete_task(task["id"])
+  assert scheduled_tasks.list_scheduled() == []
+
+
+def test_the_schedule_commands_of_the_tool(site_users):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  status, answer = run_tool("manage_tasks.py", ["schedule-options", f"--id={task['id']}"])
+  assert status == 0 and len(answer["dates"]) == 4 and answer["task"]["name"] == "Greeter"
+  day = answer["dates"][1]["value"]
+  status, answer = run_tool("manage_tasks.py", ["add-schedule", f"--id={task['id']}", f"--by={OWNER}"], {"user_id": open_id, "on_date": day, "created_by_name": "Paul"})
+  assert status == 0 and answer["schedule"]["on_date"] == day
+  schedule_id = answer["schedule"]["id"]
+  status, answer = run_tool("manage_tasks.py", ["schedules", f"--owner={OWNER}"])
+  assert status == 0 and [item["id"] for item in answer["schedules"]] == [schedule_id]
+  status, answer = run_tool("manage_tasks.py", ["update-schedule", f"--schedule={schedule_id}"], {"user_id": open_id, "on_date": "2000-01-02"})
+  assert status == 1 and "next 4 dates" in answer["error"]
+  status, answer = run_tool("manage_tasks.py", ["remove-schedule", f"--schedule={schedule_id}"])
   assert status == 0

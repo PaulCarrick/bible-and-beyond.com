@@ -64,6 +64,14 @@ def next_date(task: dict, today: date) -> date:
   return _day_in_month(year, month, task["day_of_month"])
 
 
+def next_dates(task: dict, today: date, count: int) -> list[date]:
+  """The task's next `count` days, the first on or after `today`."""
+  days = [next_date(task, today)]
+  while len(days) < count:
+    days.append(next_date(task, days[-1] + timedelta(days=1)))
+  return days
+
+
 def describe(task: dict) -> str:
   """How often, in words, such as "Every two weeks on Thursday, from November 20, 2026"."""
   if task["repeat"] == "weekly":

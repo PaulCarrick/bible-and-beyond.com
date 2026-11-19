@@ -584,3 +584,40 @@ bible_admin.task_delete:
   requirements:
     _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::task'
     task_id: '\d+'
+
+# Scheduled tasks (scheduled_tasks.py): a task given to a site user on one of its next four dates. Schedule beside a
+# task opens the form for that task; each scheduled task is open to whoever may see its task.
+bible_admin.scheduled_tasks:
+  path: '/admin/scheduled-tasks'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\ScheduledTaskListController::build'
+    _title: 'Scheduled tasks'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
+bible_admin.task_schedule:
+  path: '/admin/tasks/{task_id}/schedule'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ScheduledTaskForm'
+    _title: 'Schedule a task'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::task'
+    task_id: '\d+'
+
+bible_admin.scheduled_task_edit:
+  path: '/admin/scheduled-tasks/{schedule_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ScheduledTaskForm'
+    _title: 'Change a scheduled task'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::schedule'
+    schedule_id: '\d+'
+
+bible_admin.scheduled_task_remove:
+  path: '/admin/scheduled-tasks/{schedule_id}/remove'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\RemoveScheduledTaskForm'
+    _title: 'Remove a scheduled task'
+  requirements:
+    _custom_access: '\Drupal\bible_admin\SignatureTaskAccess::schedule'
+    schedule_id: '\d+'

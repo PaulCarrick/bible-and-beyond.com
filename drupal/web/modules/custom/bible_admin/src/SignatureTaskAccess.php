@@ -9,8 +9,8 @@ use Drupal\Core\Access\AccessResultInterface;
 use Drupal\Core\Session\AccountInterface;
 
 /**
- * Who may open a signature's or a task's pages: the person who made it (with "keep signatures and tasks"), or
- * anyone with "administer signatures and tasks".
+ * Who may open a signature's, a task's or a scheduled task's pages: the person who made it (for a scheduled task,
+ * the one who made its task), with "keep signatures and tasks", or anyone with "administer signatures and tasks".
  */
 class SignatureTaskAccess {
 
@@ -20,6 +20,10 @@ class SignatureTaskAccess {
 
   public static function task(AccountInterface $account, string $task_id): AccessResultInterface {
     return self::check($account, fn (BibleManager $manager) => $manager->getTask((int) $task_id));
+  }
+
+  public static function schedule(AccountInterface $account, string $schedule_id): AccessResultInterface {
+    return self::check($account, fn (BibleManager $manager) => $manager->getScheduledTask((int) $schedule_id));
   }
 
   private static function check(AccountInterface $account, callable $load): AccessResultInterface {

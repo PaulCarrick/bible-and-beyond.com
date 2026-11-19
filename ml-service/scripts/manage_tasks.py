@@ -10,6 +10,12 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
                                                 fields are {html} or {text}
     manage_tasks.py update --id=ID              input as create
     manage_tasks.py delete --id=ID
+    manage_tasks.py schedule-options --id=ID    the task, its next 4 dates and the site users, for the Schedule form
+    manage_tasks.py schedules [--owner=UID]     the scheduled tasks, of everyone's tasks or one person's
+    manage_tasks.py get-schedule --schedule=ID
+    manage_tasks.py add-schedule --id=ID --by=UID   input {user_id, on_date, created_by_name}
+    manage_tasks.py update-schedule --schedule=ID   input {user_id, on_date}
+    manage_tasks.py remove-schedule --schedule=ID
 """
 
 import argparse
@@ -21,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import admin_tasks  # noqa: E402
+import scheduled_tasks  # noqa: E402
 from admin_tasks import TaskProblem  # noqa: E402
 
 
@@ -29,8 +36,14 @@ def parse_arguments(arguments=None):
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("list").add_argument("--owner", type=int)
   commands.add_parser("create").add_argument("--owner", type=int, required=True)
-  for name in ("get", "update", "delete"):
+  for name in ("get", "update", "delete", "schedule-options"):
     commands.add_parser(name).add_argument("--id", type=int, required=True)
+  commands.add_parser("schedules").add_argument("--owner", type=int)
+  add = commands.add_parser("add-schedule")
+  add.add_argument("--id", type=int, required=True)
+  add.add_argument("--by", type=int, required=True)
+  for name in ("get-schedule", "update-schedule", "remove-schedule"):
+    commands.add_parser(name).add_argument("--schedule", type=int, required=True)
   return parser.parse_args(arguments)
 
 
@@ -51,7 +64,19 @@ def run(arguments) -> dict:
     return {"ok": True, "task": admin_tasks.get_task(arguments.id)}
   if arguments.command == "delete":
     return {"ok": True, "task": admin_tasks.delete_task(arguments.id)}
+  if arguments.command == "schedule-options":
+    return {"ok": True, **scheduled_tasks.options(arguments.id)}
+  if arguments.command == "schedules":
+    return {"ok": True, "schedules": scheduled_tasks.list_scheduled(arguments.owner)}
+  if arguments.command == "get-schedule":
+    return {"ok": True, "schedule": scheduled_tasks.get_scheduled(arguments.schedule)}
+  if arguments.command == "remove-schedule":
+    return {"ok": True, "schedule": scheduled_tasks.remove_scheduled(arguments.schedule)}
   details = read_details()
+  if arguments.command == "add-schedule":
+    return {"ok": True, "schedule": scheduled_tasks.add_scheduled(arguments.id, details, arguments.by, str(details.get("created_by_name") or ""))}
+  if arguments.command == "update-schedule":
+    return {"ok": True, "schedule": scheduled_tasks.update_scheduled(arguments.schedule, details)}
   if arguments.command == "create":
     return {"ok": True, "task": admin_tasks.create_task(details, arguments.owner, str(details.get("owner_name") or ""))}
   return {"ok": True, "task": admin_tasks.update_task(arguments.id, details)}

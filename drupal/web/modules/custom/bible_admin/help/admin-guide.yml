@@ -17,7 +17,7 @@ sections:
     body: |
       <p>Everything is in the menu on the left, in alphabetical order. The pages of this site are Admin guide (this
       page), Backup and restore, Bibles, Christian music, Commentaries, Conversations and Prayer Wall, Devotionals,
-      FAQ notes, Groups, Maps, Other books, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
+      FAQ notes, Groups, Maps, Other books, Scheduled tasks, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
       Structure, Appearance and so on) belong to Drupal itself and are rarely needed.</p>
       <figure><img data-guide="admin-menu" alt="The Administration page: the menu on the left in alphabetical order, starting with Admin guide, and the same list in the middle with a line about each page"><figcaption>The menu, and the Administration page that lists the same pages.</figcaption></figure>
       <p><strong>Who sees what</strong> depends on the roles of your Drupal account (People, then Edit beside a name, then Roles):</p>
@@ -25,7 +25,7 @@ sections:
         <li><strong>Administrator</strong>: everything, Drupal included.</li>
         <li><strong>Website administrator</strong>: every page of this site, but nothing of Drupal's own. Give this to the people who run the website.</li>
         <li><strong>Bible administrator</strong>: Bibles, Commentaries, Devotionals, Other books, Christian music, Maps and Verse a day pictures, and on Site settings only the verse-window numbers.</li>
-        <li><strong>Group leader</strong>: only Groups, Signatures and Tasks, and only the ones they made (for example a deacon and the people in their care).</li>
+        <li><strong>Group leader</strong>: only Groups, Signatures, Tasks and Scheduled tasks, and only the ones they made (for example a deacon and the people in their care).</li>
       </ul>
       <p>To add someone, use People, then Add user: give them a user name, an email address (replies to their group
       emails go there) and a first password, tick the role, and tell them the password privately. The site cannot
@@ -284,6 +284,20 @@ sections:
         shorter months).</li>
       </ul>
       <p>The description and the two notifications are written in the editor and may be left empty.</p>
+
+  - id: scheduled-tasks
+    title: Scheduled tasks
+    permissions: ['keep signatures and tasks', 'administer signatures and tasks']
+    body: |
+      <p>Who does which task on which date. On the Tasks page, choose <strong>Schedule</strong> beside a task, then
+      pick the <strong>site user</strong> and the <strong>date</strong>: the list holds the task's next date and the
+      three after it (for a task every week on Sunday, the next four Sundays). Then Schedule. The same person cannot
+      have the same task twice on one date.</p>
+      <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away
+      under <em>Past</em>. <strong>Edit</strong> changes the person or the date (a date already passed stays in the
+      list as "its date now"); <strong>Remove</strong> takes away that date for that person and keeps the task.
+      Deleting a task, or a site user's account, removes its scheduled dates. You see the scheduled dates of your own
+      tasks; a Website administrator sees all of them.</p>
 
   - id: site-users
     title: Site users

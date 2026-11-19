@@ -32,7 +32,7 @@ class TaskListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('A task comes round every week, every two weeks or every month, and has the words of a first and a second notification. Only you see your tasks. (The notifications are not sent yet.)'),
+        '#value' => $this->t('A task comes round every week, every two weeks or every month, and has the words of a first and a second notification. Only you see your tasks. (The notifications are not sent yet.) Use Schedule beside a task to give it to a site user on one of its next dates; the Scheduled tasks page lists them.'),
       ],
     ];
     try {
@@ -47,6 +47,7 @@ class TaskListController extends ControllerBase {
     $rows = [];
     foreach ($tasks as $task) {
       $links = [
+        ['title' => $this->t('Schedule'), 'url' => Url::fromRoute('bible_admin.task_schedule', ['task_id' => $task['id']])],
         ['title' => $this->t('Edit'), 'url' => Url::fromRoute('bible_admin.task_edit', ['task_id' => $task['id']])],
         ['title' => $this->t('Delete'), 'url' => Url::fromRoute('bible_admin.task_delete', ['task_id' => $task['id']])],
       ];
