@@ -20,11 +20,13 @@ interface AccountPageProps {
   token: string
   onDone: (user: AccountUser) => void
   onNavigate: (view: View) => void
+  // "Login required" is on (Site settings): an account is needed, so the pages do not call it optional.
+  isLoginRequired?: boolean
 }
 
 // The pages for setting up an account, logging in and getting a forgotten password back. None is
 // needed to use the site.
-function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
+function AccountPage({ mode, token, onDone, onNavigate, isLoginRequired = false }: AccountPageProps) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -101,8 +103,11 @@ function AccountPage({ mode, token, onDone, onNavigate }: AccountPageProps) {
   const heading = { register: 'Set up account', login: 'Log in', forgot: 'Forgot your password?', reset: 'Choose a new password' }[mode]
   const intro = {
     register:
-      'An account is optional. Everything on this site works without one; it will be used later for features that are just for you. Set it up with an email address (we email you a link to confirm it) or, if you have none, with a cell phone number (we text you a code to confirm it, and you log in with it).',
-    login: 'Logging in is optional. Everything on this site works without it.',
+      (isLoginRequired
+        ? 'You need an account to use this site.'
+        : 'An account is optional. Everything on this site works without one; it will be used later for features that are just for you.') +
+      ' Set it up with an email address (we email you a link to confirm it) or, if you have none, with a cell phone number (we text you a code to confirm it, and you log in with it).',
+    login: isLoginRequired ? 'Please log in to use this site.' : 'Logging in is optional. Everything on this site works without it.',
     forgot: 'Enter the email address of your account, or the phone number you log in with, and we will send you a link to choose a new password (by email or by text).',
     reset: 'Choose a new password for your account.',
   }[mode]

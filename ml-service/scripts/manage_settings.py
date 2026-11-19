@@ -6,6 +6,7 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_settings.py get
     manage_settings.py set --context-verses-before=5 --context-verses-after=10 --related-verses-limit=10
     manage_settings.py set --site-title="Bible and Beyond" --copyright-text="Copyright 2026 ..."
+    manage_settings.py set --welcome-text="..." --login-required=yes
 
 On "set", any setting you leave out is not changed.
 """
@@ -38,6 +39,8 @@ def parse_arguments():
     change.add_argument("--related-verses-limit", type=int)
     change.add_argument("--site-title", type=str)
     change.add_argument("--copyright-text", type=str)
+    change.add_argument("--welcome-text", type=str)
+    change.add_argument("--login-required", choices=["yes", "no"])
     return parser.parse_args()
 
 
@@ -62,6 +65,8 @@ def run(arguments):
         "related_verses_limit": arguments.related_verses_limit,
         "site_title": arguments.site_title,
         "copyright_text": arguments.copyright_text,
+        "welcome_text": arguments.welcome_text,
+        "login_required": None if arguments.login_required is None else arguments.login_required == "yes",
     }
     changes = {key: value for key, value in chosen.items() if value is not None}
     if not changes:

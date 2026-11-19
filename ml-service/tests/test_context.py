@@ -18,7 +18,8 @@ SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "manage_settings.p
 
 GENESIS, JOHN, REVELATION = 1, 43, 66
 # The settings also hold the site title and copyright line; these tests are about the numbers.
-TEXT = {"site_title": DEFAULTS["site_title"], "copyright_text": DEFAULTS["copyright_text"]}
+# The settings that are not numbers, at their defaults.
+TEXT = {key: DEFAULTS[key] for key in ("site_title", "copyright_text", "welcome_text", "login_required")}
 
 
 @pytest.fixture(autouse=True)

@@ -3,8 +3,9 @@
 The Drupal "Site settings" page changes them through scripts/manage_settings.py, and the public
 site reads them here. A missing or invalid value falls back to the default.
 
-Only these are kept here: the numbers for the verse windows and the two texts the public pages show
-(the site title and the copyright line). The email server settings, which include a password, live
+Only these are kept here: the numbers for the verse windows, the texts the public pages show (the site
+title, the copyright line and the welcome page's first paragraph) and whether a login is required to use
+the site at all. The email server settings, which include a password, live
 in Drupal and never reach this table or the public API.
 """
 
@@ -28,7 +29,18 @@ LIMITS = {
 TEXT_LIMITS = {
   "site_title": (1, 60),
   "copyright_text": (0, 300),
+  "welcome_text": (1, 1500),
 }
+
+# Each yes-or-no setting.
+BOOLEANS = {"login_required"}
+
+WELCOME_TEXT = (
+  "Bible and Beyond is a free, non-commercial site for reading and studying the Bible. It brings together "
+  "public-domain Bibles, the Hebrew and Greek behind the English, cross references, classic commentaries and "
+  "devotional books, so that from a single verse you can see what it says in the original languages, what other "
+  "verses it points to, and what great teachers have written about it."
+)
 
 DEFAULTS = {
   "context_verses_before": 5,
@@ -36,6 +48,9 @@ DEFAULTS = {
   "related_verses_limit": 10,
   "site_title": "Bible and Beyond",
   "copyright_text": "Copyright © 2026 by Paul Carrick. All Rights Reserved.",
+  "welcome_text": WELCOME_TEXT,
+  # When on, only the sign-in pages work until a visitor logs in (main.py require_login).
+  "login_required": False,
 }
 
 # A line of plain text: no line breaks or other control characters.
@@ -51,6 +66,8 @@ def label_of(key):
 
 
 def is_valid(key, value):
+  if key in BOOLEANS:
+    return isinstance(value, bool)
   if key in TEXT_LIMITS:
     smallest, largest = TEXT_LIMITS[key]
     return (
@@ -76,23 +93,38 @@ def get_settings():
 
 
 def get_public_settings():
-  """What the public pages may know: the title and the copyright line, and nothing else."""
+  """What the public pages may know: the title, the copyright line, the welcome paragraph and whether a login
+  is required, and nothing else."""
   settings = get_settings()
-  return {"title": settings["site_title"], "copyright": settings["copyright_text"]}
+  return {
+    "title": settings["site_title"],
+    "copyright": settings["copyright_text"],
+    "welcome_text": settings["welcome_text"],
+    "login_required": settings["login_required"],
+  }
+
+
+def is_login_required():
+  return get_settings()["login_required"]
 
 
 def save_settings(values):
   """Check every value, then save them all together. Nothing is saved if one is not allowed.
 
-  Text values are trimmed first, so a stray space at either end is not an error.
+  Text values are trimmed first, so a stray space at either end is not an error. The welcome paragraph is one
+  paragraph: its line breaks and runs of spaces become single spaces.
   """
   unknown = [key for key in values if key not in DEFAULTS]
   if unknown:
     raise SettingsProblem(f"Unknown setting: {', '.join(unknown)}.")
   cleaned = {key: value.strip() if isinstance(value, str) else value for key, value in values.items()}
+  if isinstance(cleaned.get("welcome_text"), str):
+    cleaned["welcome_text"] = " ".join(cleaned["welcome_text"].split())
   for key, value in cleaned.items():
     if is_valid(key, value):
       continue
+    if key in BOOLEANS:
+      raise SettingsProblem(f"The {label_of(key)} setting must be on or off.")
     if key in TEXT_LIMITS:
       smallest, largest = TEXT_LIMITS[key]
       if isinstance(value, str) and CONTROL_CHARACTERS.search(value):

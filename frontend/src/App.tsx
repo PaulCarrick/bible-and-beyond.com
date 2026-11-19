@@ -61,6 +61,9 @@ import type { View } from './views'
 import './App.css'
 
 // What the pages show until the administrator's settings arrive, and if they cannot be had.
+// The pages a visitor who is not logged in may open while "Login required" is on.
+const lockedOutViews: View[] = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe', 'privacy']
+
 const defaultSiteSettings: SiteSettings = {
   title: 'Bible and Beyond',
   copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
@@ -245,6 +248,18 @@ function App() {
   useEffect(() => {
     document.title = siteSettings.title
   }, [siteSettings.title])
+
+  // "Login required" (Site settings): until a visitor logs in, only the sign-in pages are shown (the API refuses the
+  // rest). Logging in then reloads the page, so everything the site lists is loaded for the account.
+  const isLockedOut = areSettingsLoaded && isAccountKnown && siteSettings.login_required === true && user === null
+  const wasLockedOut = useRef(false)
+  useEffect(() => {
+    if (wasLockedOut.current && !isLockedOut) {
+      window.location.assign(addressFor('welcome'))
+    }
+    wasLockedOut.current = isLockedOut
+  }, [isLockedOut])
+  const lockedOutView: View = lockedOutViews.includes(activeView) ? activeView : 'login'
 
   const handleVerified = useCallback((verifiedUser: AccountUser | null) => setUser(verifiedUser), [])
 
@@ -453,23 +468,49 @@ function App() {
             logOut()
               .catch(() => undefined)
               .finally(() => {
+                if (siteSettings.login_required) {
+                  // Nothing the account loaded is left on the page.
+                  window.location.assign(addressFor('login'))
+                  return
+                }
                 setUser(null)
                 navigate('welcome')
               })
           }}
         />
 
-        <div className="site-body">
-          <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />
+        <div className={isLockedOut ? 'site-body site-body-without-nav' : 'site-body'}>
+          {!isLockedOut && <SideNav groups={navGroups} activeView={activeView} isOpen={isMenuOpen} onNavigate={navigate} />}
 
           {/* The page content and the footer share the column to the right of the sidebar. */}
           <div className="site-column">
+            {!areSettingsLoaded || !isAccountKnown ? (
+              // A moment while the settings and the login are checked, so a closed site never shows its pages.
+              <main className="site-main" id="content" />
+            ) : isLockedOut ? (
+              <main className="site-main" id="content">
+                {lockedOutView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
+                {lockedOutView === 'verify' && emailLink && <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />}
+                {lockedOutView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
+                {(lockedOutView === 'register' || lockedOutView === 'login' || lockedOutView === 'forgot' || lockedOutView === 'reset') && (
+                  <AccountPage
+                    key={lockedOutView}
+                    mode={lockedOutView}
+                    token={emailLink?.token ?? ''}
+                    onDone={(loggedInUser) => setUser(loggedInUser)}
+                    onNavigate={navigate}
+                    isLoginRequired
+                  />
+                )}
+              </main>
+            ) : (
             <main className="site-main" id="content">
               {loadErrorMessage && <p className="error">{loadErrorMessage}</p>}
 
               {activeView === 'welcome' && (
                 <WelcomePage
                 siteTitle={siteSettings.title}
+                  welcomeText={siteSettings.welcome_text}
                   translations={translations}
                   commentaries={commentaries}
                   devotionals={devotionals}
@@ -645,6 +686,7 @@ function App() {
                 </>
               )}
             </main>
+            )}
 
             <SiteFooter copyrightText={siteSettings.copyright} />
           </div>

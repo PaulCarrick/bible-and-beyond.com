@@ -403,6 +403,10 @@ export interface SiteSettings {
   // ("/site-icon/header?v=..."); null (or missing) means the site's own icon.
   header_icon?: string | null
   tab_icon?: string | null
+  // The welcome page's first paragraph, set on the Site settings screen (missing: the site's own).
+  welcome_text?: string
+  // When true only the sign-in pages work until a visitor logs in (the API refuses the rest).
+  login_required?: boolean
 }
 
 // A visitor who has set up an account and is logged in.

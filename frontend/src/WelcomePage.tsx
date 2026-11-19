@@ -48,6 +48,7 @@ function describeDevotionals(devotionals: DevotionalInfo[]): ReactNode {
 
 interface WelcomePageProps {
   siteTitle: string
+  welcomeText?: string
   translations: Translation[]
   commentaries: CommentarySource[]
   devotionals: DevotionalInfo[]
@@ -62,7 +63,7 @@ interface WelcomePageProps {
 
 // The page the site opens on: what it is and what is in it. How to use it, and where the texts come from, are on
 // the Help page.
-function WelcomePage({ siteTitle, translations, commentaries, devotionals, otherBooks = [], songs = [], maps = [], onNavigate }: WelcomePageProps) {
+function WelcomePage({ siteTitle, welcomeText, translations, commentaries, devotionals, otherBooks = [], songs = [], maps = [], onNavigate }: WelcomePageProps) {
   const bibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
     .filter((translation) => translation.source === 'api_bible')
@@ -71,11 +72,13 @@ function WelcomePage({ siteTitle, translations, commentaries, devotionals, other
   return (
     <div className="welcome">
       <h1>Welcome to {siteTitle}</h1>
+      {/* Set on the Site settings screen; the site's own words until the settings arrive. */}
       <p className="welcome-lead">
-        {siteTitle} is a free, non-commercial site for reading and studying the Bible. It brings together
-        public-domain Bibles, the Hebrew and Greek behind the English, cross references, classic commentaries and
-        devotional books, so that from a single verse you can see what it says in the original languages, what other
-        verses it points to, and what great teachers have written about it.
+        {welcomeText ??
+          `${siteTitle} is a free, non-commercial site for reading and studying the Bible. It brings together ` +
+            'public-domain Bibles, the Hebrew and Greek behind the English, cross references, classic commentaries and ' +
+            'devotional books, so that from a single verse you can see what it says in the original languages, what ' +
+            'other verses it points to, and what great teachers have written about it.'}
       </p>
 
       <h2>What you can do</h2>

@@ -77,6 +77,11 @@
   flex: 1;
 }
 
+/* While "Login required" keeps a visitor to the sign-in pages there is no sidebar: the page takes the width. */
+.site-body.site-body-without-nav {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* The column runs the whole height of the page, so its divider does; what is in it stays in view. */
 .side-nav {
   border-right: 1px solid var(--border);

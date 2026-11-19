@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from datetime import date
 from typing import Literal
 
@@ -111,7 +112,7 @@ from search import (
 )
 import document_import
 import site_icons
-from site_settings import get_public_settings, get_settings
+from site_settings import get_public_settings, get_settings, is_login_required
 
 # Comma-separated list. The live site calls /api on its own domain, so it needs no entry.
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -129,6 +130,42 @@ def query_took_too_long(_request: Request, _error: psycopg.errors.QueryCanceled)
     status_code=503,
     content={"detail": "That took too long. Please try more specific words, or try again in a moment."},
   )
+
+# "Login required" (Site settings): while it is on, only these work for a visitor who is not logged in: the
+# sign-in and account pages, what the page frame needs (the title, the icons), the links in our emails and
+# Telnyx's webhook. Everything else answers 401. The setting is read at most every few seconds.
+OPEN_WITHOUT_LOGIN = {"/health", "/site-settings", "/contact-settings", "/subscriptions/unsubscribe", "/sms/webhook"}
+OPEN_PREFIXES_WITHOUT_LOGIN = ("/account/", "/site-icon/")
+LOGIN_SETTING_SECONDS = 5
+_login_setting = {"value": False, "read_at": None}
+
+
+def login_is_required():
+  now = time.monotonic()
+  if _login_setting["read_at"] is None or now - _login_setting["read_at"] > LOGIN_SETTING_SECONDS:
+    try:
+      _login_setting["value"] = is_login_required()
+    except Exception:  # The database being down must not open a closed site; keep the last answer.
+      if _login_setting["read_at"] is None:
+        raise
+    _login_setting["read_at"] = now
+  return _login_setting["value"]
+
+
+def is_open_without_login(path):
+  return path in OPEN_WITHOUT_LOGIN or path.startswith(OPEN_PREFIXES_WITHOUT_LOGIN)
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+  if request.method == "OPTIONS" or is_open_without_login(request.url.path):
+    return await call_next(request)
+  if await run_in_threadpool(login_is_required) and await run_in_threadpool(
+    user_for_token, request.cookies.get(SESSION_COOKIE)
+  ) is None:
+    return JSONResponse(status_code=401, content={"detail": "Please log in to use this site.", "login_required": True})
+  return await call_next(request)
+
 
 app.add_middleware(
   CORSMiddleware,

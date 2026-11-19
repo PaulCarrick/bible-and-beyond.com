@@ -127,6 +127,9 @@ class BibleManager {
       'related_verses_limit' => '--related-verses-limit=',
       'site_title' => '--site-title=',
       'copyright_text' => '--copyright-text=',
+      'welcome_text' => '--welcome-text=',
+      // 'yes' or 'no'.
+      'login_required' => '--login-required=',
     ];
     $arguments = ['set'];
     $changed = [];

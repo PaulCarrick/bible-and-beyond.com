@@ -14,7 +14,8 @@ from fastapi.testclient import TestClient
 
 from main import app
 from search import connect
-from site_settings import DEFAULTS, SettingsProblem, get_public_settings, get_settings, save_settings
+import main
+from site_settings import DEFAULTS, WELCOME_TEXT, SettingsProblem, get_public_settings, get_settings, save_settings
 
 client = TestClient(app)
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "manage_settings.py"
@@ -28,8 +29,11 @@ def clean_settings():
       connection.execute("DELETE FROM site_settings")
 
   clear()
+  # The API keeps the Login required answer for a few seconds; each test starts without it.
+  main._login_setting["read_at"] = None
   yield
   clear()
+  main._login_setting["read_at"] = None
 
 
 def test_the_defaults_are_what_the_site_showed_before_they_could_be_changed():
@@ -107,14 +111,16 @@ def test_a_stored_value_that_is_not_allowed_falls_back_to_the_default():
 def test_the_public_answer_has_the_title_and_the_copyright_line_and_nothing_else():
   save_settings({"site_title": "Shown", "copyright_text": "Mine", "context_verses_before": 9})
 
-  assert get_public_settings() == {"title": "Shown", "copyright": "Mine"}
+  public = {"title": "Shown", "copyright": "Mine", "welcome_text": WELCOME_TEXT, "login_required": False}
+  assert get_public_settings() == public
   # The API adds only the addresses of the uploaded icons (none here).
-  assert client.get("/site-settings").json() == {"title": "Shown", "copyright": "Mine", "header_icon": None, "tab_icon": None}
+  assert client.get("/site-settings").json() == {**public, "header_icon": None, "tab_icon": None}
 
 
 def test_the_api_serves_the_current_values_when_nothing_has_been_saved():
   assert client.get("/site-settings").json() == {
-    "title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT, "header_icon": None, "tab_icon": None,
+    "title": "Bible and Beyond", "copyright": CURRENT_COPYRIGHT, "welcome_text": WELCOME_TEXT,
+    "login_required": False, "header_icon": None, "tab_icon": None,
   }
 
 
@@ -127,7 +133,7 @@ def test_the_settings_tool_sets_and_reads_the_texts():
   assert status == 0
   assert result["settings"]["site_title"] == "Daily Bread"
   assert result["settings"]["copyright_text"] == "© 2026 Paul “the author”. All rights reserved."
-  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}}
+  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}, "welcome_text": {"min": 1, "max": 1500}}
 
   status, result = run("set", "--copyright-text=")
   assert status == 0 and result["settings"]["copyright_text"] == "" and result["settings"]["site_title"] == "Daily Bread"
@@ -144,3 +150,58 @@ def test_the_stored_value_is_a_json_string():
     value = connection.execute("SELECT value FROM site_settings WHERE key = 'site_title'").fetchone()[0]
 
   assert value == "Stored"
+
+
+def test_the_welcome_paragraph_is_one_paragraph_of_plain_text():
+  assert get_settings()["welcome_text"].startswith("Bible and Beyond is a free, non-commercial site")
+
+  saved = save_settings({"welcome_text": "  A place to read\n\nthe   Bible.  "})
+
+  assert saved["welcome_text"] == "A place to read the Bible."
+  with pytest.raises(SettingsProblem, match="welcome text must be from 1 to 1500"):
+    save_settings({"welcome_text": "  \n "})
+  with pytest.raises(SettingsProblem, match="welcome text must be from 1 to 1500"):
+    save_settings({"welcome_text": "x" * 1501})
+
+
+def test_login_required_is_off_unless_turned_on():
+  assert get_settings()["login_required"] is False
+
+  assert save_settings({"login_required": True})["login_required"] is True
+  assert save_settings({"login_required": False})["login_required"] is False
+  with pytest.raises(SettingsProblem, match="must be on or off"):
+    save_settings({"login_required": 1})
+
+
+def test_while_login_is_required_a_visitor_gets_only_the_sign_in_pages(monkeypatch):
+  # Off: anyone may use the site.
+  assert client.get("/books").status_code == 200
+
+  save_settings({"login_required": True})
+  main._login_setting["read_at"] = None
+
+  refused = client.get("/books")
+  assert refused.status_code == 401
+  assert refused.json() == {"detail": "Please log in to use this site.", "login_required": True}
+  assert client.get("/music").status_code == 401
+  # What the sign-in pages and the page frame need still works.
+  assert client.get("/site-settings").json()["login_required"] is True
+  assert client.get("/health").status_code == 200
+  assert client.get("/account/me").json() == {"user": None}
+  assert client.options("/books", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"}).status_code != 401
+
+  # A logged-in visitor uses the site as before.
+  monkeypatch.setattr(main, "user_for_token", lambda token: {"id": 1} if token == "good" else None)
+  assert client.get("/books", cookies={"session": "good"}).status_code == 200
+  assert client.get("/books", cookies={"session": "stale"}).status_code == 401
+
+
+def test_the_settings_tool_sets_login_required_and_the_welcome_text():
+  completed = subprocess.run(
+    [sys.executable, str(SCRIPT), "set", "--login-required=yes", "--welcome-text=Hello there."],
+    capture_output=True, text=True, check=False,
+  )
+  result = json.loads(completed.stdout)
+
+  assert completed.returncode == 0 and result["settings"]["login_required"] is True
+  assert result["settings"]["welcome_text"] == "Hello there."

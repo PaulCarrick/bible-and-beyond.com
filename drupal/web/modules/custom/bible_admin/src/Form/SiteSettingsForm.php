@@ -19,7 +19,8 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *
  * What a person sees and can change depends on who they are. Someone who may administer Bibles sees
  * the two numbers for the verse windows. Someone who may administer the site also sees the site
- * title, the copyright line and the email server settings.
+ * title, the copyright line, the welcome paragraph,
+ * Login required and the email server settings.
  *
  * The title, the copyright line and the numbers are saved in the Bible database, which the public
  * site reads, so a change shows at once. The email settings, which include a password, are saved in
@@ -128,6 +129,21 @@ class SiteSettingsForm extends FormBase {
         '#default_value' => $settings['copyright_text'],
         '#maxlength' => $textLimits['copyright_text']['max'],
         '#size' => 80,
+      ];
+      $form['site']['welcome_text'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('Welcome paragraph'),
+        '#description' => $this->t('The first paragraph of the Welcome page, under "Welcome to …". Plain text, one paragraph (line breaks become spaces), up to @max characters.', ['@max' => $textLimits['welcome_text']['max']]),
+        '#default_value' => $settings['welcome_text'],
+        '#maxlength' => $textLimits['welcome_text']['max'],
+        '#rows' => 5,
+        '#required' => TRUE,
+      ];
+      $form['site']['login_required'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Login required'),
+        '#description' => $this->t('When ticked, visitors see only the log-in, set-up-account and password pages until they log in; nothing else on the site (or its API) works for them. Anyone can still set up an account.'),
+        '#default_value' => (bool) $settings['login_required'],
       ];
       $this->buildIcons($form);
     }
@@ -293,6 +309,10 @@ class SiteSettingsForm extends FormBase {
       elseif ($file->getSize() > BibleManager::MAX_ICON_BYTES) {
         $form_state->setErrorByName($kind . '_icon', $this->t('The @label is larger than @size KB.', ['@label' => mb_strtolower($label), '@size' => (int) (BibleManager::MAX_ICON_BYTES / 1024)]));
       }
+    }
+    $welcome = trim((string) $form_state->getValue('welcome_text'));
+    if ($welcome === '' || mb_strlen($welcome) > (int) $textLimits['welcome_text']['max']) {
+      $form_state->setErrorByName('welcome_text', $this->t('The welcome paragraph must be from 1 to @max characters.', ['@max' => $textLimits['welcome_text']['max']]));
     }
     $copyright = trim((string) $form_state->getValue('copyright_text'));
     if (mb_strlen($copyright) > (int) $textLimits['copyright_text']['max']) {
@@ -538,6 +558,8 @@ class SiteSettingsForm extends FormBase {
     if ($this->canEditSite()) {
       $values['site_title'] = trim((string) $form_state->getValue('site_title'));
       $values['copyright_text'] = trim((string) $form_state->getValue('copyright_text'));
+      $values['welcome_text'] = trim((string) $form_state->getValue('welcome_text'));
+      $values['login_required'] = $form_state->getValue('login_required') ? 'yes' : 'no';
     }
 
     try {
