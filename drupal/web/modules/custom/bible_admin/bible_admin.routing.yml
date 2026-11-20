@@ -202,6 +202,68 @@ bible_admin.faq_note_delete:
     _permission: 'administer faq notes'
     note_id: '\d+'
 
+# The FAQ questions (2026-11-20): the site's own list, grouped under headings, and the words about the site sent
+# to Gemini. Open to whoever may administer the FAQ notes.
+bible_admin.faq_questions:
+  path: '/admin/faq-questions'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\FaqQuestionListController::build'
+    _title: 'FAQ questions'
+  requirements:
+    _permission: 'administer faq notes'
+
+bible_admin.faq_question_add:
+  path: '/admin/faq-questions/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqQuestionForm'
+    _title: 'Add a FAQ question'
+  requirements:
+    _permission: 'administer faq notes'
+
+bible_admin.faq_question_edit:
+  path: '/admin/faq-questions/{question_id}/edit'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqQuestionForm'
+    _title: 'Edit a FAQ question'
+  requirements:
+    _permission: 'administer faq notes'
+    question_id: '\d+'
+
+bible_admin.faq_question_delete:
+  path: '/admin/faq-questions/{question_id}/delete'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DeleteFaqQuestionForm'
+    _title: 'Delete a FAQ question'
+  requirements:
+    _permission: 'administer faq notes'
+    question_id: '\d+'
+
+bible_admin.faq_question_move:
+  path: '/admin/faq-questions/{question_id}/move/{direction}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\FaqQuestionListController::move'
+  requirements:
+    _permission: 'administer faq notes'
+    _csrf_token: 'TRUE'
+    question_id: '\d+'
+    direction: 'up|down'
+
+bible_admin.faq_about:
+  path: '/admin/faq-questions/about'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqAboutForm'
+    _title: 'About this site, for the FAQ answers'
+  requirements:
+    _permission: 'administer faq notes'
+
+bible_admin.faq_built_in:
+  path: '/admin/faq-questions/built-in'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\FaqBuiltInForm'
+    _title: 'Go back to the built-in FAQ questions'
+  requirements:
+    _permission: 'administer faq notes'
+
 # The Christian music section: songs with an MP3 or MP4 file, open to whoever may administer the Bibles.
 # Several files at once (the drop area on the Christian music, Devotionals and Other books pages,
 # js/bulk-upload.js): the page sends one file a time to this route, which saves it as a new item named after

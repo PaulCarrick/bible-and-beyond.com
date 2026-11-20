@@ -17,7 +17,7 @@ sections:
     body: |
       <p>Everything is in the menu on the left, in alphabetical order. The pages of this site are Admin guide (this
       page), Backup and restore, Bibles, Christian music, Commentaries, Conversations and Prayer Wall, Devotionals,
-      External sites, FAQ notes, Groups, Maps, Other books, Scheduled tasks, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
+      External sites, FAQ notes, FAQ questions, Groups, Maps, Other books, Scheduled tasks, Signatures, Site settings, Site users, Tasks and Verse a day pictures. The others (Content,
       Structure, Appearance and so on) belong to Drupal itself and are rarely needed.</p>
       <figure><img data-guide="admin-menu" alt="The Administration page: the menu on the left in alphabetical order, starting with Admin guide, and the same list in the middle with a line about each page"><figcaption>The menu, and the Administration page that lists the same pages.</figcaption></figure>
       <p><strong>Who sees what</strong> depends on the roles of your Drupal account (People, then Edit beside a name, then Roles):</p>
@@ -288,6 +288,25 @@ sections:
       site is shown; clear the box for a site that is only for you. The list's <em>Sidebar</em> column says which are
       shown.</p>
       <figure><img data-guide="external-sites" alt="External sites: Add a site, and a table of two sites, one with Open and Sign in buttons and the Kindle reader with Open, each with its site and notes"><figcaption>External sites: Open opens each in its own window.</figcaption></figure>
+
+  - id: faq-questions
+    title: FAQ questions
+    permissions: ['administer faq notes']
+    body: |
+      <p>The questions visitors can choose on the FAQ page, in order under their headings. Until you change one, a
+      site shows the questions built into Bible and Beyond; your first change makes the list the site's own.</p>
+      <ul>
+        <li><strong>Add a question</strong>: choose its heading (or <em>A new heading…</em>) and write it as visitors
+        will see it. The AI answers it the first time someone opens it and keeps the answer for a month.</li>
+        <li><strong>Edit</strong>: reword it or move it under another heading (it goes last there). A reworded question
+        gets a new answer, and its note moves with it.</li>
+        <li><strong>Up</strong> and <strong>Down</strong> move a question within its heading; <strong>Delete</strong>
+        takes it off the FAQ (its note stays on FAQ notes, not shown).</li>
+        <li><strong>About this site</strong>: a few sentences on who the site is for, sent to the AI with every
+        question so its answers fit your readers (for a Celebrate Recovery site: people in Christ-centred recovery).
+        Only the plain words are sent.</li>
+        <li><strong>Go back to the built-in questions</strong> replaces the site's own list (asks first).</li>
+      </ul>
 
   - id: faq-notes
     title: FAQ notes

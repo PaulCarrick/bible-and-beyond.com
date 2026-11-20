@@ -1516,6 +1516,66 @@ class BibleManager {
   }
 
   /**
+   * The site's FAQ list for the FAQ questions page: source ("site", or "built-in" while it has none of its own),
+   * about (the words about who the site is for, sent to Gemini) and groups (heading, questions: id, question).
+   */
+  public function getFaqQuestionList(): array {
+    $result = $this->run(['list'], 'manage_faq_questions.py');
+    return ['source' => $result['source'], 'about' => $result['about'], 'groups' => $result['groups']];
+  }
+
+  public function getFaqQuestion(int $questionId): array {
+    return $this->run(['get', '--id=' . $questionId], 'manage_faq_questions.py')['question'];
+  }
+
+  /**
+   * Adds a question (NULL id) or changes one: its heading and wording. Rewording moves its note with it.
+   */
+  public function saveFaqQuestion(?int $questionId, string $heading, string $question): array {
+    $input = json_encode(['heading' => $heading, 'question' => $question], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    $saved = $questionId === NULL
+      ? $this->run(['add'], 'manage_faq_questions.py', $input)['question']
+      : $this->run(['update', '--id=' . $questionId], 'manage_faq_questions.py', $input)['question'];
+    $this->logFaqQuestion($questionId === NULL ? 'added' : 'changed', $saved['question']);
+    return $saved;
+  }
+
+  public function deleteFaqQuestion(int $questionId): array {
+    $deleted = $this->run(['delete', '--id=' . $questionId], 'manage_faq_questions.py')['question'];
+    $this->logFaqQuestion('deleted', $deleted['question']);
+    return $deleted;
+  }
+
+  public function moveFaqQuestion(int $questionId, string $direction): array {
+    return $this->run(['move', '--id=' . $questionId, '--direction=' . $direction], 'manage_faq_questions.py')['question'];
+  }
+
+  /**
+   * The words about who the site is for, added to Gemini's instructions for every FAQ answer (plain text).
+   */
+  public function saveFaqAbout(string $about): string {
+    $saved = $this->run(['about'], 'manage_faq_questions.py', json_encode(['about' => $about], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE))['about'];
+    $this->logger->notice('@user changed the words about the site sent with the FAQ questions.', ['@user' => $this->currentUser->getAccountName()]);
+    return $saved;
+  }
+
+  /**
+   * Back to the FAQ list built into the site, with no words about the site.
+   */
+  public function useBuiltInFaqQuestions(): void {
+    $this->run(['built-in'], 'manage_faq_questions.py');
+    $this->logger->notice('@user went back to the built-in FAQ questions.', ['@user' => $this->currentUser->getAccountName()]);
+  }
+
+  private function logFaqQuestion(string $change, string $question): void {
+    $this->logger->notice('@user @change the FAQ question “@question”.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@change' => $change,
+      '@question' => $question,
+    ]);
+  }
+
+  /**
    * The site owner's notes on the FAQ answers, in the order of their questions.
    *
    * @return array

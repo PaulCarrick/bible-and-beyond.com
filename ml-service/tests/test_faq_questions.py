@@ -92,3 +92,57 @@ def test_the_open_question_prompt_carries_the_description(monkeypatch):
   monkeypatch.setattr(faq, "ask_gemini", lambda question, system_prompt=faq.SYSTEM_PROMPT: sent.append(system_prompt) or "Answer")
   faq.ask_open_question(1, "<p>How do I start?</p>")
   assert sent[0].startswith(faq.SYSTEM_PROMPT) and "A recovery ministry." in sent[0] and sent[0].endswith(faq.OPEN_QUESTION_RULES)
+
+
+import faq_questions  # noqa: E402
+from faq_questions import QuestionsProblem  # noqa: E402
+
+
+def test_the_first_change_makes_the_built_in_list_the_sites_own():
+  assert faq_questions.describe()["source"] == "built-in"
+  second = faq.QUESTIONS[2]
+  faq_questions.move_question(2, "up")
+  listed = faq_questions.describe()
+  assert listed["source"] == "site"
+  first_group = [entry["question"] for entry in listed["groups"][0]["questions"]]
+  assert first_group[:2] == [second, faq.QUESTIONS[1]]
+  assert sum(len(group["questions"]) for group in listed["groups"]) == len(faq.QUESTIONS)
+
+
+def test_add_reword_regroup_move_and_delete(monkeypatch):
+  run("replace", document=CR)
+  ids = {entry["question"]: entry["id"] for group in faq_questions.describe()["groups"] for entry in group["questions"]}
+
+  added = faq_questions.add_question("Celebrate Recovery", "  Where  are meetings held? ")
+  assert added["question"] == "Where are meetings held?" and added["heading"] == "Celebrate Recovery"
+  groups = faq_questions.describe()["groups"]
+  assert [entry["question"] for entry in groups[0]["questions"]][-1] == "Where are meetings held?"
+  with pytest.raises(QuestionsProblem, match="already"):
+    faq_questions.add_question("Celebrate Recovery", "Where are meetings held?")
+
+  # Rewording moves the owner's note with the question.
+  with connect() as connection:
+    connection.execute("DELETE FROM faq_notes WHERE question IN ('What is Celebrate Recovery?', 'What is CR?')")
+    connection.execute("INSERT INTO faq_notes (question, body) VALUES ('What is Celebrate Recovery?', '<p>Ours meets Tuesdays.</p>')")
+  faq_questions.update_question(ids["What is Celebrate Recovery?"], "Celebrate Recovery", "What is CR?")
+  with connect() as connection:
+    moved = connection.execute("SELECT count(*) FROM faq_notes WHERE question = 'What is CR?'").fetchone()[0]
+    connection.execute("DELETE FROM faq_notes WHERE question = 'What is CR?'")
+  assert moved == 1
+
+  # A new heading puts it last in that heading's group.
+  faq_questions.update_question(ids["What is a hurt, habit, or hang-up?"], "Recovery and the Bible", "What is a hurt, habit, or hang-up?")
+  groups = faq_questions.describe()["groups"]
+  assert [entry["question"] for entry in groups[1]["questions"]] == ["Are the 12 Steps based on the Bible?", "What is a hurt, habit, or hang-up?"]
+
+  faq_questions.move_question(ids["What is a hurt, habit, or hang-up?"], "up")
+  assert faq_questions.describe()["groups"][1]["questions"][0]["question"] == "What is a hurt, habit, or hang-up?"
+  # Already first in its group: nothing changes.
+  faq_questions.move_question(ids["What is a hurt, habit, or hang-up?"], "up")
+  assert faq_questions.describe()["groups"][1]["questions"][0]["question"] == "What is a hurt, habit, or hang-up?"
+
+  faq_questions.delete_question(added["id"])
+  assert all(entry["question"] != "Where are meetings held?" for group in faq_questions.describe()["groups"] for entry in group["questions"])
+  with pytest.raises(QuestionsProblem, match="not found"):
+    faq_questions.delete_question(added["id"])
+  assert faq_questions.set_about("  A   ministry. ") == "A ministry."
