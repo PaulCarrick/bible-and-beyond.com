@@ -30,7 +30,7 @@ def main():
     print("Gemini is not set up (no key on the Site settings screen or in .env); nothing was fetched.")
     sys.exit(1)
   kept, fetched, failed = 0, 0, 0
-  for question_id, question in sorted(faq.QUESTIONS.items()):
+  for question_id, question in faq.current_questions().items():
     before = faq.load_stored_answer(question)
     try:
       faq.get_answer(question_id)

@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from faq import QUESTION_GROUPS  # noqa: E402
+from faq import question_groups  # noqa: E402
 from faq_notes import NoteProblem, create_note, delete_note, get_note, list_notes, update_note  # noqa: E402
 
 
@@ -47,15 +47,10 @@ def read_note() -> tuple[str, str]:
 
 
 def list_question_groups() -> list[dict]:
-  groups = []
-  number = 1
-  for heading, questions in QUESTION_GROUPS:
-    entries = []
-    for question in questions:
-      entries.append({"number": number, "question": question})
-      number += 1
-    groups.append({"heading": heading, "questions": entries})
-  return groups
+  return [
+    {"heading": heading, "questions": [{"number": question_id, "question": question} for question_id, question in listed]}
+    for heading, listed in question_groups()
+  ]
 
 
 def run(arguments) -> dict:

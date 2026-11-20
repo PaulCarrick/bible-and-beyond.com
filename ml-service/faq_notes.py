@@ -18,7 +18,7 @@ from html import escape
 from urllib.parse import parse_qs, urlsplit
 
 from contact import ALLOWED_TAGS, SAFE_LINK, ContactProblem, _Cleaner, check_rich_text, clean_message_html, message_to_text, safe_font_style
-from faq import QUESTIONS
+from faq import current_questions
 from search import connect
 
 NOTE_HTML_LIMIT = 200_000
@@ -111,7 +111,7 @@ def check_note(html: str) -> dict:
 
 
 def question_number(question: str) -> int | None:
-  for number, listed in QUESTIONS.items():
+  for number, listed in current_questions().items():
     if listed == question:
       return number
   return None
@@ -154,7 +154,7 @@ def get_note(note_id: int) -> dict:
 
 def _check_question(question: str, current_question: str | None = None) -> str:
   question = question.strip()
-  if question not in QUESTIONS.values() and question != current_question:
+  if question not in current_questions().values() and question != current_question:
     raise NoteProblem("Please choose a question from the FAQ list.")
   return question
 

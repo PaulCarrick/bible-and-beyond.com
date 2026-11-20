@@ -133,7 +133,7 @@ def test_the_settings_tool_sets_and_reads_the_texts():
   assert status == 0
   assert result["settings"]["site_title"] == "Daily Bread"
   assert result["settings"]["copyright_text"] == "© 2026 Paul “the author”. All rights reserved."
-  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}}
+  assert result["text_limits"] == {"site_title": {"min": 1, "max": 60}, "copyright_text": {"min": 0, "max": 300}, "faq_about": {"min": 0, "max": 2000}}
 
   status, result = run("set", "--copyright-text=")
   assert status == 0 and result["settings"]["copyright_text"] == "" and result["settings"]["site_title"] == "Daily Bread"

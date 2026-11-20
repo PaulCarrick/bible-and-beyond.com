@@ -30,6 +30,8 @@ LIMITS = {
 TEXT_LIMITS = {
   "site_title": (1, 60),
   "copyright_text": (0, 300),
+  # Who the site is for, added to the FAQ's instructions to Gemini (faq.site_prompt); empty for none. Never public.
+  "faq_about": (0, 2000),
 }
 
 # The welcome paragraph is formatted (the admin's editor, so it can have links): cleaned HTML, at most this many
@@ -57,6 +59,7 @@ DEFAULTS = {
   "welcome_text": f"<p>{escape(WELCOME_TEXT)}</p>",
   # When on, only the sign-in pages work until a visitor logs in (main.py require_login).
   "login_required": False,
+  "faq_about": "",
 }
 
 # A line of plain text: no line breaks or other control characters.
