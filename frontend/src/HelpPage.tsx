@@ -79,12 +79,14 @@ interface HelpPageProps {
   hasMusic?: boolean
   // The maps section shows only when a map is published.
   hasMaps?: boolean
+  // The site's name as this domain shows it (Site settings, or domainTitle.ts).
+  siteTitle: string
 }
 
 // The user guide: every feature of the site with a screenshot, then where the texts come from (with the notices
 // and credits that go with them). The screenshots are in public/help/; the owner's address in them is replaced
 // by you@example.com.
-function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false }: HelpPageProps) {
+function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false, siteTitle }: HelpPageProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const localBibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
@@ -109,7 +111,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
     <div className="welcome help-page">
       <h1>Help</h1>
       <p>
-        Bible and Beyond is free. You can read and search everything on it without an account and without logging in.
+        {siteTitle} is free. You can read and search everything on it without an account and without logging in.
         If you set up an account and log in, you can also write your own notes, have a devotional or a Bible verse sent
         to you each day (by email, and by text message if you like), get the prayer list each week, make music
         playlists, keep lists of search results, and ask to be allowed to put your own questions to the FAQ, to write in Conversations and on the
@@ -534,7 +536,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false 
         />
         <p>
           Every book also has an address of its own that opens it directly, such as{' '}
-          <em>bible-and-beyond.com/books?book=apostles-creed</em>, for a bookmark or to share.
+          <em>{window.location.host}/books?book=apostles-creed</em>, for a bookmark or to share.
         </p>
       </section>
 

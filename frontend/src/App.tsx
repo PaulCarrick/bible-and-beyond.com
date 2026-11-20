@@ -57,6 +57,7 @@ import WelcomeSearch from './WelcomeSearch'
 import { readVerseAddress } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 import { addressFor, readPageHistoryState, viewForAddress } from './pageAddress'
+import { settingsForThisDomain } from './domainTitle'
 import type { PageHistoryState } from './pageAddress'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
 import type { AccountUser, Destination, Note } from './types'
@@ -68,10 +69,11 @@ import './App.css'
 // administrator sets up accounts (Site users), and the API refuses sign-ups.
 const lockedOutViews: View[] = ['login', 'forgot', 'reset', 'verify', 'unsubscribe', 'privacy']
 
-const defaultSiteSettings: SiteSettings = {
+// A domain with its own name (domainTitle.ts) shows that name instead of the title.
+const defaultSiteSettings: SiteSettings = settingsForThisDomain({
   title: 'Bible and Beyond',
   copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
-}
+})
 
 // The links in our emails open the site with ?verify=..., ?reset=... or ?unsubscribe=... on the end.
 function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe'; token: string } | null {
@@ -204,7 +206,7 @@ function App() {
   // the site: it shows the ones it started with.
   useEffect(() => {
     fetchSiteSettings()
-      .then(setSiteSettings)
+      .then((settings) => setSiteSettings(settingsForThisDomain(settings)))
       .catch(() => setSiteSettings(defaultSiteSettings))
       .finally(() => setAreSettingsLoaded(true))
   }, [])
@@ -507,7 +509,7 @@ function App() {
               <main className="site-main" id="content">
                 {lockedOutView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
                 {lockedOutView === 'verify' && emailLink && <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />}
-                {lockedOutView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
+                {lockedOutView === 'privacy' && <PrivacyPage onNavigate={navigate} siteTitle={siteSettings.title} />}
                 {(lockedOutView === 'login' || lockedOutView === 'forgot' || lockedOutView === 'reset') && (
                   <AccountPage
                     key={lockedOutView}
@@ -597,10 +599,10 @@ function App() {
                   onNavigate={navigate}
                 />
               )}
-              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} hasMaps={maps.length > 0} />}
-              {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} />}
+              {activeView === 'help' && <HelpPage translations={translations} onNavigate={navigate} hasMusic={songs.length > 0} hasMaps={maps.length > 0} siteTitle={siteSettings.title} />}
+              {activeView === 'tutorial' && <TutorialPage onNavigate={navigate} siteTitle={siteSettings.title} />}
               {activeView === 'externalSites' && <ExternalSitesPage sites={externalSites} />}
-              {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} />}
+              {activeView === 'privacy' && <PrivacyPage onNavigate={navigate} siteTitle={siteSettings.title} />}
               {(activeView === 'verseOfTheDay' || activeView === 'devotionalOfTheDay') && (
                 <DayCardPage
                   key={activeView}

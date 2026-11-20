@@ -3,6 +3,8 @@ import type { View } from './views'
 
 interface PrivacyPageProps {
   onNavigate: (view: View) => void
+  // The site's name as this domain shows it (Site settings, or domainTitle.ts).
+  siteTitle: string
 }
 
 // What is sent to each outside service and when. Keep it true when a service is added or removed
@@ -47,13 +49,13 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
 ]
 
 // The site's privacy and security statement (added 2026-11-15 at the owner's request; "Privacy" under About).
-function PrivacyPage({ onNavigate }: PrivacyPageProps) {
+function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
   return (
     <div className="welcome privacy-page">
       <h1>Privacy and security</h1>
       <p className="privacy-updated">Last updated: November 16, 2026</p>
       <p>
-        Bible and Beyond is a non-commercial website. This page explains what we collect, who can see it, and what
+        {siteTitle} is a non-commercial website. This page explains what we collect, who can see it, and what
         we send to other services.
       </p>
 
