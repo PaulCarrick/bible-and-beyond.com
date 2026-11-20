@@ -30,7 +30,7 @@ NOTE_TAGS = ALLOWED_TAGS | {"sup", "sub", "cite", "footer", "h4", "span"}
 LANGUAGE_PATTERN = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$")
 # The addresses of this site, so a link copied from the browser (https://bible-and-beyond.com/...) is stored
 # as an address on this site and works locally and in the containers too.
-SITE_HOSTS = {"bible-and-beyond.com", "www.bible-and-beyond.com"}
+SITE_HOSTS = {"freestudy.bible", "www.freestudy.bible", "bible-and-beyond.com", "www.bible-and-beyond.com"}
 
 
 class NoteProblem(Exception):

@@ -516,8 +516,8 @@ def send_goodbye_email(address: str) -> None:
 
 
 def site_link(query: str) -> str:
-  """An address on the main site. SITE_URL says where it is (https://bible-and-beyond.com when not set)."""
-  return os.environ.get("SITE_URL", "https://bible-and-beyond.com").rstrip("/") + "/?" + query
+  """An address on the main site. SITE_URL says where it is (https://freestudy.bible when not set)."""
+  return os.environ.get("SITE_URL", "https://freestudy.bible").rstrip("/") + "/?" + query
 
 
 def send_account_email(address: str, subject: str, text: str) -> None:

@@ -213,7 +213,7 @@ def remove_old_cards(now: float | None = None) -> int:
 
 
 def site_address(path: str) -> str:
-  return os.environ.get("SITE_URL", "https://bible-and-beyond.com").rstrip("/") + path
+  return os.environ.get("SITE_URL", "https://freestudy.bible").rstrip("/") + path
 
 
 def make_card(text: str, caption: str = "", chooser=None, plain_if_none: bool = False) -> MessageCard | None:

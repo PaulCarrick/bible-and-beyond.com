@@ -158,6 +158,7 @@ check() { # repo file, installed file
 check deploy/nginx/bible-and-beyond-limits.conf /etc/nginx/conf.d/bible-and-beyond-limits.conf
 check deploy/nginx/bible-and-beyond-ssl.conf /etc/nginx/snippets/bible-and-beyond-ssl.conf
 check deploy/nginx/cms-ssl.conf /etc/nginx/snippets/cms-ssl.conf
+check deploy/nginx/bible-and-beyond-api.conf /etc/nginx/snippets/bible-and-beyond-api.conf
 check deploy/nginx/bible-and-beyond-app.conf /etc/nginx/snippets/bible-and-beyond-app.conf
 check deploy/nginx/freestudy-ssl.conf /etc/nginx/snippets/freestudy-ssl.conf
 check deploy/nginx/freestudy.bible.conf /etc/nginx/sites-available/freestudy.bible
@@ -185,6 +186,9 @@ check_url() {
   code="$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$1" || true)"
   printf '  %-50s %s\n' "$1" "$code"
 }
+check_url https://freestudy.bible/
+check_url https://freestudy.bible/api/health
+# bible-and-beyond.com redirects its pages (301) to freestudy.bible but still answers the API itself.
 check_url https://bible-and-beyond.com/
 check_url https://bible-and-beyond.com/api/health
 check_url https://cms.bible-and-beyond.com/user/login

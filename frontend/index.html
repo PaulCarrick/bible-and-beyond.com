@@ -4,7 +4,7 @@
     <!-- Google tag (Google Ads, container GTM-PSTDLCSW), as Google gives it, but loaded only on the live site,
          so local testing and other people's installs of the containers do not report to this account. -->
     <script>
-      if (/^(www\.)?bible-and-beyond\.com$/.test(location.hostname)) {
+      if (/^(www\.)?(freestudy\.bible|bible-and-beyond\.com)$/.test(location.hostname)) {
         window.dataLayer = window.dataLayer || [];
         window.gtag = function(){dataLayer.push(arguments);};
         gtag('js', new Date());

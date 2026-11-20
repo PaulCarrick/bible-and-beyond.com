@@ -2,4 +2,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://bible-and-beyond.com/sitemap.xml
+Sitemap: https://freestudy.bible/sitemap.xml

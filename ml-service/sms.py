@@ -201,7 +201,7 @@ def deliver(user_id: int, send_the_email, words: str, link: str = "", picture=No
 
 
 def site_address(path: str = "") -> str:
-  return os.environ.get("SITE_URL", "https://bible-and-beyond.com").rstrip("/") + path
+  return os.environ.get("SITE_URL", "https://freestudy.bible").rstrip("/") + path
 
 
 # --- choosing texts (the sign-up form and the My account page) -------------------------------------------

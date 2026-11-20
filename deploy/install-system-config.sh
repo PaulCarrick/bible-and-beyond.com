@@ -35,6 +35,7 @@ FILES=(
   "deploy/nginx/bible-and-beyond-limits.conf:/etc/nginx/conf.d/bible-and-beyond-limits.conf"
   "deploy/nginx/bible-and-beyond-ssl.conf:/etc/nginx/snippets/bible-and-beyond-ssl.conf"
   "deploy/nginx/cms-ssl.conf:/etc/nginx/snippets/cms-ssl.conf"
+  "deploy/nginx/bible-and-beyond-api.conf:/etc/nginx/snippets/bible-and-beyond-api.conf"
   "deploy/nginx/bible-and-beyond-app.conf:/etc/nginx/snippets/bible-and-beyond-app.conf"
   "deploy/nginx/freestudy-ssl.conf:/etc/nginx/snippets/freestudy-ssl.conf"
   "deploy/nginx/bible-and-beyond.conf:/etc/nginx/sites-available/bible-and-beyond"
