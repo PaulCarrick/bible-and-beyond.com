@@ -35,8 +35,11 @@ FILES=(
   "deploy/nginx/bible-and-beyond-limits.conf:/etc/nginx/conf.d/bible-and-beyond-limits.conf"
   "deploy/nginx/bible-and-beyond-ssl.conf:/etc/nginx/snippets/bible-and-beyond-ssl.conf"
   "deploy/nginx/cms-ssl.conf:/etc/nginx/snippets/cms-ssl.conf"
+  "deploy/nginx/bible-and-beyond-app.conf:/etc/nginx/snippets/bible-and-beyond-app.conf"
+  "deploy/nginx/freestudy-ssl.conf:/etc/nginx/snippets/freestudy-ssl.conf"
   "deploy/nginx/bible-and-beyond.conf:/etc/nginx/sites-available/bible-and-beyond"
   "deploy/nginx/cms.bible-and-beyond.com.conf:/etc/nginx/sites-available/cms.bible-and-beyond.com"
+  "deploy/nginx/freestudy.bible.conf:/etc/nginx/sites-available/freestudy.bible"
   "deploy/php-fpm/bible-and-beyond.conf:/etc/php/8.4/fpm/pool.d/bible-and-beyond.conf"
 )
 
@@ -52,6 +55,21 @@ for entry in "${FILES[@]}"; do
   fi
 done
 
+# freestudy.bible is switched on only once its certificate and key are installed (by hand, from Namecheap):
+# nginx refuses to start with a missing certificate file.
+FREESTUDY_CERTIFICATE=/etc/ssl/bible-and-beyond/freestudy.bible.fullchain.crt
+FREESTUDY_KEY=/etc/ssl/private/freestudy.bible.key
+FREESTUDY_LINK=/etc/nginx/sites-enabled/freestudy.bible
+if [ -f "$FREESTUDY_CERTIFICATE" ] && [ -f "$FREESTUDY_KEY" ]; then
+  if [ ! -L "$FREESTUDY_LINK" ]; then
+    ln -s /etc/nginx/sites-available/freestudy.bible "$FREESTUDY_LINK"
+    changed+=("$FREESTUDY_LINK")
+    echo "enabled: freestudy.bible"
+  fi
+else
+  echo "freestudy.bible is not enabled yet: install $FREESTUDY_CERTIFICATE and $FREESTUDY_KEY first."
+fi
+
 if [ "${#changed[@]}" = 0 ]; then
   echo "Nothing to do: every installed file already matches the repository."
   exit 0
@@ -60,6 +78,10 @@ fi
 rollback() {
   echo "Test failed, putting the old files back." >&2
   for target_file in "${changed[@]}"; do
+    if [ "$target_file" = "$FREESTUDY_LINK" ]; then
+      rm -f "$FREESTUDY_LINK"
+      continue
+    fi
     saved="$BACKUP/$(echo "$target_file" | tr / _)"
     [ -f "$saved" ] && cp "$saved" "$target_file"
   done

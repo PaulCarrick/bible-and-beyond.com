@@ -158,6 +158,9 @@ check() { # repo file, installed file
 check deploy/nginx/bible-and-beyond-limits.conf /etc/nginx/conf.d/bible-and-beyond-limits.conf
 check deploy/nginx/bible-and-beyond-ssl.conf /etc/nginx/snippets/bible-and-beyond-ssl.conf
 check deploy/nginx/cms-ssl.conf /etc/nginx/snippets/cms-ssl.conf
+check deploy/nginx/bible-and-beyond-app.conf /etc/nginx/snippets/bible-and-beyond-app.conf
+check deploy/nginx/freestudy-ssl.conf /etc/nginx/snippets/freestudy-ssl.conf
+check deploy/nginx/freestudy.bible.conf /etc/nginx/sites-available/freestudy.bible
 check deploy/nginx/bible-and-beyond.conf /etc/nginx/sites-available/bible-and-beyond
 check deploy/nginx/cms.bible-and-beyond.com.conf /etc/nginx/sites-available/cms.bible-and-beyond.com
 check deploy/php-fpm/bible-and-beyond.conf /etc/php/8.4/fpm/pool.d/bible-and-beyond.conf
