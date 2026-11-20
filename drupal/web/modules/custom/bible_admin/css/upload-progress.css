@@ -1,0 +1,58 @@
+/* The spinner shown while a file is sent: under the song form's buttons (js/upload-progress.js) and on the
+   line of the file being sent in the "Upload several at once" box (js/bulk-upload.js). */
+.bible-admin-spinner {
+  display: inline-block;
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  border: 0.18em solid #c8d6e8;
+  border-top-color: #1a6ebd;
+  border-radius: 50%;
+  vertical-align: -0.2em;
+  animation: bible-admin-spin 0.8s linear infinite;
+}
+
+@keyframes bible-admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bible-admin-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.bible-admin-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+  font-weight: 600;
+}
+
+.bible-admin-upload-progress[hidden] {
+  display: none;
+}
+
+.bible-admin-upload-progress.is-problem {
+  color: #b5300f;
+}
+
+.bible-admin-upload-progress.is-problem .bible-admin-spinner {
+  display: none;
+}
+
+.form-actions a.button.is-disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.bible-admin-bulk-status .bible-admin-spinner {
+  margin-right: 0.4em;
+}
+
+.bible-admin-bulk-message .bible-admin-spinner {
+  margin-right: 0.5em;
+}

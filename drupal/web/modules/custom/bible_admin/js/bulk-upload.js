@@ -27,6 +27,16 @@
     return made;
   }
 
+  // The turning circle beside a file while it is sent, and beside the message while the batch runs
+  // (css/upload-progress.css).
+  function spinner() {
+    return element('span', { className: 'bible-admin-spinner', 'aria-hidden': 'true' });
+  }
+
+  function working(target, text) {
+    target.replaceChildren(spinner(), text);
+  }
+
   function megabytes(bytes) {
     return `${(bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0)} MB`;
   }
@@ -166,7 +176,7 @@
         request.upload.onprogress = (event) => {
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded / event.total) * 100);
-            item.status.textContent = percent < 100 ? `Sending… ${percent}%` : 'Reading it…';
+            working(item.status, percent < 100 ? `Sending… ${percent}%` : 'Reading it…');
           }
         };
         request.onload = () => {
@@ -194,7 +204,7 @@
       uploadButton.disabled = true;
       clearButton.disabled = true;
       input.disabled = true;
-      message.textContent = 'Uploading… keep this page open until every file is done.';
+      working(message, 'Uploading… keep this page open until every file is done.');
       let token;
       try {
         token = await (await fetch(tokenUrl, { credentials: 'same-origin' })).text();
@@ -209,7 +219,7 @@
       }
       const counts = { uploaded: 0, skipped: 0, failed: 0 };
       for (const item of chosen) {
-        item.status.textContent = 'Sending…';
+        working(item.status, 'Sending…');
         const answer = await sendOne(item, token);
         if (answer.ok) {
           counts.uploaded += 1;

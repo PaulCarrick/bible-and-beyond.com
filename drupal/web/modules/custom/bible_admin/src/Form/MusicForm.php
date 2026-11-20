@@ -11,6 +11,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * Uploads a song of the Christian music section, or changes one (a new file is then optional).
@@ -34,6 +35,9 @@ class MusicForm extends FormBase {
 
   public function buildForm(array $form, FormStateInterface $form_state, ?string $song_id = NULL): array {
     $form['#cache'] = ['max-age' => 0];
+    // A spinner and the percent sent while the file goes up, with the buttons turned off (js/upload-progress.js).
+    $form['#attributes']['class'][] = 'bible-admin-upload-progress-form';
+    $form['#attached']['library'][] = 'bible_admin/upload_progress';
     $song = NULL;
     if ($song_id !== NULL) {
       try {
@@ -207,6 +211,12 @@ class MusicForm extends FormBase {
     $this->messenger()->addStatus($song['is_published']
       ? $this->t('Saved “@title”.', ['@title' => $song['title']])
       : $this->t('Saved “@title”. It is hidden until you publish it.', ['@title' => $song['title']]));
+    // Sent by js/upload-progress.js: it goes to the list itself, so the message above is shown there (a
+    // redirect would be followed inside the request and its page, with the message, never seen).
+    if ($this->getRequest()->headers->get('X-Bible-Admin-Upload') === '1') {
+      $form_state->setResponse(new JsonResponse(['redirect' => Url::fromRoute('bible_admin.music')->toString()]));
+      return;
+    }
     $form_state->setRedirect('bible_admin.music');
   }
 

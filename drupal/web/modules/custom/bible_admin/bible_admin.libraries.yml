@@ -30,8 +30,21 @@ bulk_upload:
   css:
     component:
       css/bulk-upload.css: {}
+      css/upload-progress.css: {}
   dependencies:
     - core/drupal
+    - core/once
+
+# The spinner and percent sent while the song form uploads its file (2026-11-20).
+upload_progress:
+  js:
+    js/upload-progress.js: {}
+  css:
+    component:
+      css/upload-progress.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
     - core/once
 
 admin_guide:
