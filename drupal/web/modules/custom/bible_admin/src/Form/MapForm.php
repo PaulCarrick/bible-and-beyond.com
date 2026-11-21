@@ -58,6 +58,8 @@ class MapForm extends FormBase {
           '@size' => number_format($map['file_size'] / 1048576, 1),
         ]),
       '#attributes' => ['accept' => implode(',', array_map(fn ($each) => '.' . $each, BibleManager::MAP_EXTENSIONS))],
+      // A "Paste a picture" box under the field (js/paste-picture.js).
+      '#attached' => ['library' => ['bible_admin/paste_picture']],
     ];
     $form['pdf_page'] = [
       '#type' => 'number',

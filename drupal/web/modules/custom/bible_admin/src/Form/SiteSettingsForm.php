@@ -521,6 +521,8 @@ class SiteSettingsForm extends FormBase {
         '#title' => $icon === NULL ? $this->t('Upload a new icon') : $this->t('Upload a different icon'),
         '#description' => $descriptions[$kind] . ' ' . $this->t('PNG, JPEG, WebP, GIF, ICO or SVG, up to @size KB. Leave empty to keep the one in use.', ['@size' => (int) (BibleManager::MAX_ICON_BYTES / 1024)]),
         '#attributes' => ['accept' => '.png,.jpg,.jpeg,.webp,.gif,.ico,.svg'],
+        // A "Paste a picture" box under the field (js/paste-picture.js).
+        '#attached' => ['library' => ['bible_admin/paste_picture']],
       ];
       if ($icon !== NULL) {
         $form['site'][$kind . '_icon_group'][$kind . '_icon_remove'] = [

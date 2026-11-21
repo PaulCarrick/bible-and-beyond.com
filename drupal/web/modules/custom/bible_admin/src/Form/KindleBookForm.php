@@ -105,6 +105,8 @@ class KindleBookForm extends FormBase {
       '#title' => empty($book['cover']) ? $this->t('Upload a picture') : $this->t('Upload a different picture'),
       '#description' => $this->t('Shown beside the book on the site, such as its cover. PNG, JPEG, WebP or GIF, up to @size MB. Leave empty to keep the one in use.', ['@size' => self::MAX_COVER_BYTES / (1024 * 1024)]),
       '#attributes' => ['accept' => '.png,.jpg,.jpeg,.webp,.gif'],
+      // A "Paste a picture" box under the field (js/paste-picture.js).
+      '#attached' => ['library' => ['bible_admin/paste_picture']],
     ];
     if (!empty($book['cover'])) {
       $form['picture']['remove_cover'] = [

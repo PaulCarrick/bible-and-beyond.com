@@ -118,6 +118,8 @@ class MusicForm extends FormBase {
         ? $this->t('This song shows its words from a @kind. Leave this empty to keep it, or choose another to replace it.', ['@kind' => $song['words_kind'] === 'pdf' ? 'PDF' : $this->t('picture')])
         : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 1 GB. When there is one, the music page shows it in place of the words typed above.')),
       '#attributes' => ['accept' => '.pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif'],
+      // A "Paste a picture" box under the field (js/paste-picture.js).
+      '#attached' => ['library' => ['bible_admin/paste_picture']],
     ];
     if ($hasWordsFile) {
       $form['remove_words'] = [

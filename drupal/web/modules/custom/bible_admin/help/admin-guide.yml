@@ -132,6 +132,15 @@ sections:
       publish them. For devotionals and books, fill in the author and where they came from first (they apply to all of
       them). Add the details of each afterwards with Edit.</p>
       <figure><img data-guide="bulk-upload" alt="The drop area: Drop song files here or choose files, Publish them when uploaded, and Upload and Clear buttons"><figcaption>The drop area (here on Christian music).</figcaption></figure>
+      <p><strong>Pasting a picture you copied.</strong> Every field that uploads a picture (a Kindle book's picture, the
+      site icons, a map, a song's words picture) has a <em>Paste a picture</em> box under it, and the Maps and Verse a
+      day pictures boxes above have one too. Copy a picture (right-click it on a web page and choose <em>Copy Image</em>,
+      or take a screenshot to the clipboard), then click <em>Paste a picture</em> (the browser may ask first), or click
+      in the box and press Cmd-V (Ctrl-V on Windows). On a page with only one picture field, Cmd-V anywhere outside a
+      text box does it. A preview shows what will be uploaded when you save; <em>Clear</em> takes it out. A pasted
+      picture is a PNG named after the time, such as pasted-2026-11-21-143005.png (in the boxes for many files that is
+      also its name on the list; change it with Edit). A large photo pasted as PNG can be bigger than the file it came
+      from, so a field's size limit may refuse it: save the picture as a file and choose it instead.</p>
 
   - id: verse-pictures
     title: Verse a day pictures

@@ -65,6 +65,7 @@
     const isPublishable = collection !== 'verse-images';
     const prefix = `bulk-${collection}`;
     let chosen = [];
+    let shownFiles = [];
     let isBusy = false;
 
     const input = element('input', { type: 'file', id: `${prefix}-files`, multiple: true, className: 'visually-hidden', accept: extensions.map((each) => `.${each}`).join(',') });
@@ -124,6 +125,7 @@
     );
 
     function show(files) {
+      shownFiles = [...files];
       chosen = [];
       list.replaceChildren();
       message.textContent = '';
@@ -241,6 +243,7 @@
       input.disabled = false;
       clearButton.disabled = false;
       chosen = [];
+      shownFiles = [];
       chosenNote.textContent = '';
       message.textContent = `Done: ${counts.uploaded} uploaded, ${counts.skipped} skipped, ${counts.failed} not uploaded.`;
       listButton.hidden = counts.uploaded === 0;
@@ -267,6 +270,46 @@
       zone.classList.remove('is-over');
       show(event.dataTransfer.files);
     });
+    // Pictures copied to the clipboard can be pasted in as well (js/paste-picture.js): the maps and the
+    // verse a day pictures. Each paste adds one to the files chosen.
+    const paste = Drupal.bibleAdminPaste;
+    if (paste && extensions.includes('png')) {
+      const pasteButton = element('button', { type: 'button', className: 'button button--small', text: 'Paste a picture' });
+      const pasteNote = element('div', { className: 'bible-admin-paste-message', 'aria-live': 'polite' });
+      zone.tabIndex = 0;
+      zone.append(element('span', {}, [pasteButton, ' or click here and press Cmd-V (Ctrl-V on Windows) to add a picture you copied']), pasteNote);
+      const add = (file) => {
+        pasteNote.textContent = '';
+        show([...shownFiles, file]);
+      };
+      pasteButton.addEventListener('click', async () => {
+        if (isBusy) {
+          return;
+        }
+        pasteNote.textContent = 'Reading the clipboard…';
+        const { file, problem } = await paste.fromClipboard();
+        pasteNote.textContent = problem || '';
+        if (file) {
+          add(file);
+        }
+      });
+      const onPaste = (event) => {
+        if (isBusy || paste.isTyping(event.target)) {
+          return;
+        }
+        const file = paste.fromPasteEvent(event);
+        if (file) {
+          event.preventDefault();
+          add(file);
+        }
+      };
+      zone.addEventListener('paste', (event) => {
+        event.stopPropagation();
+        onPaste(event);
+      });
+      // These pages have no other picture field, so a paste anywhere on them comes here.
+      document.addEventListener('paste', onPaste);
+    }
     uploadButton.addEventListener('click', uploadAll);
     clearButton.addEventListener('click', () => {
       input.value = '';

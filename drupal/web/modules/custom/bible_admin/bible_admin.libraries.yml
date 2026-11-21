@@ -34,6 +34,18 @@ bulk_upload:
   dependencies:
     - core/drupal
     - core/once
+    - bible_admin/paste_picture
+
+# A "Paste a picture" box under each picture upload field (2026-11-21).
+paste_picture:
+  js:
+    js/paste-picture.js: {}
+  css:
+    component:
+      css/paste-picture.css: {}
+  dependencies:
+    - core/drupal
+    - core/once
 
 # The spinner and percent sent while the song form uploads its file (2026-11-20).
 upload_progress:

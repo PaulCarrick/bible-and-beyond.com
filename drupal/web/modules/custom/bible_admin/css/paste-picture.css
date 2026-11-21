@@ -1,0 +1,57 @@
+/* The "Paste a picture" box under a picture upload field (js/paste-picture.js). */
+.bible-admin-paste {
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed #9ea3ad;
+  border-radius: 8px;
+  max-width: 40rem;
+}
+
+.bible-admin-paste:focus,
+.bible-admin-paste:focus-within {
+  border-color: #1a6ebd;
+  outline: none;
+  background: rgba(26, 110, 189, 0.05);
+}
+
+.bible-admin-paste-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.bible-admin-paste .button {
+  margin: 0;
+}
+
+.bible-admin-paste-hint {
+  color: #55565b;
+  font-size: 0.9em;
+}
+
+.bible-admin-paste-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.bible-admin-paste-preview[hidden] {
+  display: none;
+}
+
+.bible-admin-paste-preview img {
+  max-width: 160px;
+  max-height: 160px;
+  border: 1px solid #ccc;
+  padding: 3px;
+  background: #fff;
+}
+
+.bible-admin-paste-message:not(:empty) {
+  margin-top: 0.35rem;
+  color: #3b3c40;
+  font-size: 0.9em;
+}
