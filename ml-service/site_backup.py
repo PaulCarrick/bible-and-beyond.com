@@ -1,22 +1,25 @@
-"""Backing up the whole site into one zip file, and restoring it from one (the Drupal "Backup and restore" page).
+"""Backing up the whole site into zip files, and restoring it from them (the Drupal "Backup and restore" page).
 
-The backups are kept on the administrator's own computer, not on the server: the page builds the zip here,
-the browser saves it into a folder the administrator picks and then has it deleted here; to restore, the
-browser uploads a zip from that folder (in parts), and the restore runs here. So a new server or container
-can carry on from a backup of the old one.
+The backups are kept on the administrator's own computer, not on the server: the page builds the zips here,
+the browser saves them into a folder the administrator picks and has each one deleted here once it is saved
+(one that could not be saved, a network error say, stays here to be saved again, until the next backup is
+started); to restore, the browser uploads one or more zips of one backup from that folder (in parts), and the
+restore runs here. So a new server or container can carry on from a backup of the old one.
 
-Two parts, chosen with the page's two checkboxes (for a backup, and again for a restore):
+A backup is up to three zips with the same name stem, bible-and-beyond-YYYY-MM-DD-HHMMSS-<part>.zip (since
+2026-11-21; before, one zip held everything, and such a zip can still be restored). The page's two checkboxes
+choose Database (the first two) and Files (the third):
 
-  Database  database/bible-database.dump     the whole Bible database (pg_dump's custom format): the
-                                             Bibles, commentaries, devotionals and books, the songs'
-                                             details, accounts, notes, daily emails, FAQ notes and answers,
-                                             the site settings
-            database/drupal-database.sql.gz  Drupal's database (drush sql:dump; the cache and log tables as
-                                             structure only): the administrators, their roles and Drupal's
-                                             configuration, the email server included
-            database/settings/...            the service keys (Gemini, API.Bible, reCAPTCHA) and the API.Bible
-                                             request count
-  Files     files/music/...                  the song files and words files of the music folder
+  bible-database   database/bible-database.dump     the whole Bible database (pg_dump's custom format): the
+                                                    Bibles, commentaries, devotionals and books, the songs'
+                                                    details, accounts, notes, daily emails, FAQ notes and
+                                                    answers, the site settings
+                   database/settings/...            the service keys (Gemini, API.Bible, reCAPTCHA) and the
+                                                    API.Bible request count
+  drupal-database  database/drupal-database.sql.gz  Drupal's database (drush sql:dump; the cache and log tables
+                                                    as structure only): the administrators, their roles and
+                                                    Drupal's configuration, the email server included
+  files            files/music/...                  the song files and words files of the music folder
             files/drupal/...                 Drupal's public files (sites/default/files), without the
                                              generated css, js and php
             files/icons/...                  the header emblem and browser-tab icon uploaded on the Site
@@ -27,13 +30,15 @@ Two parts, chosen with the page's two checkboxes (for a backup, and again for a 
             files/maps/...                   the maps as uploaded and the copies the site shows (maps.py)
             files/verse-images/...           the verse a day pictures and their thumbnails (verse_images.py)
 
-and manifest.json (when it was taken, the note, which parts it holds, a few counts). The zip holds personal
-data (accounts, password hashes) and the service keys: keep it private.
+and in each zip a manifest.json (the backup's name stem, the part, the names of all the zips of the backup,
+when it was taken, the note, a few counts). Restoring takes any of the zips of one backup and restores what
+they hold; zips of different backups are refused. The zips hold personal data (accounts, password hashes) and
+the service keys: keep them private.
 
 The work takes minutes, longer than a web page may wait, so it runs in the background like a library
 refresh: start_backup() and start_restore() start scripts/manage_backup.py as a separate process and return;
 status() reads its progress from data/backup/status.json. Only one runs at a time. The files in progress live
-in data/backup/ (outgoing/ the zip waiting to be saved, incoming/ the uploaded zip, work-* while working).
+in data/backup/ (outgoing/ the zips waiting to be saved, incoming/ the uploaded zips, work-* while working).
 
 Restoring the database replaces, in this order:
   1. the Bible database, in one transaction (everything of ours in the public schema is dropped and the
@@ -70,12 +75,20 @@ import site_icons
 from search import connect
 from service_settings import get_setting, settings_path
 
-FORMAT = 2
+FORMAT = 3
+# Format 2: the one zip of everything made before 2026-11-21, still restorable.
+FORMATS = {2, 3}
 ML_DIRECTORY = Path(__file__).resolve().parent
 DRUPAL_DIRECTORY = ML_DIRECTORY.parent / "drupal"
 DATA_DIRECTORY = ML_DIRECTORY / "data"
 WORK_DIRECTORY = DATA_DIRECTORY / "backup"
-NAME_PATTERN = re.compile(r"^bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6}\.zip$")
+# The parts of a backup, each its own zip, in the order they are made and restored (Drupal's last, because
+# restoring it logs the administrator out).
+PART_NAMES = ("bible-database", "files", "drupal-database")
+PART_WORDS = {"bible-database": "the Bible database", "drupal-database": "Drupal's database", "files": "the files"}
+NAME_PATTERN = re.compile(r"^(bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6})(?:-(bible-database|drupal-database|files))?\.zip$")
+# The most zips one restore takes: the three of a backup.
+MOST_UPLOADS = 3
 BIBLE_DUMP = "database/bible-database.dump"
 DRUPAL_DUMP = "database/drupal-database.sql.gz"
 SETTINGS = "database/settings/"
@@ -120,9 +133,17 @@ def outgoing_directory() -> Path:
   return WORK_DIRECTORY / "outgoing"
 
 
-def incoming_path() -> Path:
-  """Where the page's uploads of a zip to restore are put together (by Drupal, a part at a time)."""
-  return WORK_DIRECTORY / "incoming" / "upload.zip"
+def incoming_directory() -> Path:
+  """Where the page's uploads of the zips to restore are put together (by Drupal, a part at a time), as
+  upload-0.zip, upload-1.zip ..."""
+  return WORK_DIRECTORY / "incoming"
+
+
+def incoming_paths() -> list[Path]:
+  folder = incoming_directory()
+  if not folder.is_dir():
+    return []
+  return sorted(path for path in folder.glob("upload-*.zip") if re.fullmatch(r"upload-\d\.zip", path.name))
 
 
 def _parts(database: bool, files: bool) -> dict:
@@ -173,15 +194,23 @@ def _refuse_while_running():
     raise BackupProblem(f"A {current['action']} is running already; wait for it to finish.")
 
 
-def describe() -> dict:
-  """The last job, and the backup waiting to be saved by the browser (if any)."""
-  waiting = None
+def waiting_files() -> list[dict]:
+  """The zips waiting on the server to be saved by the browser, in the order they are made."""
   folder = outgoing_directory()
+  found = []
   if folder.is_dir():
-    for path in sorted(folder.glob("*.zip")):
-      if NAME_PATTERN.match(path.name):
-        waiting = {"name": path.name, "size": path.stat().st_size}
-  return {"status": status(), "waiting": waiting}
+    for path in folder.glob("*.zip"):
+      matched = NAME_PATTERN.match(path.name)
+      if matched:
+        part = matched.group(2) or "everything"
+        order = PART_NAMES.index(part) if part in PART_NAMES else -1
+        found.append((matched.group(1), order, {"name": path.name, "size": path.stat().st_size, "part": part}))
+  return [entry for _, _, entry in sorted(found, key=lambda item: (item[0], item[1]))]
+
+
+def describe() -> dict:
+  """The last job, and the zips waiting to be saved by the browser (a list, empty when none)."""
+  return {"status": status(), "waiting": waiting_files()}
 
 
 def clear_status():
@@ -192,14 +221,20 @@ def clear_status():
       pass
 
 
-def discard_backup():
-  """Deletes the backup waiting to be saved (once the browser has saved it, or to give up on it)."""
-  shutil.rmtree(outgoing_directory(), ignore_errors=True)
-  return {"discarded": True}
+def discard_backup(name: str = "") -> dict:
+  """Deletes one zip waiting to be saved (once the browser has saved it), or, with no name, all of them (to
+  give up on them, and before a new backup). Returns the zips still waiting."""
+  if name:
+    if not NAME_PATTERN.match(name):
+      raise BackupProblem("That is not the name of a backup zip.")
+    (outgoing_directory() / name).unlink(missing_ok=True)
+  else:
+    shutil.rmtree(outgoing_directory(), ignore_errors=True)
+  return {"discarded": True, "waiting": waiting_files()}
 
 
 def discard_upload():
-  shutil.rmtree(incoming_path().parent, ignore_errors=True)
+  shutil.rmtree(incoming_directory(), ignore_errors=True)
   return {"discarded": True}
 
 
@@ -222,35 +257,36 @@ def _part_arguments(parts: dict) -> list[str]:
 def start_backup(database: bool, files: bool, note: str = "") -> dict:
   parts = _parts(database, files)
   _refuse_while_running()
+  # A new backup replaces any zips of an older one still waiting to be saved.
   discard_backup()
   _start(["run-backup", *_part_arguments(parts), f"--note={note[:200]}"], "backup")
   return {"state": "starting"}
 
 
-def start_restore(database: bool, files: bool) -> dict:
-  parts = _parts(database, files)
+def start_restore() -> dict:
   _refuse_while_running()
-  if not incoming_path().is_file():
+  if not incoming_paths():
     raise BackupProblem("No backup has been uploaded to restore.")
-  _start(["run-restore", *_part_arguments(parts)], "restore")
+  _start(["run-restore"], "restore")
   return {"state": "starting"}
 
 
 def run_backup_job(database: bool, files: bool, note: str):
   started = time.monotonic()
   try:
-    path = take_backup(_parts(database, files), note, report=lambda message: _write_status("backup", "running", message))
-    _write_status("backup", "done", f"The backup is ready ({_took(started)}).", name=path.name, size=path.stat().st_size)
+    paths = take_backup(_parts(database, files), note, report=lambda message: _write_status("backup", "running", message))
+    words = "The backup is ready" if len(paths) == 1 else f"The backup is ready, in {len(paths)} zips"
+    _write_status("backup", "done", f"{words} ({_took(started)}).", files=[{"name": path.name, "size": path.stat().st_size} for path in paths])
   except Exception as error:  # Anything that went wrong is shown on the page; the details go to the log.
     discard_backup()
     _write_status("backup", "failed", _describe_error(error))
     raise
 
 
-def run_restore_job(database: bool, files: bool):
+def run_restore_job():
   started = time.monotonic()
   try:
-    restored = restore_backup(incoming_path(), _parts(database, files), report=lambda message: _write_status("restore", "running", message))
+    restored = restore_backup(incoming_paths(), report=lambda message: _write_status("restore", "running", message))
     discard_upload()
     _write_status("restore", "done", f"Restored {restored} in {_took(started)}.")
   except Exception as error:
@@ -337,59 +373,78 @@ def _add_folder(archive: zipfile.ZipFile, folder: Path, prefix: str, skip=frozen
 
 # ------------------------------------------------------------------------------------------------- backing up
 
-def take_backup(parts: dict, note: str = "", report=lambda message: None) -> Path:
-  """Builds a backup zip in the outgoing folder and returns its path."""
+def take_backup(parts: dict, note: str = "", report=lambda message: None) -> list[Path]:
+  """Builds the zips of a backup in the outgoing folder (the Bible database and Drupal's database for the
+  Database part, the files for Files) and returns their paths, in PART_NAMES order."""
   folder = outgoing_directory()
   folder.mkdir(parents=True, exist_ok=True, mode=0o700)
-  name = "bible-and-beyond-" + datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S") + ".zip"
-  target = folder / name
-  # Written under a hidden name and renamed at the end, so a zip that failed half-way is never offered.
-  partial = folder / f".{name}.partial"
-  manifest = {
-    "format": FORMAT,
-    "name": name,
-    "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    "note": note,
-    "parts": parts,
-    "counts": {},
-  }
+  now = datetime.now(timezone.utc)
+  stem = "bible-and-beyond-" + now.strftime("%Y-%m-%d-%H%M%S")
+  wanted = [part for part in PART_NAMES if parts["files" if part == "files" else "database"]]
+  names = {part: f"{stem}-{part}.zip" for part in wanted}
+  builders = {"bible-database": _build_bible_part, "drupal-database": _build_drupal_part, "files": _build_files_part}
+  # Each is written under a hidden name, and they are all renamed at the end, so a backup that failed half-way
+  # is never offered.
+  partials = {part: folder / f".{names[part]}.partial" for part in wanted}
   try:
-    with _scratch() as scratch, zipfile.ZipFile(partial, "w", allowZip64=True) as archive:
-      os.chmod(partial, 0o600)
-      scratch = Path(scratch)
-      if parts["database"]:
-        report("Saving the Bible database ...")
-        connection, environment = _postgres_connection()
-        _run(
-          [_postgres_tool("pg_dump"), "--format=custom", "--compress=6", "--no-owner", "--no-privileges",
-           f"--file={scratch / 'bible.dump'}", f"--dbname={connection}"],
-          "Saving the Bible database", env=environment,
-        )
-        _add(archive, scratch / "bible.dump", BIBLE_DUMP)
-        report("Saving Drupal's database ...")
-        _dump_drupal(scratch / "drupal.sql.gz")
-        _add(archive, scratch / "drupal.sql.gz", DRUPAL_DUMP)
-        for path in [settings_path(), *(DATA_DIRECTORY / file_name for file_name in DATA_FILES)]:
-          if path.is_file():
-            _add(archive, path, SETTINGS + path.name)
-        manifest["counts"] = _counts()
-      if parts["files"]:
-        report("Adding the music files ...")
-        manifest["counts"]["Music files"] = _add_folder(archive, _music_directory(), MUSIC)
-        report("Adding Drupal's files ...")
-        manifest["counts"]["Drupal files"] = _add_folder(archive, _drupal_files_directory(), DRUPAL_FILES, DRUPAL_GENERATED)
-        manifest["counts"]["Site icons"] = _add_folder(archive, site_icons.icons_folder(), ICONS)
-        manifest["counts"]["Kindle book pictures"] = _add_folder(archive, kindle_books.covers_folder(), KINDLE_COVERS)
-        manifest["counts"]["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
-        manifest["counts"]["Original pages of PDFs"] = _add_folder(archive, document_import.pages_folder(), LIBRARY_PAGES)
-        manifest["counts"]["Map files"] = _add_folder(archive, maps.maps_folder(), MAPS)
-        manifest["counts"]["Verse a day picture files"] = _add_folder(archive, verse_images.images_folder(), VERSE_IMAGES)
-      archive.writestr("manifest.json", json.dumps(manifest, indent=2))
-    partial.rename(target)
+    with _scratch() as scratch:
+      for part in wanted:
+        manifest = {
+          "format": FORMAT,
+          "backup": stem,
+          "part": part,
+          "name": names[part],
+          "set": [names[other] for other in wanted],
+          "created_at": now.isoformat(timespec="seconds"),
+          "note": note,
+          "counts": {},
+        }
+        with zipfile.ZipFile(partials[part], "w", allowZip64=True) as archive:
+          os.chmod(partials[part], 0o600)
+          builders[part](archive, Path(scratch), manifest["counts"], report)
+          archive.writestr("manifest.json", json.dumps(manifest, indent=2))
+    for part in wanted:
+      partials[part].rename(folder / names[part])
   except BaseException:
-    partial.unlink(missing_ok=True)
+    for part in wanted:
+      partials[part].unlink(missing_ok=True)
+      (folder / names[part]).unlink(missing_ok=True)
     raise
-  return target
+  return [folder / names[part] for part in wanted]
+
+
+def _build_bible_part(archive: zipfile.ZipFile, scratch: Path, counts: dict, report):
+  report("Saving the Bible database ...")
+  connection, environment = _postgres_connection()
+  _run(
+    [_postgres_tool("pg_dump"), "--format=custom", "--compress=6", "--no-owner", "--no-privileges",
+     f"--file={scratch / 'bible.dump'}", f"--dbname={connection}"],
+    "Saving the Bible database", env=environment,
+  )
+  _add(archive, scratch / "bible.dump", BIBLE_DUMP)
+  for path in [settings_path(), *(DATA_DIRECTORY / file_name for file_name in DATA_FILES)]:
+    if path.is_file():
+      _add(archive, path, SETTINGS + path.name)
+  counts.update(_counts())
+
+
+def _build_drupal_part(archive: zipfile.ZipFile, scratch: Path, counts: dict, report):
+  report("Saving Drupal's database ...")
+  _dump_drupal(scratch / "drupal.sql.gz")
+  _add(archive, scratch / "drupal.sql.gz", DRUPAL_DUMP)
+
+
+def _build_files_part(archive: zipfile.ZipFile, scratch: Path, counts: dict, report):
+  report("Adding the music files ...")
+  counts["Music files"] = _add_folder(archive, _music_directory(), MUSIC)
+  report("Adding Drupal's files ...")
+  counts["Drupal files"] = _add_folder(archive, _drupal_files_directory(), DRUPAL_FILES, DRUPAL_GENERATED)
+  counts["Site icons"] = _add_folder(archive, site_icons.icons_folder(), ICONS)
+  counts["Kindle book pictures"] = _add_folder(archive, kindle_books.covers_folder(), KINDLE_COVERS)
+  counts["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
+  counts["Original pages of PDFs"] = _add_folder(archive, document_import.pages_folder(), LIBRARY_PAGES)
+  counts["Map files"] = _add_folder(archive, maps.maps_folder(), MAPS)
+  counts["Verse a day picture files"] = _add_folder(archive, verse_images.images_folder(), VERSE_IMAGES)
 
 
 def _dump_drupal(target: Path):
@@ -483,7 +538,7 @@ def read_backup(path: Path) -> tuple[zipfile.ZipFile, dict]:
   except (KeyError, ValueError) as error:
     archive.close()
     raise BackupProblem("That zip has no manifest.json, so it is not a backup of this site.") from error
-  if manifest.get("format") != FORMAT:
+  if manifest.get("format") not in FORMATS:
     archive.close()
     raise BackupProblem("That backup was made by another version of the site and cannot be restored here.")
   for name in archive.namelist():
@@ -497,62 +552,97 @@ def read_backup(path: Path) -> tuple[zipfile.ZipFile, dict]:
   return archive, manifest
 
 
-def restore_backup(path: Path, wanted: dict, report=lambda message: None) -> str:
-  """Restores the parts chosen (and present) from a backup zip. Returns what was restored, in words."""
-  report("Checking the backup ...")
-  archive, manifest = read_backup(path)
-  with archive, _scratch() as scratch:
-    scratch = Path(scratch)
-    names = set(archive.namelist())
+def _parts_held(archive: zipfile.ZipFile, manifest: dict, path: Path) -> list[str]:
+  """The parts (PART_NAMES) a backup zip holds."""
+  names = set(archive.namelist())
+  if manifest["format"] == 2:
     has = manifest.get("parts", {})
-    database = bool(wanted["database"] and has.get("database"))
-    files = bool(wanted["files"] and has.get("files"))
-    if not database and not files:
-      held = "only the database" if has.get("database") else "only the files"
-      raise BackupProblem(f"That backup does not hold the parts chosen (it holds {held}); nothing was restored.")
-    if database and not {BIBLE_DUMP, DRUPAL_DUMP} <= names:
-      raise BackupProblem("The backup's database files are missing; nothing was restored.")
+    held = (["bible-database", "drupal-database"] if has.get("database") else []) + (["files"] if has.get("files") else [])
+  else:
+    held = [manifest.get("part")] if manifest.get("part") in PART_NAMES else []
+  if ("bible-database" in held and BIBLE_DUMP not in names) or ("drupal-database" in held and DRUPAL_DUMP not in names) or not held:
+    raise BackupProblem(f"{manifest.get('name', path.name)} is missing its database files; nothing was restored.")
+  return held
 
-    if database:
-      report("Restoring the Bible database (a few minutes) ...")
-      archive.extract(BIBLE_DUMP, scratch)
-      _restore_bible_database(scratch / BIBLE_DUMP)
-      report("Bringing the Bible database up to date ...")
-      _apply_migrations()
-      report("Restoring the service settings ...")
-      _restore_settings(archive)
 
-    if files:
-      report("Restoring the music files ...")
-      _extract_folder(archive, MUSIC, _music_directory())
-      report("Restoring Drupal's files ...")
-      _extract_folder(archive, DRUPAL_FILES, _drupal_files_directory())
-      # The icons as they were in the backup: none in it means the site's own icons.
-      for kind in site_icons.KINDS:
-        site_icons.remove(kind)
-      _extract_folder(archive, ICONS, site_icons.icons_folder())
-      # The Kindle books' pictures, named by book id like the rows the database part brings back (older backups have none).
-      _extract_folder(archive, KINDLE_COVERS, kindle_books.covers_folder())
-      # Pictures are named by their contents, so those of the backup are added to any already here.
-      _extract_folder(archive, LIBRARY_IMAGES, document_import.images_folder())
-      # Likewise the kept pages (each PDF's folder is named by its contents).
-      _extract_folder(archive, LIBRARY_PAGES, document_import.pages_folder())
-      # The maps as uploaded and the copies made from them (older backups have none).
-      _extract_folder(archive, MAPS, maps.maps_folder())
-      # The verse a day pictures (older backups have none).
-      _extract_folder(archive, VERSE_IMAGES, verse_images.images_folder())
+def restore_backup(paths: list[Path], report=lambda message: None) -> str:
+  """Restores what the zips hold: one or more zips of one backup (or one zip made before backups were split).
+  Every zip is checked before anything is changed. Returns what was restored, in words."""
+  if not paths:
+    raise BackupProblem("No backup has been uploaded to restore.")
+  if len(paths) > MOST_UPLOADS:
+    raise BackupProblem(f"Choose at most {MOST_UPLOADS} zips, those of one backup.")
+  report("Checking the backup ...")
+  opened = []
+  try:
+    for path in paths:
+      opened.append(read_backup(path))
+    sources, stems = {}, set()
+    for archive, manifest in opened:
+      if manifest["format"] == 2 and len(opened) > 1:
+        raise BackupProblem(f"{manifest.get('name', 'An older backup')} holds a whole backup by itself; restore it alone.")
+      stems.add(manifest.get("backup") or manifest.get("name", ""))
+      for part in _parts_held(archive, manifest, Path(archive.filename or "")):
+        if part in sources:
+          raise BackupProblem(f"Two of the zips hold {PART_WORDS[part]}; choose each part once.")
+        sources[part] = archive
+    if len(stems) > 1:
+      raise BackupProblem("Those zips come from different backups (" + ", ".join(sorted(stems)) + "); choose zips of one backup.")
+    stem = stems.pop()
+    expected = set(opened[0][1].get("set", []))
+    missing = sorted(expected - {manifest.get("name") for _, manifest in opened})
+    with _scratch() as scratch:
+      _restore_parts(sources, Path(scratch), report)
+  finally:
+    for archive, _ in opened:
+      archive.close()
+  restored = [PART_WORDS[part] for part in PART_NAMES if part in sources]
+  words = ", ".join(restored[:-1]) + " and " + restored[-1] if len(restored) > 1 else restored[0]
+  return f"{words} from {stem}" + (f" (not restored, as not chosen: {', '.join(missing)})" if missing else "")
 
-    if database:
-      report("Restoring Drupal's database ...")
-      archive.extract(DRUPAL_DUMP, scratch)
-      drush = _drush()
-      _run([*drush, "sql:drop", "--yes"], "Emptying Drupal's database", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
-      _load_drupal(scratch / DRUPAL_DUMP)
-      report("Bringing Drupal up to date ...")
-      _run([*drush, "updatedb", "--yes"], "Drupal's database updates", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
-      _run([*drush, "cache:rebuild"], "Rebuilding Drupal's caches", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
-  restored = " and ".join(word for word, chosen in (("the database", database), ("the files", files)) if chosen)
-  return f"{restored} from {manifest.get('name', path.name)}"
+
+def _restore_parts(sources: dict, scratch: Path, report):
+  if "bible-database" in sources:
+    archive = sources["bible-database"]
+    report("Restoring the Bible database (a few minutes) ...")
+    archive.extract(BIBLE_DUMP, scratch)
+    _restore_bible_database(scratch / BIBLE_DUMP)
+    report("Bringing the Bible database up to date ...")
+    _apply_migrations()
+    report("Restoring the service settings ...")
+    _restore_settings(archive)
+
+  if "files" in sources:
+    archive = sources["files"]
+    report("Restoring the music files ...")
+    _extract_folder(archive, MUSIC, _music_directory())
+    report("Restoring Drupal's files ...")
+    _extract_folder(archive, DRUPAL_FILES, _drupal_files_directory())
+    # The icons as they were in the backup: none in it means the site's own icons.
+    for kind in site_icons.KINDS:
+      site_icons.remove(kind)
+    _extract_folder(archive, ICONS, site_icons.icons_folder())
+    # The Kindle books' pictures, named by book id like the rows the database part brings back (older backups have none).
+    _extract_folder(archive, KINDLE_COVERS, kindle_books.covers_folder())
+    # Pictures are named by their contents, so those of the backup are added to any already here.
+    _extract_folder(archive, LIBRARY_IMAGES, document_import.images_folder())
+    # Likewise the kept pages (each PDF's folder is named by its contents).
+    _extract_folder(archive, LIBRARY_PAGES, document_import.pages_folder())
+    # The maps as uploaded and the copies made from them (older backups have none).
+    _extract_folder(archive, MAPS, maps.maps_folder())
+    # The verse a day pictures (older backups have none).
+    _extract_folder(archive, VERSE_IMAGES, verse_images.images_folder())
+
+  if "drupal-database" in sources:
+    archive = sources["drupal-database"]
+    report("Restoring Drupal's database ...")
+    archive.extract(DRUPAL_DUMP, scratch)
+    drush = _drush()
+    _run([*drush, "sql:drop", "--yes"], "Emptying Drupal's database", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
+    _load_drupal(scratch / DRUPAL_DUMP)
+    report("Bringing Drupal up to date ...")
+    _run([*drush, "updatedb", "--yes"], "Drupal's database updates", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
+    _run([*drush, "cache:rebuild"], "Rebuilding Drupal's caches", cwd=DRUPAL_DIRECTORY, stdin=subprocess.DEVNULL)
 
 
 def _apply_migrations():

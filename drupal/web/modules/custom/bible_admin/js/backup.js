@@ -1,14 +1,19 @@
 /**
  * The Backup and restore page (BackupController). Backing up: pick a folder on this computer (Chrome and
- * Edge; other browsers download the zip instead), have the server build the zip, save it into the folder,
- * then have the server delete its copy. Restoring: pick a backup zip, upload it a part at a time, then have
- * the server restore it, showing its progress until it is done (or until restoring Drupal's database logs
- * the administrator out).
+ * Edge; other browsers download the zips instead), have the server build the backup (up to three zips: the
+ * Bible database, Drupal's database, the files), save each zip into the folder and have the server delete
+ * that zip once it is saved. A zip that could not be saved (a network error, say) stays on the server and is
+ * offered again, here and whenever the page is opened, until it is saved, deleted or a new backup is started.
+ * Restoring: pick one or more zips of one backup, upload each a part at a time, then have the server restore
+ * them, showing its progress until it is done (or until restoring Drupal's database logs the administrator
+ * out).
  */
 ((Drupal, drupalSettings, once) => {
   const settings = drupalSettings.bibleAdminBackup;
   const POLL_MILLISECONDS = 2000;
   const PICKER_ID = 'bible-and-beyond-backups';
+  // A zip's name: the backup's stem, then its part (none for a zip made before backups were split, 2026-11-21).
+  const NAME_PATTERN = /^(bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6})(?:-(bible-database|drupal-database|files))?\.zip$/;
 
   Drupal.behaviors.bibleAdminBackup = {
     attach(context) {
@@ -22,7 +27,7 @@
     const progress = find('progress');
     const buttons = [find('start'), find('choose'), find('restore')];
     let token = null;
-    let chosenFile = null;
+    let chosenFiles = [];
     let busy = false;
 
     if (!window.showDirectoryPicker) {
@@ -46,9 +51,11 @@
       }
       const box = document.createElement('div');
       box.className = `messages messages--${kind}`;
-      const paragraph = document.createElement('p');
-      paragraph.textContent = text;
-      box.append(paragraph);
+      (Array.isArray(text) ? text : [text]).forEach((line) => {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = line;
+        box.append(paragraph);
+      });
       actions.forEach(([label, handler]) => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -133,50 +140,104 @@
       );
     }
 
-    // Saves the zip waiting on the server into the folder (or downloads it), then deletes it on the server.
-    // Chrome counts a file written into a folder against the storage it allows this site, not the free disk, so a
-    // big backup can be refused there ("QuotaExceededError"; the owner met it on 2026-11-17 with 50 GB free): then
-    // the half-written file is removed and the zip is downloaded the ordinary way instead.
-    async function save(waiting, folder) {
-      const url = `${settings.pageUrl}/download/${encodeURIComponent(waiting.name)}`;
+    const pickFolder = async () => {
+      if (!window.showDirectoryPicker) {
+        return null;
+      }
+      return window.showDirectoryPicker({ id: PICKER_ID, mode: 'readwrite' });
+    };
+
+    const describe = (files) => files.map((file) => `${file.name} (${size(file.size)})`).join(', ');
+
+    // Saves the zips waiting on the server into the folder, one after another, and has the server delete each
+    // one as soon as it is saved. One that fails (a network error, say) is left on the server, the others still
+    // go, and the page then offers the ones left. Chrome counts a file written into a folder against the
+    // storage it allows this site, not the free disk, so a big zip can be refused there ("QuotaExceededError";
+    // met on 2026-11-17 with 50 GB free): that one is downloaded the ordinary way instead (and kept on the
+    // server until it is deleted, since the page cannot tell when a download has finished). With no folder
+    // (other browsers), every zip is downloaded that way.
+    async function saveAll(waiting, folder) {
       if (!folder) {
-        download(waiting, url, '');
+        await downloadAll(waiting, '');
         return;
       }
-      try {
-        await saveToFolder(waiting, folder, url);
-      }
-      catch (error) {
-        if (!error || error.name !== 'QuotaExceededError') {
-          throw error;
+      const saved = [];
+      const failed = [];
+      const downloaded = [];
+      let quota = false;
+      for (const [index, file] of waiting.entries()) {
+        const url = `${settings.pageUrl}/download/${encodeURIComponent(file.name)}`;
+        try {
+          await saveToFolder(file, folder, url, `${index + 1}/${waiting.length}`);
+          await post('discard', { name: file.name });
+          saved.push(file);
         }
-        await folder.removeEntry(waiting.name).catch(() => {});
-        showProgress(null);
-        download(waiting, url, Drupal.t('Chrome would not save it into that folder: it is bigger than the storage Chrome allows this site (this has nothing to do with your free disk space).') + ' ');
+        catch (error) {
+          await folder.removeEntry(file.name).catch(() => {});
+          if (error && error.name === 'QuotaExceededError') {
+            quota = true;
+            startDownload(file, url);
+            downloaded.push(file);
+            await wait(1000);
+          }
+          else {
+            failed.push({ ...file, reason: error && error.message ? error.message : String(error) });
+          }
+        }
       }
+      showProgress(null);
+      const lines = [];
+      if (saved.length) {
+        lines.push(Drupal.t('Saved in the folder "@folder" and deleted from the server: @files.', { '@folder': folder.name, '@files': describe(saved) }));
+      }
+      if (downloaded.length) {
+        lines.push(Drupal.t('Chrome would not save @files into that folder: bigger than the storage Chrome allows this site (this has nothing to do with your free disk space). Downloaded instead; once that has finished, delete the copy on the server.', { '@files': describe(downloaded) }));
+      }
+      failed.forEach((file) => {
+        lines.push(Drupal.t('@name could not be saved (@reason). It is still on the server: save it again.', { '@name': file.name, '@reason': file.reason }));
+      });
+      if (!failed.length && !downloaded.length) {
+        show(lines);
+        return;
+      }
+      offerWaiting(await waitingNow(), lines, failed.length ? 'error' : 'warning', quota);
     }
 
-    // The ordinary browser download (to the Downloads folder); the copy on the server stays until it is deleted.
-    function download(waiting, url, reason) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = waiting.name;
-      document.body.append(link);
-      link.click();
-      link.remove();
+    // The zips the server still holds.
+    async function waitingNow() {
+      return (await call(settings.statusUrl)).waiting || [];
+    }
+
+    // The ordinary browser download (to the Downloads folder), one zip after another; the copies on the server
+    // stay until they are deleted.
+    async function downloadAll(waiting, reason) {
+      for (const file of waiting) {
+        startDownload(file, `${settings.pageUrl}/download/${encodeURIComponent(file.name)}`);
+        await wait(1000); // Some browsers drop downloads started at the same moment.
+      }
       show(
-        reason + Drupal.t('@name (@size) is being downloaded. Once it has finished, delete the copy on the server.', { '@name': waiting.name, '@size': size(waiting.size) }),
+        [reason + Drupal.t('Being downloaded: @files.', { '@files': describe(waiting) }),
+          Drupal.t('Once they have finished, delete the copies on the server. If one did not arrive, download it again from the message shown when this page is opened.')],
         'status',
-        [[Drupal.t('Delete the copy on the server'), discard]],
+        [[Drupal.t('Delete the copies on the server'), discardAll]],
       );
     }
 
-    async function saveToFolder(waiting, folder, url) {
+    function startDownload(file, url) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+
+    async function saveToFolder(file, folder, url, counter) {
       const response = await fetch(url, { credentials: 'same-origin' });
       if (!response.ok) {
-        throw new Error(Drupal.t('The backup could not be fetched from the server.'));
+        throw new Error(Drupal.t('the server did not send it'));
       }
-      const handle = await folder.getFileHandle(waiting.name, { create: true });
+      const handle = await folder.getFileHandle(file.name, { create: true });
       const writable = await handle.createWritable();
       const reader = response.body.getReader();
       let received = 0;
@@ -186,30 +247,65 @@
           if (done) break;
           await writable.write(value);
           received += value.length;
-          showProgress(received / waiting.size, Drupal.t('Saving: @done of @total', { '@done': size(received), '@total': size(waiting.size) }));
+          showProgress(received / file.size, Drupal.t('Saving @counter, @name: @done of @total', { '@counter': counter, '@name': file.name, '@done': size(received), '@total': size(file.size) }));
+        }
+        if (received !== file.size) {
+          throw new Error(Drupal.t('only part of it arrived'));
         }
         await writable.close();
       }
       catch (error) {
         await writable.abort().catch(() => {});
+        if (error instanceof TypeError) {
+          throw new Error(Drupal.t('a network error'));
+        }
         throw error;
       }
-      if (received !== waiting.size) {
-        throw new Error(Drupal.t('Only part of the backup arrived; try again.'));
-      }
-      await post('discard');
-      showProgress(null);
-      show(Drupal.t('Saved @name (@size) in the folder "@folder".', { '@name': waiting.name, '@size': size(waiting.size), '@folder': folder.name }));
     }
 
-    async function discard() {
+    async function discardAll() {
       try {
         await post('discard');
-        show(Drupal.t('The copy on the server has been deleted.'));
+        show(Drupal.t('The copies on the server have been deleted.'));
       }
       catch (error) {
         show(error.message, 'error');
       }
+    }
+
+    // The zips waiting on the server, with buttons to save them (again), download them or delete them.
+    function offerWaiting(waiting, lines = [], kind = 'warning', downloadFirst = false) {
+      if (!waiting.length) {
+        show(lines.length ? lines : '', kind);
+        return;
+      }
+      const saveButton = [Drupal.t('Save them to a folder…'), async () => {
+        let folder = null;
+        try {
+          folder = await pickFolder();
+        }
+        catch {
+          return; // The folder picker was cancelled.
+        }
+        setBusy(true);
+        try {
+          await saveAll(await waitingNow(), folder);
+        }
+        catch (error) {
+          showProgress(null);
+          show(error.message, 'error');
+        }
+        finally {
+          setBusy(false);
+        }
+      }];
+      // The ordinary download, for when saving into a folder does not work (2026-11-17).
+      const downloadButton = [Drupal.t('Download them instead'), async () => downloadAll(await waitingNow(), '')];
+      show(
+        [...lines, Drupal.t('Waiting on the server: @files.', { '@files': describe(waiting) })],
+        kind,
+        [...(downloadFirst ? [downloadButton, saveButton] : [saveButton, downloadButton]), [Drupal.t('Delete them from the server'), discardAll]],
+      );
     }
 
     async function backUp() {
@@ -219,26 +315,25 @@
         return;
       }
       let folder = null;
-      if (window.showDirectoryPicker) {
-        try {
-          folder = await window.showDirectoryPicker({ id: PICKER_ID, mode: 'readwrite' });
-        }
-        catch {
-          return; // The folder picker was cancelled.
-        }
+      try {
+        folder = await pickFolder();
+      }
+      catch {
+        return; // The folder picker was cancelled.
       }
       setBusy(true);
       try {
+        // The server deletes any zips of an earlier backup still waiting, then builds the new ones.
         await post('start', { ...chosen, note: page.querySelector('#backup-note').value });
         show(Drupal.t('Building the backup ...'), 'warning');
         const answer = await follow('backup');
         if (answer.status && answer.status.state === 'failed') {
           throw new Error(Drupal.t('The backup failed: @message', { '@message': answer.status.message }));
         }
-        if (!answer.waiting) {
+        if (!answer.waiting || !answer.waiting.length) {
           throw new Error(Drupal.t('The backup did not arrive on the server.'));
         }
-        await save(answer.waiting, folder);
+        await saveAll(answer.waiting, folder);
       }
       catch (error) {
         showProgress(null);
@@ -249,21 +344,53 @@
       }
     }
 
-    function choose(file) {
-      chosenFile = file;
-      find('chosen').textContent = Drupal.t('Chosen: @name (@size)', { '@name': file.name, '@size': size(file.size) });
+    // The zips chosen to restore, with what each is (from its name).
+    function choose(files) {
+      chosenFiles = files;
+      const list = document.createElement('ul');
+      files.forEach((file) => {
+        const item = document.createElement('li');
+        item.textContent = `${file.name} (${size(file.size)})`;
+        list.append(item);
+      });
+      const heading = document.createElement('p');
+      heading.textContent = Drupal.t('Chosen:');
+      find('chosen').replaceChildren(heading, list);
       find('restore-panel').hidden = false;
       page.querySelector('#backup-confirm').focus();
+    }
+
+    // Refuses, before uploading anything, zips that are clearly not of one backup (by their names; a renamed zip
+    // is left for the server, which checks every zip's manifest).
+    function problemWithChoice(files) {
+      if (files.length > settings.mostFiles) {
+        return Drupal.t('Choose at most @count zips, those of one backup.', { '@count': settings.mostFiles });
+      }
+      const named = files.map((file) => NAME_PATTERN.exec(file.name)).filter(Boolean);
+      if (named.length !== files.length) {
+        return null;
+      }
+      if (new Set(named.map((found) => found[1])).size > 1) {
+        return Drupal.t('Those zips come from different backups; choose zips of one backup (their names start the same).');
+      }
+      if (files.length > 1 && named.some((found) => !found[2])) {
+        return Drupal.t('A zip made before backups were split holds the whole backup; restore it alone.');
+      }
+      if (new Set(named.map((found) => found[2])).size !== files.length) {
+        return Drupal.t('The same zip was chosen twice.');
+      }
+      return null;
     }
 
     async function pickFile() {
       if (window.showOpenFilePicker) {
         try {
-          const [handle] = await window.showOpenFilePicker({
+          const handles = await window.showOpenFilePicker({
             id: PICKER_ID,
+            multiple: true,
             types: [{ description: Drupal.t('Backup zip'), accept: { 'application/zip': ['.zip'] } }],
           });
-          choose(await handle.getFile());
+          choose(await Promise.all(handles.map((handle) => handle.getFile())));
         }
         catch {
           // The picker was cancelled.
@@ -274,9 +401,9 @@
     }
 
     async function restore() {
-      const chosen = parts();
-      if (!chosen.database && !chosen.files) {
-        show(Drupal.t('Tick Database, Files or both.'), 'error');
+      const problem = problemWithChoice(chosenFiles);
+      if (problem) {
+        show(problem, 'error');
         return;
       }
       if (page.querySelector('#backup-confirm').value.trim() !== 'RESTORE') {
@@ -285,15 +412,20 @@
       }
       setBusy(true);
       try {
-        const file = chosenFile;
-        for (let offset = 0; offset < file.size || offset === 0; offset += settings.chunkBytes) {
-          await post('upload', file.slice(offset, offset + settings.chunkBytes), `?offset=${offset}`);
-          const sent = Math.min(file.size, offset + settings.chunkBytes);
-          showProgress(sent / file.size, Drupal.t('Uploading: @done of @total', { '@done': size(sent), '@total': size(file.size) }));
-          if (file.size === 0) break;
+        const files = chosenFiles;
+        const total = files.reduce((sum, file) => sum + file.size, 0);
+        let sentBefore = 0;
+        for (const [index, file] of files.entries()) {
+          for (let offset = 0; offset < file.size || offset === 0; offset += settings.chunkBytes) {
+            await post('upload', file.slice(offset, offset + settings.chunkBytes), `?file=${index}&offset=${offset}`);
+            const sent = sentBefore + Math.min(file.size, offset + settings.chunkBytes);
+            showProgress(total ? sent / total : 1, Drupal.t('Uploading @name: @done of @total', { '@name': file.name, '@done': size(sent), '@total': size(total) }));
+            if (file.size === 0) break;
+          }
+          sentBefore += file.size;
         }
         showProgress(null);
-        await post('restore', { ...chosen, size: file.size });
+        await post('restore', { files: files.map((file) => ({ name: file.name, size: file.size })) });
         show(Drupal.t('Restoring ...'), 'warning');
         const answer = await follow('restore');
         page.querySelector('#backup-confirm').value = '';
@@ -329,8 +461,8 @@
 
     find('start').addEventListener('click', () => { if (!busy) backUp(); });
     find('choose').addEventListener('click', () => { if (!busy) pickFile(); });
-    find('file').addEventListener('change', (event) => { if (event.target.files[0]) choose(event.target.files[0]); });
-    find('restore').addEventListener('click', () => { if (!busy && chosenFile) restore(); });
+    find('file').addEventListener('change', (event) => { if (event.target.files.length) choose([...event.target.files]); });
+    find('restore').addEventListener('click', () => { if (!busy && chosenFiles.length) restore(); });
 
     // What the server is doing now: a job still running (started from another tab, or before a reload), a
     // finished one, or a backup waiting to be saved.
@@ -342,38 +474,8 @@
           answer = await follow(answer.status.action);
           setBusy(false);
         }
-        if (answer.waiting) {
-          show(
-            Drupal.t('A backup is waiting on the server: @name (@size).', { '@name': answer.waiting.name, '@size': size(answer.waiting.size) }),
-            'warning',
-            [
-              [Drupal.t('Save it to a folder…'), async () => {
-                let folder = null;
-                if (window.showDirectoryPicker) {
-                  try {
-                    folder = await window.showDirectoryPicker({ id: PICKER_ID, mode: 'readwrite' });
-                  }
-                  catch {
-                    return;
-                  }
-                }
-                setBusy(true);
-                try {
-                  await save(answer.waiting, folder);
-                }
-                catch (error) {
-                  showProgress(null);
-                  show(error.message, 'error');
-                }
-                finally {
-                  setBusy(false);
-                }
-              }],
-              // The ordinary download, for when saving into a folder does not work (2026-11-17).
-              [Drupal.t('Download it instead'), () => save(answer.waiting, null)],
-              [Drupal.t('Delete it from the server'), discard],
-            ],
-          );
+        if (answer.waiting && answer.waiting.length) {
+          offerWaiting(answer.waiting, [Drupal.t('A backup is waiting on the server (one or more of its zips were not saved).')]);
         }
         else {
           finished(answer.status);

@@ -582,7 +582,7 @@ bible_admin.backup_download:
   methods: [GET]
   requirements:
     _permission: 'administer backups'
-    name: 'bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6}\.zip'
+    name: 'bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6}(-bible-database|-drupal-database|-files)?\.zip'
 
 bible_admin.backup_action:
   path: '/admin/backup-restore/{action}'

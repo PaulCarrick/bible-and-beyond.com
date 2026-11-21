@@ -454,19 +454,25 @@ sections:
     title: Backup and restore
     permissions: ['administer backups']
     body: |
-      <p>A copy of the whole site in one zip file, saved on your own computer; nothing is kept on the server. Tick
-      what to include: <em>Database</em> (the Bibles, books, songs' details, members' accounts, notes and groups, the
-      settings, Drupal's own database and the service keys) and <em>Files</em> (the song files, maps, pictures and
-      Drupal's uploads). The zip holds members' details and the keys: keep it private.</p>
+      <p>A copy of the whole site in up to three zip files, saved on your own computer. Tick what to include:
+      <em>Database</em> gives two zips, the Bible database (the Bibles, books, songs' details, members' accounts,
+      notes and groups, the settings and the service keys) and Drupal's own database; <em>Files</em> gives one
+      (the song files, maps, pictures and Drupal's uploads). The three share a name, such as
+      bible-and-beyond-2026-11-21-184451-bible-database.zip, -drupal-database.zip and -files.zip. They hold
+      members' details and the keys: keep them private.</p>
       <figure><img data-guide="backup" alt="Backup and restore: what to include, a note, Back up to a folder, and Restore from a backup zip"><figcaption>Backup and restore.</figcaption></figure>
-      <p><strong>Back up to a folder…</strong> builds the zip on the server, then asks for a folder and saves it
-      there (in Chrome and Edge; other browsers download it to your Downloads folder). A big backup can be too large
-      for Chrome to write into a folder, as Chrome limits how much each website may store whatever your free disk
-      space; the page then downloads it the ordinary way instead and says so. If a backup is left waiting on the
-      server (say the page was closed), the page offers <em>Save it to a folder…</em>, <em>Download it
-      instead</em> or <em>Delete it from the server</em>. Delete the server's copy once you have it.</p>
-      <p><strong>Back up</strong>: add a note if you like (such as "Before the move"), then <em>Back up to a
-      folder</em>. Chrome and Edge let you choose the folder; other browsers download the zip.</p>
-      <p><strong>Restore</strong> replaces what is here with the backup: anything added since is lost, and you then
-      log in with an account and password from the backup. Choose the zip and type <strong>RESTORE</strong> to
+      <p><strong>Back up to a folder…</strong> (add a note first if you like, such as "Before the move") builds
+      the zips on the server, then asks for a folder and saves them there one after another (in Chrome and Edge;
+      other browsers download them to your Downloads folder). Each zip is deleted from the server as soon as it is
+      saved. One that could not be saved (a network error, say) stays on the server, and the page offers
+      <em>Save them to a folder…</em>, <em>Download them instead</em> or <em>Delete them from the server</em>,
+      then and whenever the page is opened, until the next backup is started, which deletes it. A big zip can
+      be too large for Chrome to write into a folder, as Chrome limits how much each website may store whatever
+      your free disk space; the page then downloads it the ordinary way instead and says so. After an ordinary
+      download, delete the server's copies once you have them.</p>
+      <p><strong>Restore</strong>: choose one or more zips of one backup (hold Shift or Cmd to choose several).
+      Only what they hold is restored: the Bible database, Drupal's database, the files, or any of them together.
+      Zips of different backups are refused. A database restored replaces what is here: anything added since is
+      lost, and after Drupal's database you log in with an account and password from the backup. A zip made
+      before backups were split in three holds everything and is restored whole. Type <strong>RESTORE</strong> to
       confirm. Back up first if you may want the site as it is now.</p>

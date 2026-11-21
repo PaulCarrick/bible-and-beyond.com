@@ -1,19 +1,20 @@
-"""Back up the whole site into a zip and restore it from one. Used by the Drupal "Backup and restore" page.
+"""Back up the whole site into zips and restore it from them. Used by the Drupal "Backup and restore" page.
 
 Every command prints one JSON object. On success it has "ok": true. On failure it has "ok": false and an
 "error" written for the administrator, and the exit status is not 0. What a backup holds is described in
-site_backup.py. --database and --files choose the parts (at least one).
+site_backup.py. --database and --files choose the parts of a backup (at least one).
 
-    manage_backup.py status                                 (the last job and the zip waiting to be saved)
-    manage_backup.py backup --database --files [--note=...] (starts a backup in the background)
-    manage_backup.py discard                                (deletes the zip waiting to be saved)
-    manage_backup.py restore --database --files             (starts restoring the uploaded zip, in the background)
-    manage_backup.py discard-upload                         (deletes an uploaded zip)
+    manage_backup.py status                                 (the last job and the zips waiting to be saved)
+    manage_backup.py backup --database --files [--note=...] (deletes any zips still waiting, then starts a
+                                                             backup in the background)
+    manage_backup.py discard [--name=ZIP]                   (deletes one zip waiting to be saved, or all)
+    manage_backup.py restore                                (starts restoring the uploaded zips, in the background)
+    manage_backup.py discard-upload                         (deletes the uploaded zips)
     manage_backup.py clear-status                           (forgets the last finished job)
 
-The page uploads the zip to restore into data/backup/incoming/upload.zip itself (Drupal writes it a part at
-a time). From a shell, run-backup and run-restore do the work in the foreground (what the background
-process runs); to restore a zip from a shell, copy it to that path first.
+The page uploads the zips to restore into data/backup/incoming/upload-0.zip, upload-1.zip ... itself (Drupal
+writes each a part at a time). From a shell, run-backup and run-restore do the work in the foreground (what
+the background process runs); to restore from a shell, copy the zips (of one backup) to those paths first.
 """
 
 import argparse
@@ -39,14 +40,14 @@ import site_backup  # noqa: E402
 def parse_arguments():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
-  for name in ("status", "discard", "discard-upload", "clear-status"):
+  for name in ("status", "discard-upload", "clear-status", "restore", "run-restore"):
     commands.add_parser(name)
-  for name in ("backup", "run-backup", "restore", "run-restore"):
+  commands.add_parser("discard").add_argument("--name", default="")
+  for name in ("backup", "run-backup"):
     command = commands.add_parser(name)
     command.add_argument("--database", action="store_true")
     command.add_argument("--files", action="store_true")
-    if "backup" in name:
-      command.add_argument("--note", default="")
+    command.add_argument("--note", default="")
   return parser.parse_args()
 
 
@@ -55,7 +56,7 @@ def run(arguments) -> dict:
   if command == "status":
     return site_backup.describe()
   if command == "discard":
-    return site_backup.discard_backup()
+    return site_backup.discard_backup(arguments.name)
   if command == "discard-upload":
     return site_backup.discard_upload()
   if command == "clear-status":
@@ -64,11 +65,11 @@ def run(arguments) -> dict:
   if command == "backup":
     return site_backup.start_backup(arguments.database, arguments.files, arguments.note)
   if command == "restore":
-    return site_backup.start_restore(arguments.database, arguments.files)
+    return site_backup.start_restore()
   if command == "run-backup":
     site_backup.run_backup_job(arguments.database, arguments.files, arguments.note)
   else:
-    site_backup.run_restore_job(arguments.database, arguments.files)
+    site_backup.run_restore_job()
   return site_backup.describe()
 
 

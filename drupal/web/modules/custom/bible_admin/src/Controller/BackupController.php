@@ -18,9 +18,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * The Backup and restore page. The backups are kept on the administrator's own computer: the page has the
- * server build a zip (ml-service/scripts/manage_backup.py, in the background), saves it into a folder the
- * administrator picks (js/backup.js) and has the server delete its copy; to restore, it uploads a zip a part
- * at a time, then has the server restore it.
+ * server build up to three zips (the Bible database, Drupal's database, the files;
+ * ml-service/scripts/manage_backup.py, in the background), saves them into a folder the administrator picks
+ * (js/backup.js) and has the server delete each one once saved (one that failed stays to be saved again); to
+ * restore, it uploads one or more zips of one backup, each a part at a time, then has the server restore them.
  */
 class BackupController extends ControllerBase {
 
@@ -29,6 +30,11 @@ class BackupController extends ControllerBase {
    * install-system-config.sh raised them (16 MB).
    */
   public const CHUNK_BYTES = 8 * 1024 * 1024;
+
+  /**
+   * The most zips one restore takes (the three of a backup; site_backup.MOST_UPLOADS).
+   */
+  public const MOST_FILES = 3;
 
   public function __construct(protected BibleManager $manager) {}
 
@@ -40,11 +46,11 @@ class BackupController extends ControllerBase {
     $parts = [
       'database' => [
         $this->t('Database'),
-        $this->t('The Bible database (Bibles, commentaries, devotionals and books, the songs\' details, the site users with their notes and daily emails, the FAQ notes and answers, the site settings), Drupal\'s database (the administrators and Drupal\'s settings, the email server included) and the keys of the outside services.'),
+        $this->t('Two zips: the Bible database (Bibles, commentaries, devotionals and books, the songs\' details, the site users with their notes and daily emails, the FAQ notes and answers, the site settings, and the keys of the outside services), and Drupal\'s database (the administrators and Drupal\'s settings, the email server included).'),
       ],
       'files' => [
         $this->t('Files'),
-        $this->t('The music files (songs and their words files) and Drupal\'s uploaded files.'),
+        $this->t('One zip: the music files (songs and their words files), the maps, pictures and icons, and Drupal\'s uploaded files.'),
       ],
     ];
     $checkboxes = '';
@@ -55,21 +61,21 @@ class BackupController extends ControllerBase {
     }
 
     $markup = '<div class="bible-backup">'
-      . '<p>' . $this->t('A backup is one zip file, saved in a folder on your computer that you choose; nothing is kept on the server. Restore it here, or on a new server or container, to carry on where the site was. The zip holds the site users\' details and the service keys: keep it private.') . '</p>'
+      . '<p>' . $this->t('A backup is up to three zip files (the Bible database, Drupal\'s database and the files), saved in a folder on your computer that you choose. Each is deleted from the server once it is saved; one that could not be saved (a network error, say) stays on the server so you can save it again, until the next backup is started. Restore them here, or on a new server or container, to carry on where the site was. The zips hold the site users\' details and the service keys: keep them private.') . '</p>'
       . '<div class="bible-backup__status" role="status" aria-live="polite"></div>'
-      . '<fieldset class="bible-backup__parts"><legend>' . $this->t('What to back up or restore') . '</legend>' . $checkboxes . '</fieldset>'
       . '<h2>' . $this->t('Back up') . '</h2>'
+      . '<fieldset class="bible-backup__parts"><legend>' . $this->t('What to back up') . '</legend>' . $checkboxes . '</fieldset>'
       . '<div class="form-item"><label for="backup-note" class="form-item__label">' . $this->t('Note (optional)') . '</label>'
       . '<input type="text" id="backup-note" class="form-text form-element" maxlength="200" size="60">'
-      . '<div class="form-item__description">' . $this->t('A few words kept inside the zip, such as "Before moving to the new server".') . '</div></div>'
+      . '<div class="form-item__description">' . $this->t('A few words kept inside the zips, such as "Before moving to the new server".') . '</div></div>'
       . '<p><button type="button" class="button button--primary" data-backup="start">' . $this->t('Back up to a folder…') . '</button></p>'
-      . '<p class="bible-backup__hint" data-backup="no-folder-hint" hidden>' . $this->t('This browser cannot save into a folder you choose (Chrome and Edge can), so the zip will be downloaded like any file, to your Downloads folder; move it where you keep your backups.') . '</p>'
+      . '<p class="bible-backup__hint" data-backup="no-folder-hint" hidden>' . $this->t('This browser cannot save into a folder you choose (Chrome and Edge can), so the zips will be downloaded like any file, to your Downloads folder; move them where you keep your backups.') . '</p>'
       . '<h2>' . $this->t('Restore') . '</h2>'
-      . '<p>' . $this->t('Choose a backup zip from your folder. Restoring the database replaces everything in both databases: anything added since the backup was taken is lost, and you will have to log in again with an account and password from the backup. Restoring the files copies the backup\'s music and Drupal files over the ones here. Back up first if you may want the site as it is now.') . '</p>'
-      . '<p><button type="button" class="button" data-backup="choose">' . $this->t('Choose a backup zip…') . '</button>'
-      . ' <input type="file" accept=".zip,application/zip" data-backup="file" hidden></p>'
+      . '<p>' . $this->t('Choose one or more zips of one backup from your folder (hold Shift or Cmd to choose several); what they hold is restored, the rest is left as it is. Restoring the Bible database or Drupal\'s database replaces it: anything added since the backup was taken is lost, and restoring Drupal\'s database means logging in again with an account and password from the backup. Restoring the files copies the backup\'s files over the ones here. A zip made before backups were split in three holds everything and is restored whole. Back up first if you may want the site as it is now.') . '</p>'
+      . '<p><button type="button" class="button" data-backup="choose">' . $this->t('Choose backup zips…') . '</button>'
+      . ' <input type="file" accept=".zip,application/zip" multiple data-backup="file" hidden></p>'
       . '<div data-backup="restore-panel" hidden>'
-      . '<p data-backup="chosen"></p>'
+      . '<div data-backup="chosen"></div>'
       . '<div class="form-item"><label for="backup-confirm" class="form-item__label">' . $this->t('Type RESTORE to confirm') . '</label>'
       . '<input type="text" id="backup-confirm" class="form-text form-element" size="20" autocomplete="off"></div>'
       . '<p><button type="button" class="button button--danger" data-backup="restore">' . $this->t('Restore') . '</button></p>'
@@ -92,6 +98,7 @@ class BackupController extends ControllerBase {
             'tokenUrl' => Url::fromRoute('system.csrftoken')->toString(),
             'loginUrl' => Url::fromRoute('user.login', [], ['query' => ['destination' => Url::fromRoute('bible_admin.backup')->toString()]])->toString(),
             'chunkBytes' => self::CHUNK_BYTES,
+            'mostFiles' => self::MOST_FILES,
           ],
         ],
       ],
@@ -108,7 +115,7 @@ class BackupController extends ControllerBase {
   }
 
   /**
-   * Sends the backup zip waiting on the server.
+   * Sends one of the backup zips waiting on the server (it stays there until the page has it deleted).
    */
   public function download(string $name): BinaryFileResponse {
     $path = $this->manager->backupWorkDirectory() . '/outgoing/' . $name;
@@ -127,9 +134,9 @@ class BackupController extends ControllerBase {
       $files = !empty($values['files']);
       return match ($action) {
         'start' => $this->answer($this->manager->startBackup($database, $files, mb_substr(trim((string) ($values['note'] ?? '')), 0, 200))),
-        'discard' => $this->answer($this->manager->discardBackup()),
+        'discard' => $this->answer($this->manager->discardBackup((string) ($values['name'] ?? ''))),
         'upload' => $this->receivePart($request),
-        'restore' => $this->restore($database, $files, (int) ($values['size'] ?? -1)),
+        'restore' => $this->restore($values['files'] ?? NULL),
         default => $this->dismiss(),
       };
     }
@@ -139,17 +146,24 @@ class BackupController extends ControllerBase {
   }
 
   /**
-   * Adds one part of the zip being uploaded. The part at offset 0 starts a new upload.
+   * Adds one part of a zip being uploaded (?file=0, 1 ... and ?offset=). The part at offset 0 of the first
+   * file starts a new upload, removing any zips uploaded before.
    */
   private function receivePart(Request $request): JsonResponse {
     $offset = (int) $request->query->get('offset', '-1');
+    $file = (int) $request->query->get('file', '-1');
     $folder = $this->manager->backupWorkDirectory() . '/incoming';
-    $path = $folder . '/upload.zip';
-    if ($offset < 0) {
+    if ($offset < 0 || $file < 0 || $file >= self::MOST_FILES) {
       return $this->problem('The upload was not understood.');
     }
+    $path = $folder . '/upload-' . $file . '.zip';
     if ($offset === 0) {
-      if (is_file($path)) {
+      if ($file === 0) {
+        foreach (glob($folder . '/upload*.zip') ?: [] as $old) {
+          unlink($old);
+        }
+      }
+      elseif (is_file($path)) {
         unlink($path);
       }
       if (!is_dir($folder) && !mkdir($folder, 0700, TRUE)) {
@@ -160,7 +174,7 @@ class BackupController extends ControllerBase {
     }
     clearstatcache(TRUE, $path);
     if (!is_file($path) || filesize($path) !== $offset) {
-      return $this->problem('The upload got out of step; choose the zip and try again.');
+      return $this->problem('The upload got out of step; choose the zips and try again.');
     }
     $input = $request->getContent(TRUE);
     $output = fopen($path, 'ab');
@@ -172,13 +186,33 @@ class BackupController extends ControllerBase {
     return $this->answer(['received' => $offset + $written]);
   }
 
-  private function restore(bool $database, bool $files, int $size): JsonResponse {
-    $path = $this->manager->backupWorkDirectory() . '/incoming/upload.zip';
-    clearstatcache(TRUE, $path);
-    if (!is_file($path) || filesize($path) !== $size) {
-      return $this->problem('The zip did not arrive whole; choose it and try again.');
+  /**
+   * Starts the restore once every zip has arrived whole.
+   *
+   * @param mixed $chosen
+   *   The zips as the page sent them: a list of name and size, in upload order.
+   */
+  private function restore(mixed $chosen): JsonResponse {
+    if (!is_array($chosen) || !$chosen || count($chosen) > self::MOST_FILES) {
+      return $this->problem('Choose the zips to restore again.');
     }
-    return $this->answer($this->manager->startRestore($database, $files));
+    $folder = $this->manager->backupWorkDirectory() . '/incoming';
+    $names = [];
+    foreach (array_values($chosen) as $index => $file) {
+      $path = $folder . '/upload-' . $index . '.zip';
+      clearstatcache(TRUE, $path);
+      if (!is_array($file) || !is_file($path) || filesize($path) !== (int) ($file['size'] ?? -1)) {
+        return $this->problem('The zips did not arrive whole; choose them and try again.');
+      }
+      $names[] = mb_substr(preg_replace('/[^\w.\- ]/u', '', (string) ($file['name'] ?? '')), 0, 100);
+    }
+    // Zips left from an earlier, larger upload are not part of this one.
+    for ($index = count($chosen); $index < self::MOST_FILES; $index++) {
+      if (is_file($folder . '/upload-' . $index . '.zip')) {
+        unlink($folder . '/upload-' . $index . '.zip');
+      }
+    }
+    return $this->answer($this->manager->startRestore($names));
   }
 
   private function dismiss(): JsonResponse {

@@ -357,19 +357,20 @@ class BibleManager {
   }
 
   /**
-   * The last backup or restore started from the Backup and restore page, and the backup zip waiting to be
+   * The last backup or restore started from the Backup and restore page, and the backup zips waiting to be
    * saved by the browser.
    *
    * @return array
-   *   Keys: status (action, state, message, started_at, updated_at, and for a finished backup name and size;
-   *   or NULL) and waiting (name and size, or NULL).
+   *   Keys: status (action, state, message, started_at, updated_at, and for a finished backup its files, each
+   *   name and size; or NULL) and waiting (a list of name, size and part; empty when none).
    */
   public function backupStatus(): array {
     return $this->run(['status'], 'manage_backup.py');
   }
 
   /**
-   * Starts building a backup zip in the background, of the database, the files or both.
+   * Deletes any backup zips still waiting, then starts building a new backup in the background: two zips for
+   * the database (the Bible database and Drupal's), one for the files.
    */
   public function startBackup(bool $database, bool $files, string $note): array {
     $result = $this->run(['backup', ...$this->backupParts($database, $files), '--note=' . $note], 'manage_backup.py');
@@ -381,22 +382,25 @@ class BibleManager {
   }
 
   /**
-   * Deletes the backup zip waiting on the server (once the browser has saved it).
+   * Deletes one backup zip waiting on the server (once the browser has saved it), or all of them.
    */
-  public function discardBackup(): array {
-    return $this->run(['discard'], 'manage_backup.py');
+  public function discardBackup(string $name = ''): array {
+    return $this->run(['discard', '--name=' . $name], 'manage_backup.py');
   }
 
   /**
-   * Starts restoring the uploaded backup zip in the background.
+   * Starts restoring the uploaded backup zips (one or more of one backup) in the background.
+   *
+   * @param string[] $names
+   *   The names of the zips as chosen on the administrator's computer, for the log.
    */
-  public function startRestore(bool $database, bool $files): array {
-    // Logged before it starts: restoring the database replaces Drupal's, this log included.
-    $this->logger->warning('@user started restoring a backup (@parts).', [
+  public function startRestore(array $names): array {
+    // Logged before it starts: restoring Drupal's database replaces it, this log included.
+    $this->logger->warning('@user started restoring a backup (@names).', [
       '@user' => $this->currentUser->getAccountName(),
-      '@parts' => $this->describeParts($database, $files),
+      '@names' => implode(', ', $names),
     ]);
-    return $this->run(['restore', ...$this->backupParts($database, $files)], 'manage_backup.py');
+    return $this->run(['restore'], 'manage_backup.py');
   }
 
   /**
@@ -407,8 +411,8 @@ class BibleManager {
   }
 
   /**
-   * The folder the backup tool works in (ml-service/data/backup): outgoing/ holds the zip waiting to be
-   * saved, incoming/upload.zip the zip being uploaded to restore.
+   * The folder the backup tool works in (ml-service/data/backup): outgoing/ holds the zips waiting to be
+   * saved, incoming/upload-0.zip, upload-1.zip ... the zips being uploaded to restore.
    */
   public function backupWorkDirectory(): string {
     return $this->mlDirectory() . '/data/backup';

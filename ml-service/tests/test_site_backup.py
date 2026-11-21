@@ -4,9 +4,11 @@ replaced by small scripts that record what they were given, so no database is du
 
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -90,50 +92,85 @@ def save_settings(values: dict):
   Path(os.environ["SERVICE_SETTINGS_FILE"]).write_text(json.dumps(values))
 
 
-def upload(path: Path) -> Path:
-  """Puts a backup where the page's upload would."""
-  incoming = site_backup.incoming_path()
-  incoming.parent.mkdir(parents=True, exist_ok=True)
-  incoming.write_bytes(path.read_bytes())
-  return incoming
+def upload(*paths: Path) -> list[Path]:
+  """Puts backup zips where the page's upload would."""
+  folder = site_backup.incoming_directory()
+  shutil.rmtree(folder, ignore_errors=True)
+  folder.mkdir(parents=True)
+  for index, path in enumerate(paths):
+    (folder / f"upload-{index}.zip").write_bytes(path.read_bytes())
+  return site_backup.incoming_paths()
 
 
-def test_a_backup_is_one_zip_with_both_parts(site):
+def by_part(paths: list[Path]) -> dict:
+  return {site_backup.NAME_PATTERN.match(path.name).group(2): path for path in paths}
+
+
+def names_in(path: Path) -> set:
+  with zipfile.ZipFile(path) as archive:
+    return set(archive.namelist())
+
+
+def test_a_backup_is_three_zips_of_one_backup(site):
   save_settings({"gemini_api_key": "the-key", "music_folder": str(site["music"])})
   site_icons.icons_folder().mkdir(parents=True)
   (site_icons.icons_folder() / "tab.png").write_bytes(b"\x89PNG\r\n\x1a\n")
-  path = site_backup.take_backup(EVERYTHING, "Before the move")
+  paths = site_backup.take_backup(EVERYTHING, "Before the move")
 
-  assert site_backup.NAME_PATTERN.match(path.name)
-  assert stat.S_IMODE(path.stat().st_mode) == 0o600
-  with zipfile.ZipFile(path) as archive:
-    names = set(archive.namelist())
+  zips = by_part(paths)
+  assert list(zips) == ["bible-database", "files", "drupal-database"]
+  stems = {site_backup.NAME_PATTERN.match(path.name).group(1) for path in paths}
+  assert len(stems) == 1
+  for path in paths:
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+  assert names_in(zips["bible-database"]) == {
+    "manifest.json", "database/bible-database.dump",
+    "database/settings/service_settings.json", "database/settings/api_bible_usage.json",
+  }
+  assert names_in(zips["drupal-database"]) == {"manifest.json", "database/drupal-database.sql.gz"}
+  assert names_in(zips["files"]) == {
+    "manifest.json", "files/music/amazing-grace.mp4", "files/music/amazing-grace-words.pdf",
+    "files/drupal/pictures/logo.png", "files/icons/tab.png",
+  }
+  with zipfile.ZipFile(zips["files"]) as archive:
     manifest = json.loads(archive.read("manifest.json"))
     # Media files are stored as they are; text is compressed.
     assert archive.getinfo("files/music/amazing-grace.mp4").compress_type == zipfile.ZIP_STORED
+  with zipfile.ZipFile(zips["bible-database"]) as archive:
     assert archive.getinfo("database/settings/service_settings.json").compress_type == zipfile.ZIP_DEFLATED
-  assert names == {
-    "manifest.json", "database/bible-database.dump", "database/drupal-database.sql.gz",
-    "database/settings/service_settings.json", "database/settings/api_bible_usage.json",
-    "files/music/amazing-grace.mp4", "files/music/amazing-grace-words.pdf", "files/drupal/pictures/logo.png",
-    "files/icons/tab.png",
-  }
-  assert manifest["parts"] == EVERYTHING
+    assert json.loads(archive.read("manifest.json"))["counts"] == {"Site users": 3}
+  assert manifest["part"] == "files"
+  assert manifest["backup"] == stems.pop()
+  assert manifest["set"] == [path.name for path in paths]
   assert manifest["note"] == "Before the move"
-  assert manifest["counts"] == {"Site users": 3, "Music files": 2, "Drupal files": 1, "Site icons": 1, "Kindle book pictures": 0, "Pictures of uploaded documents": 0, "Original pages of PDFs": 0, "Map files": 0, "Verse a day picture files": 0}
+  assert manifest["counts"] == {"Music files": 2, "Drupal files": 1, "Site icons": 1, "Kindle book pictures": 0, "Pictures of uploaded documents": 0, "Original pages of PDFs": 0, "Map files": 0, "Verse a day picture files": 0}
   # The database password went to pg_dump in its environment, not on its command line.
   assert (site["log"] / "pg_dump.password").read_text().strip() == "secret-word"
-  assert site_backup.describe()["waiting"] == {"name": path.name, "size": path.stat().st_size}
-  assert not list(path.parent.glob(".*partial"))
+  assert site_backup.describe()["waiting"] == [{"name": path.name, "size": path.stat().st_size, "part": part} for part, path in zips.items()]
+  assert not list(paths[0].parent.glob(".*partial"))
+
+
+def test_each_zip_is_deleted_once_saved_and_a_new_backup_deletes_the_rest(site, monkeypatch):
+  paths = site_backup.take_backup(EVERYTHING)
+  # The page saved the first two; the third failed (a network error) and stays to be saved again.
+  site_backup.discard_backup(paths[0].name)
+  left = site_backup.discard_backup(paths[1].name)["waiting"]
+  assert [file["name"] for file in left] == [paths[2].name]
+  with pytest.raises(site_backup.BackupProblem, match="not the name of a backup zip"):
+    site_backup.discard_backup("../status.json")
+  # Starting a new backup deletes it (the background job itself is not run here).
+  started = []
+  monkeypatch.setattr(site_backup.subprocess, "Popen", lambda *arguments, **options: started.append(arguments))
+  site_backup.start_backup(True, False)
+  assert started and site_backup.describe()["waiting"] == []
 
 
 def test_only_the_parts_chosen_are_backed_up(site):
-  with zipfile.ZipFile(site_backup.take_backup({"database": False, "files": True})) as archive:
-    assert not [name for name in archive.namelist() if name.startswith("database/")]
+  paths = site_backup.take_backup({"database": False, "files": True})
+  assert list(by_part(paths)) == ["files"]
   assert not (site["log"] / "drush.calls").exists()
   site_backup.discard_backup()
-  with zipfile.ZipFile(site_backup.take_backup({"database": True, "files": False})) as archive:
-    assert not [name for name in archive.namelist() if name.startswith("files/")]
+  assert list(by_part(site_backup.take_backup({"database": True, "files": False}))) == ["bible-database", "drupal-database"]
   with pytest.raises(site_backup.BackupProblem, match="Choose Database, Files or both"):
     site_backup.start_backup(False, False)
 
@@ -148,7 +185,8 @@ def test_a_failed_backup_leaves_nothing(site):
 
 def test_restore_replaces_everything_but_keeps_the_music_folder(site, tmp_path):
   save_settings({"gemini_api_key": "old-key", "music_folder": str(site["music"])})
-  backup = site_backup.take_backup(EVERYTHING)
+  paths = site_backup.take_backup(EVERYTHING)
+  stem = site_backup.NAME_PATTERN.match(paths[0].name).group(1)
 
   # The site changes after the backup: another key, another music folder, a lost file.
   new_music = tmp_path / "new-music"
@@ -156,7 +194,9 @@ def test_restore_replaces_everything_but_keeps_the_music_folder(site, tmp_path):
   (site["files"] / "pictures" / "logo.png").unlink()
   (site["data"] / "api_bible_usage.json").write_text("{}")
 
-  assert site_backup.restore_backup(upload(backup), EVERYTHING) == f"the database and the files from {backup.name}"
+  # Chosen in any order.
+  restored = site_backup.restore_backup(upload(paths[2], paths[0], paths[1]))
+  assert restored == f"the Bible database, the files and Drupal's database from {stem}"
 
   settings = json.loads(Path(os.environ["SERVICE_SETTINGS_FILE"]).read_text())
   assert settings == {"gemini_api_key": "old-key", "music_folder": str(new_music)}
@@ -180,47 +220,82 @@ def test_restore_replaces_everything_but_keeps_the_music_folder(site, tmp_path):
   assert (site["log"] / "drupal.input").read_text().count("INSERT INTO users") == 200
 
 
-def test_restore_only_the_files(site, tmp_path):
+def test_restore_only_the_files_zip(site, tmp_path):
   site_icons.icons_folder().mkdir(parents=True)
   (site_icons.icons_folder() / "header.png").write_bytes(b"\x89PNG\r\n\x1a\n")
-  backup = site_backup.take_backup(EVERYTHING)
+  zips = by_part(site_backup.take_backup(EVERYTHING))
   (site["music"] / "amazing-grace.mp4").unlink()
   # An icon changed after the backup is put back as it was in the backup.
   (site_icons.icons_folder() / "header.png").unlink()
   (site_icons.icons_folder() / "header.svg").write_text("<svg></svg>")
-  site_backup.restore_backup(upload(backup), {"database": False, "files": True})
+  restored = site_backup.restore_backup(upload(zips["files"]))
+  assert restored.startswith("the files from ") and "not chosen" in restored
   assert (site["music"] / "amazing-grace.mp4").is_file()
   assert sorted(path.name for path in site_icons.icons_folder().iterdir()) == ["header.png"]
   assert not (site["log"] / "psql.input").exists()
   assert "sql:drop" not in (site["log"] / "drush.calls").read_text()
 
 
-def test_restore_refuses_a_part_the_backup_lacks(site):
-  backup = site_backup.take_backup({"database": False, "files": True})
-  with pytest.raises(site_backup.BackupProblem, match="holds only the files"):
-    site_backup.restore_backup(upload(backup), {"database": True, "files": False})
+def test_restore_only_drupals_database(site):
+  zips = by_part(site_backup.take_backup({"database": True, "files": False}))
+  site_backup.restore_backup(upload(zips["drupal-database"]))
+  assert not (site["log"] / "psql.input").exists()
+  assert site["migrations"] == []
+  assert "sql:cli" in (site["log"] / "drush.calls").read_text()
+
+
+def test_zips_of_different_backups_or_the_same_part_twice_are_refused(site, tmp_path):
+  first = by_part(site_backup.take_backup(EVERYTHING))
+  kept = tmp_path / "first-files.zip"
+  kept.write_bytes(first["files"].read_bytes())
+  time.sleep(1.1)
+  site_backup.discard_backup()
+  second = by_part(site_backup.take_backup(EVERYTHING))
+  with pytest.raises(site_backup.BackupProblem, match="different backups"):
+    site_backup.restore_backup(upload(kept, second["bible-database"]))
+  with pytest.raises(site_backup.BackupProblem, match="choose each part once"):
+    site_backup.restore_backup(upload(second["files"], second["files"]))
+  assert not (site["log"] / "psql.input").exists()
+
+
+def test_a_backup_made_before_the_split_is_restored_whole(site, tmp_path):
+  dumps = by_part(site_backup.take_backup(EVERYTHING))
+  old = tmp_path / "bible-and-beyond-2026-11-01-120000.zip"
+  with zipfile.ZipFile(old, "w") as archive:
+    for path in dumps.values():
+      with zipfile.ZipFile(path) as part:
+        for name in part.namelist():
+          if name != "manifest.json":
+            archive.writestr(name, part.read(name))
+    archive.writestr("manifest.json", json.dumps({"format": 2, "name": old.name, "parts": EVERYTHING}))
+  (site["music"] / "amazing-grace.mp4").unlink()
+  assert site_backup.restore_backup(upload(old)) == f"the Bible database, the files and Drupal's database from {old.name}"
+  assert (site["music"] / "amazing-grace.mp4").is_file()
+  assert (site["log"] / "psql.input").exists()
+  with pytest.raises(site_backup.BackupProblem, match="restore it alone"):
+    site_backup.restore_backup(upload(old, dumps["files"]))
 
 
 def test_damaged_or_foreign_zips_are_not_restored(site, tmp_path):
-  backup = site_backup.take_backup(EVERYTHING)
+  backup = by_part(site_backup.take_backup(EVERYTHING))["files"]
   data = bytearray(backup.read_bytes())
   position = data.find(b"x" * 100)
   data[position:position + 5] = b"yyyyy"
   damaged = tmp_path / "damaged.zip"
   damaged.write_bytes(bytes(data))
   with pytest.raises(site_backup.BackupProblem, match="files/music/amazing-grace.mp4 is damaged"):
-    site_backup.restore_backup(upload(damaged), EVERYTHING)
+    site_backup.restore_backup(upload(damaged))
 
   foreign = tmp_path / "foreign.zip"
   with zipfile.ZipFile(foreign, "w") as archive:
-    archive.writestr("manifest.json", json.dumps({"format": 2, "parts": EVERYTHING}))
+    archive.writestr("manifest.json", json.dumps({"format": 3, "part": "files", "backup": "x"}))
     archive.writestr("files/music/../../../evil.txt", "x")
   with pytest.raises(site_backup.BackupProblem, match="unsafe name"):
-    site_backup.restore_backup(upload(foreign), EVERYTHING)
+    site_backup.restore_backup(upload(foreign))
 
   (tmp_path / "not.zip").write_text("hello")
   with pytest.raises(site_backup.BackupProblem, match="not a backup zip"):
-    site_backup.restore_backup(upload(tmp_path / "not.zip"), EVERYTHING)
+    site_backup.restore_backup(upload(tmp_path / "not.zip"))
   assert not (site["log"] / "psql.input").exists()
 
 
@@ -228,9 +303,9 @@ def test_one_job_at_a_time_and_the_tool(site):
   site_backup._write_status("backup", "running", "Saving ...")
   with pytest.raises(site_backup.BackupProblem, match="A backup is running already"):
     site_backup.start_backup(True, True)
-  upload(site_backup.take_backup(EVERYTHING))
+  upload(*site_backup.take_backup(EVERYTHING))
   with pytest.raises(site_backup.BackupProblem, match="A backup is running already"):
-    site_backup.start_restore(True, True)
+    site_backup.start_restore()
 
   completed = subprocess.run([sys.executable, str(SCRIPT), "backup"], capture_output=True, text=True)
   assert json.loads(completed.stdout) == {"ok": False, "error": "Choose Database, Files or both."}
