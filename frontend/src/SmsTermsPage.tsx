@@ -17,8 +17,8 @@ function SmsTermsPage({ onNavigate, siteTitle }: SmsTermsPageProps) {
 
       <h2>The program</h2>
       <p>
-        {siteTitle} is a free, non-commercial Bible study website run by{' '}
-        {siteTitle === 'Bible and Beyond' ? 'a nonprofit' : 'Bible and Beyond, a nonprofit'} in Washington State. Members who choose to can receive some of the site&rsquo;s notices as text messages (SMS, and MMS for
+        {siteTitle} is a free, non-commercial website
+        {siteTitle === 'Free Study Bible' ? ' run by Bible and Beyond, a nonprofit in Washington State' : ''}. Members who choose to can receive some of the site&rsquo;s notices as text messages (SMS, and MMS for
         pictures) instead of, or as well as, by email.
       </p>
 
