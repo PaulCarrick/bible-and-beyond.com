@@ -361,6 +361,15 @@ export interface Playlist {
   song_ids: string[]
   created_at: string
   updated_at: string
+  // On Public lists (when the account may share).
+  shared: boolean
+  // Shared playlists only: who shared it (first name and last initial).
+  owner?: string
+}
+
+// A shared playlist opened on Public lists: its published songs with their titles, in order.
+export interface PublicPlaylist extends Playlist {
+  songs: { id: string; title: string; author: string }[]
 }
 
 // Playlists. Each call needs a logged-in visitor (the session cookie says who).
@@ -382,6 +391,37 @@ export async function savePlaylist(name: string, songIds: string[]): Promise<{ p
 
 export async function deletePlaylist(id: number): Promise<void> {
   await readJson(await fetch(`${mlServiceUrl}/playlists/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// Share a playlist on Public lists, or stop (accounts an administrator allowed share_lists only).
+export async function sharePlaylist(id: number, shared: boolean): Promise<Playlist> {
+  const response = await fetch(`${mlServiceUrl}/playlists/${id}/shared`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shared }),
+  })
+  return (await readJson<{ playlist: Playlist }>(response)).playlist
+}
+
+// Shared playlists (on Public lists): for anyone who can use the site.
+export async function fetchPublicPlaylists(): Promise<Playlist[]> {
+  return (await readJson<{ playlists: Playlist[] }>(await fetch(`${mlServiceUrl}/public-playlists`, { credentials: 'include' }))).playlists
+}
+
+export async function fetchPublicPlaylist(id: number): Promise<PublicPlaylist> {
+  return (await readJson<{ playlist: PublicPlaylist }>(await fetch(`${mlServiceUrl}/public-playlists/${id}`, { credentials: 'include' }))).playlist
+}
+
+// Copy to my playlists (logged in).
+export async function copyPublicPlaylist(id: number): Promise<Playlist> {
+  const response = await fetch(`${mlServiceUrl}/public-playlists/${id}/copy`, { method: 'POST', credentials: 'include' })
+  return (await readJson<{ playlist: Playlist }>(response)).playlist
+}
+
+// The address that opens a shared playlist on Public lists, to send to someone.
+export function sharedPlaylistAddress(id: number): string {
+  return `${window.location.origin}/public-lists?playlist=${id}`
 }
 
 // Where the page gets a song's words file (a PDF or a picture).

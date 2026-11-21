@@ -156,3 +156,66 @@ def test_a_spotify_item_cannot_go_in_a_playlist():
     assert answer.status_code == 422
   finally:
     music.delete("playlists-test-spotify")
+
+
+# --- Sharing on Public lists (2026-11-21) ---
+
+
+def allow_sharing(user_id, allowed=True):
+  with connect() as connection:
+    connection.execute("UPDATE users SET share_lists = %s WHERE id = %s", (allowed, user_id))
+
+
+def test_only_accounts_allowed_to_share_can_share_and_everyone_sees_shared_playlists():
+  ann = sign_up("ann")
+  playlist_id = save("Sunday", ["playlists-test-b", "playlists-test-a"]).json()["playlist"]["id"]
+  assert client.get("/playlists").json()["playlists"][0]["shared"] is False
+
+  refused = client.put(f"/playlists/{playlist_id}/shared", json={"shared": True})
+  assert refused.status_code == 403 and "cannot share playlists" in refused.json()["detail"]
+
+  allow_sharing(ann)
+  shared = client.put(f"/playlists/{playlist_id}/shared", json={"shared": True})
+  assert shared.status_code == 200 and shared.json()["playlist"]["shared"] is True
+  assert client.get("/playlists").json()["playlists"][0]["shared"] is True
+  # Saving it again (Edit, Change) keeps it shared.
+  save("Sunday", ["playlists-test-a"])
+  assert client.get("/playlists").json()["playlists"][0]["shared"] is True
+  save("Sunday", ["playlists-test-b", "playlists-test-a"])
+
+  # A visitor who is not logged in sees it and its songs, with the owner named by first name and last initial.
+  with connect() as connection:
+    connection.execute("UPDATE users SET first_name = 'Ann', last_name = 'Lee' WHERE id = %s", (ann,))
+  client.cookies.clear()
+  public = [each for each in client.get("/public-playlists").json()["playlists"] if each["id"] == playlist_id]
+  assert len(public) == 1 and public[0]["owner"] == "Ann L." and public[0]["song_ids"] == ["playlists-test-b", "playlists-test-a"]
+  opened = client.get(f"/public-playlists/{playlist_id}").json()["playlist"]
+  assert opened["name"] == "Sunday" and [song["title"] for song in opened["songs"]] == ["Playlists-Test-B", "Playlists-Test-A"]
+  assert client.post(f"/public-playlists/{playlist_id}/copy").status_code == 401
+  assert client.put(f"/playlists/{playlist_id}/shared", json={"shared": False}).status_code == 401
+
+  # Another visitor copies it into their own playlists, renamed when they have one of that name; it is not shared.
+  sign_up("bob")
+  save("Sunday", ["playlists-test-c"])
+  copied = client.post(f"/public-playlists/{playlist_id}/copy").json()["playlist"]
+  assert copied["name"] == "Sunday (copy)" and copied["song_ids"] == ["playlists-test-b", "playlists-test-a"]
+  assert copied["shared"] is False
+  # Bob cannot share or unshare Ann's playlist.
+  assert client.put(f"/playlists/{playlist_id}/shared", json={"shared": False}).status_code == 404
+
+
+def test_a_playlist_leaves_public_lists_when_unshared_or_the_owner_may_no_longer_share():
+  ann = sign_up("ann")
+  allow_sharing(ann)
+  playlist_id = save("Evening", ["playlists-test-a"]).json()["playlist"]["id"]
+  client.put(f"/playlists/{playlist_id}/shared", json={"shared": True})
+  assert client.get(f"/public-playlists/{playlist_id}").status_code == 200
+
+  allow_sharing(ann, False)
+  assert client.get(f"/public-playlists/{playlist_id}").status_code == 404
+  assert all(each["id"] != playlist_id for each in client.get("/public-playlists").json()["playlists"])
+  # Stopping is always allowed, even without the permission.
+  assert client.put(f"/playlists/{playlist_id}/shared", json={"shared": False}).status_code == 200
+  allow_sharing(ann)
+  assert client.get(f"/public-playlists/{playlist_id}").status_code == 404
+  assert client.get("/public-playlists/999999999").status_code == 404

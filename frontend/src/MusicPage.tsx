@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { deletePlaylist, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist } from './api'
+import { deletePlaylist, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist, sharedPlaylistAddress, sharePlaylist } from './api'
 import PlaylistSaveBox from './PlaylistSaveBox'
 import type { MusicSong, Playlist } from './api'
 import { AccountContext } from './AccountContext'
@@ -11,6 +11,8 @@ interface MusicPageProps {
   isHidden: boolean
   // A song to show (from /music?song=..., or "Play this song" on the search page), with a new key each time.
   focus: { id: string; key: number } | null
+  // A playlist to play now (Play on Public lists, a shared playlist), with a new key each time.
+  playRequest: { name: string; songIds: string[]; key: number } | null
 }
 
 // A playlist being played: its name and songs, and which one is playing.
@@ -30,7 +32,7 @@ interface PlayingList {
 // playlists (above the list) saves them under a name. Their playlists are in a closed section at the top of the page: choose one and Play
 // plays its songs one after another, opening each and scrolling to it; a song's title in the list plays the
 // playlist from that song; Edit moves its songs up and down, removes some and adds others (chosen in a list).
-function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
+function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
   const { user } = useContext(AccountContext)
   const listReference = useRef<HTMLDivElement>(null)
   // Edit's list of songs, for dragging: the song being dragged by its handle, if any.
@@ -53,6 +55,8 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
   const [playing, setPlaying] = useState<PlayingList | null>(null)
   // The playlist being played, for the players' own events (which see the state of the render they were made in).
   const playingReference = useRef<PlayingList | null>(null)
+  // The last shared playlist started from Public lists, so it is not started again when the page is shown again.
+  const playedRequestKey = useRef<number | null>(null)
   const userId = user?.id ?? null
 
   useEffect(() => {
@@ -356,6 +360,62 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
     }
   }
 
+  // A shared playlist from Public lists: played from its first song once the page is shown and its songs are loaded.
+  useEffect(() => {
+    if (!playRequest || isHidden || songs.length === 0 || playedRequestKey.current === playRequest.key) {
+      return
+    }
+    // Just after the page is shown, so the first song's section can be opened and scrolled to.
+    const timer = window.setTimeout(() => {
+      playedRequestKey.current = playRequest.key
+      const playable = playRequest.songIds.filter((id) => songs.some((song) => song.id === id))
+      if (playable.length === 0) {
+        setMessage(`None of the songs of “${playRequest.name}” are on the site now.`)
+        return
+      }
+      setMessage('')
+      setErrorMessage('')
+      changePlaying({ name: playRequest.name, songIds: playable, index: 0 })
+      startSong(playable[0])
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [playRequest, isHidden, songs])
+
+  async function handleShare() {
+    if (!chosenPlaylist) {
+      return
+    }
+    setIsBusy(true)
+    setMessage('')
+    setErrorMessage('')
+    try {
+      const changed = await sharePlaylist(chosenPlaylist.id, !chosenPlaylist.shared)
+      setPlaylists((current) => current.map((playlist) => (playlist.id === changed.id ? { ...playlist, shared: changed.shared } : playlist)))
+      setMessage(
+        changed.shared
+          ? `“${changed.name}” is now on Public lists, for everyone to see and play. Copy link gives you its address to send.`
+          : `“${changed.name}” is no longer shared.`,
+      )
+    } catch (error) {
+      setErrorMessage((error as Error).message)
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!chosenPlaylist) {
+      return
+    }
+    const address = sharedPlaylistAddress(chosenPlaylist.id)
+    try {
+      await navigator.clipboard.writeText(address)
+      setMessage(`Copied the link to “${chosenPlaylist.name}”: ${address}`)
+    } catch {
+      setMessage(`The link to “${chosenPlaylist.name}” is ${address}`)
+    }
+  }
+
   const playingSong = playing ? songsById.get(playing.songIds[playing.index]) : undefined
 
   return (
@@ -390,6 +450,7 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                     {playlists.map((playlist) => (
                       <option key={playlist.id} value={playlist.id}>
                         {playlist.name}
+                        {playlist.shared ? ' · shared' : ''}
                       </option>
                     ))}
                   </select>
@@ -545,6 +606,17 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
                   <button type="button" className="link-button" onClick={handleChange}>
                     Change this playlist
                   </button>
+                  {/* Sharing is for accounts an administrator allowed; a shared playlist can always be unshared. */}
+                  {(user?.share_lists || chosenPlaylist.shared) && (
+                    <button type="button" className="link-button" disabled={isBusy} onClick={handleShare}>
+                      {chosenPlaylist.shared ? 'Stop sharing' : 'Share on Public lists'}
+                    </button>
+                  )}
+                  {chosenPlaylist.shared && (
+                    <button type="button" className="link-button" onClick={handleCopyLink}>
+                      Copy link
+                    </button>
+                  )}
                   {isConfirmingDelete ? (
                     <>
                       <span>Delete “{chosenPlaylist.name}”?</span>
@@ -573,6 +645,15 @@ function MusicPage({ songs, isHidden, focus }: MusicPageProps) {
           </div>
         </details>
       )}
+      {!user && playing && playingSong && (
+        <p className="music-now-playing" role="status">
+          Playing “{playing.name}”: song {playing.index + 1} of {playing.songIds.length}, <strong>{playingSong.title}</strong>{' '}
+          <button type="button" className="secondary-button small-button" onClick={handleStop}>
+            Stop
+          </button>
+        </p>
+      )}
+      {!user && message && <p role="status">{message}</p>}
       {user && (
         <PlaylistSaveBox
           tickedIds={tickedSongs.map((song) => song.id)}

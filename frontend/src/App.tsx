@@ -113,6 +113,14 @@ function App() {
     const song = new URLSearchParams(window.location.search).get('song') ?? ''
     return viewForAddress(window.location.pathname) === 'music' && /^[a-z0-9-]{3,50}$/.test(song) ? { id: song, key: Date.now() } : null
   })
+  // A shared playlist to play on the music page (Play on Public lists), with a new key each time.
+  const [musicPlayRequest, setMusicPlayRequest] = useState<{ name: string; songIds: string[]; key: number } | null>(null)
+  // The shared playlist a /public-lists?playlist=12 address names (a link sent from Copy link), opened when Public
+  // lists opens (read here, before the address is tidied to /public-lists).
+  const [publicPlaylistFocus] = useState<number | null>(() => {
+    const playlist = new URLSearchParams(window.location.search).get('playlist') ?? ''
+    return viewForAddress(window.location.pathname) === 'publicLists' && /^[0-9]{1,12}$/.test(playlist) ? Number(playlist) : null
+  })
   // The map a /maps?map=pauls-journeys address names, shown when the maps page opens (read here, before the
   // address is tidied to /maps). The search pages' "Open this map" sets it too, with a new key each time.
   const [mapFocus, setMapFocus] = useState<{ id: string; key: number } | null>(() => {
@@ -581,7 +589,16 @@ function App() {
               <ConversationsPage key={user?.id ?? 'logged-out'} isHidden={activeView !== 'conversations'} />
               <ConversationsPage key={`prayer-${user?.id ?? 'logged-out'}`} board="prayer" isHidden={activeView !== 'prayerWall'} />
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
-              {activeView === 'publicLists' && <PublicListsPage key={`public-lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
+              {activeView === 'publicLists' && <PublicListsPage
+                  key={`public-lists-${user?.id ?? 'logged-out'}`}
+                  onOpenEntry={openListEntry}
+                  onNavigate={navigate}
+                  initialPlaylistId={publicPlaylistFocus}
+                  onPlayPlaylist={(name, songIds) => {
+                    setMusicPlayRequest({ name, songIds, key: Date.now() })
+                    navigate('music')
+                  }}
+                />}
               {activeView === 'lists' && <MyListsPage key={`lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'verify' && emailLink && (
@@ -697,7 +714,7 @@ function App() {
               )}
               {songs.length > 0 && (
                 <>
-                  <MusicPage songs={songs} isHidden={activeView !== 'music'} focus={musicFocus} />
+                  <MusicPage songs={songs} isHidden={activeView !== 'music'} focus={musicFocus} playRequest={musicPlayRequest} />
                   <MusicSearchPage
                     isHidden={activeView !== 'searchMusic'}
                     onOpen={(songId) => {

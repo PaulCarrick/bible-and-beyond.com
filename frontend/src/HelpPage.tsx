@@ -570,7 +570,11 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             several with Cmd or Ctrl held, and press <em>Add</em>; they go at the end); press <em>Save changes</em> when it
             is right. <em>Change this playlist</em> ticks its songs so you can add or take
             some away and save under the same name (the order is kept, new songs go at the end);{' '}
-            <em>Delete this playlist</em> removes it. Your playlists are yours alone.
+            <em>Delete this playlist</em> removes it. Your playlists are yours alone unless you share one: if the
+            site's administrators have allowed your account to share, <em>Share on Public lists</em> puts the chosen playlist
+            on <PageLink onNavigate={onNavigate} view="publicLists">Public lists</PageLink>, where everyone can see and play
+            it, and <em>Copy link</em> gives you its address to send to someone. <em>Stop sharing</em> takes it off again.
+            On Public lists, a logged-in visitor can <em>Copy to my playlists</em>.
           </p>
           <Screenshot
             name="playlist-edit"

@@ -63,14 +63,19 @@ def _describe(row, song_ids: list[str]) -> dict:
     "song_ids": song_ids,
     "created_at": row[2].isoformat(),
     "updated_at": row[3].isoformat(),
+    # On the Public lists page (while the account may share; see share_playlist).
+    "shared": row[4] is not None,
   }
+
+
+PLAYLIST_COLUMNS = "id, name, created_at, updated_at, shared_at"
 
 
 def list_playlists(user_id: int) -> list[dict]:
   """The visitor's playlists by name, each with its published songs in order."""
   with connect() as connection:
     rows = connection.execute(
-      "SELECT id, name, created_at, updated_at FROM playlists WHERE user_id = %s ORDER BY lower(name), id",
+      f"SELECT {PLAYLIST_COLUMNS} FROM playlists WHERE user_id = %s ORDER BY lower(name), id",
       (user_id,),
     ).fetchall()
     songs = _published_songs(connection, [row[0] for row in rows])
@@ -122,7 +127,7 @@ def save_playlist(user_id: int, name: str, song_ids: list[str]) -> tuple[dict, b
           [(playlist_id, position, song_id) for position, song_id in enumerate(ordered, start=1)],
         )
       row = connection.execute(
-        "SELECT id, name, created_at, updated_at FROM playlists WHERE id = %s", (playlist_id,)
+        f"SELECT {PLAYLIST_COLUMNS} FROM playlists WHERE id = %s", (playlist_id,)
       ).fetchone()
   return _describe(row, ordered), bool(same_name)
 
@@ -135,3 +140,98 @@ def delete_playlist(user_id: int, playlist_id: int) -> None:
     ).fetchone()
   if deleted is None:
     raise PlaylistProblem("That playlist was not found.", 404)
+
+
+# --- Sharing: shared playlists on the Public lists page (2026-11-21) -------------------------------------------
+
+# Like My lists (saved_lists.PUBLIC_CONDITION): a shared playlist is shown while its owner may share
+# (users.share_lists, "Can share lists" on Site users) and the account is open. Everyone who can use the site sees
+# them, with the owner named by first name and last initial.
+PUBLIC_CONDITION = "p.shared_at IS NOT NULL AND u.share_lists AND u.disabled_at IS NULL"
+
+
+def _owner_name(first_name: str | None, last_name: str | None) -> str:
+  first, last = (first_name or "").strip(), (last_name or "").strip()
+  if not first and not last:
+    return "A member"
+  return f"{first} {last[:1]}.".strip() if last else first
+
+
+def share_playlist(user: dict, playlist_id: int, shared: bool) -> dict:
+  """Shares one of the member's playlists on Public lists, or stops sharing it (stopping is always allowed)."""
+  if shared and not user.get("share_lists"):
+    raise PlaylistProblem("Your account cannot share playlists. The site's administrators can allow it.", 403)
+  with connect() as connection:
+    row = connection.execute(
+      f"""
+      UPDATE playlists SET shared_at = CASE WHEN %s THEN COALESCE(shared_at, now()) END
+      WHERE id = %s AND user_id = %s RETURNING {PLAYLIST_COLUMNS}
+      """,
+      (shared, playlist_id, user["id"]),
+    ).fetchone()
+    if row is None:
+      raise PlaylistProblem("That playlist was not found.", 404)
+    songs = _published_songs(connection, [playlist_id])
+  return _describe(row, songs[playlist_id])
+
+
+def _song_details(connection, song_ids: list[str]) -> list[dict]:
+  """Each song's id, title and author, in the order given."""
+  rows = connection.execute("SELECT id, title, author FROM music_tracks WHERE id = ANY(%s)", (song_ids,)).fetchall()
+  found = {row[0]: {"id": row[0], "title": row[1], "author": row[2] or ""} for row in rows}
+  return [found[song_id] for song_id in song_ids if song_id in found]
+
+
+def list_public_playlists() -> list[dict]:
+  """Every shared playlist, most recently changed first, with its owner's name and its published songs in order."""
+  with connect() as connection:
+    rows = connection.execute(
+      f"""
+      SELECT p.id, p.name, p.created_at, p.updated_at, p.shared_at, u.first_name, u.last_name
+      FROM playlists p JOIN users u ON u.id = p.user_id
+      WHERE {PUBLIC_CONDITION} ORDER BY p.updated_at DESC, p.id DESC
+      """
+    ).fetchall()
+    songs = _published_songs(connection, [row[0] for row in rows])
+  return [{**_describe(row, songs[row[0]]), "owner": _owner_name(row[5], row[6])} for row in rows]
+
+
+def get_public_playlist(playlist_id: int) -> dict:
+  """One shared playlist, with its published songs' titles and authors (for the Public lists page)."""
+  with connect() as connection:
+    row = connection.execute(
+      f"""
+      SELECT p.id, p.name, p.created_at, p.updated_at, p.shared_at, u.first_name, u.last_name
+      FROM playlists p JOIN users u ON u.id = p.user_id WHERE p.id = %s AND {PUBLIC_CONDITION}
+      """,
+      (playlist_id,),
+    ).fetchone()
+    if row is None:
+      raise PlaylistProblem("That playlist is not shared.", 404)
+    song_ids = _published_songs(connection, [playlist_id])[playlist_id]
+    songs = _song_details(connection, song_ids)
+  return {**_describe(row, song_ids), "owner": _owner_name(row[5], row[6]), "songs": songs}
+
+
+def _free_name(connection, user_id: int, name: str) -> str:
+  """name, or "name (copy)", "name (copy 2)" ... when the visitor has a playlist called that already (a copy never
+  replaces one of their own)."""
+  taken = {row[0] for row in connection.execute("SELECT lower(name) FROM playlists WHERE user_id = %s", (user_id,)).fetchall()}
+  candidate, number = name, 1
+  while candidate.lower() in taken:
+    suffix = " (copy)" if number == 1 else f" (copy {number})"
+    candidate = name[: NAME_LIMIT - len(suffix)] + suffix
+    number += 1
+  return candidate
+
+
+def copy_public_playlist(user_id: int, playlist_id: int) -> dict:
+  """Copy to my playlists: a shared playlist becomes one of the visitor's own (not shared), under a free name."""
+  shared = get_public_playlist(playlist_id)
+  playable = [song["id"] for song in shared["songs"]]
+  if not playable:
+    raise PlaylistProblem("That playlist has no songs on the site now.")
+  with connect() as connection:
+    name = _free_name(connection, user_id, shared["name"])
+  playlist, _ = save_playlist(user_id, name, playable)
+  return playlist

@@ -101,7 +101,16 @@ from conversations import (
   update_reply,
 )
 from notes import NoteProblem, create_note, delete_note, list_notes, update_note
-from playlists import PlaylistProblem, delete_playlist, list_playlists, save_playlist
+from playlists import (
+  PlaylistProblem,
+  copy_public_playlist,
+  delete_playlist,
+  get_public_playlist,
+  list_playlists,
+  list_public_playlists,
+  save_playlist,
+  share_playlist,
+)
 from original_words import get_lexicon_entry, get_original_words
 import search
 from search import (
@@ -1686,6 +1695,38 @@ def playlists_delete(playlist_id: int, request: Request):
   except PlaylistProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   return {"deleted": True}
+
+
+def _playlists_call(work):
+  try:
+    return work()
+  except PlaylistProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.put("/playlists/{playlist_id}/shared")
+def playlists_share(playlist_id: int, body: ListShareRequest, request: Request):
+  """Shares one of the visitor's playlists on Public lists, or stops (only accounts allowed share_lists may share)."""
+  user = require_user(request, "Please log in to use playlists.")
+  return {"playlist": _playlists_call(lambda: share_playlist(user, playlist_id, body.shared))}
+
+
+@app.get("/public-playlists")
+def public_playlists_index():
+  """Every shared playlist (on Public lists under Members): anyone who can use the site may see and play them."""
+  return {"playlists": list_public_playlists()}
+
+
+@app.get("/public-playlists/{playlist_id}")
+def public_playlists_get(playlist_id: int):
+  return {"playlist": _playlists_call(lambda: get_public_playlist(playlist_id))}
+
+
+@app.post("/public-playlists/{playlist_id}/copy")
+def public_playlists_copy(playlist_id: int, request: Request):
+  """Copy to my playlists: the shared playlist becomes one of the logged-in visitor's own."""
+  user = require_user(request, "Please log in to copy playlists.")
+  return {"playlist": _playlists_call(lambda: copy_public_playlist(user["id"], playlist_id))}
 
 
 class SubscriptionRequest(BaseModel):
