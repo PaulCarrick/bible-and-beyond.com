@@ -82,9 +82,10 @@ ML_DIRECTORY = Path(__file__).resolve().parent
 DRUPAL_DIRECTORY = ML_DIRECTORY.parent / "drupal"
 DATA_DIRECTORY = ML_DIRECTORY / "data"
 WORK_DIRECTORY = DATA_DIRECTORY / "backup"
-# The parts of a backup, each its own zip, in the order they are made and restored (Drupal's last, because
-# restoring it logs the administrator out).
-PART_NAMES = ("bible-database", "files", "drupal-database")
+# The parts of a backup, each its own zip, in the order they are made and saved: the files last, as they are
+# usually the largest and the likeliest to fail on the way (the owner's request, 2026-11-21). A restore goes
+# in its own order (_restore_parts): Drupal's database last, because restoring it logs the administrator out.
+PART_NAMES = ("bible-database", "drupal-database", "files")
 PART_WORDS = {"bible-database": "the Bible database", "drupal-database": "Drupal's database", "files": "the files"}
 NAME_PATTERN = re.compile(r"^(bible-and-beyond-\d{4}-\d{2}-\d{2}-\d{6})(?:-(bible-database|drupal-database|files))?\.zip$")
 # The most zips one restore takes: the three of a backup.

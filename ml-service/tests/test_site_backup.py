@@ -118,7 +118,7 @@ def test_a_backup_is_three_zips_of_one_backup(site):
   paths = site_backup.take_backup(EVERYTHING, "Before the move")
 
   zips = by_part(paths)
-  assert list(zips) == ["bible-database", "files", "drupal-database"]
+  assert list(zips) == ["bible-database", "drupal-database", "files"]
   stems = {site_backup.NAME_PATTERN.match(path.name).group(1) for path in paths}
   assert len(stems) == 1
   for path in paths:
@@ -152,7 +152,7 @@ def test_a_backup_is_three_zips_of_one_backup(site):
 
 def test_each_zip_is_deleted_once_saved_and_a_new_backup_deletes_the_rest(site, monkeypatch):
   paths = site_backup.take_backup(EVERYTHING)
-  # The page saved the first two; the third failed (a network error) and stays to be saved again.
+  # The page saved the two databases; the files, last, failed (a network error) and stays to be saved again.
   site_backup.discard_backup(paths[0].name)
   left = site_backup.discard_backup(paths[1].name)["waiting"]
   assert [file["name"] for file in left] == [paths[2].name]
@@ -196,7 +196,7 @@ def test_restore_replaces_everything_but_keeps_the_music_folder(site, tmp_path):
 
   # Chosen in any order.
   restored = site_backup.restore_backup(upload(paths[2], paths[0], paths[1]))
-  assert restored == f"the Bible database, the files and Drupal's database from {stem}"
+  assert restored == f"the Bible database, Drupal's database and the files from {stem}"
 
   settings = json.loads(Path(os.environ["SERVICE_SETTINGS_FILE"]).read_text())
   assert settings == {"gemini_api_key": "old-key", "music_folder": str(new_music)}
@@ -269,7 +269,7 @@ def test_a_backup_made_before_the_split_is_restored_whole(site, tmp_path):
             archive.writestr(name, part.read(name))
     archive.writestr("manifest.json", json.dumps({"format": 2, "name": old.name, "parts": EVERYTHING}))
   (site["music"] / "amazing-grace.mp4").unlink()
-  assert site_backup.restore_backup(upload(old)) == f"the Bible database, the files and Drupal's database from {old.name}"
+  assert site_backup.restore_backup(upload(old)) == f"the Bible database, Drupal's database and the files from {old.name}"
   assert (site["music"] / "amazing-grace.mp4").is_file()
   assert (site["log"] / "psql.input").exists()
   with pytest.raises(site_backup.BackupProblem, match="restore it alone"):
