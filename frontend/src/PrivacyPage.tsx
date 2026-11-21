@@ -183,7 +183,11 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
         <li>You can stop devotional, verse a day, prayer list, reply or group emails with the link at the bottom of any email.</li>
         <li>
           You can stop text messages by replying STOP to any text, or by unticking <em>Send via SMS</em> on your My account page. Your
-          mobile carrier may charge for texts you receive.
+          mobile carrier may charge for texts you receive. The{' '}
+          <button type="button" className="link-button" onClick={() => onNavigate('smsTerms')}>
+            Text message terms
+          </button>{' '}
+          say what is sent and how often.
         </li>
         <li>
           You can close your account yourself at the foot of the My account page: it can no longer log in, and after one

@@ -59,7 +59,11 @@ function TextMessageChoices({
             <small>
               A short text message with a link, to the number above. <strong>Your mobile carrier may charge you for
               text messages</strong> (message and data rates may apply). Reply STOP to any text to stop them, or HELP
-              for help. US and Canadian numbers only.
+              for help. US and Canadian numbers only. See the{' '}
+              <a href="/sms-terms" target="_blank" rel="noopener">
+                text message terms
+              </a>
+              .
             </small>
           </label>
           <label className="inline-label">
@@ -111,7 +115,11 @@ function TextMessageChoices({
             <small>
               A short text message with a link, to the number above. <strong>Your mobile carrier may charge you for
               text messages</strong> (message and data rates may apply). Reply STOP to any text to stop them, or HELP
-              for help. US and Canadian numbers only.
+              for help. US and Canadian numbers only. See the{' '}
+              <a href="/sms-terms" target="_blank" rel="noopener">
+                text message terms
+              </a>
+              .
             </small>
           ) : (
             <small>
