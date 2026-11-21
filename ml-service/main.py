@@ -1583,11 +1583,12 @@ class ListShareRequest(BaseModel):
 
 
 @app.get("/lists/export")
-def lists_export(request: Request, list_id: int | None = None):
-  """The member's lists (or one, list_id) as a JSON file to download; Import on My lists reads it back."""
+def lists_export(request: Request, list_id: int | None = None, playlist_id: int | None = None):
+  """The member's lists and playlists (or one list, list_id, or one playlist, playlist_id) as a JSON file to download;
+  Import on My lists reads it back."""
   user = require_user(request, "Please log in to use lists.")
-  document = _lists_call(lambda: saved_lists.export_lists(user["id"], list_id))
-  name = f"my-lists-{date.today().isoformat()}.json"
+  document = _lists_call(lambda: saved_lists.export_lists(user["id"], list_id, playlist_id))
+  name = f"my-{'playlist' if playlist_id is not None else 'lists'}-{date.today().isoformat()}.json"
   return JSONResponse(document, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 

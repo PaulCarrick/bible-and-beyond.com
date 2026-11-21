@@ -86,9 +86,18 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
     act(async () => {
       const result = await importLists(file)
       setLists(await fetchLists())
-      const names = result.lists.map((each) => `“${each.name}”`).join(', ')
+      const names = (items: { name: string }[]) => items.map((each) => `“${each.name}”`).join(', ')
+      const parts = []
+      if (result.lists.length > 0) {
+        parts.push(`${result.lists.length} ${result.lists.length === 1 ? 'list' : 'lists'}: ${names(result.lists)}`)
+      }
+      if (result.playlists.length > 0) {
+        parts.push(`${result.playlists.length} ${result.playlists.length === 1 ? 'playlist' : 'playlists'} (on the Christian media page): ${names(result.playlists)}`)
+      }
       const left = result.skipped > 0 ? ` ${result.skipped} ${result.skipped === 1 ? 'entry' : 'entries'} could not be kept here and were left out.` : ''
-      setMessage(`Imported ${result.lists.length} ${result.lists.length === 1 ? 'list' : 'lists'}: ${names}.${left}`)
+      const leftSongs =
+        result.skipped_songs > 0 ? ` ${result.skipped_songs} ${result.skipped_songs === 1 ? 'song was not on this site and was' : 'songs were not on this site and were'} left out.` : ''
+      setMessage(`${parts.length > 0 ? `Imported ${parts.join('; and ')}.` : 'Nothing could be imported.'}${left}${leftSongs}`)
       if (result.lists.length > 0) {
         setChosen(result.lists[0])
       }
@@ -131,13 +140,13 @@ function MyListsPage({ onOpenEntry, onNavigate }: MyListsPageProps) {
         <button
           type="button"
           className="secondary-button"
-          disabled={isBusy || !lists || lists.length === 0}
+          disabled={isBusy || !lists}
           onClick={() => act(() => exportLists())}
         >
-          Export all lists
+          Export all lists and playlists
         </button>
         <button type="button" className="secondary-button" disabled={isBusy} onClick={() => importInput.current?.click()}>
-          Import lists…
+          Import lists and playlists…
         </button>
         <input
           ref={importInput}

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { deletePlaylist, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist, sharedPlaylistAddress, sharePlaylist } from './api'
+import { deletePlaylist, exportLists, fetchPlaylists, formattedHtmlForPage, musicFileAddress, musicWordsAddress, savePlaylist, sharedPlaylistAddress, sharePlaylist } from './api'
 import PlaylistSaveBox from './PlaylistSaveBox'
 import type { MusicSong, Playlist } from './api'
 import { AccountContext } from './AccountContext'
@@ -403,6 +403,20 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
     }
   }
 
+  async function handleExport() {
+    if (!chosenPlaylist) {
+      return
+    }
+    setMessage('')
+    setErrorMessage('')
+    try {
+      await exportLists(undefined, chosenPlaylist.id)
+      setMessage(`Saved “${chosenPlaylist.name}” in a file. Import it on My lists, here or on another copy of this site.`)
+    } catch (error) {
+      setErrorMessage((error as Error).message)
+    }
+  }
+
   async function handleCopyLink() {
     if (!chosenPlaylist) {
       return
@@ -617,6 +631,9 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
                       Copy link
                     </button>
                   )}
+                  <button type="button" className="link-button" onClick={handleExport}>
+                    Export this playlist
+                  </button>
                   {isConfirmingDelete ? (
                     <>
                       <span>Delete “{chosenPlaylist.name}”?</span>

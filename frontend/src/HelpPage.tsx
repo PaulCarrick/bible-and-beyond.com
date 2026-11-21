@@ -573,8 +573,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             <em>Delete this playlist</em> removes it. Your playlists are yours alone unless you share one: if the
             site's administrators have allowed your account to share, <em>Share on Public lists</em> puts the chosen playlist
             on <PageLink onNavigate={onNavigate} view="publicLists">Public lists</PageLink>, where everyone can see and play
-            it, and <em>Copy link</em> gives you its address to send to someone. <em>Stop sharing</em> takes it off again.
-            On Public lists, a logged-in visitor can <em>Copy to my playlists</em>.
+            it (listed with the shared lists, marked &ldquo;Playlist&rdquo;), and <em>Copy link</em> gives you its address to
+            send to someone. <em>Stop sharing</em> takes it off again. On Public lists, a logged-in visitor can{' '}
+            <em>Copy to my playlists</em>. <em>Export this playlist</em> saves it in a file, which <em>Import</em> on My
+            lists reads back.
           </p>
           <Screenshot
             name="playlist-edit"
@@ -947,9 +949,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           reading, so you can add your own thoughts to it in My notes. Your lists are yours alone unless you share one.
         </p>
         <p>
-          <em>Export all lists</em> (or <em>Export this list</em>) saves your lists in a file on your computer, and{' '}
-          <em>Import lists…</em> reads such a file back as new lists, here or on another copy of this site (a list
-          with a name you already use gets &ldquo;(copy)&rdquo; after it). If the site&rsquo;s administrators have allowed
+          <em>Export all lists and playlists</em> (or <em>Export this list</em>, or <em>Export this playlist</em> on the
+          Christian media page) saves them in a file on your computer, and <em>Import lists and playlists…</em> reads such
+          a file back as new lists and playlists, here or on another copy of this site (one with a name you already use
+          gets &ldquo;(copy)&rdquo; after it; a song that is not on this site is left out). If the site&rsquo;s administrators have allowed
           your account to share, <em>Share on Public lists</em> puts a list on{' '}
           <PageLink onNavigate={onNavigate} view="publicLists">Public lists</PageLink> (under Members), where everyone
           can see it with your first name and the first letter of your last name; <em>Stop sharing</em> takes it off.

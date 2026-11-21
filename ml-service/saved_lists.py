@@ -17,6 +17,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from notes import NoteProblem, create_note
+from playlists import PlaylistProblem, export_playlists, import_playlists, list_playlists
 from search import connect
 
 NAME_LIMIT = 100
@@ -342,10 +343,14 @@ EXPORT_FORMAT = "bible-and-beyond-lists"
 EXPORT_VERSION = 1
 
 
-def export_lists(user_id: int, list_id: int | None = None) -> dict:
-  """The member's lists (or the one list_id) as a JSON document that import_lists reads back, here or on another
-  copy of the site: each list's name and its entries as kept (kind, title, source, text and where to open it)."""
-  ids = [list_id] if list_id is not None else [each["id"] for each in reversed(list_lists(user_id))]
+def export_lists(user_id: int, list_id: int | None = None, playlist_id: int | None = None) -> dict:
+  """The member's lists and playlists (or only the one list_id, or the one playlist_id) as a JSON document that
+  import_lists reads back, here or on another copy of the site: each list's name and its entries as kept (kind,
+  title, source, text and where to open it), and each playlist's name and songs (playlists.export_playlists)."""
+  if playlist_id is not None:
+    ids = []
+  else:
+    ids = [list_id] if list_id is not None else [each["id"] for each in reversed(list_lists(user_id))]
   lists = []
   for each in ids:
     found = get_list(user_id, each)
@@ -358,7 +363,15 @@ def export_lists(user_id: int, list_id: int | None = None) -> dict:
     "version": EXPORT_VERSION,
     "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     "lists": lists,
+    "playlists": _playlists_call(lambda: export_playlists(user_id, playlist_id)) if list_id is None else [],
   }
+
+
+def _playlists_call(work):
+  try:
+    return work()
+  except PlaylistProblem as problem:
+    raise ListProblem(str(problem), problem.status_code) from problem
 
 
 def import_lists(user_id: int, document) -> dict:
@@ -369,9 +382,12 @@ def import_lists(user_id: int, document) -> dict:
     raise ListProblem("That is not a lists file exported from this site.")
   if not isinstance(document.get("version"), int) or document["version"] > EXPORT_VERSION:
     raise ListProblem("That lists file is from a newer version of the site and cannot be read here.")
-  given = document.get("lists")
-  if not isinstance(given, list) or not given:
-    raise ListProblem("That lists file holds no lists.")
+  given = document.get("lists", [])
+  given_playlists = document.get("playlists", [])
+  if not isinstance(given, list) or not isinstance(given_playlists, list):
+    raise ListProblem("That lists file could not be read.")
+  if not given and not given_playlists:
+    raise ListProblem("That lists file holds no lists or playlists.")
   if len(given) > MAX_LISTS_PER_USER:
     raise ListProblem(f"A lists file can hold at most {MAX_LISTS_PER_USER} lists.")
   made, skipped = [], 0
@@ -388,4 +404,12 @@ def import_lists(user_id: int, document) -> dict:
       skipped += max(0, len(each["items"]) - MAX_ITEMS_PER_LIST)
       new_id, _ = _new_list(connection, user_id, str(each.get("name") or "Imported list"), entries)
       made.append(new_id)
-  return {"lists": [get_list(user_id, each) for each in made], "skipped": skipped}
+    # Playlists (2026-11-21) in the same transaction, so a refused file adds nothing.
+    made_playlists, skipped_songs = _playlists_call(lambda: import_playlists(connection, user_id, given_playlists))
+  playlists_now = {playlist["id"]: playlist for playlist in list_playlists(user_id)}
+  return {
+    "lists": [get_list(user_id, each) for each in made],
+    "playlists": [playlists_now[each] for each in made_playlists if each in playlists_now],
+    "skipped": skipped,
+    "skipped_songs": skipped_songs,
+  }

@@ -219,3 +219,48 @@ def test_a_playlist_leaves_public_lists_when_unshared_or_the_owner_may_no_longer
   allow_sharing(ann)
   assert client.get(f"/public-playlists/{playlist_id}").status_code == 404
   assert client.get("/public-playlists/999999999").status_code == 404
+
+
+# --- Export and import with My lists' file (2026-11-21) ---
+
+
+def test_playlists_are_exported_with_the_lists_and_imported_back():
+  sign_up("ann")
+  save("Sunday", ["playlists-test-b", "playlists-test-a"])
+  playlist_id = save("Evening", ["playlists-test-c"]).json()["playlist"]["id"]
+
+  everything = client.get("/lists/export").json()
+  assert [each["name"] for each in everything["playlists"]] == ["Evening", "Sunday"]
+  assert everything["playlists"][1]["songs"][0] == {"id": "playlists-test-b", "title": "Playlists-Test-B", "author": ""}
+
+  one = client.get("/lists/export", params={"playlist_id": playlist_id})
+  assert one.headers["content-disposition"].startswith('attachment; filename="my-playlist-')
+  assert one.json()["lists"] == [] and [each["name"] for each in one.json()["playlists"]] == ["Evening"]
+
+  imported = client.post("/lists/import", content=client.get("/lists/export").content)
+  assert imported.status_code == 200, imported.text
+  assert sorted(each["name"] for each in imported.json()["playlists"]) == ["Evening (copy)", "Sunday (copy)"]
+  copy = [each for each in imported.json()["playlists"] if each["name"] == "Sunday (copy)"][0]
+  assert copy["song_ids"] == ["playlists-test-b", "playlists-test-a"] and copy["shared"] is False
+
+  # Another account cannot export someone else's playlist.
+  sign_up("bob")
+  assert client.get("/lists/export", params={"playlist_id": playlist_id}).status_code == 404
+
+
+def test_an_imported_playlist_finds_songs_by_title_and_leaves_out_the_missing_ones():
+  sign_up("ann")
+  document = {"format": "bible-and-beyond-lists", "version": 1, "lists": [], "playlists": [
+    {"name": "From another site", "songs": [
+      {"id": "other-site-id", "title": "playlists-test-c"},
+      {"id": "playlists-test-a", "title": "A"},
+      {"id": "not-here", "title": "Not here"},
+    ]},
+    {"name": "Nothing playable", "songs": [{"id": "not-here", "title": "Not here"}]},
+  ]}
+  imported = client.post("/lists/import", json=document).json()
+  assert [each["name"] for each in imported["playlists"]] == ["From another site"]
+  assert imported["playlists"][0]["song_ids"] == ["playlists-test-c", "playlists-test-a"]
+  assert imported["skipped_songs"] == 2 and imported["lists"] == []
+  empty = client.post("/lists/import", json={"format": "bible-and-beyond-lists", "version": 1, "lists": [], "playlists": []})
+  assert empty.status_code == 422

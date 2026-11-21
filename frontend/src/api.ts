@@ -1309,9 +1309,9 @@ export async function shareList(id: number, shared: boolean): Promise<SavedList>
   return (await listRequest<{ list: SavedList }>(`/${id}/shared`, 'PUT', { shared })).list
 }
 
-// Export: the member's lists (or one) as a JSON file the browser saves.
-export async function exportLists(listId?: number): Promise<void> {
-  const query = listId === undefined ? '' : `?list_id=${listId}`
+// Export: the member's lists and playlists (or one list, or one playlist) as a JSON file the browser saves.
+export async function exportLists(listId?: number, playlistId?: number): Promise<void> {
+  const query = listId !== undefined ? `?list_id=${listId}` : playlistId !== undefined ? `?playlist_id=${playlistId}` : ''
   const response = await fetch(`${mlServiceUrl}/lists/export${query}`, { credentials: 'include' })
   if (!response.ok) {
     await readJson(response)
@@ -1327,8 +1327,9 @@ export async function exportLists(listId?: number): Promise<void> {
   URL.revokeObjectURL(address)
 }
 
-// Import: a file made by Export becomes new lists. Returns them and how many entries were left out.
-export async function importLists(file: File): Promise<{ lists: SavedList[]; skipped: number }> {
+// Import: a file made by Export becomes new lists and playlists. Returns them and how many entries (and songs) were
+// left out.
+export async function importLists(file: File): Promise<{ lists: SavedList[]; playlists: Playlist[]; skipped: number; skipped_songs: number }> {
   const response = await fetch(`${mlServiceUrl}/lists/import`, {
     method: 'POST',
     credentials: 'include',

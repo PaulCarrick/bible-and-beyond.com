@@ -235,3 +235,68 @@ def copy_public_playlist(user_id: int, playlist_id: int) -> dict:
     name = _free_name(connection, user_id, shared["name"])
   playlist, _ = save_playlist(user_id, name, playable)
   return playlist
+
+
+# --- Export and import (2026-11-21), through My lists' file (saved_lists.export_lists and import_lists) -------
+
+
+def export_playlists(user_id: int, playlist_id: int | None = None) -> list[dict]:
+  """The visitor's playlists (or the one playlist_id) for the lists file: each name and its published songs in
+  order, by id with title and author (so another copy of the site can find a song by its title when the id differs)."""
+  if playlist_id is not None:
+    with connect() as connection:
+      if connection.execute("SELECT 1 FROM playlists WHERE id = %s AND user_id = %s", (playlist_id, user_id)).fetchone() is None:
+        raise PlaylistProblem("That playlist was not found.", 404)
+  exported = []
+  with connect() as connection:
+    for playlist in list_playlists(user_id):
+      if playlist_id is not None and playlist["id"] != playlist_id:
+        continue
+      exported.append({"name": playlist["name"], "songs": _song_details(connection, playlist["song_ids"])})
+  return exported
+
+
+def import_playlists(connection, user_id: int, given: list) -> tuple[list[int], int]:
+  """Adds the playlists of a lists file as new playlists (a name already used gets "(copy)"), inside the caller's
+  transaction. Each song is found by its id, else by its title (in any case); a song that is not published here (or
+  is a Spotify item) is left out and counted, and a playlist left with no songs is not made.
+  Returns the new playlists' ids and how many songs were left out."""
+  if not isinstance(given, list):
+    raise PlaylistProblem("That lists file could not be read.")
+  playable = connection.execute(
+    "SELECT id, lower(title) FROM music_tracks WHERE is_published AND media_type <> 'spotify' ORDER BY id"
+  ).fetchall()
+  by_id = {row[0] for row in playable}
+  by_title = {}
+  for song_id, title in playable:
+    by_title.setdefault(title, song_id)
+  count = connection.execute("SELECT count(*) FROM playlists WHERE user_id = %s", (user_id,)).fetchone()[0]
+  made, skipped = [], 0
+  for each in given:
+    if not isinstance(each, dict) or not isinstance(each.get("songs"), list):
+      raise PlaylistProblem("That lists file could not be read.")
+    song_ids = []
+    for song in each["songs"][:MAX_SONGS_PER_PLAYLIST]:
+      song = song if isinstance(song, dict) else {}
+      found = song.get("id") if song.get("id") in by_id else by_title.get(str(song.get("title") or "").lower())
+      if found is None:
+        skipped += 1
+      elif found not in song_ids:
+        song_ids.append(found)
+    skipped += max(0, len(each["songs"]) - MAX_SONGS_PER_PLAYLIST)
+    if not song_ids:
+      continue
+    if count >= MAX_PLAYLISTS_PER_USER:
+      raise PlaylistProblem(f"You can keep at most {MAX_PLAYLISTS_PER_USER} playlists. Please delete some first.", 409)
+    name = _free_name(connection, user_id, check_name(str(each.get("name") or "Imported playlist")))
+    playlist_id = connection.execute(
+      "INSERT INTO playlists (user_id, name) VALUES (%s, %s) RETURNING id", (user_id, name)
+    ).fetchone()[0]
+    with connection.cursor() as cursor:
+      cursor.executemany(
+        "INSERT INTO playlist_songs (playlist_id, position, song_id) VALUES (%s, %s, %s)",
+        [(playlist_id, position, song_id) for position, song_id in enumerate(song_ids, start=1)],
+      )
+    made.append(playlist_id)
+    count += 1
+  return made, skipped
