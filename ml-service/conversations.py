@@ -27,7 +27,8 @@ posts are never sent this way.
 
 "Check posts with AI" (site_settings check_posts, ticked on the Drupal Site settings screen): a new or changed post or
 reply, on either board, is first sent to Gemini (post_moderation.check); one it rejects (profanity, political messages,
-advertising, anything else inappropriate) is refused with a message and not saved.
+advertising, anything else inappropriate) is refused with a message and not saved. Private Prayer Wall requests (and
+replies to them, which only their author can write) are not checked (the owner's choice, 2026-11-22).
 """
 
 import logging
@@ -253,7 +254,8 @@ def create_post(
   email_replies = _checked_email_replies(board, email_replies)
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
-  _moderated(cleaned["text"], title, board, "post")
+  if not is_private:  # a private prayer request is not checked
+    _moderated(cleaned["text"], title, board, "post")
   with connect() as connection:
     count = connection.execute("SELECT count(*) FROM conversation_posts WHERE user_id = %s", (user_id,)).fetchone()[0]
     if count >= MAX_POSTS_PER_USER:
@@ -357,7 +359,9 @@ def update_post(
   it in the administrators' next one."""
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
-  _moderated(cleaned["text"], title, _board_of_own_post(user_id, post_id), "post")
+  board = _board_of_own_post(user_id, post_id)
+  if not (share_with or is_private):  # a private prayer request is not checked
+    _moderated(cleaned["text"], title, board, "post")
   with connect() as connection:
     found = connection.execute("SELECT board FROM conversation_posts WHERE id = %s AND user_id = %s", (post_id, user_id)).fetchone()
     if found is None:
@@ -471,11 +475,12 @@ def create_reply(user_id: int, post_id: int, body: str) -> dict:
   with connect() as connection:
     # A private post is "not found" to anyone but its author.
     post = connection.execute(
-      f"SELECT board FROM conversation_posts WHERE id = %(post)s AND {_VISIBLE}", {"post": post_id, "viewer": user_id}
+      f"SELECT board, is_private FROM conversation_posts WHERE id = %(post)s AND {_VISIBLE}", {"post": post_id, "viewer": user_id}
     ).fetchone()
   if post is None:
     raise ConversationProblem("That post was not found. It may have been deleted.", 404)
-  _moderated(cleaned["text"], "", post[0], "reply")
+  if not post[1]:  # replies to a private prayer request are not checked
+    _moderated(cleaned["text"], "", post[0], "reply")
   with connect() as connection:
     # A private post is "not found" to anyone but its author.
     if not connection.execute(
@@ -706,13 +711,14 @@ def update_reply(user_id: int, reply_id: int, body: str) -> dict:
   cleaned = _cleaned(body, REPLY_HTML_LIMIT, REPLY_TEXT_LIMIT, "reply")
   with connect() as connection:
     found = connection.execute(
-      "SELECT posts.board FROM conversation_replies JOIN conversation_posts posts ON posts.id = conversation_replies.post_id "
+      "SELECT posts.board, posts.is_private FROM conversation_replies JOIN conversation_posts posts ON posts.id = conversation_replies.post_id "
       "WHERE conversation_replies.id = %s AND conversation_replies.user_id = %s",
       (reply_id, user_id),
     ).fetchone()
   if found is None:
     raise ConversationProblem("That reply was not found.", 404)
-  _moderated(cleaned["text"], "", found[0], "reply")
+  if not found[1]:  # replies to a private prayer request are not checked
+    _moderated(cleaned["text"], "", found[0], "reply")
   with connect() as connection:
     row = connection.execute(
       "UPDATE conversation_replies SET body = %s, body_text = %s, updated_at = now() WHERE id = %s AND user_id = %s RETURNING id",

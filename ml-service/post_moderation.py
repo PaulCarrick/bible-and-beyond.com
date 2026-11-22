@@ -4,7 +4,7 @@ owner's request).
 Only while "Check posts with AI" is ticked on the Drupal Site settings screen (site_settings "check_posts", off by
 default). conversations.py calls check() for a new or changed post or reply; when Gemini says it is not fit for the
 site (profanity, political messages, advertising or anything else inappropriate), it is refused with a message and
-nothing is saved.
+nothing is saved. Private Prayer Wall requests, and replies to them, are not sent (conversations.py skips them).
 
 If Gemini cannot be asked (no key, busy, out of time), the post is accepted and the failure logged, so the boards keep
 working when Google is busy. The text is never logged.

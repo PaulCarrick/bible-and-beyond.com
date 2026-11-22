@@ -125,6 +125,20 @@ def test_someone_elses_post_is_not_found_before_gemini_is_asked(gemini):
   assert response.status_code == 404 and len(gemini["asked"]) == asked
 
 
+def test_private_prayer_requests_and_replies_to_them_are_not_checked(gemini):
+  sign_up("ann")
+  gemini["answer"]["text"] = "REJECTED: anything"
+  private = post("Just for me", "<p>Please pray</p>", board="prayer", is_private=True)
+  assert private.status_code == 200 and gemini["asked"] == []
+  post_id = private.json()["post"]["id"]
+  assert client.post(f"/conversations/{post_id}/replies", json={"body": "<p>Update</p>"}).status_code == 200
+  edited = client.put(f"/conversations/{post_id}", json={"title": "Just for me", "body": "<p>Still</p>", "is_private": True})
+  assert edited.status_code == 200 and gemini["asked"] == []
+  # Made public, it is checked.
+  public = client.put(f"/conversations/{post_id}", json={"title": "Just for me", "body": "<p>Still</p>"})
+  assert public.status_code == 422 and len(gemini["asked"]) == 1
+
+
 def test_when_gemini_fails_or_answers_oddly_the_post_is_accepted(gemini):
   sign_up("ann")
   gemini["answer"]["error"] = FaqUnavailable("busy")

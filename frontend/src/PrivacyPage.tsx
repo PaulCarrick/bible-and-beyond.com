@@ -169,8 +169,8 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
         <strong>About AI queries:</strong> we never put your name or email address in an AI request, and we do not
         log what you typed. We keep a copy of AI answers so we do not have to ask again, but the search itself is
         stored only as a scrambled code, not as words. Please do not type personal details into a question. When
-        the site checks posts, each new or changed post or reply (a private prayer request too) is sent to Gemini
-        only to be checked for profanity, political messages and ads; we keep nothing of that check.
+        the site checks posts, each new or changed post or reply (but never a private prayer request) is sent to
+        Gemini only to be checked for profanity, political messages and ads; we keep nothing of that check.
       </p>
 
       <h2>Security</h2>
