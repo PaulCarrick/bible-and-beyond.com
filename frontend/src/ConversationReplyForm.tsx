@@ -59,6 +59,7 @@ function ConversationReplyForm({ postId, postTitle, reply, onSaved, onCancel }: 
         {reply ? `Edit your reply to ${postTitle}` : `Your reply to ${postTitle}`}
       </span>
       <RichTextEditor ref={editorReference} placeholder="Write your reply" labelledBy={labelId} />
+      <p className="posting-rules">Replies should not contain profanity, political messages or ads.</p>
       {errorMessage && (
         <p className="error" role="alert">
           {errorMessage}
@@ -72,7 +73,6 @@ function ConversationReplyForm({ postId, postTitle, reply, onSaved, onCancel }: 
           Cancel
         </button>
       </div>
-      <p className="posting-rules">Replies should not contain profanity, political messages or ads.</p>
     </div>
   )
 }

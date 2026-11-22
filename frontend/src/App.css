@@ -2997,11 +2997,11 @@ div.welcome-lead > p {
 
 /* The Prayer Wall choices under a post's text (ConversationPostForm.tsx): each checkbox with its words, and a
    short explanation under the words. */
-/* The rule under the post and reply forms of Conversations and the Prayer Wall. */
+/* The rule above the buttons of the post and reply forms of Conversations and the Prayer Wall (bold, at the
+   owner's request, 2026-11-22). */
 .posting-rules {
-  margin: 0.6rem 0 0;
-  font-size: 0.85em;
-  opacity: 0.8;
+  margin: 0.75rem 0;
+  font-weight: 700;
 }
 
 .prayer-options {

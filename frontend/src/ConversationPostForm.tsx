@@ -152,6 +152,8 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
           <small className="prayer-sharing-note">{sharingNote(sharing, groups)}</small>
         </div>
       )}
+      {/* The rule (the owner's words, 2026-11-22); "Check posts with AI" on Site settings enforces it. */}
+      <p className="posting-rules">Posts should not contain profanity, political messages or ads.</p>
       {errorMessage && (
         <p className="error" role="alert">
           {errorMessage}
@@ -165,8 +167,6 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
           Cancel
         </button>
       </div>
-      {/* The rule (the owner's words, 2026-11-22); "Check posts with AI" on Site settings enforces it. */}
-      <p className="posting-rules">Posts should not contain profanity, political messages or ads.</p>
     </form>
   )
 }
