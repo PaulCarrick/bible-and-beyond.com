@@ -2569,7 +2569,7 @@ div.welcome-lead > p {
   margin-top: 1.5rem;
 }
 
-/* A song's words as a picture or a PDF, in place of the typed words. */
+/* A song's words as a picture or a PDF, below the typed words when it has both. */
 .music-words-image {
   display: block;
   max-width: 100%;

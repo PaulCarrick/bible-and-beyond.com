@@ -328,7 +328,7 @@ bible_admin.music_change:
     _title: 'Change a song'
   requirements:
     _permission: 'administer bibles'
-    action: 'publish|unpublish|delete'
+    action: 'publish|unpublish|delete|remove-words'
     song_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
 
 # The maps: pictures or PDFs with their details and verses (maps.py), open to whoever may administer the Bibles.

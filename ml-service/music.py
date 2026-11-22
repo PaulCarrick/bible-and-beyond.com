@@ -1,7 +1,7 @@
 """The Christian music section: songs with an MP3 or MP4 file, a title, an author and the words.
 
 The words can also be given as a PDF or a picture (a scan of the hymnal page, say), kept beside the song as
-"<id>-words.pdf" (or .png, .jpg, .webp, .gif); the music page then shows that file in place of the typed words,
+"<id>-words.pdf" (or .png, .jpg, .webp, .gif); the music page then shows that file below the typed words,
 which stay for the search.
 
 The files are kept in the music folder set on the Drupal Site settings screen (service_settings
@@ -209,7 +209,7 @@ def _describe(row, with_file_check: bool = False) -> dict:
     "updated_at": updated_at.isoformat(),
     # Changes when a file is replaced, so the page can ask for the new one (the files are cached for a month).
     "version": int(updated_at.timestamp()),
-    # The words as a file: "pdf" or "image", shown in place of the typed words; None when there is none.
+    # The words as a file: "pdf" or "image", shown below the typed words; None when there is none.
     "words_kind": None if words_media_type is None else ("pdf" if words_media_type == "application/pdf" else "image"),
   }
   if with_file_check:
@@ -278,6 +278,17 @@ def _change_words(song_id: str, words: tuple[Path, str] | None, remove_words: bo
     )
   if old and old[0] and old[0] != new_name:
     file_path(old[0]).unlink(missing_ok=True)
+
+
+def remove_words_file(song_id: str) -> dict:
+  """Takes away a song's PDF or picture of the words (its file is deleted), keeping everything else."""
+  song = get_song(song_id, published_only=False)
+  if song is None:
+    raise MusicProblem("That song does not exist (it may have been deleted).")
+  if not song.get("words_kind"):
+    raise MusicProblem("This song has no PDF or picture of its words.")
+  _change_words(song_id, None, True)
+  return get_song(song_id, published_only=False)
 
 
 def upload(path: Path, original_name: str, song_id: str, details: dict, words: tuple[Path, str] | None = None) -> dict:

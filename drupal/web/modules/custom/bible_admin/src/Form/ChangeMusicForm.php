@@ -12,7 +12,8 @@ use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Asks before publishing, hiding or deleting a song of the Christian music section.
+ * Asks before publishing, hiding or deleting a song of the Christian music section, or removing its PDF or
+ * picture of the words.
  */
 class ChangeMusicForm extends ConfirmFormBase {
 
@@ -51,6 +52,7 @@ class ChangeMusicForm extends ConfirmFormBase {
     return match ($this->action) {
       'publish' => $this->t('Publish “@title”?', ['@title' => $title]),
       'unpublish' => $this->t('Hide “@title”?', ['@title' => $title]),
+      'remove-words' => $this->t('Remove the @kind of the words of “@title”?', ['@kind' => $this->wordsKind(), '@title' => $title]),
       default => $this->t('Delete “@title”?', ['@title' => $title]),
     };
   }
@@ -59,6 +61,7 @@ class ChangeMusicForm extends ConfirmFormBase {
     return match ($this->action) {
       'publish' => $this->t('Everyone can then play it and read its words on the site. Publish only a recording that is in the public domain or that you have permission to publish.'),
       'unpublish' => $this->t('It is taken off the site; its file and details are kept, and you can publish it again.'),
+      'remove-words' => $this->t('The @kind is deleted from the music folder. The song, its recording and its typed words stay; the music page then shows only the typed words. You can upload another one with Edit.', ['@kind' => $this->wordsKind()]),
       default => $this->t('The song and its file are deleted. This cannot be undone; you would have to upload it again.'),
     };
   }
@@ -67,8 +70,16 @@ class ChangeMusicForm extends ConfirmFormBase {
     return match ($this->action) {
       'publish' => $this->t('Publish'),
       'unpublish' => $this->t('Hide'),
+      'remove-words' => $this->t('Remove it'),
       default => $this->t('Delete'),
     };
+  }
+
+  /**
+   * "PDF" or "picture", whichever the song's words file is.
+   */
+  private function wordsKind() {
+    return ($this->song['words_kind'] ?? '') === 'pdf' ? 'PDF' : $this->t('picture');
   }
 
   public function getCancelUrl(): Url {
@@ -82,6 +93,7 @@ class ChangeMusicForm extends ConfirmFormBase {
       $this->messenger()->addStatus(match ($action) {
         'publish' => $this->t('Published “@title”.', ['@title' => $song['title']]),
         'unpublish' => $this->t('Hid “@title”.', ['@title' => $song['title']]),
+        'remove-words' => $this->t('Removed the PDF or picture of the words of “@title”.', ['@title' => $song['title']]),
         default => $this->t('Deleted “@title”.', ['@title' => $song['title']]),
       });
     }

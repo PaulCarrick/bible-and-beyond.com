@@ -93,8 +93,10 @@ sections:
       <figure><img data-guide="music" alt="The Christian music page with the drop area for several files and the list of songs"><figcaption>Christian music, with the drop area for several files at once (see below) and the list.</figcaption></figure>
       <p><strong>Upload a song</strong> (or <em>Edit</em> one): the file, its title and author, keywords (words a
       visitor might search for), and the words: typed in, or taken from a PDF, Word document or ebook, and if you
-      have one, <strong>the words as a PDF or picture</strong> (a scan of the hymnal page, shown in place of the typed
-      words).</p>
+      have one, <strong>the words as a PDF or picture</strong> (a scan of the hymnal page, shown below the typed
+      words). To take that PDF or picture away, choose <em>Remove the PDF</em> (or <em>Remove the picture</em>) in
+      the song's menu on the list, or tick <em>Remove this PDF</em> on its Edit page; the song and its typed words
+      stay.</p>
       <figure><img data-guide="music-edit" alt="Edit a song: title, author, file, words, words file and keywords"><figcaption>Edit a song. A new file is optional when editing.</figcaption></figure>
       <p><strong>Add a Spotify item</strong> puts a song, album or playlist that is on Spotify in the list, instead of
       a file: in Spotify, choose Share, then Copy link, and paste it in <em>Spotify link</em>; give it an id, a title and,

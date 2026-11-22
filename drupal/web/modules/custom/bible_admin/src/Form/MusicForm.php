@@ -98,7 +98,7 @@ class MusicForm extends FormBase {
     $form['lyrics'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Words'),
-      '#description' => $this->t('Shown under the player, line by line as typed; leave a blank line between verses. Searched by the search page, even when a words file below is shown instead. Optional (for example for music without words).'),
+      '#description' => $this->t('Shown under the player, line by line as typed; leave a blank line between verses. Searched by the search page; a words file below is shown under them. Optional (for example for music without words).'),
       '#default_value' => $song['lyrics'] ?? '',
       '#rows' => 16,
     ];
@@ -111,22 +111,33 @@ class MusicForm extends FormBase {
       '#attributes' => ['accept' => '.pdf,.docx,.epub'],
     ];
     $hasWordsFile = !empty($song['words_kind']);
+    if ($hasWordsFile) {
+      // The PDF or picture in use, with a way to take it away, before the field that replaces it (2026-11-21).
+      $kind = $song['words_kind'] === 'pdf' ? 'PDF' : $this->t('picture');
+      $form['current_words'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t('The words as a @kind', ['@kind' => $kind]),
+      ];
+      $form['current_words']['about'] = [
+        '#type' => 'item',
+        '#markup' => $this->t('This song has a @kind of its words; the music page shows it below the typed words. It is also listed as “Remove the @kind” in the song’s menu on the music list.', ['@kind' => $kind]),
+      ];
+      $form['current_words']['remove_words'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Remove this @kind when I save', ['@kind' => $kind]),
+        '#parents' => ['remove_words'],
+      ];
+    }
     $form['words_file'] = [
       '#type' => 'file',
       '#title' => $hasWordsFile ? $this->t('A new words file (optional)') : $this->t('The words as a PDF or picture (optional)'),
       '#description' => ($hasWordsFile
-        ? $this->t('This song shows its words from a @kind. Leave this empty to keep it, or choose another to replace it.', ['@kind' => $song['words_kind'] === 'pdf' ? 'PDF' : $this->t('picture')])
-        : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 1 GB. When there is one, the music page shows it in place of the words typed above.')),
+        ? $this->t('Leave this empty to keep the one above, or choose another to replace it.')
+        : $this->t('For example a scan of the hymnal page: a PDF, PNG, JPEG, WebP or GIF of up to 1 GB. The music page shows it below the words typed above.')),
       '#attributes' => ['accept' => '.pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif'],
       // A "Paste a picture" box under the field (js/paste-picture.js).
       '#attached' => ['library' => ['bible_admin/paste_picture']],
     ];
-    if ($hasWordsFile) {
-      $form['remove_words'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Remove the words file (the typed words are shown again)'),
-      ];
-    }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $song === NULL ? $this->t('Upload the song') : $this->t('Save')];

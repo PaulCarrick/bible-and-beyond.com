@@ -749,7 +749,19 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
                     Your browser cannot play this recording.
                   </audio>
                 )}
-                {/* The words file when there is one (it loads only once the song is opened), else the typed words. */}
+                {/* The words first (formatted from a document, or as typed), then the words file below them when
+                    there is one (it loads only once the song is opened): the owner's request, 2026-11-21. */}
+                {song.lyrics_html && (
+                  // The words from a PDF or Word document, with their formatting (cleaned by the server).
+                  <div className="music-lyrics formatted-text" dangerouslySetInnerHTML={{ __html: formattedHtmlForPage(song.lyrics_html) }} />
+                )}
+                {!song.lyrics_html && song.lyrics && (
+                  <div className="music-lyrics">
+                    {song.lyrics.split(/\n{2,}/).map((verse, index) => (
+                      <p key={index}>{verse}</p>
+                    ))}
+                  </div>
+                )}
                 {song.words_kind === 'image' && (
                   <img className="music-words-image" src={musicWordsAddress(song)} alt={`The words of ${song.title}`} loading="lazy" />
                 )}
@@ -760,17 +772,6 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
                     <a href={musicWordsAddress(song)} target="_blank" rel="noopener">
                       Open the words (PDF) in a new tab
                     </a>
-                  </div>
-                )}
-                {!song.words_kind && song.lyrics_html && (
-                  // The words from a PDF or Word document, with their formatting (cleaned by the server).
-                  <div className="music-lyrics formatted-text" dangerouslySetInnerHTML={{ __html: formattedHtmlForPage(song.lyrics_html) }} />
-                )}
-                {!song.words_kind && !song.lyrics_html && song.lyrics && (
-                  <div className="music-lyrics">
-                    {song.lyrics.split(/\n{2,}/).map((verse, index) => (
-                      <p key={index}>{verse}</p>
-                    ))}
                   </div>
                 )}
               </div>

@@ -324,7 +324,7 @@ export interface MusicSong {
   spotify_link?: string | null
   // Changes when a file is replaced, so the addresses below ask for the new one.
   version: number
-  // The words as a file (a PDF or a picture), shown in place of the typed words; null when there is none.
+  // The words as a file (a PDF or a picture), shown below the typed words; null when there is none.
   words_kind: 'pdf' | 'image' | null
 }
 

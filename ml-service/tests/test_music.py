@@ -135,7 +135,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 500
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 500
 
 
-def test_the_words_can_be_a_pdf_or_a_picture_shown_in_place_of_the_text(tmp_path, folder):
+def test_the_words_can_be_a_pdf_or_a_picture_shown_below_the_text(tmp_path, folder):
   song = music.upload(write(tmp_path, "a", MP4), "a.mp4", "test-music-words", DETAILS, (write(tmp_path, "w", PDF), "Words.PDF"))
   assert song["words_kind"] == "pdf" and song["words_file_present"] is True and song["lyrics"]
   assert (folder / "test-music-words-words.pdf").read_bytes() == PDF
@@ -161,6 +161,25 @@ def test_the_words_can_be_a_pdf_or_a_picture_shown_in_place_of_the_text(tmp_path
   music.update_details("test-music-words", DETAILS, (write(tmp_path, "p", PNG), "page.png"))
   music.delete("test-music-words")
   assert list(folder.iterdir()) == []
+
+
+def test_remove_words_takes_away_only_the_words_file(tmp_path, folder):
+  music.upload(write(tmp_path, "a", MP4), "a.mp4", "test-music-remove", DETAILS, (write(tmp_path, "w", PDF), "Words.pdf"))
+  music.set_published("test-music-remove", True)
+  answer = subprocess.run(
+    [sys.executable, str(SCRIPT), "remove-words", "--id=test-music-remove"], capture_output=True, text=True,
+    env={**__import__("os").environ, "MUSIC_FOLDER": str(folder)},
+  )
+  song = json.loads(answer.stdout)["song"]
+  assert answer.returncode == 0 and song["words_kind"] is None
+  assert song["is_published"] is True and song["title"] == "Amazing Grace" and song["lyrics"] and song["file_present"]
+  assert not (folder / "test-music-remove-words.pdf").exists() and (folder / "test-music-remove.mp4").exists()
+  assert client.get("/music/test-music-remove/words").status_code == 404
+  # Nothing to remove, or no such song, is refused.
+  with pytest.raises(music.MusicProblem, match="no PDF or picture"):
+    music.remove_words_file("test-music-remove")
+  with pytest.raises(music.MusicProblem, match="does not exist"):
+    music.remove_words_file("test-music-none")
 
 
 def test_a_wrong_words_file_is_refused_and_nothing_is_saved(tmp_path, folder):

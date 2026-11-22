@@ -14,9 +14,10 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_music.py spotify --id=worship-playlist         a Spotify item: reads {"spotify_link", "title", "author",
                                                           "lyrics", "keywords"} (a link in place of a file)
     manage_music.py publish|unpublish|delete --id=amazing-grace
+    manage_music.py remove-words --id=amazing-grace       takes away the song's PDF or picture of the words
 
 upload and update also take --words=FILE --words-name=words.pdf (the words as a PDF or picture, shown in place
-of the typed words), and update takes --remove-words. Both also take --words-document=FILE
+below the typed words), and update takes --remove-words. Both also take --words-document=FILE
 --words-document-name=hymn.docx: a PDF or Word document whose text becomes the song's words, with its formatting
 (the typed words are replaced).
 
@@ -37,6 +38,7 @@ from music import (  # noqa: E402
   add_spotify,
   delete,
   get_song,
+  remove_words_file,
   list_songs,
   set_published,
   set_words_from_document,
@@ -49,7 +51,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("list")
-  for name in ("get", "publish", "unpublish", "delete"):
+  for name in ("get", "publish", "unpublish", "delete", "remove-words"):
     commands.add_parser(name).add_argument("--id", required=True)
   commands.add_parser("spotify").add_argument("--id", required=True)
   updating = commands.add_parser("update")
@@ -99,6 +101,8 @@ def run(arguments) -> dict:
     return {"ok": True, "song": set_published(arguments.id, arguments.command == "publish")}
   if arguments.command == "delete":
     return {"ok": True, "song": delete(arguments.id)}
+  if arguments.command == "remove-words":
+    return {"ok": True, "song": remove_words_file(arguments.id)}
   if arguments.command == "spotify":
     details = read_details()
     return {"ok": True, "song": add_spotify(arguments.id, str(details.get("spotify_link") or ""), details)}

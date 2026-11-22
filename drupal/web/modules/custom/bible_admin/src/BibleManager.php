@@ -635,7 +635,7 @@ class BibleManager {
 
   /**
    * Saves a song: a new song or a new file for one ($file), else only its details, and its words file (a PDF
-   * or picture shown in place of the typed words) when one is given or removed. The uploaded files wait in
+   * or picture shown below the typed words) when one is given or removed. The uploaded files wait in
    * the private upload folder only while the tool copies them, and are removed afterwards whatever happens.
    *
    * @param array $details
@@ -697,16 +697,17 @@ class BibleManager {
   }
 
   /**
-   * Publishes, hides or deletes a song (deleting removes its file).
+   * Publishes, hides or deletes a song (deleting removes its file), or removes its PDF or picture of the words.
    */
   public function changeMusic(string $action, string $songId): array {
-    if (!in_array($action, ['publish', 'unpublish', 'delete'], TRUE)) {
+    if (!in_array($action, ['publish', 'unpublish', 'delete', 'remove-words'], TRUE)) {
       throw new BibleManagerException('Unknown action.');
     }
     $song = $this->run([$action, '--id=' . $songId], 'manage_music.py')['song'];
     $this->logMusic(match ($action) {
       'publish' => 'published',
       'unpublish' => 'hid',
+      'remove-words' => 'removed the PDF or picture of the words of',
       default => 'deleted',
     }, $song);
     return $song;

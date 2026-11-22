@@ -51,6 +51,13 @@ class MusicListController extends ControllerBase {
         ['title' => $this->t('Edit'), 'url' => Url::fromRoute($song['kind'] === 'spotify' ? 'bible_admin.music_spotify_edit' : 'bible_admin.music_edit', ['song_id' => $song['id']])],
         ['title' => $this->t('Delete'), 'url' => $change('delete')],
       ];
+      if ($song['words_kind'] !== NULL) {
+        // Before Delete, so it is not mistaken for deleting the song.
+        array_splice($links, 2, 0, [[
+          'title' => $song['words_kind'] === 'pdf' ? $this->t('Remove the PDF') : $this->t('Remove the picture'),
+          'url' => $change('remove-words'),
+        ]]);
+      }
       $status = $song['is_published'] ? $this->t('Published') : $this->t('Hidden');
       if (!$song['file_present']) {
         $status = $this->t('@status. The file is missing from the music folder.', ['@status' => $status]);
