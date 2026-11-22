@@ -453,7 +453,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, bool $phoneVerified = FALSE, bool $shareLists = FALSE): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, bool $phoneVerified = FALSE, bool $shareLists = FALSE, bool $getConversationPosts = FALSE): array {
     // An empty $email: the account logs in with its phone (profile phone), confirmed when $phoneVerified.
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($phoneVerified) {
@@ -477,6 +477,9 @@ class BibleManager {
     if ($shareLists) {
       $arguments[] = '--share-lists';
     }
+    if ($getConversationPosts) {
+      $arguments[] = '--get-conversation-posts';
+    }
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
       '@user' => $this->currentUser->getAccountName(),
@@ -491,7 +494,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL, ?bool $getConversationPosts = NULL): array {
     $before = $closed === NULL ? NULL : $this->getSiteUser($userId);
     $arguments = [
       'update',
@@ -512,6 +515,9 @@ class BibleManager {
     }
     if ($shareLists !== NULL) {
       $arguments[] = '--share-lists=' . ($shareLists ? 'yes' : 'no');
+    }
+    if ($getConversationPosts !== NULL) {
+      $arguments[] = '--get-conversation-posts=' . ($getConversationPosts ? 'yes' : 'no');
     }
     $input = NULL;
     if ($password !== '') {

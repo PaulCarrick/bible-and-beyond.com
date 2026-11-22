@@ -93,6 +93,8 @@ from conversations import (
   delete_reply,
   list_posts,
   my_groups,
+  send_new_post_emails,
+  send_new_reply_emails,
   send_reply_email,
   send_shared_request,
   set_answered,
@@ -1459,6 +1461,8 @@ def conversations_create(body: ConversationPostRequest, request: Request, backgr
   # A request for a group or its leader goes at once, after the answer (the page never waits for the mail server).
   if share_is_due(post["id"]):
     background.add_task(send_shared_request, post["id"])
+  # Accounts with Get Conversation Posts are emailed a new Conversations post (never a Prayer Wall one).
+  background.add_task(send_new_post_emails, post["id"])
   return {"post": post}
 
 
@@ -1518,6 +1522,7 @@ def conversations_reply(post_id: int, body: ConversationReplyRequest, request: R
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   background.add_task(send_reply_email, reply["id"])
+  background.add_task(send_new_reply_emails, reply["id"])
   return {"reply": reply}
 
 

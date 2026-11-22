@@ -139,6 +139,13 @@ class SiteUserForm extends FormBase {
       '#default_value' => $user['share_lists'] ?? FALSE,
       '#description' => $this->t('Lets this visitor share their lists (My lists) on the Public lists page under Members, where everyone who can use the site sees them. Turning it off hides their shared lists. Off unless turned on here.'),
     ];
+    // Every new Conversations post and reply by email (added 2026-11-22 at the owner's request).
+    $form['get_conversation_posts'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Get Conversation Posts'),
+      '#default_value' => $user['get_conversation_posts'] ?? FALSE,
+      '#description' => $this->t('Emails this visitor every new post and every new reply in Conversations (not the Prayer Wall), except their own. Needs a confirmed email address; each email has a link that turns it off. Off unless turned on here.'),
+    ];
     $form['see_private_prayers'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Gets private prayer requests'),
@@ -216,6 +223,7 @@ class SiteUserForm extends FormBase {
     $seePrivatePrayers = (bool) $form_state->getValue('see_private_prayers');
     $useMaps = (bool) $form_state->getValue('use_maps');
     $shareLists = (bool) $form_state->getValue('share_lists');
+    $getConversationPosts = (bool) $form_state->getValue('get_conversation_posts');
     $profile = [
       'first_name' => trim((string) $form_state->getValue('first_name')),
       'last_name' => trim((string) $form_state->getValue('last_name')),
@@ -223,11 +231,11 @@ class SiteUserForm extends FormBase {
     ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('phone_verified'), $shareLists);
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts);
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email'] ?: $user['phone']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts);
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email'] ?: $user['phone']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email'] ?: $user['phone']]));

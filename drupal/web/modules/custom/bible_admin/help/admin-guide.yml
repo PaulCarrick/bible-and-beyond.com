@@ -276,7 +276,8 @@ sections:
       <p><strong>Read and delete</strong> shows the whole post with its replies. Delete a reply with the link under it,
       or the whole post (with its replies) with the button; both ask first. The author is not told.</p>
       <figure><img data-guide="conversation-post" alt="A post with its replies and the delete buttons"><figcaption>One post, with its replies.</figcaption></figure>
-      <p>Who may write is set per member on Site users (<em>Conversations</em>); anyone may read.</p>
+      <p>Who may write is set per member on Site users (<em>Conversations</em>); anyone may read. Those with
+      <em>Get Conversation Posts</em> ticked on Site users are emailed every new post and reply.</p>
 
   - id: external-sites
     title: External sites
@@ -419,6 +420,9 @@ sections:
         Conversations and the Prayer Wall), <em>Maps</em> (their own notes, pins and routes) and <em>Can share
         lists</em> (putting their lists on the Public lists page under Members, where everyone sees them; unticking
         it hides their shared lists): off unless ticked here.</li>
+        <li><em>Get Conversation Posts</em>: emails them every new post and every new reply in Conversations (not
+        the Prayer Wall), except their own. It needs a confirmed email address, and each email has a link that turns
+        it off again (the box is then unticked here). The list's <em>Gets posts</em> column shows who has it.</li>
         <li><em>Gets private prayer requests</em>: for the site's own administrators, whose weekly prayer list email
         then holds the private requests too.</li>
         <li>A password, twice (8 to 128 characters). Left empty when editing, it stays as it is; a new one logs them

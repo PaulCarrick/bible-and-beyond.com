@@ -213,6 +213,11 @@ def _unsubscribe(token: str):
       ).fetchone()
       if post:
         return f"replies to your post “{post[0]}”"
+      # And Get Conversation Posts (conversations.send_new_post_emails): every new Conversations post and reply.
+      if connection.execute(
+        "UPDATE users SET get_conversation_posts = false WHERE conversation_posts_token = %s RETURNING id", (token,)
+      ).fetchone():
+        return "new Conversations posts and replies"
       # And the verse a day (verse_a_day.py).
       if connection.execute("DELETE FROM verse_subscriptions WHERE unsubscribe_token = %s RETURNING id", (token,)).fetchone():
         return "the verse a day"

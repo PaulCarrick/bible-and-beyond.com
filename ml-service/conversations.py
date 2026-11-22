@@ -18,10 +18,17 @@ author can also mark it answered at any time, without editing it (answered_at; a
 A Conversations post has "Email me replies" (email_replies, migration 036; off unless ticked): each new reply by
 someone else is emailed to its author (send_reply_email, run by main.py after answering), with a link that turns it
 off (reply_email_token, handled by subscriptions.unsubscribe_with_token).
+
+Get Conversation Posts (users.get_conversation_posts, migration 065; ticked by an administrator on the Drupal Site
+users page): every new Conversations post and reply is emailed to each such account (send_new_post_emails,
+send_new_reply_emails, run by main.py after answering), except its own writer, and for a reply except the post's
+author when they already get "Email me replies". Each email has a stop link (conversation_posts_token). Prayer Wall
+posts are never sent this way.
 """
 
 import logging
 import secrets
+import time
 from email.message import EmailMessage
 
 from accounts import site_link
@@ -527,6 +534,121 @@ def send_reply_email(reply_id: int) -> None:
     sms.deliver(author_id, send_the_email, words, sms.site_address("/conversations"))
   except Exception as problem:
     logger.error("Reply notice for reply %s not sent: %s: %s", reply_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+
+
+# A short pause between the emails of one post or reply, so the mail server is not flooded.
+WATCHER_EMAIL_PAUSE_SECONDS = 0.5
+
+
+def _conversation_watchers(connection, writer_id: int, skip_id: int | None = None) -> list[tuple]:
+  """The accounts with Get Conversation Posts that can be emailed: a confirmed address, not closed, not the writer
+  (nor skip_id). Each is (address, stop token)."""
+  return connection.execute(
+    """
+    SELECT email, conversation_posts_token FROM users
+    WHERE get_conversation_posts AND conversation_posts_token IS NOT NULL AND email IS NOT NULL
+      AND email_verified_at IS NOT NULL AND disabled_at IS NULL AND id <> %s AND id <> %s
+    ORDER BY id
+    """,
+    (writer_id, skip_id if skip_id is not None else writer_id),
+  ).fetchall()
+
+
+def compose_watcher_email(from_address: str, address: str, token: str, subject: str, lines: list[str]) -> EmailMessage:
+  """One Get Conversation Posts email, to one address, with its own stop link and one-click header."""
+  site = site_link("").rstrip("?").rstrip("/")
+  email = EmailMessage()
+  email["Subject"] = subject
+  email["From"] = from_address
+  email["To"] = address
+  one_click = f"{site}/api/subscriptions/unsubscribe?token={token}"
+  email["List-Unsubscribe"] = f"<{one_click}>"
+  email["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+  email.set_content(
+    "\n".join(
+      [
+        *lines,
+        "",
+        f"Read it and reply: {site}/conversations",
+        "",
+        "--",
+        f"Sent by {get_public_settings()['title']}: {site}/",
+        "You get these because “Get Conversation Posts” is turned on for your account.",
+        f"To stop them, open: {site_link('unsubscribe=' + token)}",
+      ]
+    )
+    + "\n"
+  )
+  return email
+
+
+def _email_watchers(what: str, item_id: int, subject: str, lines: list[str], recipients: list[tuple]) -> int:
+  """Sends one email to each recipient. A failure is logged (never an address) and the others still go. Returns
+  how many were sent."""
+  if not recipients:
+    return 0
+  try:
+    settings = load_mail_settings()
+  except Exception as problem:
+    logger.error("Conversation emails for %s %s not sent: %s: %s", what, item_id, type(problem).__name__, problem if isinstance(problem, MailUnavailable) else "")
+    return 0
+  sent = 0
+  for index, (address, token) in enumerate(recipients):
+    if index:
+      time.sleep(WATCHER_EMAIL_PAUSE_SECONDS)
+    try:
+      send_email(settings, compose_watcher_email(settings["from_address"], address, token, subject, lines))
+      sent += 1
+    except Exception as problem:
+      logger.error("A conversation email for %s %s was not sent: %s", what, item_id, type(problem).__name__)
+  return sent
+
+
+def send_new_post_emails(post_id: int) -> int:
+  """Emails a new Conversations post to every account with Get Conversation Posts (not its author). Run after the
+  post is saved and answered. Returns how many were sent."""
+  try:
+    with connect() as connection:
+      row = connection.execute(
+        f"SELECT conversation_posts.user_id, conversation_posts.title, conversation_posts.body_text, {_AUTHOR} "
+        f"FROM {_FROM} WHERE conversation_posts.id = %s AND conversation_posts.board = 'conversations'",
+        (post_id,),
+      ).fetchone()
+      if row is None:
+        return 0
+      author_id, title, text, author = row
+      recipients = _conversation_watchers(connection, author_id)
+    lines = [f"{author} posted in Conversations:", "", title, "", text.strip()]
+    return _email_watchers("post", post_id, f"New post in Conversations: “{title}”", lines, recipients)
+  except Exception as problem:
+    logger.error("Conversation emails for post %s not sent: %s", post_id, type(problem).__name__)
+    return 0
+
+
+def send_new_reply_emails(reply_id: int) -> int:
+  """Emails a new reply on a Conversations post to every account with Get Conversation Posts, except the replier and,
+  when they already get "Email me replies" for that post, its author. Returns how many were sent."""
+  try:
+    with connect() as connection:
+      row = connection.execute(
+        f"""
+        SELECT conversation_replies.user_id, posts.user_id, posts.email_replies, posts.title,
+               conversation_replies.body_text, {_AUTHOR}
+        FROM {_REPLY_FROM}
+        JOIN conversation_posts posts ON posts.id = conversation_replies.post_id
+        WHERE conversation_replies.id = %s AND posts.board = 'conversations'
+        """,
+        (reply_id,),
+      ).fetchone()
+      if row is None:
+        return 0
+      replier_id, post_author_id, author_gets_replies, title, text, replier = row
+      recipients = _conversation_watchers(connection, replier_id, post_author_id if author_gets_replies else None)
+    lines = [f"{replier} replied to “{title}” in Conversations:", "", text.strip()]
+    return _email_watchers("reply", reply_id, f"New reply in Conversations: “{title}”", lines, recipients)
+  except Exception as problem:
+    logger.error("Conversation emails for reply %s not sent: %s", reply_id, type(problem).__name__)
+    return 0
 
 
 def _reply_notice(reply_id: int) -> tuple[int, str] | None:

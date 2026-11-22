@@ -5,6 +5,8 @@ scripts/manage_users.py, which calls these functions. Passwords are checked by t
 and kept only as a scrypt hash; they are never returned or logged.
 """
 
+import secrets
+
 import psycopg
 
 from accounts import AccountProblem, check_new_password, check_profile, hash_password, normalize_email
@@ -22,7 +24,8 @@ _COLUMNS = """
   users.use_conversations, users.see_private_prayers, users.sms_opt_in, users.sms_stopped_at IS NOT NULL,
   users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at,
   users.phone_verified_at IS NOT NULL, users.login_phone, users.share_lists,
-  (SELECT count(*) FROM saved_lists WHERE saved_lists.user_id = users.id AND saved_lists.shared_at IS NOT NULL)
+  (SELECT count(*) FROM saved_lists WHERE saved_lists.user_id = users.id AND saved_lists.shared_at IS NOT NULL),
+  users.get_conversation_posts
 """
 
 
@@ -62,6 +65,8 @@ def _describe(row) -> dict:
     # May share its lists on Public lists (saved_lists.py), and how many it shares now.
     "share_lists": row[20],
     "shared_list_count": row[21],
+    # Emailed every new Conversations post and reply (conversations.send_new_post_emails; 2026-11-22).
+    "get_conversation_posts": row[22],
   }
 
 
@@ -137,6 +142,7 @@ def create_user(
   use_maps: bool = False,
   phone_verified: bool = False,
   share_lists: bool = False,
+  get_conversation_posts: bool = False,
 ) -> dict:
   """Adds an account with an email address, or with a cell phone number only (no email: it logs in with the number;
   phone_verified says whether it is confirmed, as email_verified does for an address)."""
@@ -162,6 +168,8 @@ def create_user(
       ).fetchone()[0]
       if share_lists:
         connection.execute("UPDATE users SET share_lists = true WHERE id = %s", (user_id,))
+      if get_conversation_posts:
+        _turn_on_conversation_posts(connection, user_id)
   except psycopg.errors.UniqueViolation as error:
     what = "email address" if email else "phone number"
     raise UserProblem(f"An account with that {what} already exists.") from error
@@ -188,6 +196,7 @@ def update_user(
   see_private_prayers: bool | None = None,
   use_maps: bool | None = None,
   share_lists: bool | None = None,
+  get_conversation_posts: bool | None = None,
   closed: bool | None = None,
   phone_verified: bool | None = None,
 ) -> dict:
@@ -260,6 +269,13 @@ def update_user(
   if share_lists is not None:
     changes.append("share_lists = %s")
     values.append(share_lists)
+  if get_conversation_posts is not None:
+    changes.append("get_conversation_posts = %s")
+    values.append(get_conversation_posts)
+    if get_conversation_posts:
+      # The stop link of its emails (made once, kept when the box is unticked and ticked again).
+      changes.append("conversation_posts_token = COALESCE(conversation_posts_token, %s)")
+      values.append(secrets.token_urlsafe(24))
   if closed is not None and closed != current["closed"]:
     changes.append("disabled_at = CASE WHEN %s THEN now() END")
     values.append(closed)
@@ -277,6 +293,14 @@ def update_user(
     except psycopg.errors.UniqueViolation as error:
       raise UserProblem("Another account already uses that email address or phone number.") from error
   return get_user(user_id)
+
+
+def _turn_on_conversation_posts(connection, user_id: int) -> None:
+  """Ticks Get Conversation Posts, with the stop link its emails carry."""
+  connection.execute(
+    "UPDATE users SET get_conversation_posts = true, conversation_posts_token = COALESCE(conversation_posts_token, %s) WHERE id = %s",
+    (secrets.token_urlsafe(24), user_id),
+  )
 
 
 def delete_user(user_id: int) -> dict:
