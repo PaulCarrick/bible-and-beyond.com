@@ -726,9 +726,13 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
                     allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                   />
                 ) : song.kind === 'video' ? (
+                  // No Download in the player's menu, and no "Save video as" on right-click (the owner's request,
+                  // 2026-11-22). This hides the easy ways; it cannot stop a determined visitor saving the file.
                   <video
                     className="music-video"
                     controls
+                    controlsList="nodownload"
+                    onContextMenu={(event) => event.preventDefault()}
                     preload="none"
                     playsInline
                     src={musicFileAddress(song)}
@@ -741,6 +745,8 @@ function MusicPage({ songs, isHidden, focus, playRequest }: MusicPageProps) {
                   <audio
                     className="music-audio"
                     controls
+                    controlsList="nodownload"
+                    onContextMenu={(event) => event.preventDefault()}
                     preload="none"
                     src={musicFileAddress(song)}
                     onPlay={(event) => handlePlay(event.currentTarget, song.id)}
