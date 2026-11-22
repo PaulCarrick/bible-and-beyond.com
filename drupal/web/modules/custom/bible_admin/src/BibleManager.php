@@ -129,6 +129,7 @@ class BibleManager {
       'copyright_text' => '--copyright-text=',
       // 'yes' or 'no'.
       'login_required' => '--login-required=',
+      'check_posts' => '--check-posts=',
     ];
     $arguments = ['set'];
     $changed = [];

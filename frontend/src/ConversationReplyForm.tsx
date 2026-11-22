@@ -72,6 +72,7 @@ function ConversationReplyForm({ postId, postTitle, reply, onSaved, onCancel }: 
           Cancel
         </button>
       </div>
+      <p className="posting-rules">Replies should not contain profanity, political messages or ads.</p>
     </div>
   )
 }

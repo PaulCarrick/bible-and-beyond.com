@@ -24,6 +24,10 @@ users page): every new Conversations post and reply is emailed to each such acco
 send_new_reply_emails, run by main.py after answering), except its own writer, and for a reply except the post's
 author when they already get "Email me replies". Each email has a stop link (conversation_posts_token). Prayer Wall
 posts are never sent this way.
+
+"Check posts with AI" (site_settings check_posts, ticked on the Drupal Site settings screen): a new or changed post or
+reply, on either board, is first sent to Gemini (post_moderation.check); one it rejects (profanity, political messages,
+advertising, anything else inappropriate) is refused with a message and not saved.
 """
 
 import logging
@@ -32,6 +36,7 @@ import time
 from email.message import EmailMessage
 
 from accounts import site_link
+import post_moderation
 from contact import ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from search import connect
 from site_settings import get_public_settings
@@ -207,6 +212,22 @@ def _cleaned(body: str, html_limit: int, text_limit: int, what: str) -> dict:
     raise ConversationProblem(str(problem)) from problem
 
 
+def _moderated(text: str, title: str, board: str, what: str) -> None:
+  """Refuses a post or reply that Gemini rejects, when "Check posts with AI" is on (post_moderation.py)."""
+  try:
+    post_moderation.check(text, title, board, what)
+  except post_moderation.PostRejected as problem:
+    raise ConversationProblem(str(problem)) from problem
+
+
+def _board_of_own_post(user_id: int, post_id: int) -> str:
+  with connect() as connection:
+    found = connection.execute("SELECT board FROM conversation_posts WHERE id = %s AND user_id = %s", (post_id, user_id)).fetchone()
+  if found is None:
+    raise ConversationProblem("That post was not found.", 404)
+  return found[0]
+
+
 def _get(connection, post_id: int, viewer_id: int) -> dict:
   row = connection.execute(f"SELECT {_COLUMNS} FROM {_FROM} WHERE conversation_posts.id = %s", (post_id,)).fetchone()
   return _with_replies(connection, [_row_to_post(row, viewer_id)], viewer_id)[0]
@@ -232,6 +253,7 @@ def create_post(
   email_replies = _checked_email_replies(board, email_replies)
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
+  _moderated(cleaned["text"], title, board, "post")
   with connect() as connection:
     count = connection.execute("SELECT count(*) FROM conversation_posts WHERE user_id = %s", (user_id,)).fetchone()[0]
     if count >= MAX_POSTS_PER_USER:
@@ -335,6 +357,7 @@ def update_post(
   it in the administrators' next one."""
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
+  _moderated(cleaned["text"], title, _board_of_own_post(user_id, post_id), "post")
   with connect() as connection:
     found = connection.execute("SELECT board FROM conversation_posts WHERE id = %s AND user_id = %s", (post_id, user_id)).fetchone()
     if found is None:
@@ -445,6 +468,14 @@ def _get_reply(connection, reply_id: int, viewer_id: int) -> dict:
 def create_reply(user_id: int, post_id: int, body: str) -> dict:
   """Adds the member's reply to any post."""
   cleaned = _cleaned(body, REPLY_HTML_LIMIT, REPLY_TEXT_LIMIT, "reply")
+  with connect() as connection:
+    # A private post is "not found" to anyone but its author.
+    post = connection.execute(
+      f"SELECT board FROM conversation_posts WHERE id = %(post)s AND {_VISIBLE}", {"post": post_id, "viewer": user_id}
+    ).fetchone()
+  if post is None:
+    raise ConversationProblem("That post was not found. It may have been deleted.", 404)
+  _moderated(cleaned["text"], "", post[0], "reply")
   with connect() as connection:
     # A private post is "not found" to anyone but its author.
     if not connection.execute(
@@ -673,6 +704,15 @@ def _reply_notice(reply_id: int) -> tuple[int, str] | None:
 def update_reply(user_id: int, reply_id: int, body: str) -> dict:
   """Replaces the text of one of the member's own replies."""
   cleaned = _cleaned(body, REPLY_HTML_LIMIT, REPLY_TEXT_LIMIT, "reply")
+  with connect() as connection:
+    found = connection.execute(
+      "SELECT posts.board FROM conversation_replies JOIN conversation_posts posts ON posts.id = conversation_replies.post_id "
+      "WHERE conversation_replies.id = %s AND conversation_replies.user_id = %s",
+      (reply_id, user_id),
+    ).fetchone()
+  if found is None:
+    raise ConversationProblem("That reply was not found.", 404)
+  _moderated(cleaned["text"], "", found[0], "reply")
   with connect() as connection:
     row = connection.execute(
       "UPDATE conversation_replies SET body = %s, body_text = %s, updated_at = now() WHERE id = %s AND user_id = %s RETURNING id",

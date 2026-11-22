@@ -7,6 +7,7 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_settings.py set --context-verses-before=5 --context-verses-after=10 --related-verses-limit=10
     manage_settings.py set --site-title="Bible and Beyond" --copyright-text="Copyright 2026 ..."
     manage_settings.py set --welcome-html="<p>...</p>" --login-required=yes   (or --welcome-text= for plain text)
+    manage_settings.py set --check-posts=yes          (Gemini checks Conversations and Prayer Wall posts)
 
 On "set", any setting you leave out is not changed.
 """
@@ -42,6 +43,7 @@ def parse_arguments():
     change.add_argument("--welcome-html", type=str)
     change.add_argument("--welcome-text", type=str)
     change.add_argument("--login-required", choices=["yes", "no"])
+    change.add_argument("--check-posts", choices=["yes", "no"])
     return parser.parse_args()
 
 
@@ -71,6 +73,7 @@ def run(arguments):
             else None if arguments.welcome_text is None else {"text": arguments.welcome_text}
         ),
         "login_required": None if arguments.login_required is None else arguments.login_required == "yes",
+        "check_posts": None if arguments.check_posts is None else arguments.check_posts == "yes",
     }
     changes = {key: value for key, value in chosen.items() if value is not None}
     if not changes:

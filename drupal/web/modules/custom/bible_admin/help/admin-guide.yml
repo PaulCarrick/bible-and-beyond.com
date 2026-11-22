@@ -446,13 +446,19 @@ sections:
       <figure><img data-guide="site-settings-1" alt="The site: title, copyright line, header emblem and browser-tab icon"><figcaption><em>The site</em>: the title (top of every page), the copyright line (the footer), and the two icons.</figcaption></figure>
       <p><strong>The site</strong>: the <em>Title</em> beside the emblem at the top of every page, the
       <em>Copyright</em> line at the foot, the <em>Welcome paragraph</em> (the opening words of the Welcome page,
-      in the editor, so it can have links and formatting), <em>Login required</em>, and the <em>Header emblem</em> and <em>Browser-tab icon</em>: upload a
+      in the editor, so it can have links and formatting), <em>Login required</em>, <em>Check posts with AI</em>, and the <em>Header emblem</em> and <em>Browser-tab icon</em>: upload a
       picture to replace one, or <em>Go back to the site's own icon</em>.</p>
       <p><strong>Login required</strong> (off unless ticked): visitors who are not logged in see only the log-in and
       password pages, and nothing else on the site works for them. The <em>Set up account</em> links are gone and
       visitors cannot set up their own accounts: add people on <em>Site users</em> (Add site user). The log-in page
       instead has <em>No account yet? Email us to ask for one</em>, which writes to the <em>Contact email to</em>
       address of the Email server settings (so anyone who opens the log-in page can see that address).</p>
+      <p><strong>Check posts with AI</strong> (off unless ticked): every new or changed post and reply on
+      Conversations and the Prayer Wall is first sent to Google Gemini (with the Gemini key further down). One it finds
+      inappropriate (profanity, political messages, advertising, or anything else unfit for the site) is not saved, and
+      the member is told why and asked to change it. Prayers for leaders or a nation, and mentions of a church,
+      ministry or Christian book, are allowed. If Gemini cannot be reached or is too busy, the post is accepted
+      unchecked, so the boards keep working.</p>
       <figure><img data-guide="site-settings-4" alt="Show in Context: verses before and after"><figcaption><em>Show in Context</em>: how many verses before and after.</figcaption></figure>
       <figure><img data-guide="site-settings-5" alt="Related Verses: how many to show"><figcaption><em>Related Verses</em>: how many cross references to list.</figcaption></figure>
       <p><strong>Email server</strong>: what the site sends its email through (the contact form, account links, the

@@ -40,7 +40,7 @@ WELCOME_HTML_LIMIT = 20_000
 WELCOME_TEXT_LIMIT = 3_000
 
 # Each yes-or-no setting.
-BOOLEANS = {"login_required"}
+BOOLEANS = {"login_required", "check_posts"}
 
 WELCOME_TEXT = (
   "Bible and Beyond is a free, non-commercial site for reading and studying the Bible. It brings together "
@@ -60,6 +60,8 @@ DEFAULTS = {
   # When on, only the sign-in pages work until a visitor logs in (main.py require_login).
   "login_required": False,
   "faq_about": "",
+  # When on, Gemini checks each new or changed Conversations and Prayer Wall post and reply (post_moderation.py).
+  "check_posts": False,
 }
 
 # A line of plain text: no line breaks or other control characters.

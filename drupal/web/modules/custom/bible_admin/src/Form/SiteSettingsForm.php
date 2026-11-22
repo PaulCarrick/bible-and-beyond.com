@@ -145,6 +145,13 @@ class SiteSettingsForm extends FormBase {
         '#description' => $this->t('When ticked, visitors see only the log-in and password pages until they log in; nothing else on the site (or its API) works for them. Visitors cannot set up their own accounts then: add people on Site users. The log-in page offers an email link to the Contact email to address (below) for asking for an account.'),
         '#default_value' => (bool) $settings['login_required'],
       ];
+      // Gemini checks members' posts before they are saved (post_moderation.py; added 2026-11-22).
+      $form['site']['check_posts'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Check posts with AI'),
+        '#description' => $this->t('When ticked, every new or changed post and reply on Conversations and the Prayer Wall is first sent to Google Gemini, and one it finds inappropriate (profanity, political messages, advertising or the like) is refused with a message asking the member to change it. It uses the Gemini key below. If Gemini cannot be reached or is too busy, the post is accepted unchecked.'),
+        '#default_value' => (bool) ($settings['check_posts'] ?? FALSE),
+      ];
       $this->buildIcons($form);
     }
 
@@ -559,6 +566,7 @@ class SiteSettingsForm extends FormBase {
       // ['html' => ...] from the editor or ['text' => ...] from the plain box; the tool cleans it.
       $values['welcome_text'] = GroupEditor::value($form_state->getValue('welcome_text'));
       $values['login_required'] = $form_state->getValue('login_required') ? 'yes' : 'no';
+      $values['check_posts'] = $form_state->getValue('check_posts') ? 'yes' : 'no';
     }
 
     try {
