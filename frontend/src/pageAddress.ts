@@ -27,6 +27,7 @@ const addresses: Record<View, string> = {
   contact: '/contact',
   privacy: '/privacy',
   smsTerms: '/sms-terms',
+  postingPolicy: '/posting-policy',
   account: '/account',
   copyright: '/copyright',
   notes: '/notes',

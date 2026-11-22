@@ -170,7 +170,12 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
         log what you typed. We keep a copy of AI answers so we do not have to ask again, but the search itself is
         stored only as a scrambled code, not as words. Please do not type personal details into a question. When
         the site checks posts, each new or changed post or reply (but never a private prayer request) is sent to
-        Gemini only to be checked for profanity, political messages and ads; we keep nothing of that check.
+        Gemini only to be checked for profanity, political messages and ads; we keep nothing of that check. The
+        rules for posts are in our{' '}
+        <button type="button" className="link-button" onClick={() => onNavigate('postingPolicy')}>
+          Posting policy
+        </button>
+        .
       </p>
 
       <h2>Security</h2>

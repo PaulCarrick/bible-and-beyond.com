@@ -59,7 +59,10 @@ function ConversationReplyForm({ postId, postTitle, reply, onSaved, onCancel }: 
         {reply ? `Edit your reply to ${postTitle}` : `Your reply to ${postTitle}`}
       </span>
       <RichTextEditor ref={editorReference} placeholder="Write your reply" labelledBy={labelId} />
-      <p className="posting-rules">Replies should not contain profanity, political messages or ads.</p>
+      <p className="posting-rules">
+        Replies should not contain profanity, political messages or ads. By replying, you agree to our{' '}
+        <a href="/posting-policy" target="_blank" rel="noopener">Posting policy</a>.
+      </p>
       {errorMessage && (
         <p className="error" role="alert">
           {errorMessage}

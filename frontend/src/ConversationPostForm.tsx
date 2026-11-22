@@ -153,7 +153,10 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         </div>
       )}
       {/* The rule (the owner's words, 2026-11-22); "Check posts with AI" on Site settings enforces it. */}
-      <p className="posting-rules">Posts should not contain profanity, political messages or ads.</p>
+      <p className="posting-rules">
+        {isPrayer ? 'Requests' : 'Posts'} should not contain profanity, political messages or ads. By posting, you agree to our{' '}
+        <a href="/posting-policy" target="_blank" rel="noopener">Posting policy</a>.
+      </p>
       {errorMessage && (
         <p className="error" role="alert">
           {errorMessage}
