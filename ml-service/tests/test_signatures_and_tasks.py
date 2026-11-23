@@ -566,3 +566,34 @@ def test_a_failed_text_never_stops_the_email_for_a_member_who_chose_both(site_us
   scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
   assert len(mailbox) == 1
   assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"].startswith("Sent by email; not sent: the text")
+
+
+def test_a_task_signature_goes_at_the_foot_of_its_reminder_emails_only(site_users, mailbox, monkeypatch):
+  open_id, _ = site_users
+  mine = signatures.create_signature({"name": "Pastor", "signature": {"html": "<p><strong>Pastor Paul</strong><br>Grace Church</p>"}}, OWNER, "Paul")
+  theirs = signatures.create_signature({"name": "Theirs", "signature": {"text": "Someone else"}}, OTHER_OWNER, "Ann")
+  with pytest.raises(TaskProblem, match="not one of the task owner's"):
+    admin_tasks.create_task(reminder_task(signature_id=theirs["id"]), OWNER, "Paul")
+  task = admin_tasks.create_task(reminder_task(signature_id=str(mine["id"])), OWNER, "Paul")
+  assert task["signature_id"] == mine["id"]
+  # Changing the task without a signature_id keeps it.
+  assert admin_tasks.update_task(task["id"], reminder_task())["signature_id"] == mine["id"]
+
+  monkeypatch.setattr(scheduled_tasks.sms, "is_configured", lambda: True)
+  texts = []
+  monkeypatch.setattr(scheduled_tasks.sms, "send_text", lambda number, text, media_url=None: texts.append(text) or True)
+  choose(open_id, by_email=True, by_text=True)
+  scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  plain = mailbox[0].get_body(("plain",)).get_content()
+  html = mailbox[0].get_body(("html",)).get_content()
+  assert "You are the greeter next week.\n\nPastor Paul\nGrace Church\n\n--\n" in plain
+  assert "<strong>Pastor Paul</strong>" in html and html.index("Pastor Paul") < html.index("<hr>")
+  assert "Pastor Paul" not in texts[0]
+
+  # No signature chosen: none; a deleted signature leaves the task with none.
+  cleared = admin_tasks.update_task(task["id"], reminder_task(signature_id=""))
+  assert cleared["signature_id"] is None
+  admin_tasks.update_task(task["id"], reminder_task(signature_id=mine["id"]))
+  signatures.delete_signature(mine["id"])
+  assert admin_tasks.get_task(task["id"])["signature_id"] is None

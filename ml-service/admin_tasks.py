@@ -41,7 +41,7 @@ COLUMNS = """
   id, name, description_html, description_text, repeat, weekday, first_date, day_of_month,
   first_notification_html, first_notification_text, second_notification_html, second_notification_text,
   owner_uid, owner_name, created_at, updated_at, first_notice_days, second_notice_days, timezone, owner_email,
-  interval_count, weekdays, weeks_of_month
+  interval_count, weekdays, weeks_of_month, signature_id
 """
 
 
@@ -142,6 +142,8 @@ def _describe(row, today: date | None = None) -> dict:
     "owner_uid": row[12], "owner_name": row[13], "created_at": row[14].isoformat(), "updated_at": row[15].isoformat(),
     "first_notice_days": row[16], "second_notice_days": row[17], "timezone": row[18], "owner_email": row[19],
     "interval_count": row[20], "weekdays": list(row[21] or []), "weeks_of_month": list(row[22] or []),
+    # The owner's signature at the foot of the reminder emails (migration 068), or None.
+    "signature_id": row[23],
   }
   task["how_often"] = describe(task)
   task["next_date"] = next_date(task, today or date.today()).isoformat()
@@ -280,8 +282,25 @@ def get_task(task_id: int) -> dict:
   return _describe(row)
 
 
+def _signature(value, owner_uid: int) -> int | None:
+  """The signature chosen for the reminder emails (details["signature_id"]), checked to be one of the task owner's;
+  None (or "") for none."""
+  if value is None or value == "":
+    return None
+  if isinstance(value, str) and value.strip().isdigit():
+    value = int(value.strip())
+  if not isinstance(value, int) or isinstance(value, bool):
+    raise TaskProblem("Choose one of the task owner's signatures, or no signature.")
+  with connect() as connection:
+    found = connection.execute("SELECT 1 FROM admin_signatures WHERE id = %s AND owner_uid = %s", (value, owner_uid)).fetchone()
+  if found is None:
+    raise TaskProblem("That signature is not one of the task owner's (it may have been deleted).")
+  return value
+
+
 def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
   values = _check(details)
+  signature_id = _signature(details.get("signature_id"), owner_uid)
   with connect() as connection:
     count = connection.execute("SELECT count(*) FROM admin_tasks WHERE owner_uid = %s", (owner_uid,)).fetchone()[0]
     if count >= MAX_PER_OWNER:
@@ -291,15 +310,18 @@ def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
         name, description_html, description_text, repeat, weekday, first_date, day_of_month,
         first_notification_html, first_notification_text, second_notification_html, second_notification_text,
         first_notice_days, second_notice_days, interval_count, weekdays, weeks_of_month,
-        owner_uid, owner_name, timezone, owner_email
-      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
-      (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT], values["timezone"] or "UTC", values["owner_email"] or ""),
+        owner_uid, owner_name, timezone, owner_email, signature_id
+      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
+      (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT], values["timezone"] or "UTC", values["owner_email"] or "", signature_id),
     ).fetchone()
   return _describe(row)
 
 
 def update_task(task_id: int, details: dict) -> dict:
+  """Changes the task; without a "signature_id" in the details its signature stays."""
   values = _check(details)
+  task = get_task(task_id)
+  signature_id = _signature(details.get("signature_id"), task["owner_uid"]) if "signature_id" in details else task["signature_id"]
   with connect() as connection:
     row = connection.execute(
       f"""UPDATE admin_tasks SET
@@ -307,10 +329,10 @@ def update_task(task_id: int, details: dict) -> dict:
         day_of_month = %s, first_notification_html = %s, first_notification_text = %s,
         second_notification_html = %s, second_notification_text = %s, first_notice_days = %s,
         second_notice_days = %s, interval_count = %s, weekdays = %s, weeks_of_month = %s,
-        timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email),
+        timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email), signature_id = %s,
         updated_at = now()
       WHERE id = %s RETURNING {COLUMNS}""",
-      (*_parameters(values), values["timezone"], values["owner_email"], task_id),
+      (*_parameters(values), values["timezone"], values["owner_email"], signature_id, task_id),
     ).fetchone()
   if row is None:
     raise TaskProblem("That task was not found. It may have been deleted.")

@@ -167,6 +167,30 @@ class TaskForm extends FormBase {
       ];
     }
 
+    // The signature at the foot of the reminder emails (2026-11-23, the owner's request): one of the task owner's
+    // signatures, or none. Texts never carry it.
+    $ownerUid = $task === NULL ? (int) $this->currentUser()->id() : (int) $task['owner_uid'];
+    $signatures = [];
+    try {
+      foreach ($this->manager->listLeaderSignatures(['owner_uid' => $ownerUid]) as $signature) {
+        $signatures[(int) $signature['id']] = $signature['name'];
+      }
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addWarning($exception->getMessage());
+    }
+    $form['signature_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Signature'),
+      '#options' => ['' => $this->t('- No signature -')] + $signatures,
+      '#default_value' => isset($task['signature_id'], $signatures[(int) $task['signature_id']]) ? (int) $task['signature_id'] : '',
+      '#description' => $signatures
+        ? $this->t('Added at the foot of the reminder emails (not texts).')
+        : ($ownerUid === (int) $this->currentUser()->id()
+          ? $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page, then choose it here.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()])
+          : $this->t('The task’s owner has no signatures yet.')),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $task === NULL ? $this->t('Add the task') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -217,6 +241,7 @@ class TaskForm extends FormBase {
         'second_notification' => GroupEditor::value($form_state->getValue('second_notification')),
         'first_notice_days' => $this->days($form_state->getValue('first_notice_days')),
         'second_notice_days' => $this->days($form_state->getValue('second_notice_days')),
+        'signature_id' => (string) $form_state->getValue('signature_id'),
       ]);
     }
     catch (BibleManagerException $exception) {

@@ -1329,8 +1329,8 @@ class BibleManager {
   }
 
   /**
-   * The signatures of a group's leader, for its scheduled emails' Signature select. $group comes from getGroup,
-   * which has checked that this user may manage it.
+   * The signatures of a group's leader, or of a task's owner (pass ['owner_uid' => ...]), for a Signature select.
+   * $group comes from getGroup or getTask, which have checked that this user may manage it.
    */
   public function listLeaderSignatures(array $group): array {
     return $this->run(['list', '--owner=' . (int) $group['owner_uid']], 'manage_signatures.py')['signatures'];

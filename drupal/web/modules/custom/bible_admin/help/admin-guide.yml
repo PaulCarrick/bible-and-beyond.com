@@ -339,7 +339,7 @@ sections:
       <p>Your email signatures: each has a name, for you to tell them apart, and the signature itself, written in the
       same editor as the group emails (bold, italic, links, lists and so on). Only you see your signatures; a Website
       administrator sees everyone's, with an Owner column. Choose one for each scheduled email of a group (see
-      Groups, Add a scheduled email).</p>
+      Groups, Add a scheduled email), for Email a member, and for each task's reminder emails (see Tasks).</p>
       <figure><img data-guide="signatures" alt="Signatures: Add a signature, and a table of two signatures, Formal and Short, with their owner, the start of each and when it was last changed"><figcaption>Signatures.</figcaption></figure>
       <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first. The editor
       has the Font, Size, Colour and Highlight buttons, so a name can be in Georgia or a script font, for example.</p>
@@ -374,7 +374,8 @@ sections:
       empty to send nothing for that notification.</p>
       <p>Each reminder goes the way the person chose on their My account page: by email (to a confirmed address), by
       text, or both. If a text cannot be sent, someone who chose texts only gets it by email instead (when their
-      address is confirmed). In the notifications, <strong>[FIRST_NAME]</strong>, <strong>[LAST_NAME]</strong> and
+      address is confirmed). The <strong>Signature</strong> you choose on the task (one of yours, or none) goes at the
+      foot of its reminder emails, not texts. In the notifications, <strong>[FIRST_NAME]</strong>, <strong>[LAST_NAME]</strong> and
       <strong>[FULL_NAME]</strong> are replaced with the person's name, for example "Hi [FIRST_NAME]," (an account with
       no name reads "friend").</p>
       <figure><img data-guide="task-edit" alt="Change a task: Communion, its description, How often: monthly on a weekday, every month, First and Sunday ticked, starting November 1, and the first and second notifications, 7 and 1 days before"><figcaption>Communion: every month on the first Sunday, with two reminders.</figcaption></figure>
