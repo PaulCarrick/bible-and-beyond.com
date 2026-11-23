@@ -228,6 +228,68 @@ def update_scheduled(scheduled_id: int, details: dict, today: date | None = None
   return get_scheduled(scheduled_id, today)
 
 
+def day_options(on_date: date, owner_uid: int | None = None, today: date | None = None) -> dict:
+  """What "Schedule tasks" offers for one date (2026-11-23): the tasks (of one owner, or all) that fall on it among
+  their next OCCURRENCES dates, each with who already has it that day, and the site users."""
+  today = today or date.today()
+  tasks = []
+  for task in admin_tasks.list_tasks(owner_uid):
+    if on_date in admin_tasks.next_dates(_rule(task), today, OCCURRENCES):
+      tasks.append({"id": task["id"], "name": task["name"], "owner_uid": task["owner_uid"], "owner_name": task["owner_name"]})
+  taken: dict[int, list[str]] = {}
+  if tasks:
+    with connect() as connection:
+      for task_id, name, address in connection.execute(
+        """SELECT s.task_id, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), COALESCE(u.email, u.phone, '')
+        FROM admin_scheduled_tasks s JOIN users u ON u.id = s.user_id
+        WHERE s.on_date = %s AND s.task_id = ANY(%s) ORDER BY s.id""",
+        (on_date, [task["id"] for task in tasks]),
+      ).fetchall():
+        taken.setdefault(task_id, []).append(_user_label(name, address))
+  for task in tasks:
+    task["scheduled_for"] = taken.get(task["id"], [])
+  return {"on_date": on_date.isoformat(), "label": date_label(on_date), "tasks": tasks, "users": list_users()}
+
+
+def add_many(details: dict, created_by_uid: int, created_by_name: str, owner_uid: int | None = None, today: date | None = None) -> list[dict]:
+  """Schedules several tasks on one date at once ("Schedule tasks"; 2026-11-23): details {on_date, items: [{task_id,
+  user_id, note}]}. All or none: a problem with any one (named by its task) saves nothing. owner_uid, when given,
+  limits it to that owner's tasks."""
+  today = today or date.today()
+  if not isinstance(details, dict) or not isinstance(details.get("items"), list) or not details["items"]:
+    raise TaskProblem("Choose at least one task, and a site user for each.")
+  if len(details["items"]) > 100:
+    raise TaskProblem("Schedule at most 100 tasks at a time.")
+  on_date = str(details.get("on_date") or "")
+  by_name = " ".join((created_by_name or "").split())[:NAME_LIMIT]
+  added_ids = []
+  seen = set()
+  with connect() as connection:
+    for item in details["items"]:
+      if not isinstance(item, dict):
+        raise TaskProblem("A task could not be read.")
+      try:
+        task = admin_tasks.get_task(int(item.get("task_id")))
+      except (TypeError, ValueError) as error:
+        raise TaskProblem("A task could not be read.") from error
+      if owner_uid is not None and task["owner_uid"] != owner_uid:
+        raise TaskProblem(f"“{task['name']}” is not one of your tasks.")
+      try:
+        user_id, day = _check(connection, task, {"user_id": item.get("user_id"), "on_date": on_date}, today)
+        note = _note(item)
+      except TaskProblem as problem:
+        raise TaskProblem(f"{task['name']}: {problem}") from problem
+      if (task["id"], user_id) in seen or _taken(connection, task["id"], user_id, day):
+        raise TaskProblem(f"{task['name']}: that person already has this task on that date.")
+      seen.add((task["id"], user_id))
+      added_ids.append(connection.execute(
+        """INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, created_by_name, note_html, note_text)
+        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+        (task["id"], user_id, day, created_by_uid, by_name, note["html"], note["text"]),
+      ).fetchone()[0])
+  return [get_scheduled(scheduled_id, today) for scheduled_id in added_ids]
+
+
 def remove_scheduled(scheduled_id: int) -> dict:
   scheduled = get_scheduled(scheduled_id)
   with connect() as connection:

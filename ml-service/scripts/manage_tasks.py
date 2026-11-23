@@ -16,9 +16,12 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_tasks.py add-schedule --id=ID --by=UID   input {user_id, on_date, created_by_name}
     manage_tasks.py update-schedule --schedule=ID   input {user_id, on_date}
     manage_tasks.py remove-schedule --schedule=ID
+    manage_tasks.py day-options --date=YYYY-MM-DD [--owner=UID]   the tasks falling on that date, and the site users
+    manage_tasks.py add-schedules --by=UID [--owner=UID]   input {on_date, created_by_name, items: [{task_id, user_id, note}]}
 """
 
 import argparse
+from datetime import date
 import json
 import sys
 import traceback
@@ -42,6 +45,12 @@ def parse_arguments(arguments=None):
   add = commands.add_parser("add-schedule")
   add.add_argument("--id", type=int, required=True)
   add.add_argument("--by", type=int, required=True)
+  day = commands.add_parser("day-options")
+  day.add_argument("--date", required=True)
+  day.add_argument("--owner", type=int)
+  many = commands.add_parser("add-schedules")
+  many.add_argument("--by", type=int, required=True)
+  many.add_argument("--owner", type=int)
   for name in ("get-schedule", "update-schedule", "remove-schedule"):
     commands.add_parser(name).add_argument("--schedule", type=int, required=True)
   return parser.parse_args(arguments)
@@ -70,9 +79,18 @@ def run(arguments) -> dict:
     return {"ok": True, "schedules": scheduled_tasks.list_scheduled(arguments.owner)}
   if arguments.command == "get-schedule":
     return {"ok": True, "schedule": scheduled_tasks.get_scheduled(arguments.schedule)}
+  if arguments.command == "day-options":
+    try:
+      on_date = date.fromisoformat(arguments.date)
+    except ValueError as error:
+      raise TaskProblem("Choose a date.") from error
+    return {"ok": True, **scheduled_tasks.day_options(on_date, arguments.owner)}
   if arguments.command == "remove-schedule":
     return {"ok": True, "schedule": scheduled_tasks.remove_scheduled(arguments.schedule)}
   details = read_details()
+  if arguments.command == "add-schedules":
+    added = scheduled_tasks.add_many(details, arguments.by, str(details.get("created_by_name") or ""), arguments.owner)
+    return {"ok": True, "schedules": added}
   if arguments.command == "add-schedule":
     return {"ok": True, "schedule": scheduled_tasks.add_scheduled(arguments.id, details, arguments.by, str(details.get("created_by_name") or ""))}
   if arguments.command == "update-schedule":

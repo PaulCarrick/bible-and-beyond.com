@@ -387,7 +387,10 @@ sections:
       <p>Who does which task on which date. On the Tasks page, choose <strong>Schedule</strong> beside a task, then
       pick the <strong>site user</strong> and the <strong>date</strong>: the list holds the task's next date and the
       three after it (for a task every week on Sunday, the next four Sundays). Then Schedule. The same person cannot
-      have the same task twice on one date. The <strong>Note</strong> is optional: words for this person on this date,
+      have the same task twice on one date. To fill a whole day at once, press <strong>Schedule tasks</strong> at the top
+      of the Scheduled tasks page: choose the <strong>Date</strong>, tick the tasks that fall on it (each says who has it
+      already), choose the <strong>site user</strong> for each ticked task (and a note if you like), then
+      <strong>Schedule</strong>. They are all saved together, or none if one has a problem. The <strong>Note</strong> is optional: words for this person on this date,
       added under the notification in each of their reminders (the name fields work in it too).</p>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away

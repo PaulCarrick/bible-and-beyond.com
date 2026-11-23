@@ -1270,6 +1270,28 @@ class BibleManager {
   }
 
   /**
+   * What Schedule tasks offers for a date (Y-m-d): on_date, label, tasks (this user's, or everyone's for an
+   * administrator, that fall on it; each id, name, owner_uid, owner_name and scheduled_for, who has it already) and
+   * users (the site's open accounts).
+   */
+  public function taskDayOptions(string $onDate): array {
+    return $this->run(['day-options', '--date=' . $onDate, ...$this->ownerArguments()], 'manage_tasks.py');
+  }
+
+  /**
+   * Schedules several tasks on one date at once: $items are [task_id, user_id, note => [text]]. All or none.
+   * Returns the scheduled tasks made, each logged like Schedule.
+   */
+  public function addScheduledTasks(string $onDate, array $items): array {
+    $input = $this->groupInput(['on_date' => $onDate, 'items' => $items, 'created_by_name' => $this->currentUser->getDisplayName()]);
+    $schedules = $this->run(['add-schedules', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()], 'manage_tasks.py', $input)['schedules'];
+    foreach ($schedules as $schedule) {
+      $this->logScheduledTask('scheduled', $schedule);
+    }
+    return $schedules;
+  }
+
+  /**
    * The scheduled tasks of the tasks this user may see, by date. Each has id, task_id, task_name, owner_uid,
    * owner_name, user_id, user_label, on_date (Y-m-d), past, created_by_name, created_at and updated_at.
    */

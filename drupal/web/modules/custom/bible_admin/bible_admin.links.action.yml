@@ -52,6 +52,12 @@ bible_admin.task_add_action:
   appears_on:
     - bible_admin.tasks
 
+bible_admin.scheduled_tasks_add_action:
+  route_name: bible_admin.scheduled_tasks_add
+  title: 'Schedule tasks'
+  appears_on:
+    - bible_admin.scheduled_tasks
+
 bible_admin.external_site_add_action:
   route_name: bible_admin.external_site_add
   title: 'Add a site'

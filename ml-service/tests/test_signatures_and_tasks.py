@@ -597,3 +597,37 @@ def test_a_task_signature_goes_at_the_foot_of_its_reminder_emails_only(site_user
   admin_tasks.update_task(task["id"], reminder_task(signature_id=mine["id"]))
   signatures.delete_signature(mine["id"])
   assert admin_tasks.get_task(task["id"])["signature_id"] is None
+
+
+def test_schedule_tasks_offers_the_tasks_of_a_date_and_schedules_several_at_once(site_users):
+  open_id, closed_id = site_users
+  greeter = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  coffee = admin_tasks.create_task(task_details(name="Coffee", weekday=6), OWNER, "Paul")
+  admin_tasks.create_task(task_details(name="Thursday study", weekday=3), OWNER, "Paul")
+  someone_elses = admin_tasks.create_task(task_details(name="Theirs", weekday=6), OTHER_OWNER, "Ann")
+
+  offered = scheduled_tasks.day_options(date(2026, 11, 29), OWNER, THURSDAY)
+  assert [task["name"] for task in offered["tasks"]] == ["Coffee", "Greeter"]  # not Thursday's, not another owner's
+  assert offered["label"] == "Sunday, November 29, 2026" and open_id in [user["id"] for user in offered["users"]]
+  assert scheduled_tasks.day_options(date(2027, 3, 7), OWNER, THURSDAY)["tasks"] == []  # beyond the next four Sundays
+
+  added = scheduled_tasks.add_many({"on_date": "2026-11-29", "items": [
+    {"task_id": greeter["id"], "user_id": open_id, "note": {"text": "cookies"}},
+    {"task_id": coffee["id"], "user_id": str(open_id)},
+  ]}, OWNER, "Paul", OWNER, THURSDAY)
+  assert [(item["task_name"], item["note_text"]) for item in added] == [("Greeter", "cookies"), ("Coffee", "")]
+  assert scheduled_tasks.day_options(date(2026, 11, 29), OWNER, THURSDAY)["tasks"][1]["scheduled_for"] == ["Ruth Test (scheduled-ruth@example.org)"]
+
+  # All or none: one bad row saves nothing, and the message names its task.
+  before = len(scheduled_tasks.list_scheduled(OWNER))
+  with pytest.raises(TaskProblem, match="Coffee: That site user was not found"):
+    scheduled_tasks.add_many({"on_date": "2026-12-06", "items": [
+      {"task_id": greeter["id"], "user_id": open_id}, {"task_id": coffee["id"], "user_id": closed_id},
+    ]}, OWNER, "Paul", OWNER, THURSDAY)
+  with pytest.raises(TaskProblem, match="already has this task"):
+    scheduled_tasks.add_many({"on_date": "2026-11-29", "items": [{"task_id": greeter["id"], "user_id": open_id}]}, OWNER, "Paul", OWNER, THURSDAY)
+  with pytest.raises(TaskProblem, match="not one of your tasks"):
+    scheduled_tasks.add_many({"on_date": "2026-11-29", "items": [{"task_id": someone_elses["id"], "user_id": open_id}]}, OWNER, "Paul", OWNER, THURSDAY)
+  with pytest.raises(TaskProblem, match="Choose at least one task"):
+    scheduled_tasks.add_many({"on_date": "2026-11-29", "items": []}, OWNER, "Paul", OWNER, THURSDAY)
+  assert len(scheduled_tasks.list_scheduled(OWNER)) == before

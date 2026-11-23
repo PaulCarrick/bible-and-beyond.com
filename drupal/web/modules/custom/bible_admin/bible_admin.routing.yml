@@ -677,6 +677,15 @@ bible_admin.scheduled_tasks:
 
 # The Scheduled task report (2026-11-23, the owner's request, modelled on their paper sign-up sheet): the scheduled
 # tasks between two dates, a section for each day, ready to print.
+# Schedule tasks: several tasks on one date at once (ScheduleTasksForm; 2026-11-23).
+bible_admin.scheduled_tasks_add:
+  path: '/admin/scheduled-tasks/add'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\ScheduleTasksForm'
+    _title: 'Schedule tasks'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
 bible_admin.scheduled_task_report:
   path: '/admin/scheduled-tasks/report'
   defaults:
