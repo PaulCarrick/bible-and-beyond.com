@@ -13,8 +13,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Schedule tasks (added 2026-11-23 at the owner's request): several tasks on one date at once. Choose the date; the
- * tasks that fall on it (among their next four dates) appear as tick boxes; each ticked task gets a row to choose its
- * site user and an optional note. The list and the rows follow the choices by AJAX (with an Update the list button
+ * tasks that fall on it (among their next four dates) are listed, each with + to add a row for it (several rows for
+ * the same task when it needs several people); each row chooses its site user and an optional note, and − removes
+ * it. The list and the rows follow the choices by AJAX (with an Update the list button
  * when JavaScript is off). All are scheduled together, or none if one has a problem.
  */
 class ScheduleTasksForm extends FormBase {
@@ -75,25 +76,47 @@ class ScheduleTasksForm extends FormBase {
       return $form;
     }
 
-    $taskOptions = [];
     $taskNames = [];
     foreach ($options['tasks'] as $task) {
       $taskNames[(int) $task['id']] = $task['name'];
-      $taskOptions[(int) $task['id']] = $task['scheduled_for']
-        ? $this->t('@name (already: @people)', ['@name' => $task['name'], '@people' => implode(', ', $task['scheduled_for'])])
-        : $task['name'];
     }
-    $form['choices']['tasks'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('Tasks on @day', ['@day' => $options['label']]),
-      '#options' => $taskOptions,
-      '#description' => $this->t('Tick the tasks to schedule; each gets a row below for its site user.'),
-      '#ajax' => $ajax,
-    ];
+    // The rows chosen so far, by a key that never changes (so typing in one row stays with it when another is
+    // removed): row key => task id. A task may have several rows (two people for Baked Goods, say; 2026-11-23).
+    // A new date starts afresh.
+    if ($form_state->get('rows_date') !== $onDate) {
+      $form_state->set('rows', []);
+      $form_state->set('rows_date', $onDate);
+    }
+    $rows = array_filter((array) $form_state->get('rows'), fn ($taskId) => isset($taskNames[$taskId]));
+    $form_state->set('rows', $rows);
 
-    $chosen = array_values(array_filter(array_map('intval', array_keys(array_filter((array) $form_state->getValue('tasks', []))))));
-    $chosen = array_values(array_filter($chosen, fn ($taskId) => isset($taskNames[$taskId])));
-    if (!$chosen) {
+    $form['choices']['tasks'] = [
+      '#type' => 'table',
+      '#caption' => $this->t('Tasks on @day', ['@day' => $options['label']]),
+      '#header' => [$this->t('Task'), $this->t('Already scheduled'), $this->t('Add')],
+    ];
+    foreach ($options['tasks'] as $task) {
+      $taskId = (int) $task['id'];
+      $form['choices']['tasks'][$taskId]['name'] = ['#plain_text' => $task['name']];
+      $form['choices']['tasks'][$taskId]['already'] = ['#plain_text' => $task['scheduled_for'] ? implode(', ', $task['scheduled_for']) : ''];
+      $form['choices']['tasks'][$taskId]['add'] = [
+        '#type' => 'submit',
+        '#value' => '+',
+        '#name' => 'add_task_' . $taskId,
+        '#task_id' => $taskId,
+        '#submit' => ['::addRow'],
+        '#ajax' => ['callback' => '::refreshChoices', 'wrapper' => 'schedule-tasks-choices'],
+        '#attributes' => [
+          'class' => ['button--small'],
+          'title' => $this->t('Add a row for @task', ['@task' => $task['name']]),
+          'aria-label' => $this->t('Add a row for @task', ['@task' => $task['name']]),
+        ],
+      ];
+    }
+    $form['choices']['help'] = [
+      '#markup' => '<p class="description">' . $this->t('Press + beside a task to add a row for it; press it again for another person on the same task.') . '</p>',
+    ];
+    if (!$rows) {
       return $form;
     }
     $users = [];
@@ -102,33 +125,68 @@ class ScheduleTasksForm extends FormBase {
     }
     $form['choices']['assignments'] = [
       '#type' => 'table',
-      '#header' => [$this->t('Task'), $this->t('Site user'), $this->t('Note (optional)')],
+      '#header' => [$this->t('Task'), $this->t('Site user'), $this->t('Note (optional)'), $this->t('Remove')],
     ];
-    foreach ($chosen as $taskId) {
-      $form['choices']['assignments'][$taskId]['task'] = ['#plain_text' => $taskNames[$taskId]];
-      $form['choices']['assignments'][$taskId]['user_id'] = [
+    foreach ($rows as $key => $taskId) {
+      $form['choices']['assignments'][$key]['task'] = ['#plain_text' => $taskNames[$taskId]];
+      $form['choices']['assignments'][$key]['user_id'] = [
         '#type' => 'select',
         '#title' => $this->t('Site user for @task', ['@task' => $taskNames[$taskId]]),
         '#title_display' => 'invisible',
         '#options' => $users,
         '#empty_option' => $this->t('- Choose a site user -'),
       ];
-      $form['choices']['assignments'][$taskId]['note'] = [
+      $form['choices']['assignments'][$key]['note'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Note for @task', ['@task' => $taskNames[$taskId]]),
         '#title_display' => 'invisible',
         '#maxlength' => 500,
         '#size' => 30,
       ];
+      $form['choices']['assignments'][$key]['remove'] = [
+        '#type' => 'submit',
+        '#value' => '−',
+        '#name' => 'remove_row_' . $key,
+        '#row_key' => $key,
+        '#submit' => ['::removeRow'],
+        '#ajax' => ['callback' => '::refreshChoices', 'wrapper' => 'schedule-tasks-choices'],
+        '#attributes' => [
+          'class' => ['button--small'],
+          'title' => $this->t('Remove this row for @task', ['@task' => $taskNames[$taskId]]),
+          'aria-label' => $this->t('Remove this row for @task', ['@task' => $taskNames[$taskId]]),
+        ],
+      ];
     }
     $form['choices']['actions'] = ['#type' => 'actions'];
     $form['choices']['actions']['submit'] = [
       '#type' => 'submit',
       '#name' => 'schedule',
-      '#value' => $this->formatPlural(count($chosen), 'Schedule the task', 'Schedule the @count tasks'),
+      '#value' => $this->formatPlural(count($rows), 'Schedule the task', 'Schedule the @count tasks'),
       '#button_type' => 'primary',
     ];
     return $form;
+  }
+
+  /**
+   * "+" beside a task: a new row for it, with a key no row has had.
+   */
+  public function addRow(array &$form, FormStateInterface $form_state): void {
+    $rows = (array) $form_state->get('rows');
+    $next = (int) $form_state->get('next_row') + 1;
+    $form_state->set('next_row', $next);
+    $rows['row' . $next] = (int) ($form_state->getTriggeringElement()['#task_id'] ?? 0);
+    $form_state->set('rows', $rows);
+    $form_state->setRebuild();
+  }
+
+  /**
+   * "−" on a row: it goes; the others keep what was typed in them.
+   */
+  public function removeRow(array &$form, FormStateInterface $form_state): void {
+    $rows = (array) $form_state->get('rows');
+    unset($rows[$form_state->getTriggeringElement()['#row_key'] ?? '']);
+    $form_state->set('rows', $rows);
+    $form_state->setRebuild();
   }
 
   public function refreshChoices(array $form, FormStateInterface $form_state): array {
@@ -143,10 +201,10 @@ class ScheduleTasksForm extends FormBase {
     if (($form_state->getTriggeringElement()['#name'] ?? '') !== 'schedule') {
       return;
     }
-    foreach ((array) $form_state->getValue('assignments', []) as $taskId => $row) {
+    foreach ((array) $form_state->getValue('assignments', []) as $key => $row) {
       if (empty($row['user_id'])) {
-        $form_state->setErrorByName('assignments][' . $taskId . '][user_id', $this->t('Choose the site user for @task.', [
-          '@task' => $form['choices']['assignments'][$taskId]['task']['#plain_text'] ?? $taskId,
+        $form_state->setErrorByName('assignments][' . $key . '][user_id', $this->t('Choose the site user for @task.', [
+          '@task' => $form['choices']['assignments'][$key]['task']['#plain_text'] ?? $key,
         ]));
       }
     }
@@ -159,9 +217,13 @@ class ScheduleTasksForm extends FormBase {
     }
     $onDate = (string) $form_state->getValue('on_date');
     $items = [];
-    foreach ((array) $form_state->getValue('assignments', []) as $taskId => $row) {
+    $rows = (array) $form_state->get('rows');
+    foreach ((array) $form_state->getValue('assignments', []) as $key => $row) {
+      if (!isset($rows[$key])) {
+        continue;
+      }
       $items[] = [
-        'task_id' => (int) $taskId,
+        'task_id' => (int) $rows[$key],
         'user_id' => (int) $row['user_id'],
         'note' => ['text' => (string) ($row['note'] ?? '')],
       ];
