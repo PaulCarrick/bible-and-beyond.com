@@ -5,6 +5,7 @@ import { fetchConversationPage } from './api'
 import ConversationPostCard from './ConversationPostCard'
 import ConversationPostForm from './ConversationPostForm'
 import PrayerListEmailPanel from './PrayerListEmailPanel'
+import MessageRequestsBox from './MessageRequestsBox'
 import type { ConversationBoard, ConversationPage } from './types'
 
 interface ConversationsPageProps {
@@ -130,6 +131,10 @@ function ConversationsPage({ board = 'conversations', isHidden }: ConversationsP
           </button>{' '}
           page.
         </p>
+      )}
+      {/* Requests from people who would like to send this member posts (2026-11-23). */}
+      {board === 'conversations' && userId !== null && (
+        <MessageRequestsBox isHidden={isHidden} onAnswered={() => setReload((count) => count + 1)} />
       )}
       {canPost && (
         <>

@@ -29,6 +29,7 @@ import type { SavedListEntry } from './api'
 import ConversationsPage from './ConversationsPage'
 import AccountPage from './AccountPage'
 import UnsubscribePage from './UnsubscribePage'
+import MessageRequestPage from './MessageRequestPage'
 import VerifyEmailPage from './VerifyEmailPage'
 import ContactPage from './ContactPage'
 import CopyrightPage from './CopyrightPage'
@@ -69,7 +70,7 @@ import './App.css'
 // What the pages show until the administrator's settings arrive, and if they cannot be had.
 // The pages a visitor who is not logged in may open while "Login required" is on. Not Set up account: then only an
 // administrator sets up accounts (Site users), and the API refuses sign-ups.
-const lockedOutViews: View[] = ['login', 'forgot', 'reset', 'verify', 'unsubscribe', 'privacy', 'smsTerms', 'postingPolicy']
+const lockedOutViews: View[] = ['login', 'forgot', 'reset', 'verify', 'unsubscribe', 'messageRequest', 'privacy', 'smsTerms', 'postingPolicy']
 
 // A domain with its own name (domainTitle.ts) shows that name instead of the title.
 const defaultSiteSettings: SiteSettings = settingsForThisDomain({
@@ -77,8 +78,9 @@ const defaultSiteSettings: SiteSettings = settingsForThisDomain({
   copyright: 'Copyright © 2026 by Paul Carrick. All Rights Reserved.',
 })
 
-// The links in our emails open the site with ?verify=..., ?reset=... or ?unsubscribe=... on the end.
-function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe'; token: string } | null {
+// The links in our emails open the site with ?verify=..., ?reset=..., ?unsubscribe=... or ?message-request=...
+// (a request to send the member posts, 2026-11-23) on the end.
+function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe' | 'messageRequest'; token: string } | null {
   const parameters = new URLSearchParams(window.location.search)
   for (const kind of ['verify', 'reset', 'unsubscribe'] as const) {
     const token = parameters.get(kind)
@@ -86,7 +88,8 @@ function readEmailLink(): { kind: 'verify' | 'reset' | 'unsubscribe'; token: str
       return { kind, token }
     }
   }
-  return null
+  const request = parameters.get('message-request')
+  return request ? { kind: 'messageRequest', token: request } : null
 }
 
 function App() {
@@ -520,6 +523,7 @@ function App() {
             ) : isLockedOut ? (
               <main className="site-main" id="content">
                 {lockedOutView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
+                {lockedOutView === 'messageRequest' && emailLink && <MessageRequestPage token={emailLink.token} onNavigate={navigate} />}
                 {lockedOutView === 'verify' && emailLink && <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />}
                 {lockedOutView === 'privacy' && <PrivacyPage onNavigate={navigate} siteTitle={siteSettings.title} />}
                 {lockedOutView === 'smsTerms' && <SmsTermsPage onNavigate={navigate} siteTitle={siteSettings.title} />}
@@ -607,6 +611,7 @@ function App() {
                 />}
               {activeView === 'lists' && <MyListsPage key={`lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
+            {activeView === 'messageRequest' && emailLink && <MessageRequestPage token={emailLink.token} onNavigate={navigate} />}
             {activeView === 'verify' && emailLink && (
                 <VerifyEmailPage token={emailLink.token} onVerified={handleVerified} />
               )}

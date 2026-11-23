@@ -124,6 +124,7 @@ from search import (
   search_verses,
 )
 import document_import
+import direct_posts
 import head_shots
 import kindle_books
 import site_icons
@@ -149,7 +150,7 @@ def query_took_too_long(_request: Request, _error: psycopg.errors.QueryCanceled)
 # "Login required" (Site settings): while it is on, only these work for a visitor who is not logged in: the
 # sign-in and account pages, what the page frame needs (the title, the icons), the links in our emails and
 # Telnyx's webhook. Everything else answers 401. The setting is read at most every few seconds.
-OPEN_WITHOUT_LOGIN = {"/health", "/site-settings", "/contact-settings", "/subscriptions/unsubscribe", "/sms/webhook"}
+OPEN_WITHOUT_LOGIN = {"/health", "/site-settings", "/contact-settings", "/subscriptions/unsubscribe", "/sms/webhook", "/message-request"}
 OPEN_PREFIXES_WITHOUT_LOGIN = ("/account/", "/site-icon/")
 LOGIN_SETTING_SECONDS = 5
 _login_setting = {"value": False, "read_at": None}
@@ -1439,6 +1440,8 @@ class ConversationPostRequest(BaseModel):
   # at once and makes the request private.
   share_with: str | None = Field(default=None, max_length=10)
   share_group_id: int | None = None
+  # Conversations: a post to one member (direct_posts.py) instead of everyone; ignored on a change (it never moves).
+  recipient_id: int | None = None
 
 
 def conversations_account(request: Request) -> dict:
@@ -1447,6 +1450,61 @@ def conversations_account(request: Request) -> dict:
   if not user["use_conversations"]:
     raise HTTPException(status_code=403, detail="Your account cannot use Conversations.")
   return user
+
+
+@app.get("/conversations/members")
+def conversations_members(request: Request):
+  """Who the member may send a post to (by name only): the others allowed to use Conversations."""
+  user = conversations_account(request)
+  return {"members": direct_posts.members(user["id"])}
+
+
+def _direct_call(action):
+  try:
+    return action()
+  except direct_posts.DirectPostProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+class MessageAnswerRequest(BaseModel):
+  accept: bool
+
+
+class MessageTokenAnswerRequest(BaseModel):
+  token: str = Field(max_length=200)
+  accept: bool
+
+
+@app.get("/message-requests")
+def message_requests(request: Request):
+  """The logged-in member's waiting requests from people who would like to send them posts."""
+  user = require_user(request, "Please log in.")
+  return {"requests": direct_posts.requests_for(user["id"])}
+
+
+@app.get("/message-permissions")
+def message_permissions(request: Request):
+  """Everyone who has asked to send the member posts, with the member's answer (My account)."""
+  user = require_user(request, "Please log in.")
+  return {"permissions": direct_posts.permissions_for(user["id"])}
+
+
+@app.put("/message-permissions/{sender_id}")
+def message_permission_answer(sender_id: int, body: MessageAnswerRequest, request: Request):
+  """Accepts or declines posts from one sender, or changes the answer."""
+  user = require_user(request, "Please log in.")
+  return {"permission": _direct_call(lambda: direct_posts.answer(user["id"], sender_id, body.accept))}
+
+
+@app.get("/message-request")
+def message_request_by_link(token: str = ""):
+  """The request a link in an email or text answers (no login needed: the link is the member's)."""
+  return {"request": _direct_call(lambda: direct_posts.request_by_token(token))}
+
+
+@app.post("/message-request")
+def message_request_answer_by_link(body: MessageTokenAnswerRequest):
+  return {"permission": _direct_call(lambda: direct_posts.answer_by_token(body.token, body.accept))}
 
 
 @app.get("/conversations")
@@ -1489,15 +1547,19 @@ def conversations_create(body: ConversationPostRequest, request: Request, backgr
   try:
     post = create_post(
       user["id"], body.title, body.body, body.board, body.is_anonymous, body.is_private, body.email_to_prayer_list,
-      body.email_replies, body.share_with, body.share_group_id,
+      body.email_replies, body.share_with, body.share_group_id, body.recipient_id,
     )
   except ConversationProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   # A request for a group or its leader goes at once, after the answer (the page never waits for the mail server).
   if share_is_due(post["id"]):
     background.add_task(send_shared_request, post["id"])
-  # Accounts with Get Conversation Posts are emailed a new Conversations post (never a Prayer Wall one).
-  background.add_task(send_new_post_emails, post["id"])
+  if post["recipient"]:
+    # A post to one member: the first time, their request to accept or decline; once accepted, a note it came.
+    background.add_task(direct_posts.notify_post, post["id"])
+  else:
+    # Accounts with Get Conversation Posts are emailed a new Conversations post (never a Prayer Wall one).
+    background.add_task(send_new_post_emails, post["id"])
   return {"post": post}
 
 
@@ -1558,6 +1620,8 @@ def conversations_reply(post_id: int, body: ConversationReplyRequest, request: R
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
   background.add_task(send_reply_email, reply["id"])
   background.add_task(send_new_reply_emails, reply["id"])
+  # On a post to one member, the other of the two is told (direct_posts.py).
+  background.add_task(direct_posts.notify_reply, reply["id"])
   return {"reply": reply}
 
 

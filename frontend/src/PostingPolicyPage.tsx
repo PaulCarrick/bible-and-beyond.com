@@ -19,7 +19,7 @@ function PostingPolicyPage({ onNavigate, siteTitle }: PostingPolicyPageProps) {
   return (
     <div className="welcome privacy-page">
       <h1>Posting policy</h1>
-      <p className="privacy-updated">Last updated: November 22, 2026</p>
+      <p className="privacy-updated">Last updated: November 23, 2026</p>
 
       <p>
         This policy applies to everything a member writes on {siteTitle}&rsquo;s Conversations board and Prayer Wall:
@@ -56,7 +56,7 @@ function PostingPolicyPage({ onNavigate, siteTitle }: PostingPolicyPageProps) {
         automatically before it is published. Its title and text (never your name or email address) are sent to{' '}
         <strong>Google&rsquo;s Gemini artificial-intelligence service</strong>, which judges whether it meets section 1.
         A post it finds unsuitable is not published, and you are told why so that you can change it.{' '}
-        <strong>Private prayer requests, and replies to them, are never sent for review.</strong>
+        <strong>Private prayer requests, posts sent to one member, and replies to them, are never sent for review.</strong>
       </p>
       <p>
         <strong>
@@ -85,6 +85,10 @@ function PostingPolicyPage({ onNavigate, siteTitle }: PostingPolicyPageProps) {
           site can read them, with your name (or &ldquo;Anonymous&rdquo; when you choose to post anonymously).
         </li>
         <li>A private prayer request is seen only by you and the site&rsquo;s administrators.</li>
+        <li>
+          A Conversations post sent to one member is seen only by you, that member and the site&rsquo;s administrators,
+          and only once that member has accepted posts from you. These posts are not sent for automated review.
+        </li>
         <li>
           Posts may also be <strong>sent by email or text message</strong>: replies to the author who asked for them;
           new Conversations posts and replies to members the administrators have chosen to receive them; prayer

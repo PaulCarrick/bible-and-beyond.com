@@ -1,7 +1,7 @@
 import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { AccountContext } from './AccountContext'
-import { fetchMyGroups, saveConversationPost } from './api'
+import { fetchConversationMembers, fetchMyGroups, saveConversationPost } from './api'
 import RichTextEditor from './RichTextEditor'
 import type { RichTextEditorHandle } from './RichTextEditor'
 import type { ConversationBoard, ConversationPost } from './types'
@@ -46,6 +46,11 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
   // The groups the member is in, for the "Email <group>" choices (empty when in none).
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([])
   const [emailReplies, setEmailReplies] = useState(post?.email_replies ?? false)
+  // Conversations, a new post: everyone ('') or one member, chosen from the members by name (2026-11-23).
+  const [recipientId, setRecipientId] = useState('')
+  const [members, setMembers] = useState<{ id: number; name: string }[]>([])
+  const [memberFilter, setMemberFilter] = useState('')
+  const canChooseRecipient = !isPrayer && !post
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const editorReference = useRef<RichTextEditorHandle>(null)
@@ -61,6 +66,22 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
       .catch(() => setGroups([]))
     return () => controller.abort()
   }, [isPrayer])
+
+  useEffect(() => {
+    if (!canChooseRecipient) {
+      return
+    }
+    const controller = new AbortController()
+    fetchConversationMembers(controller.signal)
+      .then(setMembers)
+      .catch(() => setMembers([]))
+    return () => controller.abort()
+  }, [canChooseRecipient])
+
+  const recipient = members.find((member) => String(member.id) === recipientId)
+  const shownMembers = members.filter(
+    (member) => String(member.id) === recipientId || member.name.toLowerCase().includes(memberFilter.trim().toLowerCase()),
+  )
 
   // The editor is made when the form is; fill it with the post as it is.
   useEffect(() => {
@@ -92,7 +113,8 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         isAnonymous: isPrayer && sharing === 'anonymous',
         isPrivate: isPrayer && (sharing === 'private' || sharesWithGroup),
         emailToPrayerList: isPrayer && sharing === 'prayer_list',
-        emailReplies: !isPrayer && emailReplies,
+        emailReplies: !isPrayer && !recipientId && !post?.recipient && emailReplies,
+        recipientId: canChooseRecipient && recipientId ? Number(recipientId) : null,
         shareWith: sharesWithGroup ? (kind as 'group' | 'leader') : null,
         shareGroupId: sharesWithGroup ? Number(groupId) : null,
       })
@@ -100,6 +122,8 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         setTitle('')
         setSharing('public')
         setEmailReplies(false)
+        setRecipientId('')
+        setMemberFilter('')
         editor.clear()
       }
       onSaved(saved)
@@ -120,8 +144,44 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
         {post ? `The text of your post ${post.title}` : 'The text of your post'}
       </span>
       <RichTextEditor ref={editorReference} placeholder="Write your post" labelledBy={labelId} />
-      {/* Email me replies: not for an account with no email address (it logs in with its phone, 2026-11-17). */}
-      {!isPrayer && hasEmail && (
+      {canChooseRecipient && members.length > 0 && (
+        <div className="prayer-options">
+          {members.length > 10 && (
+            <label className="contact-field">
+              Find a member
+              <input
+                type="search"
+                value={memberFilter}
+                placeholder="Type part of a name"
+                onChange={(event) => setMemberFilter(event.target.value)}
+              />
+            </label>
+          )}
+          <label className="contact-field">
+            Send to
+            <select value={recipientId} onChange={(event) => setRecipientId(event.target.value)}>
+              <option value="">Everyone (posted on Conversations)</option>
+              {shownMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name} only
+                </option>
+              ))}
+            </select>
+          </label>
+          {recipient && (
+            <small className="prayer-sharing-note">
+              Only you and {recipient.name} will see it (and the site’s administrators). The first time you send to{' '}
+              {recipient.name}, they are asked whether to accept posts from you; until they do, it waits.
+            </small>
+          )}
+        </div>
+      )}
+      {post?.recipient && (
+        <p className="prayer-sharing-note">Sent to {post.recipient.is_me ? 'you' : post.recipient.name} only.</p>
+      )}
+      {/* Email me replies: not for an account with no email address (it logs in with its phone, 2026-11-17), nor a
+          post to one member (each of the two is told of the other's replies). */}
+      {!isPrayer && hasEmail && !recipientId && !post?.recipient && (
         <div className="prayer-options">
           <label className="inline-label">
             <input type="checkbox" checked={emailReplies} onChange={(event) => setEmailReplies(event.target.checked)} />
@@ -164,7 +224,7 @@ function ConversationPostForm({ post, board = 'conversations', onSaved, onCancel
       )}
       <div className="note-actions">
         <button type="submit" className="primary-button" disabled={isSaving}>
-          {isSaving ? 'Saving…' : post ? 'Save changes' : 'Post it'}
+          {isSaving ? 'Saving…' : post ? 'Save changes' : recipient ? `Send to ${recipient.name}` : 'Post it'}
         </button>
         <button type="button" className="secondary-button" disabled={isSaving} onClick={onCancel}>
           Cancel

@@ -41,6 +41,7 @@ const addresses: Record<View, string> = {
   reset: '/',
   verify: '/',
   unsubscribe: '/',
+  messageRequest: '/',
 }
 
 export function addressFor(view: View): string {

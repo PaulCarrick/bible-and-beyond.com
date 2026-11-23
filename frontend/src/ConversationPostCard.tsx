@@ -93,6 +93,21 @@ function ConversationPostCard({ post, onChanged, onDeleted, highlightTerms, canR
             <time dateTime={post.created_at}>{formatTime(post.created_at)}</time>
             {wasEdited && ` (edited ${formatTime(post.updated_at)})`}
           </p>
+          {/* A post to one member (2026-11-23): only the two of them see it; its author also sees whether it has been
+              accepted. */}
+          {post.recipient && (
+            <p className="prayer-post-options conversation-direct">
+              {post.is_mine
+                ? `Private: to ${post.recipient.name} only${
+                    post.delivery === 'pending'
+                      ? ' · waiting for them to accept posts from you'
+                      : post.delivery === 'declined'
+                        ? ' · not delivered: they are not accepting posts from you'
+                        : ''
+                  }`
+                : 'Private: sent to you only'}
+            </p>
+          )}
           {/* Only the author's own posts say how they were shared (others see "Anonymous" and never a private post). */}
           {post.is_mine && (post.is_anonymous || post.is_private || post.email_to_prayer_list || post.email_replies) && (
             <p className="prayer-post-options">

@@ -4,6 +4,7 @@ import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSu
 import ChangePasswordSection from './ChangePasswordSection'
 import CloseAccountSection from './CloseAccountSection'
 import HeadShotSection from './HeadShotSection'
+import MessagePermissionsSection from './MessagePermissionsSection'
 import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
@@ -225,6 +226,7 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
           </button>
         </div>
       </form>
+      <MessagePermissionsSection />
       <ChangePasswordSection />
       <CloseAccountSection onClosed={onAccountClosed} />
     </div>

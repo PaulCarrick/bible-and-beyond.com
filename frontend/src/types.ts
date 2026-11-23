@@ -546,8 +546,21 @@ export interface ConversationPost {
   share_group_id?: number | null
   share_group_name?: string | null
   shared_at?: string | null
+  // A post to one member (2026-11-23): who it went to (is_me when that is the reader), or null for everyone.
+  recipient?: { id: number; name: string; is_me: boolean } | null
+  // For its author only: whether the member has accepted posts from them yet.
+  delivery?: 'pending' | 'accepted' | 'declined' | null
   // Members' replies to it, oldest first.
   replies: ConversationReply[]
+}
+
+// Someone who has asked to send the reader posts to them alone, and the reader's answer.
+export interface MessagePermission {
+  sender_id: number
+  sender: string
+  status: 'pending' | 'accepted' | 'declined'
+  requested_at: string
+  answered_at: string | null
 }
 
 // A reply to a Conversations post: any allowed member may reply; only its author can change or delete it.
@@ -599,6 +612,8 @@ export interface PostOptions {
   // Prayer Wall: email it to a group the member is in, or to its leader (sent at once; the post is private).
   shareWith?: 'group' | 'leader' | null
   shareGroupId?: number | null
+  // Conversations, a new post only: send it to this member alone (2026-11-23).
+  recipientId?: number | null
 }
 
 export interface DevotionalSubscription {

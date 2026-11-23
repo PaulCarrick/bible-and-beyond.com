@@ -30,6 +30,7 @@ import type {
   ConversationBoard,
   ConversationPage,
   ConversationPost,
+  MessagePermission,
   ConversationReply,
   NoteSubject,
   Translation,
@@ -881,9 +882,54 @@ export async function saveConversationPost(
       email_replies: options.emailReplies,
       share_with: options.shareWith ?? null,
       share_group_id: options.shareGroupId ?? null,
+      recipient_id: options.recipientId ?? null,
     }),
   })
   return (await readJson<{ post: ConversationPost }>(response)).post
+}
+
+// Who the member may send a post to alone: the others allowed to use Conversations, by name.
+export async function fetchConversationMembers(signal?: AbortSignal): Promise<{ id: number; name: string }[]> {
+  const response = await fetch(`${mlServiceUrl}/conversations/members`, { credentials: 'include', signal })
+  return (await readJson<{ members: { id: number; name: string }[] }>(response)).members
+}
+
+// The reader's waiting requests from people who would like to send them posts.
+export async function fetchMessageRequests(signal?: AbortSignal): Promise<MessagePermission[]> {
+  const response = await fetch(`${mlServiceUrl}/message-requests`, { credentials: 'include', signal })
+  return (await readJson<{ requests: MessagePermission[] }>(response)).requests
+}
+
+// Everyone who has asked to send the reader posts, with the answer (My account).
+export async function fetchMessagePermissions(signal?: AbortSignal): Promise<MessagePermission[]> {
+  const response = await fetch(`${mlServiceUrl}/message-permissions`, { credentials: 'include', signal })
+  return (await readJson<{ permissions: MessagePermission[] }>(response)).permissions
+}
+
+// Accepts or declines posts from one sender (or changes the answer).
+export async function answerMessagePermission(senderId: number, accept: boolean): Promise<MessagePermission> {
+  const response = await fetch(`${mlServiceUrl}/message-permissions/${senderId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accept }),
+  })
+  return (await readJson<{ permission: MessagePermission }>(response)).permission
+}
+
+// The request a link in an email or text answers, and answering it (no login needed).
+export async function fetchMessageRequestByLink(token: string): Promise<MessagePermission & { recipient_first_name: string }> {
+  const response = await fetch(`${mlServiceUrl}/message-request?token=${encodeURIComponent(token)}`)
+  return (await readJson<{ request: MessagePermission & { recipient_first_name: string } }>(response)).request
+}
+
+export async function answerMessageRequestByLink(token: string, accept: boolean): Promise<MessagePermission> {
+  const response = await fetch(`${mlServiceUrl}/message-request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, accept }),
+  })
+  return (await readJson<{ permission: MessagePermission }>(response)).permission
 }
 
 // The groups the logged-in member is in (the Prayer Wall's "Email <group>" choices).

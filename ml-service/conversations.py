@@ -37,6 +37,7 @@ import time
 from email.message import EmailMessage
 
 from accounts import site_link
+import direct_posts
 import post_moderation
 from contact import ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from search import connect
@@ -67,10 +68,23 @@ _COLUMNS = f"""
   conversation_posts.is_anonymous, conversation_posts.is_private, conversation_posts.email_to_prayer_list,
   conversation_posts.answered_at, conversation_posts.email_replies, conversation_posts.share_with,
   conversation_posts.share_group_id, (SELECT name FROM member_groups WHERE id = conversation_posts.share_group_id),
-  conversation_posts.shared_at
+  conversation_posts.shared_at, conversation_posts.recipient_id,
+  (SELECT COALESCE(NULLIF(concat_ws(' ', r.first_name, r.last_name), ''), 'A member') FROM users r WHERE r.id = conversation_posts.recipient_id),
+  (SELECT mp.status FROM message_permissions mp
+   WHERE mp.sender_id = conversation_posts.user_id AND mp.recipient_id = conversation_posts.recipient_id)
 """
-# What a viewer may see: every post but the private ones of others.
-_VISIBLE = "(NOT conversation_posts.is_private OR conversation_posts.user_id = %(viewer)s)"
+# What a viewer may see: every post but the private ones of others; a post to one member (direct_posts.py) only by
+# its author, and by that member once they have accepted posts from the author.
+_VISIBLE = """(
+  (NOT conversation_posts.is_private OR conversation_posts.user_id = %(viewer)s)
+  AND (
+    conversation_posts.recipient_id IS NULL OR conversation_posts.user_id = %(viewer)s
+    OR (conversation_posts.recipient_id = %(viewer)s AND EXISTS (
+      SELECT 1 FROM message_permissions mp
+      WHERE mp.sender_id = conversation_posts.user_id AND mp.recipient_id = %(viewer)s AND mp.status = 'accepted'
+    ))
+  )
+)"""
 _FROM = "conversation_posts JOIN users ON users.id = conversation_posts.user_id"
 _REPLY_COLUMNS = f"""
   conversation_replies.id, conversation_replies.user_id, conversation_replies.post_id, conversation_replies.body,
@@ -112,6 +126,10 @@ def _row_to_post(row, viewer_id: int) -> dict:
     "share_group_id": row[14] if row[1] == viewer_id else None,
     "share_group_name": row[15] if row[1] == viewer_id else None,
     "shared_at": row[16].isoformat() if row[16] and row[1] == viewer_id else None,
+    # A post to one member (direct_posts.py): who it went to, and (told only to its author) whether they have
+    # accepted posts from them: "pending", "accepted" or "declined".
+    "recipient": {"id": row[17], "name": row[18], "is_me": row[17] == viewer_id} if row[17] else None,
+    "delivery": row[19] if row[17] and row[1] == viewer_id else None,
     "replies": [],
   }
 
@@ -229,6 +247,13 @@ def _board_of_own_post(user_id: int, post_id: int) -> str:
   return found[0]
 
 
+def _is_direct(post_id: int) -> bool:
+  """Whether the post went to one member (direct_posts.py)."""
+  with connect() as connection:
+    row = connection.execute("SELECT recipient_id IS NOT NULL FROM conversation_posts WHERE id = %s", (post_id,)).fetchone()
+  return bool(row and row[0])
+
+
 def _get(connection, post_id: int, viewer_id: int) -> dict:
   row = connection.execute(f"SELECT {_COLUMNS} FROM {_FROM} WHERE conversation_posts.id = %s", (post_id,)).fetchone()
   return _with_replies(connection, [_row_to_post(row, viewer_id)], viewer_id)[0]
@@ -245,8 +270,11 @@ def create_post(
   email_replies: bool = False,
   share_with: str | None = None,
   share_group_id: int | None = None,
+  recipient_id: int | None = None,
 ) -> dict:
   board = _checked_board(board)
+  if recipient_id is not None and board != "conversations":
+    raise ConversationProblem("Only a Conversations post can be sent to one member.")
   if share_with:
     # Emailing a group or its leader makes the request private (the owner's request, 2026-11-16).
     is_anonymous, is_private, email_to_prayer_list = False, True, False
@@ -254,9 +282,14 @@ def create_post(
   email_replies = _checked_email_replies(board, email_replies)
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
-  if not is_private:  # a private prayer request is not checked
+  if not is_private and recipient_id is None:  # a private prayer request or a post to one member is not checked
     _moderated(cleaned["text"], title, board, "post")
   with connect() as connection:
+    if recipient_id is not None:
+      try:
+        recipient_id = direct_posts.check_recipient(connection, user_id, recipient_id)
+      except direct_posts.DirectPostProblem as problem:
+        raise ConversationProblem(str(problem), problem.status_code) from problem
     count = connection.execute("SELECT count(*) FROM conversation_posts WHERE user_id = %s", (user_id,)).fetchone()[0]
     if count >= MAX_POSTS_PER_USER:
       raise ConversationProblem(f"You have reached the limit of {MAX_POSTS_PER_USER} posts. Please delete some first.")
@@ -265,13 +298,13 @@ def create_post(
       """
       INSERT INTO conversation_posts
         (user_id, title, body, body_text, board, is_anonymous, is_private, email_to_prayer_list, listed_at,
-         email_replies, reply_email_token, share_with, share_group_id)
-      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END, %s, CASE WHEN %s THEN %s END, %s, %s) RETURNING id
+         email_replies, reply_email_token, share_with, share_group_id, recipient_id)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN now() END, %s, CASE WHEN %s THEN %s END, %s, %s, %s) RETURNING id
       """,
       (
         user_id, title, cleaned["html"], cleaned["text"], board, is_anonymous, is_private, email_to_prayer_list,
         email_to_prayer_list or is_private, email_replies, email_replies, secrets.token_urlsafe(24),
-        share_with, share_group_id,
+        share_with, share_group_id, recipient_id,
       ),
     ).fetchone()[0]
     return _get(connection, post_id, user_id)
@@ -360,7 +393,7 @@ def update_post(
   title = _checked_title(title)
   cleaned = _cleaned(body, POST_HTML_LIMIT, POST_TEXT_LIMIT, "post")
   board = _board_of_own_post(user_id, post_id)
-  if not (share_with or is_private):  # a private prayer request is not checked
+  if not (share_with or is_private or _is_direct(post_id)):  # a private prayer request or a post to one member is not checked
     _moderated(cleaned["text"], title, board, "post")
   with connect() as connection:
     found = connection.execute("SELECT board FROM conversation_posts WHERE id = %s AND user_id = %s", (post_id, user_id)).fetchone()
@@ -475,11 +508,12 @@ def create_reply(user_id: int, post_id: int, body: str) -> dict:
   with connect() as connection:
     # A private post is "not found" to anyone but its author.
     post = connection.execute(
-      f"SELECT board, is_private FROM conversation_posts WHERE id = %(post)s AND {_VISIBLE}", {"post": post_id, "viewer": user_id}
+      f"SELECT board, is_private OR recipient_id IS NOT NULL FROM conversation_posts WHERE id = %(post)s AND {_VISIBLE}",
+      {"post": post_id, "viewer": user_id},
     ).fetchone()
   if post is None:
     raise ConversationProblem("That post was not found. It may have been deleted.", 404)
-  if not post[1]:  # replies to a private prayer request are not checked
+  if not post[1]:  # replies to a private prayer request or a post to one member are not checked
     _moderated(cleaned["text"], "", post[0], "reply")
   with connect() as connection:
     # A private post is "not found" to anyone but its author.
@@ -510,6 +544,7 @@ def compose_reply_email(from_address: str, reply_id: int) -> EmailMessage | None
       JOIN users authors ON authors.id = posts.user_id
       WHERE conversation_replies.id = %s AND posts.email_replies AND posts.reply_email_token IS NOT NULL
         AND posts.user_id <> conversation_replies.user_id AND authors.email_verified_at IS NOT NULL
+        AND posts.recipient_id IS NULL
       """,
       (reply_id,),
     ).fetchone()
@@ -647,7 +682,8 @@ def send_new_post_emails(post_id: int) -> int:
     with connect() as connection:
       row = connection.execute(
         f"SELECT conversation_posts.user_id, conversation_posts.title, conversation_posts.body_text, {_AUTHOR} "
-        f"FROM {_FROM} WHERE conversation_posts.id = %s AND conversation_posts.board = 'conversations'",
+        f"FROM {_FROM} WHERE conversation_posts.id = %s AND conversation_posts.board = 'conversations' "
+        "AND conversation_posts.recipient_id IS NULL",
         (post_id,),
       ).fetchone()
       if row is None:
@@ -672,7 +708,7 @@ def send_new_reply_emails(reply_id: int) -> int:
                conversation_replies.body_text, {_AUTHOR}
         FROM {_REPLY_FROM}
         JOIN conversation_posts posts ON posts.id = conversation_replies.post_id
-        WHERE conversation_replies.id = %s AND posts.board = 'conversations'
+        WHERE conversation_replies.id = %s AND posts.board = 'conversations' AND posts.recipient_id IS NULL
         """,
         (reply_id,),
       ).fetchone()
@@ -697,6 +733,7 @@ def _reply_notice(reply_id: int) -> tuple[int, str] | None:
       JOIN users ON users.id = conversation_replies.user_id
       JOIN conversation_posts posts ON posts.id = conversation_replies.post_id
       WHERE conversation_replies.id = %s AND posts.email_replies AND posts.user_id <> conversation_replies.user_id
+        AND posts.recipient_id IS NULL
       """,
       (reply_id,),
     ).fetchone()
@@ -711,13 +748,13 @@ def update_reply(user_id: int, reply_id: int, body: str) -> dict:
   cleaned = _cleaned(body, REPLY_HTML_LIMIT, REPLY_TEXT_LIMIT, "reply")
   with connect() as connection:
     found = connection.execute(
-      "SELECT posts.board, posts.is_private FROM conversation_replies JOIN conversation_posts posts ON posts.id = conversation_replies.post_id "
+      "SELECT posts.board, posts.is_private OR posts.recipient_id IS NOT NULL FROM conversation_replies JOIN conversation_posts posts ON posts.id = conversation_replies.post_id "
       "WHERE conversation_replies.id = %s AND conversation_replies.user_id = %s",
       (reply_id, user_id),
     ).fetchone()
   if found is None:
     raise ConversationProblem("That reply was not found.", 404)
-  if not found[1]:  # replies to a private prayer request are not checked
+  if not found[1]:  # replies to a private prayer request or a post to one member are not checked
     _moderated(cleaned["text"], "", found[0], "reply")
   with connect() as connection:
     row = connection.execute(
@@ -764,6 +801,9 @@ def _admin_post(row) -> dict:
     "is_private": row[11],
     "email_to_prayer_list": row[12],
     "answered_at": row[13].isoformat() if row[13] else None,
+    # Sent to one member (direct_posts.py): their name and address, or None.
+    "recipient": row[14],
+    "recipient_email": row[15],
   }
 
 
@@ -772,7 +812,9 @@ _ADMIN_COLUMNS = f"""
   conversation_posts.created_at, conversation_posts.updated_at, {_AUTHOR}, users.email,
   (SELECT count(*) FROM conversation_replies WHERE conversation_replies.post_id = conversation_posts.id),
   conversation_posts.board, conversation_posts.is_anonymous, conversation_posts.is_private,
-  conversation_posts.email_to_prayer_list, conversation_posts.answered_at
+  conversation_posts.email_to_prayer_list, conversation_posts.answered_at,
+  (SELECT COALESCE(NULLIF(concat_ws(' ', r.first_name, r.last_name), ''), 'A member') FROM users r WHERE r.id = conversation_posts.recipient_id),
+  (SELECT COALESCE(r.email, r.phone) FROM users r WHERE r.id = conversation_posts.recipient_id)
 """
 _ADMIN_REPLY_COLUMNS = f"""
   conversation_replies.id, conversation_replies.post_id, conversation_replies.body, conversation_replies.body_text,

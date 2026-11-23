@@ -130,6 +130,12 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
           follow that request. Please do not post anything you want to keep private.
         </li>
         <li>
+          <strong>A Conversations post sent to one member</strong> is seen only by you, that member and the site
+          owner and administrators. The first time you send to someone, they are told your name and asked whether to
+          accept posts from you (by email or text, as they chose); nothing you wrote is shown to them until they
+          accept. We keep their answer, and they can change it on their My account page.
+        </li>
+        <li>
           <strong>On the Prayer Wall you can choose.</strong> A request posted <em>anonymously</em> shows
           &ldquo;Anonymous&rdquo; instead of your name. A <em>private</em> request is seen only by you and the site owner
           and administrators, and is emailed only to them. A request you choose to <em>email to the prayer list</em> is sent,
@@ -174,7 +180,7 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
         <strong>About AI queries:</strong> we never put your name or email address in an AI request, and we do not
         log what you typed. We keep a copy of AI answers so we do not have to ask again, but the search itself is
         stored only as a scrambled code, not as words. Please do not type personal details into a question. When
-        the site checks posts, each new or changed post or reply (but never a private prayer request) is sent to
+        the site checks posts, each new or changed post or reply (but never a private prayer request or a post sent to one member) is sent to
         Gemini only to be checked for profanity, political messages and ads; we keep nothing of that check. The
         rules for posts are in our{' '}
         <button type="button" className="link-button" onClick={() => onNavigate('postingPolicy')}>

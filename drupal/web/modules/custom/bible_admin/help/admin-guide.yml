@@ -270,7 +270,8 @@ sections:
     body: |
       <p>Every post on the public site's Conversations and Prayer Wall pages, newest first, with a search (title,
       text, author's name or address) and <em>Show</em> to see one of the two. The <em>Where</em> column says which, and
-      for a prayer request whether it is private, anonymous, on the prayer list email or answered. Here you always see
+      for a prayer request whether it is private, anonymous, on the prayer list email or answered; a Conversations
+      post a member sent to one other member says "private, to Name (address) only". Here you always see
       the real author, even of an anonymous request.</p>
       <figure><img data-guide="conversations" alt="Conversations and Prayer Wall: search, Show, and a table of posts with their beginning, author, where, dates and replies"><figcaption>Conversations and Prayer Wall.</figcaption></figure>
       <p><strong>Read and delete</strong> shows the whole post with its replies. Delete a reply with the link under it,

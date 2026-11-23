@@ -126,6 +126,8 @@ class ConversationListController extends ControllerBase {
    */
   public static function prayerOptions(array $post): string {
     $options = array_filter([
+      // A post to one member (2026-11-23): only the two of them (and administrators) see it.
+      !empty($post['recipient']) ? (string) t('private, to @name (@address) only', ['@name' => $post['recipient'], '@address' => $post['recipient_email'] ?? '']) : '',
       !empty($post['is_private']) ? (string) t('private') : '',
       !empty($post['is_anonymous']) ? (string) t('anonymous') : '',
       !empty($post['email_to_prayer_list']) ? (string) t('emailed to the prayer list') : '',

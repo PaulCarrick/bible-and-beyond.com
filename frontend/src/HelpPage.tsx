@@ -992,6 +992,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             to stop them, or edit the post and untick it.
           </li>
           <li>
+            <strong>Sending a post to one member.</strong> Under the box, <em>Send to</em> starts on{' '}
+            <em>Everyone</em>; choose a member instead (by name) and only the two of you see the post and its replies
+            (and the site&rsquo;s administrators). The first time you send to someone, they are asked whether to accept
+            posts from you, on the Conversations page and by email or text; your post says it is waiting until they
+            do. If they accept, they are not asked again; if they decline, you cannot send them posts. Each of you is
+            told of the other&rsquo;s replies.
+          </li>
+          <li>
+            <strong>When someone wants to send you posts.</strong> A box at the top of Conversations (and an email or
+            text) shows the request: <em>Accept</em> shows their posts, <em>Decline</em> stops them. Change your answer
+            any time under <em>Posts sent to you</em> on your Account settings page (<em>Allow</em> or{' '}
+            <em>Block</em>).
+          </li>
+          <li>
             <strong>Changing or deleting.</strong> Your own posts have <em>Edit</em> and <em>Delete</em> (you are
             asked before one is deleted). Only you can change or delete them. Deleting a post also deletes its replies.
           </li>
