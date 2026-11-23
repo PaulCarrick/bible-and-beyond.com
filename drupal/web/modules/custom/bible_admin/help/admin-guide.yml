@@ -401,7 +401,8 @@ sections:
       added under the notification in each of their reminders (the name fields work in it too).</p>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away
-      under <em>Past</em>. <strong>Edit</strong> changes the person, the date or the note (a date already passed stays in the
+      under <em>Past</em>; click <em>Date</em>, <em>Task</em> or <em>Site user</em> at the top of a column to sort by it
+      (click again to reverse). <strong>Edit</strong> changes the person, the date or the note (a date already passed stays in the
       list as "its date now"); <strong>Remove</strong> takes away that date for that person and keeps the task.
       Deleting a task, or a site user's account, removes its scheduled dates. You see the scheduled dates of your own
       tasks; a Website administrator sees all of them.</p>

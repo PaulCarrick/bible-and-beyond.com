@@ -6,7 +6,10 @@
  * buttons, so the keyboard works too; aria-sort tells a screen reader which column is sorted.
  *
  * A column is sorted as numbers when every filled cell in it is a number ("1,234", "12.5 MB"), else as text
- * (any case, numbers inside text in their natural order).
+ * (any case, numbers inside text in their natural order). A cell's data-sort-value, when it has one, is sorted
+ * instead of its words (a date shown as "Sun, Nov 29, 2026" sorts by 2026-11-29). A header with
+ * data-sort-default="ascending" or "descending" says the rows already come sorted by it (its mark shows so); the
+ * third click then returns to that order.
  */
 ((Drupal, once) => {
   const NUMBER = /^-?[\d,]+(\.\d+)?(\s*(MB|KB|GB))?$/i;
@@ -14,7 +17,10 @@
 
   function cellText(row, column) {
     const cell = row.cells[column];
-    return cell ? cell.innerText.trim() : '';
+    if (!cell) {
+      return '';
+    }
+    return cell.hasAttribute('data-sort-value') ? cell.getAttribute('data-sort-value') : cell.innerText.trim();
   }
 
   function sortTable(table, column, direction, originalRows) {
@@ -50,6 +56,22 @@
         }
         const originalRows = [...body.rows];
         const state = { column: -1, direction: 'none' };
+        const showMarks = () => {
+          headers.forEach((other, index) => {
+            const otherMark = other.querySelector('.bible-admin-sort-mark');
+            const direction = index === state.column ? state.direction : 'none';
+            if (direction === 'none') {
+              other.removeAttribute('aria-sort');
+            }
+            else {
+              other.setAttribute('aria-sort', direction);
+            }
+            if (otherMark) {
+              otherMark.textContent = ' ' + MARKS[direction];
+              otherMark.classList.toggle('is-active', direction !== 'none');
+            }
+          });
+        };
 
         headers.forEach((header, column) => {
           if (header.hasAttribute('data-no-sort')) {
@@ -77,23 +99,17 @@
               state.direction = { ascending: 'descending', descending: 'none', none: 'ascending' }[state.direction];
             }
             sortTable(table, column, state.direction, originalRows);
-            headers.forEach((other, index) => {
-              const otherMark = other.querySelector('.bible-admin-sort-mark');
-              const direction = index === column ? state.direction : 'none';
-              if (direction === 'none') {
-                other.removeAttribute('aria-sort');
-              }
-              else {
-                other.setAttribute('aria-sort', direction);
-              }
-              if (otherMark) {
-                otherMark.textContent = ' ' + MARKS[direction];
-                otherMark.classList.toggle('is-active', direction !== 'none');
-              }
-            });
+            showMarks();
           });
           mark.textContent = ' ' + MARKS.none;
         });
+        // The column the page already sorted the rows by.
+        const sortedBy = headers.findIndex((header) => ['ascending', 'descending'].includes(header.getAttribute('data-sort-default')));
+        if (sortedBy >= 0) {
+          state.column = sortedBy;
+          state.direction = headers[sortedBy].getAttribute('data-sort-default');
+          showMarks();
+        }
       });
     },
   };

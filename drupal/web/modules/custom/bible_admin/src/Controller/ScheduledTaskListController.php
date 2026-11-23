@@ -45,13 +45,14 @@ class ScheduledTaskListController extends ControllerBase {
     $coming = array_values(array_filter($schedules, fn ($schedule) => !$schedule['past']));
     $past = array_reverse(array_values(array_filter($schedules, fn ($schedule) => $schedule['past'])));
 
-    $build['coming'] = $this->table($coming, $showOwner, $this->t('Nothing is scheduled from today on.'));
+    $build['#attached']['library'][] = 'bible_admin/sortable_table';
+    $build['coming'] = $this->table($coming, $showOwner, $this->t('Nothing is scheduled from today on.'), 'ascending');
     if ($past) {
       $build['past'] = [
         '#type' => 'details',
         '#title' => $this->t('Past (@count)', ['@count' => count($past)]),
         '#open' => FALSE,
-        'table' => $this->table($past, $showOwner, ''),
+        'table' => $this->table($past, $showOwner, '', 'descending'),
       ];
     }
     return $build;
@@ -167,7 +168,12 @@ class ScheduledTaskListController extends ControllerBase {
     return $date === FALSE ? $day : $date->format('l, F j, Y');
   }
 
-  private function table(array $schedules, bool $showOwner, $empty): array {
+  /**
+   * One table of scheduled tasks. Date, Task and Site user sort by a click on their header (2026-11-23, the owner's
+   * request; js/sortable-table.js); the rows come sorted by date ($dateOrder: the coming ones soonest first, the
+   * past ones latest first), and the Date header says so.
+   */
+  private function table(array $schedules, bool $showOwner, $empty, string $dateOrder): array {
     $rows = [];
     foreach ($schedules as $schedule) {
       $links = [
@@ -175,7 +181,7 @@ class ScheduledTaskListController extends ControllerBase {
         ['title' => $this->t('Remove'), 'url' => Url::fromRoute('bible_admin.scheduled_task_remove', ['schedule_id' => $schedule['id']])],
       ];
       $row = [
-        ['data' => ['#plain_text' => $this->formatDay($schedule['on_date'])]],
+        ['data' => ['#plain_text' => $this->formatDay($schedule['on_date'])], 'data-sort-value' => $schedule['on_date']],
         ['data' => ['#plain_text' => $schedule['task_name']]],
         ['data' => ['#plain_text' => $schedule['user_label']]],
         ['data' => $this->reminders($schedule)],
@@ -187,13 +193,24 @@ class ScheduledTaskListController extends ControllerBase {
       $row[] = ['data' => ['#type' => 'operations', '#links' => $links]];
       $rows[] = $row;
     }
-    $header = [$this->t('Date'), $this->t('Task'), $this->t('Site user'), $this->t('Reminders')];
+    $header = [
+      ['data' => $this->t('Date'), 'data-sort-default' => $dateOrder],
+      $this->t('Task'),
+      $this->t('Site user'),
+      ['data' => $this->t('Reminders'), 'data-no-sort' => ''],
+    ];
     if ($showOwner) {
-      $header[] = $this->t('Task owner');
+      $header[] = ['data' => $this->t('Task owner'), 'data-no-sort' => ''];
     }
-    $header[] = $this->t('Scheduled by');
-    $header[] = $this->t('Operations');
-    return ['#type' => 'table', '#header' => $header, '#rows' => $rows, '#empty' => $empty];
+    $header[] = ['data' => $this->t('Scheduled by'), 'data-no-sort' => ''];
+    $header[] = ['data' => $this->t('Operations'), 'data-no-sort' => ''];
+    return [
+      '#type' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => $empty,
+      '#attributes' => ['class' => ['bible-admin-sortable']],
+    ];
   }
 
   /**
