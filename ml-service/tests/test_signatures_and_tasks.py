@@ -505,3 +505,22 @@ def test_an_unconfirmed_address_still_gets_the_text(site_users, mailbox, texts):
   scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
   assert mailbox == [] and len(texts) == 1
   assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"] == "Sent by text."
+
+
+def test_a_task_sends_only_one_reminder_a_day(site_users, mailbox):
+  open_id, _ = site_users
+  # Reminders 1 day and 0 days before; scheduled at 7:00 on the date itself (Chicago): the first is overdue, the
+  # second is due at 8:00. Only the second goes.
+  task = admin_tasks.create_task(reminder_task(first_notice_days=1, second_notice_days=0), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  result = scheduled_tasks.send_due(at_utc(2026, 11, 29, 13))  # 7:00 AM in Chicago
+  assert (result["sent"], result["skipped"]) == (0, 1) and mailbox == []
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"] == "Skipped: the second reminder goes later the same day."
+  assert scheduled_tasks.send_due(at_utc(2026, 11, 29, 14))["sent"] == 1  # 8:00 AM
+  assert len(mailbox) == 1 and "greeter tomorrow" in mailbox[0].get_body(("plain",)).get_content()
+
+  # A late first reminder on an earlier day still goes (the second is on another day).
+  task = admin_tasks.create_task(reminder_task(name="Usher", first_notice_days=2, second_notice_days=0), OWNER, "Paul")
+  other = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  scheduled_tasks.send_due(at_utc(2026, 11, 28, 13))  # 7:00 AM the day before: the first is a day late
+  assert scheduled_tasks.get_scheduled(other["id"])["first_notice_result"].startswith("Sent")

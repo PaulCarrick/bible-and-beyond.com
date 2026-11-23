@@ -12,7 +12,8 @@ emailed to the site user first_notice_days before the date, and its second secon
 the task's time zone (a notice whose days are not set is not sent). Each is claimed before it is sent, so it goes
 once. One that falls due late (the date was scheduled after its day, or the job was not running) goes at the next
 run; when the second is due too, only the second goes and the first is marked skipped. Nothing goes once the date
-has passed. Changing the date of a scheduled task lets its reminders go again for the new date.
+has passed. Changing the date of a scheduled task lets its reminders go again for the new date. A task sends at
+most one reminder a day: a late first reminder on the second's own day (before its 8:00) is skipped for the second.
 
 Each reminder follows the site user's own delivery choice (Send via Email / Send via SMS on My account,
 sms.delivery_for_user; the owner's request, 2026-11-22): an email to a confirmed address, a text when they chose
@@ -358,6 +359,13 @@ def send_due(now: datetime | None = None) -> dict:
         if not second_open:
           # The second already went (the first's days were added later): the first would come after it.
           if _claim(scheduled_id, "first", now, "Skipped: the second reminder had already gone."):
+            result["skipped"] += 1
+          continue
+        second_days = notices["second"]["days"]
+        if second_days is not None and on_date - timedelta(days=second_days) <= local_today:
+          # A late first reminder before 8:00 on the second's own day: one reminder a day per task, so only the
+          # second goes, at 8:00 (the owner's rule, 2026-11-23).
+          if _claim(scheduled_id, "first", now, "Skipped: the second reminder goes later the same day."):
             result["skipped"] += 1
           continue
         which = "first"
