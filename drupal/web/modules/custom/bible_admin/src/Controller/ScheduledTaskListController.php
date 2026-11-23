@@ -29,9 +29,8 @@ class ScheduledTaskListController extends ControllerBase {
       'intro' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
-        '#value' => $this->t('Who does which task on which date. To schedule one, use Schedule beside the task on the <a href=":tasks">Tasks</a> page and choose the site user and one of its next four dates. The <a href=":report">Scheduled Task Report</a> lists them day by day, ready to print.', [
+        '#value' => $this->t('Who does which task on which date. To schedule one, use Schedule beside the task on the <a href=":tasks">Tasks</a> page and choose the site user and one of its next four dates. Schedule tasks fills a whole day at once, and the Scheduled Task Report lists them day by day, ready to print.', [
           ':tasks' => Url::fromRoute('bible_admin.tasks')->toString(),
-          ':report' => Url::fromRoute('bible_admin.scheduled_task_report')->toString(),
         ]),
       ],
     ];

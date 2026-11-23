@@ -55,6 +55,15 @@ bible_admin.task_add_action:
 bible_admin.scheduled_tasks_add_action:
   route_name: bible_admin.scheduled_tasks_add
   title: 'Schedule tasks'
+  weight: 0
+  appears_on:
+    - bible_admin.scheduled_tasks
+
+# Beside Schedule tasks (2026-11-23, the owner's request): the report to print.
+bible_admin.scheduled_task_report_action:
+  route_name: bible_admin.scheduled_task_report
+  title: 'Scheduled Task Report'
+  weight: 1
   appears_on:
     - bible_admin.scheduled_tasks
 
