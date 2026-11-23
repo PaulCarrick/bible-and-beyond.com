@@ -10,6 +10,8 @@ import secrets
 
 import psycopg
 
+import head_shots
+
 from accounts import AccountProblem, check_new_password, check_profile, hash_password, normalize_email
 from search import connect
 from sms import texting_number, welcome_text
@@ -357,4 +359,6 @@ def delete_user(user_id: int) -> dict:
   user = get_user(user_id)
   with connect() as connection:
     connection.execute("DELETE FROM users WHERE id = %s", (user_id,))
+  # Their head shot (head_shots.py) goes too.
+  head_shots.path_for(user_id).unlink(missing_ok=True)
   return user

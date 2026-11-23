@@ -15,6 +15,7 @@ def no_real_site_icons(tmp_path, monkeypatch):
   """Tests never read, replace or remove the real site icons (data/site-icons)."""
   monkeypatch.setenv("SITE_ICONS_FOLDER", str(tmp_path / "site-icons"))
   monkeypatch.setenv("KINDLE_COVERS_FOLDER", str(tmp_path / "kindle-covers"))
+  monkeypatch.setenv("HEAD_SHOTS_FOLDER", str(tmp_path / "head-shots"))
 
 
 @pytest.fixture(autouse=True)

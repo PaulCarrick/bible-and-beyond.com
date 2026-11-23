@@ -141,10 +141,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
         <h2>Finding your way around</h2>
         <p>
           Every page has the same three parts. At the top is the <strong>header</strong>: click the name or the round
-          emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the top right are{' '}
-          <em>Set up account</em> and <em>Log in</em>; once you are logged in you see your email address (or your phone
-          number, if you log in with it; click it to open <em>My account</em>), <em>My notes</em>, <em>My lists</em> and{' '}
-          <em>Log out</em> there instead. On the left is the{' '}
+          emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the far top
+          right is the <strong>account icon</strong> (a circle with a head and shoulders, or your own picture): point at it
+          or click it for its menu, <em>Log in</em> and <em>Set up account</em>, or once you are logged in{' '}
+          <em>Account settings</em>, <em>My notes</em>, <em>My lists</em> and <em>Log out</em>. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
           the devotionals, the other books, Christian media, maps, questions (the FAQ), today (Verse of the day and
           Devotional of the day), members (Conversations and the Prayer Wall) and about (this Help page, the tutorial
@@ -772,8 +772,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             <em>Text me a new code</em> sends another. Until then everything works except texts to you.
           </li>
           <li>
-            <strong>Logging in and out.</strong> <PageLink onNavigate={onNavigate} view="login">Log in</PageLink> and <em>Log out</em> are at the
-            top right. Log in with your email address, or with your phone number if your account was set up with one
+            <strong>Logging in and out.</strong> <PageLink onNavigate={onNavigate} view="login">Log in</PageLink> and <em>Log out</em> are in the
+            account icon's menu at the top right. Log in with your email address, or with your phone number if your account was set up with one
             (written any way: 555-123-4567 works). You stay logged in on that browser for 30 days.
           </li>
           <li>
@@ -782,15 +782,17 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             choose a new password.
           </li>
           <li>
-            <strong>Changing your password.</strong> While logged in, click your address at the top right to open{' '}
-            <em>My account</em>, and under <em>Change your password</em> type your current password and the new one twice
+            <strong>Changing your password.</strong> While logged in, choose <em>Account settings</em> in the account
+            icon's menu at the top right, and under <em>Change your password</em> type your current password and the new one twice
             (at least 8 characters). Any other device logged in to your account is logged out; the one you are using stays
             logged in.
           </li>
           <li>
-            <strong>My account.</strong> Click your address at the top right to open it. There you can change your
-            phone number, how your messages are sent (<em>Send via Email</em>, <em>Send via SMS</em>, or both) and your
-            verse-a-day choice (press <em>Save</em>), and change your password.
+            <strong>Account settings.</strong> Choose <em>Account settings</em> in the account icon's menu at the top right.
+            There you can add a picture of yourself (<em>Your picture</em>: choose a photo and its middle is kept as a
+            square; it shows in the account icon, and only you see it), change your phone number, how your messages
+            are sent (<em>Send via Email</em>, <em>Send via SMS</em>, or both) and your verse-a-day choice (press{' '}
+            <em>Save</em>), and change your password.
           </li>
           <li>
             <strong>Closing your account.</strong> At the foot of <em>My account</em>, <em>Close my account</em> asks for
@@ -905,7 +907,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           caption="Writing a note on John 1:14."
         />
         <p>
-          <PageLink onNavigate={onNavigate} view="notes">My notes</PageLink> (at the top of the page when you are logged in) lists all of your
+          <PageLink onNavigate={onNavigate} view="notes">My notes</PageLink> (in the account icon's menu at the top right when you are logged in) lists all of your
           notes, newest first, 25 to a page. You can show one kind only, search them (the words you searched for are
           highlighted), and use <em>Open in the Bible</em>, <em>Open the commentary note</em> or{' '}
           <em>Open the reading</em> to go to what a note is about. Each note can be edited or deleted (you are asked
@@ -941,7 +943,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           caption="Three verses ticked and a new list named, ready to save."
         />
         <p>
-          <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (at the top of the page, beside My notes)
+          <PageLink onNavigate={onNavigate} view="lists">My lists</PageLink> (in the account icon's menu, under My notes)
           shows your lists. Choose one to see its entries as the search showed them (the search is not run again), each
           with a link to open it (<em>Read in the Bible</em>, <em>Read the note</em>, <em>Play this song</em> and so on)
           and <em>Remove from the list</em>. You can <em>Rename</em> a list or <em>Delete the list</em> (you are asked

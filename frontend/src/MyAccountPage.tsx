@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { deleteVerseSubscription, fetchVerseSubscription, savePhone, saveVerseSubscription } from './api'
 import ChangePasswordSection from './ChangePasswordSection'
 import CloseAccountSection from './CloseAccountSection'
+import HeadShotSection from './HeadShotSection'
 import { deliveryChoice } from './deliveryChoice'
 import TextMessageChoices from './TextMessageChoices'
 import { formatUsPhone, nextPhoneValue } from './phoneFormat'
@@ -25,8 +26,9 @@ interface MyAccountPageProps {
 
 // My account (added 2026-11-15 with text messages, the owner's request): the logged-in member's address, their
 // phone number with "This is a cell number", how their messages reach them (Send via Email, Send via SMS; added
-// 2026-11-16) and the verse a day, which they can change here. Opened from their address in the
-// header. Below them, a section of its own changes the password (ChangePasswordSection), and at the foot the
+// 2026-11-16) and the verse a day, which they can change here, and their picture (HeadShotSection, 2026-11-23).
+// Opened from Account settings in the account menu at the top right. Below them, a section of its own changes
+// the password (ChangePasswordSection), and at the foot the
 // member can close their account (CloseAccountSection, 2026-11-17).
 function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, onNavigate, onAccountClosed }: MyAccountPageProps) {
   const [phone, setPhone] = useState(user?.phone ?? '')
@@ -163,6 +165,7 @@ function MyAccountPage({ user, isAccountKnown, wasAccountClosed, onUserChanged, 
           number).
         </p>
       )}
+      <HeadShotSection user={user} onUserChanged={onUserChanged} />
       <form className="contact-form" onSubmit={handleSubmit}>
         <label className="contact-field">
           {user.email ? 'Phone (optional)' : 'Cell phone number (you log in with it)'}

@@ -704,6 +704,35 @@ export function logIn(email: string, password: string) {
   return accountRequest('login', 'POST', { email, password })
 }
 
+// The member's head shot (My account): the full address of the picture, shown only to them.
+export function headShotAddress(path: string): string {
+  return `${mlServiceUrl}${path}`
+}
+
+// A new head shot: the picture, already made small by the page (headShotPicture in HeadShotSection.tsx).
+export async function saveHeadShot(picture: Blob): Promise<AccountUser> {
+  const response = await fetch(`${mlServiceUrl}/account/head-shot`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': picture.type || 'application/octet-stream' },
+    body: picture,
+  })
+  const user = (await readJson<{ user: AccountUser | null }>(response)).user
+  if (!user) {
+    throw new Error('Please log in again.')
+  }
+  return user
+}
+
+export async function removeHeadShot(): Promise<AccountUser> {
+  const response = await fetch(`${mlServiceUrl}/account/head-shot`, { method: 'DELETE', credentials: 'include' })
+  const user = (await readJson<{ user: AccountUser | null }>(response)).user
+  if (!user) {
+    throw new Error('Please log in again.')
+  }
+  return user
+}
+
 export async function logOut(): Promise<void> {
   await accountRequest('logout', 'POST', {})
 }

@@ -592,7 +592,7 @@ function App() {
                 </p>
               )}
               {/* Kept mounted so a half-written post is not lost; made again for another account. */}
-              <ConversationsPage key={user?.id ?? 'logged-out'} isHidden={activeView !== 'conversations'} />
+              <ConversationsPage key={`conversations-${user?.id ?? 'logged-out'}`} isHidden={activeView !== 'conversations'} />
               <ConversationsPage key={`prayer-${user?.id ?? 'logged-out'}`} board="prayer" isHidden={activeView !== 'prayerWall'} />
               {activeView === 'notes' && <NotesPage books={books} translation={chooseContextTranslation(translations)} onOpenItem={openNoteItem} />}
               {activeView === 'publicLists' && <PublicListsPage
@@ -641,7 +641,7 @@ function App() {
               )}
               {activeView === 'account' && (
                 <MyAccountPage
-                  key={user?.id ?? 0}
+                  key={`account-${user?.id ?? 0}`}
                   user={user}
                   isAccountKnown={isAccountKnown}
                   wasAccountClosed={wasAccountClosed}

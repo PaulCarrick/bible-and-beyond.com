@@ -442,6 +442,8 @@ export interface AccountUser {
   use_maps: boolean
   // An administrator allowed this account to share its lists on Public lists; off unless set in Drupal.
   share_lists: boolean
+  // The member's own picture (My account; 2026-11-23): its address on the service (headShotAddress), or null.
+  head_shot: string | null
 }
 
 // What the Set up account form sends.

@@ -3698,3 +3698,205 @@ div.welcome-lead > p {
   align-self: flex-start;
   margin-top: 4px;
 }
+
+/* The account icon at the far top right and its menu (AccountMenu.tsx; 2026-11-23). */
+.account-menu {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.account-menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.account-menu-button:hover,
+.account-menu.is-open .account-menu-button {
+  color: #1a6ebd;
+}
+
+.account-menu-button.has-picture {
+  border: 2px solid var(--border);
+}
+
+.account-menu-button.has-picture:hover,
+.account-menu.is-open .account-menu-button.has-picture {
+  border-color: #1a6ebd;
+}
+
+.account-menu-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-person {
+  width: 36px;
+  height: 36px;
+}
+
+.account-menu-list {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 40;
+  min-width: 13rem;
+  max-width: 18rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* The gap between the icon and the list is bridged, so the mouse can cross it without the menu closing. */
+.account-menu-list::before {
+  content: '';
+  position: absolute;
+  top: -0.5rem;
+  right: 0;
+  left: 0;
+  height: 0.5rem;
+}
+
+.account-menu-who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 1rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.account-menu-who span {
+  color: #5a6472;
+  font-size: 0.85rem;
+}
+
+.account-menu-list ul {
+  margin: 0;
+  padding: 0.25rem 0 0;
+  list-style: none;
+}
+
+.account-menu-list li button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu-list li button:hover,
+.account-menu-list li button:focus-visible {
+  background: rgba(26, 110, 189, 0.08);
+  color: #1a6ebd;
+}
+
+.account-menu-separated {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 800px) {
+  .account-menu-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .account-person {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .account-menu-button {
+    color: #c9ced6;
+  }
+
+  .account-menu-button:hover,
+  .account-menu.is-open .account-menu-button,
+  .account-menu-list li button:hover,
+  .account-menu-list li button:focus-visible {
+    color: #7fb6ec;
+  }
+
+  .account-menu-button.has-picture:hover,
+  .account-menu.is-open .account-menu-button.has-picture {
+    border-color: #7fb6ec;
+  }
+
+  .account-menu-who span {
+    color: #a0a8b4;
+  }
+}
+
+/* "Your picture" on My account (HeadShotSection.tsx). */
+.head-shot-section {
+  margin: 1rem 0 1.5rem;
+}
+
+.head-shot-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.head-shot-preview {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  color: #4b5563;
+}
+
+.head-shot-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.head-shot-preview .account-person {
+  width: 92px;
+  height: 92px;
+}
+
+.head-shot-actions .account-note {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .head-shot-row {
+    flex-direction: column;
+  }
+}
+
+.head-shot-actions [role='status'],
+.head-shot-actions .error {
+  margin: 0.5rem 0 0;
+}

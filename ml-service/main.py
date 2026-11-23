@@ -124,6 +124,7 @@ from search import (
   search_verses,
 )
 import document_import
+import head_shots
 import kindle_books
 import site_icons
 from site_settings import get_public_settings, get_settings, is_login_required
@@ -1140,6 +1141,40 @@ def account_logout(request: Request, response: Response):
 @app.get("/account/me")
 def account_me(request: Request):
   """Who is logged in, or null. Logging in is never required; this only tells the page what to show."""
+  return {"user": user_for_token(request.cookies.get(SESSION_COOKIE))}
+
+
+@app.get("/account/head-shot")
+def account_head_shot(request: Request):
+  """The logged-in member's own head shot (head_shots.py). Nobody else is ever sent it."""
+  user = require_user(request, "Please log in.")
+  path = head_shots.path_for(user["id"])
+  if not user.get("head_shot") or not path.is_file():
+    raise HTTPException(status_code=404, detail="You have no picture.")
+  # The address carries the version, so the browser may keep it; private, as it is one member's.
+  return FileResponse(
+    path, media_type="image/webp",
+    headers={"Cache-Control": "private, max-age=31536000", "X-Content-Type-Options": "nosniff"},
+  )
+
+
+@app.put("/account/head-shot")
+async def account_head_shot_save(request: Request):
+  """A new head shot: the request body is the picture (the page shrinks it first, so it is under 1 MB)."""
+  user = await run_in_threadpool(require_user, request, "Please log in.")
+  body = await request.body()
+  try:
+    await run_in_threadpool(head_shots.save, user["id"], body)
+  except head_shots.HeadShotProblem as problem:
+    raise HTTPException(status_code=422, detail=str(problem))
+  return {"user": await run_in_threadpool(user_for_token, request.cookies.get(SESSION_COOKIE))}
+
+
+@app.delete("/account/head-shot")
+def account_head_shot_remove(request: Request):
+  """Takes the member's head shot away."""
+  user = require_user(request, "Please log in.")
+  head_shots.remove(user["id"])
   return {"user": user_for_token(request.cookies.get(SESSION_COOKIE))}
 
 

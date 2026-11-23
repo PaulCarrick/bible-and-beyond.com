@@ -1,3 +1,4 @@
+import AccountMenu from './AccountMenu'
 import type { AccountUser } from './types'
 
 interface SiteHeaderProps {
@@ -17,13 +18,14 @@ interface SiteHeaderProps {
   canSetUpAccount?: boolean
   onShowNotes: () => void
   onShowLists: () => void
-  // The My account page (phone number and texts).
+  // The My account page (Account settings in the menu).
   onShowAccount: () => void
   onLogIn: () => void
   onLogOut: () => void
 }
 
-// The top of every page: the emblem and the name of the site, and on a phone the button for the menu.
+// The top of every page: the emblem and the name of the site, on a phone the button for the menu, and at the far
+// right the account icon with its menu (AccountMenu.tsx; it replaced the row of account links on 2026-11-23).
 function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, canSetUpAccount = true, onShowNotes, onShowLists, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
@@ -52,42 +54,16 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
         <span className="site-name">{title}</span>
       </button>
       <span className="site-tagline">Read, search and study the Bible</span>
-      <nav className="site-account" aria-label="Account">
-        {user ? (
-          <>
-            {/* The address (or, for an account that logs in with its phone, the number) opens My account. */}
-            <button
-              type="button"
-              className="link-button site-account-email"
-              title={`My account: ${user.email ?? user.phone}`}
-              aria-label={`My account (${user.email ?? user.phone})`}
-              onClick={onShowAccount}
-            >
-              {user.email ?? user.phone}
-            </button>
-            <button type="button" className="link-button" onClick={onShowNotes}>
-              My notes
-            </button>
-            <button type="button" className="link-button" onClick={onShowLists}>
-              My lists
-            </button>
-            <button type="button" className="link-button" onClick={onLogOut}>
-              Log out
-            </button>
-          </>
-        ) : (
-          <>
-            {canSetUpAccount && (
-              <button type="button" className="link-button" aria-label="Set up account" onClick={onSetUpAccount}>
-                Set up<span className="phone-hidden"> account</span>
-              </button>
-            )}
-            <button type="button" className="link-button" onClick={onLogIn}>
-              Log in
-            </button>
-          </>
-        )}
-      </nav>
+      <AccountMenu
+        user={user}
+        canSetUpAccount={canSetUpAccount}
+        onShowAccount={onShowAccount}
+        onShowNotes={onShowNotes}
+        onShowLists={onShowLists}
+        onLogIn={onLogIn}
+        onSetUpAccount={onSetUpAccount}
+        onLogOut={onLogOut}
+      />
     </header>
   )
 }

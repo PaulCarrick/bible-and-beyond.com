@@ -20,6 +20,7 @@ import psycopg
 from contact import CONTROL_CHARACTERS, EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, send_plain_message
 import sms
 from sms import SmsProblem, check_choices, format_phone, texting_number
+from head_shots import address as head_shot_address
 from search import connect
 from site_settings import get_public_settings
 
@@ -125,7 +126,7 @@ _USER_COLUMNS = """
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
   users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
   users.send_via_email, users.send_via_sms, users.send_multimedia, users.phone_verified_at IS NOT NULL,
-  users.login_phone IS NOT NULL, users.share_lists
+  users.login_phone IS NOT NULL, users.share_lists, users.head_shot_version
 """
 
 
@@ -158,6 +159,8 @@ def _describe_user(row) -> dict:
     "logs_in_with_phone": row[16],
     # share_lists: an administrator allowed this account to share its lists on Public lists (saved_lists.py).
     "share_lists": row[17],
+    # The member's own picture (head_shots.py; 2026-11-23): its address on this service, or None.
+    "head_shot": head_shot_address(row[18]),
   }
 
 
