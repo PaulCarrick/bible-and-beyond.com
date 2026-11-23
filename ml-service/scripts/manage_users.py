@@ -4,7 +4,7 @@ These are the visitors' accounts in the Bible database, not Drupal's users. Ever
 object. On success it has "ok": true. On failure it has "ok": false and an "error" written for the
 administrator, and the exit status is not 0.
 
-    manage_users.py list [--query=part-of-an-address-or-name] [--page=1]
+    manage_users.py list [--query=part-of-an-address-or-name] [--page=1] [--sort=name|email|newest] [--direction=asc|desc]
     manage_users.py get --id=7
     manage_users.py create [--email=ann@example.com] [--first-name=Ann] [--last-name=Lee] [--phone=...]
                            [--email-verified] [--phone-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] [--share-lists] [--get-conversation-posts] [--texts] --password-on-input
@@ -43,6 +43,8 @@ def parse_arguments():
   listing = commands.add_parser("list")
   listing.add_argument("--query", default="")
   listing.add_argument("--page", type=int, default=1)
+  listing.add_argument("--sort", choices=("name", "email", "newest"), default="newest")
+  listing.add_argument("--direction", choices=("asc", "desc"), default="asc")
   for name in ("get", "delete"):
     commands.add_parser(name).add_argument("--id", type=int, required=True)
   create = commands.add_parser("create")
@@ -86,7 +88,7 @@ def read_password() -> str:
 
 def run(arguments) -> dict:
   if arguments.command == "list":
-    return {"ok": True, **list_users(arguments.query, arguments.page)}
+    return {"ok": True, **list_users(arguments.query, arguments.page, arguments.sort, arguments.direction)}
   if arguments.command == "get":
     return {"ok": True, "user": get_user(arguments.id)}
   if arguments.command == "delete":

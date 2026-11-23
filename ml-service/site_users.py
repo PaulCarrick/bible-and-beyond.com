@@ -112,8 +112,22 @@ def _digits_pattern(query: str) -> str:
   return f"%{digits}%" if len(digits) >= 3 else "-"
 
 
-def list_users(query: str = "", page: int = 1) -> dict:
-  """The accounts, newest first, PER_PAGE at a time; query keeps those whose address or name contains it."""
+# How the Site users list may be sorted (2026-11-23, the owner's request): by name or by address, either way; the
+# accounts with no name (or no address) come last either way, then the newest. Without a sort, newest first.
+_NAME = "lower(trim(concat_ws(' ', users.first_name, users.last_name)))"
+_SORTS = {
+  "name": f"({_NAME} = '') ASC, {_NAME} {{direction}}, lower(COALESCE(users.email, users.phone, '')) ASC",
+  "email": f"(users.email IS NULL) ASC, lower(COALESCE(users.email, '')) {{direction}}, {_NAME} ASC",
+  "newest": "users.created_at DESC",
+}
+
+
+def list_users(query: str = "", page: int = 1, sort: str = "newest", direction: str = "asc") -> dict:
+  """The accounts, PER_PAGE at a time, sorted by name or email (direction asc or desc), or newest first; query keeps
+  those whose address or name contains it."""
+  if sort not in _SORTS:
+    sort = "newest"
+  order = _SORTS[sort].format(direction="DESC" if direction == "desc" else "ASC") + ", users.id DESC"
   query = query.strip().lower()[:QUERY_LIMIT]
   page = max(page, 1)
   pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
@@ -121,7 +135,7 @@ def list_users(query: str = "", page: int = 1) -> dict:
     digits = _digits_pattern(query) if query else pattern
     total = connection.execute(f"SELECT count(*) FROM users WHERE {_MATCHES}", (pattern, pattern, digits)).fetchone()[0]
     rows = connection.execute(
-      f"SELECT {_COLUMNS} FROM users WHERE {_MATCHES} ORDER BY users.created_at DESC, users.id DESC LIMIT %s OFFSET %s",
+      f"SELECT {_COLUMNS} FROM users WHERE {_MATCHES} ORDER BY {order} LIMIT %s OFFSET %s",
       (pattern, pattern, digits, PER_PAGE, (page - 1) * PER_PAGE),
     ).fetchall()
   return {"users": [_describe(row) for row in rows], "total": total, "page": page, "per_page": PER_PAGE}

@@ -334,3 +334,17 @@ def test_the_tool_turns_texts_on(welcomed):
     [sys.executable, str(SCRIPT), "update", f"--id={user_id}", "--texts=yes"], capture_output=True, text=True, env=quiet
   )
   assert json.loads(changed.stdout)["user"]["sms_opt_in"] is True
+
+
+def test_the_list_sorts_by_name_or_email():
+  for email, first in (("c-sort@" + DOMAIN, "Anna"), ("a-sort@" + DOMAIN, "Carl"), ("b-sort@" + DOMAIN, ""), ("d-sort@" + DOMAIN, "Bea")):
+    create_user(email, PASSWORD, email_verified=True, open_ai_queries=False, first_name=first, last_name="Sorttest" if first else "")
+  def names(sort, direction="asc"):
+    return [user["email"] for user in list_users("sort@", 1, sort, direction)["users"]]
+  # By name: no name last, either way.
+  assert names("name") == [f"c-sort@{DOMAIN}", f"d-sort@{DOMAIN}", f"a-sort@{DOMAIN}", f"b-sort@{DOMAIN}"]
+  assert names("name", "desc") == [f"a-sort@{DOMAIN}", f"d-sort@{DOMAIN}", f"c-sort@{DOMAIN}", f"b-sort@{DOMAIN}"]
+  assert names("email") == [f"a-sort@{DOMAIN}", f"b-sort@{DOMAIN}", f"c-sort@{DOMAIN}", f"d-sort@{DOMAIN}"]
+  assert names("email", "desc") == [f"d-sort@{DOMAIN}", f"c-sort@{DOMAIN}", f"b-sort@{DOMAIN}", f"a-sort@{DOMAIN}"]
+  assert names("newest")[0] == f"d-sort@{DOMAIN}"  # the default still newest first
+  assert names("nonsense")[0] == f"d-sort@{DOMAIN}"

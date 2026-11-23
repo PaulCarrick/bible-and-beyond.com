@@ -11,6 +11,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Pager\PagerManagerInterface;
 use Drupal\Core\Url;
+use Drupal\Core\Utility\TableSort;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -47,8 +48,20 @@ class SiteUserListController extends ControllerBase {
       'search' => $this->formBuilder()->getForm(SiteUserSearchForm::class, $query),
     ];
 
+    // Name and Email sort the whole list on the server (it is paged), by a click on their header: Drupal's table
+    // sort keeps the search and the page in the links (2026-11-23, the owner's request). Name first, A to Z.
+    $sortable = [
+      'name' => ['data' => $this->t('Name'), 'field' => 'name', 'sort' => 'asc'],
+      'email' => ['data' => $this->t('Email'), 'field' => 'email'],
+    ];
+    $sorting = TableSort::getContextFromRequest($sortable, $this->requestStack->getCurrentRequest());
     try {
-      $listing = $this->manager->listSiteUsers($query, $this->pagerManager->findPage() + 1);
+      $listing = $this->manager->listSiteUsers(
+        $query,
+        $this->pagerManager->findPage() + 1,
+        ($sorting['sql'] ?? 'name') === 'email' ? 'email' : 'name',
+        ($sorting['sort'] ?? 'asc') === 'desc' ? 'desc' : 'asc',
+      );
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());
@@ -95,8 +108,8 @@ class SiteUserListController extends ControllerBase {
     $build['table'] = [
       '#type' => 'table',
       '#header' => [
-        $this->t('Name'),
-        $this->t('Email'),
+        $sortable['name'],
+        $sortable['email'],
         $this->t('Phone'),
         $this->t('Email confirmed'),
         $this->t('Open AI queries'),

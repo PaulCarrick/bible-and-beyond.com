@@ -440,8 +440,8 @@ class BibleManager {
    *   email_verified, open_ai_queries, use_conversations, see_private_prayers, note_count and subscription_count; the names and phone are '' when
    *   the account has none), total, page and per_page.
    */
-  public function listSiteUsers(string $query, int $page): array {
-    return $this->run(['list', '--query=' . $query, '--page=' . $page], 'manage_users.py');
+  public function listSiteUsers(string $query, int $page, string $sort = 'name', string $direction = 'asc'): array {
+    return $this->run(['list', '--query=' . $query, '--page=' . $page, '--sort=' . $sort, '--direction=' . $direction], 'manage_users.py');
   }
 
   public function getSiteUser(int $userId): array {
