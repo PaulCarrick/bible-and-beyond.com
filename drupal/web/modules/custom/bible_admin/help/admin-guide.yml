@@ -398,8 +398,13 @@ sections:
       <p>The <strong>Reminders</strong> column shows the day each reminder goes and how it went: Sent by email, by
       text or both, not sent yet, or why it was not sent (for example an email address not confirmed yet). A reminder goes once. If you schedule a
       date after its first reminder's day, the first goes at once; if the second is due by then too, only the second
-      goes. A task never sends one person two reminders on the same day: if the first is late and the second is
+      goes.</p>
+      <p>A task never sends one person two reminders on the same day: if the first is late and the second is
       due later that day, only the second goes. Nothing goes once the date has passed. Changing the person or the date lets the reminders go again.</p>
+      <p>The <strong>Scheduled Task Report</strong> (linked at the top of Scheduled tasks) lists them day by day, like a
+      sign-up sheet: choose <em>From</em> and <em>To</em> and press <em>Show</em>; each day with something scheduled has its
+      own heading and a table of the task, the person's name, the note, their email and their phone. <em>Print</em>
+      prints just the report.</p>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 
   - id: site-users

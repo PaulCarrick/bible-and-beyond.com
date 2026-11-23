@@ -1,0 +1,99 @@
+/* The Scheduled task report (ScheduledTaskListController::report). */
+.scheduled-task-report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.scheduled-task-report-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.scheduled-task-report-filters a {
+  align-self: center;
+}
+
+.scheduled-task-report-filters input[type="date"] {
+  padding: 0.35rem 0.5rem;
+}
+
+.scheduled-task-report-title {
+  display: none;
+}
+
+.scheduled-task-report-day {
+  margin-bottom: 1.75rem;
+  break-inside: avoid;
+}
+
+.scheduled-task-report-day h2 {
+  margin: 0 0 0.4rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid currentColor;
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.scheduled-task-report table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+}
+
+.scheduled-task-report th,
+.scheduled-task-report td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #c8ccd2;
+  height: auto;
+  text-align: left;
+  vertical-align: top;
+}
+
+.scheduled-task-report td.scheduled-task-report-notes {
+  white-space: pre-line;
+}
+
+/* Column widths like the paper sheet: task, name, notes, email, phone. */
+.scheduled-task-report col.task { width: 20%; }
+.scheduled-task-report col.name { width: 20%; }
+.scheduled-task-report col.notes { width: 22%; }
+.scheduled-task-report col.email { width: 22%; }
+.scheduled-task-report col.phone { width: 16%; }
+
+/* Printing: only the report, with its own title; nothing of Drupal's page around it. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .scheduled-task-report,
+  .scheduled-task-report * {
+    visibility: visible;
+  }
+
+  .scheduled-task-report {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .scheduled-task-report-title {
+    display: block;
+    margin: 0 0 1rem;
+    font-size: 16pt;
+  }
+
+  .scheduled-task-report th,
+  .scheduled-task-report td {
+    border-bottom-color: #888;
+  }
+}

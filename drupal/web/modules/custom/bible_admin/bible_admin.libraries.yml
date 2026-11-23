@@ -84,3 +84,14 @@ external_sites:
   dependencies:
     - core/drupal
     - core/once
+
+# The Scheduled task report: its print layout and Print button (ScheduledTaskListController::report).
+scheduled_task_report:
+  css:
+    component:
+      css/scheduled-task-report.css: {}
+  js:
+    js/scheduled-task-report.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

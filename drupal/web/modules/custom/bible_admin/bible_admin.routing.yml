@@ -675,6 +675,16 @@ bible_admin.scheduled_tasks:
   requirements:
     _permission: 'keep signatures and tasks+administer signatures and tasks'
 
+# The Scheduled task report (2026-11-23, the owner's request, modelled on their paper sign-up sheet): the scheduled
+# tasks between two dates, a section for each day, ready to print.
+bible_admin.scheduled_task_report:
+  path: '/admin/scheduled-tasks/report'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\ScheduledTaskListController::report'
+    _title: 'Scheduled Task Report'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
 bible_admin.task_schedule:
   path: '/admin/tasks/{task_id}/schedule'
   defaults:
