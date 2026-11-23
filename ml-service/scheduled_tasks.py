@@ -387,16 +387,26 @@ def send_due(now: datetime | None = None) -> dict:
         "first_name": first_name, "last_name": last_name, "note_html": note_html, "note_text": note_text,
       }
       went, failures = [], []
-      if by_email:
+
+      def email_it() -> str | None:
+        """Sends the email; None when it went, else why not (for the Reminders column)."""
+        nonlocal settings
         try:
           settings = settings or load_mail_settings()
           send_email(settings, compose_reminder(settings, reminder))
-          went.append("email")
+          return None
         except MailUnavailable as failure:
-          failures.append(f"the email: {failure}")
+          return f"the email: {failure}"
         except Exception as failure:  # never stop the run
           logger.error("Task reminder %s (%s) not emailed: %s", scheduled_id, which, type(failure).__name__)
-          failures.append("the email (the details are in the server's log)")
+          return "the email (the details are in the server's log)"
+
+      if by_email:
+        problem = email_it()
+        if problem is None:
+          went.append("email")
+        else:
+          failures.append(problem)
       if number:
         try:
           if sms.send_text(number, compose_reminder_text(reminder)):
@@ -406,6 +416,15 @@ def send_due(now: datetime | None = None) -> dict:
         except Exception as failure:  # never stop the run
           logger.error("Task reminder %s (%s) not texted: %s", scheduled_id, which, type(failure).__name__)
           failures.append("the text (the details are in the server's log)")
+        # A member who chose texts only: when the text fails, the reminder goes by email instead, if they have a
+        # confirmed address (the owner's request, 2026-11-23; a reminder is never tried again).
+        if "text" not in went and not by_email and address and confirmed:
+          problem = email_it()
+          if problem is None:
+            _finish(scheduled_id, which, "Sent by email (the text could not be sent).")
+            result["sent"] += 1
+            continue
+          failures.append(problem)
       if went:
         outcome = "Sent by " + " and ".join(went)
         if failures:

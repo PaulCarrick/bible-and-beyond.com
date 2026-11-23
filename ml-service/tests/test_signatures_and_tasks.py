@@ -524,3 +524,45 @@ def test_a_task_sends_only_one_reminder_a_day(site_users, mailbox):
   other = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
   scheduled_tasks.send_due(at_utc(2026, 11, 28, 13))  # 7:00 AM the day before: the first is a day late
   assert scheduled_tasks.get_scheduled(other["id"])["first_notice_result"].startswith("Sent")
+
+
+def test_a_failed_text_falls_back_to_email_for_a_texts_only_member(site_users, mailbox, monkeypatch):
+  open_id, _ = site_users
+  monkeypatch.setattr(scheduled_tasks.sms, "is_configured", lambda: True)
+  tried = []
+
+  def failing_text(number, text, media_url=None):
+    tried.append(number)
+    return False  # what send_text answers when Telnyx refuses or cannot be reached
+
+  monkeypatch.setattr(scheduled_tasks.sms, "send_text", failing_text)
+  task = admin_tasks.create_task(reminder_task(), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  choose(open_id, by_email=False, by_text=True)
+  result = scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  assert result["sent"] == 1 and tried == ["+15552014567"] and len(mailbox) == 1
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"] == "Sent by email (the text could not be sent)."
+
+  # Without a confirmed address there is nothing to fall back to.
+  choose(open_id, by_email=False, by_text=True, verified_email=False)
+  with connect() as connection:
+    connection.execute("UPDATE users SET phone_verified_at = now() WHERE id = %s", (open_id,))
+  result = scheduled_tasks.send_due(at_utc(2026, 11, 28, 15))
+  assert result["failed"] == 1 and len(mailbox) == 1
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["second_notice_result"] == "Not sent: the text."
+
+
+def test_a_failed_text_never_stops_the_email_for_a_member_who_chose_both(site_users, mailbox, monkeypatch):
+  open_id, _ = site_users
+  monkeypatch.setattr(scheduled_tasks.sms, "is_configured", lambda: True)
+
+  def broken_text(number, text, media_url=None):
+    raise RuntimeError("Telnyx is down")
+
+  monkeypatch.setattr(scheduled_tasks.sms, "send_text", broken_text)
+  task = admin_tasks.create_task(reminder_task(second_notice_days=None), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  choose(open_id, by_email=True, by_text=True)
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  assert len(mailbox) == 1
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"].startswith("Sent by email; not sent: the text")

@@ -373,7 +373,8 @@ sections:
       in your time zone (the one on your Drupal account), and replies come to your email address. Leave Days before
       empty to send nothing for that notification.</p>
       <p>Each reminder goes the way the person chose on their My account page: by email (to a confirmed address), by
-      text, or both. In the notifications, <strong>[FIRST_NAME]</strong>, <strong>[LAST_NAME]</strong> and
+      text, or both. If a text cannot be sent, someone who chose texts only gets it by email instead (when their
+      address is confirmed). In the notifications, <strong>[FIRST_NAME]</strong>, <strong>[LAST_NAME]</strong> and
       <strong>[FULL_NAME]</strong> are replaced with the person's name, for example "Hi [FIRST_NAME]," (an account with
       no name reads "friend").</p>
       <figure><img data-guide="task-edit" alt="Change a task: Communion, its description, How often: monthly on a weekday, every month, First and Sunday ticked, starting November 1, and the first and second notifications, 7 and 1 days before"><figcaption>Communion: every month on the first Sunday, with two reminders.</figcaption></figure>
