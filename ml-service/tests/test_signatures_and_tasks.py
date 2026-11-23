@@ -702,3 +702,63 @@ def test_a_message_to_the_people_of_a_day(site_users, monkeypatch):
   finally:
     with connect() as connection:
       connection.execute("DELETE FROM users WHERE id = %s", (other_id,))
+
+
+def test_files_attached_to_a_message_of_a_day(site_users, monkeypatch, tmp_path):
+  import io
+  import time
+  import zipfile
+
+  from fastapi.testclient import TestClient
+  from PIL import Image
+
+  import day_messages
+  import message_files
+  from main import app
+
+  open_id, _ = site_users
+  sent, texts = [], []
+  monkeypatch.setattr(day_messages, "load_mail_settings", lambda: {"from_address": "site@example.test"})
+  monkeypatch.setattr(day_messages, "send_email", lambda settings, email, recipients=None: sent.append(email))
+  monkeypatch.setattr(day_messages, "PAUSE_SECONDS", 0)
+  monkeypatch.setattr(day_messages.sms, "is_configured", lambda: True)
+  monkeypatch.setattr(day_messages.sms, "send_text", lambda number, text, media_url=None: texts.append((text, media_url)) or True)
+  choose(open_id, by_email=True, by_text=True)
+  task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+  scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+
+  pdf = tmp_path / "upload1"
+  pdf.write_bytes(b"%PDF-1.4\n% a tiny test file\n")
+  picture = tmp_path / "upload2"
+  buffer = io.BytesIO()
+  Image.new("RGB", (3000, 2000), (20, 120, 200)).save(buffer, "PNG")
+  picture.write_bytes(buffer.getvalue())
+  details = {"on_date": "2026-11-29", "user_ids": [open_id], "subject": "Sunday", "message": {"text": "See the sheet."}}
+  result = day_messages.send(details, OWNER, OWNER, [(str(pdf), "Sign-up sheet.pdf"), (str(picture), "room.png")])
+  assert result["sent"][0]["how"] == "email and text"
+  names = [part.get_filename() for part in sent[0].iter_attachments()]
+  assert names == ["Sign-up sheet.pdf", "room.png"]
+  text, media_url = texts[0]
+  key = media_url.split("/message-file/")[1].split("/")[0]
+  assert media_url.endswith("/picture.jpg")
+  assert "Sunday: See the sheet." in text and f"/api/message-file/{key}" in text
+
+  client = TestClient(app)
+  picture_answer = client.get(f"/message-file/{key}/picture.jpg")
+  assert picture_answer.status_code == 200 and max(Image.open(io.BytesIO(picture_answer.content)).size) == message_files.PICTURE_SIZE
+  download = client.get(f"/message-file/{key}")
+  assert download.headers["content-type"] == "application/zip" and "attachments.zip" in download.headers["content-disposition"]
+  assert sorted(zipfile.ZipFile(io.BytesIO(download.content)).namelist()) == ["Sign-up sheet.pdf", "room.png"]
+  assert client.get("/message-file/not-a-key").status_code == 404
+
+  # Refused: a file that is not what its name says, and too many files.
+  fake = tmp_path / "upload3"
+  fake.write_bytes(b"MZ not a pdf")
+  with pytest.raises(TaskProblem, match="not really a PDF"):
+    day_messages.send(details, OWNER, OWNER, [(str(fake), "notes.pdf")])
+  with pytest.raises(TaskProblem, match="cannot be attached"):
+    day_messages.send(details, OWNER, OWNER, [(str(fake), "program.exe")])
+  with pytest.raises(TaskProblem, match="at most 5 files"):
+    day_messages.send(details, OWNER, OWNER, [(str(pdf), f"{number}.pdf") for number in range(6)])
+  # After 30 days they go.
+  assert message_files.remove_old(time.time() + 31 * 86400) >= 1 and client.get(f"/message-file/{key}").status_code == 404

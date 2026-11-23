@@ -59,6 +59,9 @@ def parse_arguments(arguments=None):
   message = commands.add_parser("send-day-message")
   message.add_argument("--by", type=int, required=True)
   message.add_argument("--owner", type=int)
+  # Uploaded files to attach, each with the name it had (repeat both, in the same order).
+  message.add_argument("--attachment", action="append", default=[])
+  message.add_argument("--attachment-name", action="append", default=[])
   many = commands.add_parser("add-schedules")
   many.add_argument("--by", type=int, required=True)
   many.add_argument("--owner", type=int)
@@ -108,7 +111,10 @@ def run(arguments) -> dict:
     return {"ok": True, "schedule": scheduled_tasks.remove_scheduled(arguments.schedule)}
   details = read_details()
   if arguments.command == "send-day-message":
-    return {"ok": True, **day_messages.send(details, arguments.by, arguments.owner)}
+    if len(arguments.attachment) != len(arguments.attachment_name):
+      raise TaskProblem("The attached files could not be read.")
+    attachments = list(zip(arguments.attachment, arguments.attachment_name))
+    return {"ok": True, **day_messages.send(details, arguments.by, arguments.owner, attachments)}
   if arguments.command == "add-schedules":
     added = scheduled_tasks.add_many(details, arguments.by, str(details.get("created_by_name") or ""), arguments.owner)
     return {"ok": True, "schedules": added}

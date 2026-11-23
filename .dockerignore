@@ -10,6 +10,7 @@ ml-service/data/api_bible_usage.json
 ml-service/data/site-icons/
 ml-service/data/kindle-covers/
 ml-service/data/head-shots/
+ml-service/data/message-files/
 # The pictures of documents uploaded on this site.
 ml-service/data/library-images/
 ml-service/data/library-pages/

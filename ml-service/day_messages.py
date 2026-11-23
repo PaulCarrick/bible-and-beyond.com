@@ -10,10 +10,12 @@ The dates and people are those of the tasks the Drupal user may see (owner_uid; 
 
 import logging
 import time
+from pathlib import Path
 from datetime import date
 from email.message import EmailMessage
 from html import escape
 
+import message_files
 import sms
 from admin_tasks import TaskProblem
 from contact import MailUnavailable, load_mail_settings, send_email
@@ -96,12 +98,18 @@ def compose(settings: dict, message: dict, person: dict) -> EmailMessage:
     email["Reply-To"] = message["sender_email"]
   email.set_content(f"{text}\n\n--\n{foot}\n")
   email.add_alternative(f"<html><body>{html}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  # The attached files (message_files.py), each as itself.
+  for attachment in message.get("attachments") or []:
+    maintype, subtype = attachment["type"].split("/", 1)
+    email.add_attachment(Path(attachment["path"]).read_bytes(), maintype=maintype, subtype=subtype, filename=attachment["name"])
   return email
 
 
-def send(details: dict, sender_uid: int, owner_uid: int | None = None) -> dict:
+def send(details: dict, sender_uid: int, owner_uid: int | None = None, attachments: list[tuple[str, str]] | None = None) -> dict:
   """Sends the message to the chosen people of a date. details: on_date, user_ids, subject, message ({html} or
-  {text}), signature_id, sender_name, sender_email. Returns {sent: [{label, how}], not_sent: [{label, why}]}."""
+  {text}), signature_id, sender_name, sender_email. attachments: uploaded files [(path, name)], attached to the
+  emails; a text gets the first picture as an MMS and a link to download them (message_files.py). Returns {sent:
+  [{label, how}], not_sent: [{label, why}]}."""
   if not isinstance(details, dict):
     raise TaskProblem("The message could not be read.")
   try:
@@ -127,6 +135,13 @@ def send(details: dict, sender_uid: int, owner_uid: int | None = None) -> dict:
     "sender_name": " ".join(str(details.get("sender_name") or "").split())[:200],
     "sender_email": str(details.get("sender_email") or "").strip()[:320],
   }
+  try:
+    files = message_files.keep(attachments or [])
+  except message_files.AttachmentProblem as problem:
+    raise TaskProblem(str(problem)) from problem
+  message["attachments"] = files["files"] if files else []
+  text_link = message_files.download_address(files["key"]) if files else ""
+  picture_url = message_files.picture_address(files["key"]) if files and files["picture"] else None
   with connect() as connection:
     rows = connection.execute(
       """SELECT id, first_name, last_name, email, email_verified_at IS NOT NULL, disabled_at IS NOT NULL
@@ -167,7 +182,7 @@ def send(details: dict, sender_uid: int, owner_uid: int | None = None) -> dict:
     if number:
       words_of_text = fill_names(f"{subject}: {message['text']}", first_name, last_name)
       try:
-        if sms.send_text(number, sms.compose(words_of_text)):
+        if sms.send_text(number, sms.compose(words_of_text, text_link), picture_url):
           went.append("text")
         else:
           reasons.append("the text could not be sent")

@@ -3,8 +3,8 @@
  * Pasting a copied picture into an upload field of the admin forms (2026-11-21, the owner's request: "copy
  * an image and use it for various things in the upload dialog").
  *
- * Every single-file upload field whose accept list takes pictures (the Kindle book picture, the site icons,
- * a map, a song's words picture) gets a "Paste a picture" box under it. Clicking its button reads the
+ * Every upload field whose accept list takes pictures (the Kindle book picture, the site icons, a map, a song's
+ * words picture, and Message a day's attachments, where each pasted picture is added to those already chosen) gets a "Paste a picture" box under it. Clicking its button reads the
  * clipboard (the browser may ask first); pressing Cmd-V or Ctrl-V while the box has the focus, or anywhere
  * on a page with only one such field (but not while typing in a box or an editor), pastes too. The picture is
  * put in the field as if it had been chosen, with a preview, and is sent when the form is saved, like any
@@ -155,10 +155,17 @@
         return;
       }
       const transfer = new DataTransfer();
+      // A field that takes several files (Message a day's attachments, 2026-11-23) keeps those already in it.
+      if (input.multiple) {
+        [...input.files].forEach((each) => transfer.items.add(each));
+      }
       transfer.items.add(file);
       input.files = transfer.files;
       input.dispatchEvent(new Event('change', { bubbles: true }));
       showPreview(file);
+      if (input.multiple) {
+        about.textContent = `${[...input.files].map((each) => each.name).join(', ')} will be uploaded when you send.`;
+      }
     }
 
     // A file chosen the ordinary way replaces the pasted one, so the preview goes.
@@ -211,7 +218,9 @@
 
   Drupal.behaviors.bibleAdminPastePicture = {
     attach(context) {
-      once('bible-admin-paste', 'input[type=file]:not([multiple])', context)
+      // Not the bulk upload boxes' own field: they have their own paste button (js/bulk-upload.js).
+      once('bible-admin-paste', 'input[type=file]', context)
+        .filter((input) => !input.closest('.bible-admin-bulk-upload'))
         .filter(takesPictures)
         .forEach(setUp);
     },

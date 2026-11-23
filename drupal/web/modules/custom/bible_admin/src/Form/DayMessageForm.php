@@ -11,6 +11,7 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Message a day (added 2026-11-23 at the owner's request): a message to the people scheduled on one date. The Date
@@ -109,6 +110,16 @@ class DayMessageForm extends FormBase {
       FALSE,
       (string) $this->t('[FIRST_NAME], [LAST_NAME] and [FULL_NAME] are replaced with each person’s name (“friend” when the account has no name). Replies come to your email address.'),
     );
+    // Files attached to the emails; a text gets the first picture as an MMS and a link to the files
+    // (day_messages.py, message_files.py; 2026-11-23). A copied picture can be pasted in too.
+    $form['attachments'] = [
+      '#type' => 'file',
+      '#title' => $this->t('Attachments'),
+      '#multiple' => TRUE,
+      '#attributes' => ['accept' => '.pdf,.jpg,.jpeg,.png,.gif,.webp,.docx,.xlsx,.pptx,.txt'],
+      '#description' => $this->t('Optional: up to 5 files, 10 MB together (PDF, pictures, Word, Excel, PowerPoint or plain text). They are attached to the emails. A text message gets the first picture as a picture message and a link to download the files, kept for 30 days.'),
+      '#attached' => ['library' => ['bible_admin/paste_picture']],
+    ];
     $signatures = [];
     try {
       foreach ($this->manager->listLeaderSignatures(['owner_uid' => (int) $this->currentUser()->id()]) as $signature) {
@@ -148,10 +159,28 @@ class DayMessageForm extends FormBase {
     return array_values(array_map('intval', array_keys(array_filter((array) $form_state->getValue($key, [])))));
   }
 
+  /**
+   * The files chosen (or pasted) in the Attachments field.
+   */
+  private function attachments(): array {
+    $files = $this->getRequest()->files->get('files');
+    $chosen = is_array($files) ? ($files['attachments'] ?? []) : [];
+    return array_values(array_filter(is_array($chosen) ? $chosen : [$chosen], fn ($file) => $file instanceof UploadedFile));
+  }
+
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     $trigger = $form_state->getTriggeringElement();
     if (($trigger['#type'] ?? '') !== 'submit') {
       return;
+    }
+    $files = $this->attachments();
+    if (count($files) > 5) {
+      $form_state->setErrorByName('attachments', $this->t('Attach at most 5 files.'));
+    }
+    foreach ($files as $file) {
+      if (!$file->isValid()) {
+        $form_state->setErrorByName('attachments', $this->t('“@name” could not be uploaded: @reason', ['@name' => $file->getClientOriginalName(), '@reason' => $file->getErrorMessage()]));
+      }
     }
     if (!$this->chosen($form_state)) {
       $form_state->setErrorByName((string) $form_state->get('people_key'), $this->t('Tick at least one person to send it to.'));
@@ -174,6 +203,7 @@ class DayMessageForm extends FormBase {
         (string) $form_state->getValue((string) $form_state->get('subject_key')),
         GroupEditor::value($form_state->getValue('message')),
         (string) $form_state->getValue('signature_id'),
+        $this->attachments(),
       );
     }
     catch (BibleManagerException $exception) {

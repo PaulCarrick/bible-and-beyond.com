@@ -1327,7 +1327,7 @@ class BibleManager {
   /**
    * Returns sent ([label, how]) and not_sent ([label, why]). The log names the date and how many, never who.
    */
-  public function sendDayMessage(string $onDate, array $userIds, string $subject, array $message, string $signatureId): array {
+  public function sendDayMessage(string $onDate, array $userIds, string $subject, array $message, string $signatureId, array $files = []): array {
     $input = $this->groupInput([
       'on_date' => $onDate,
       'user_ids' => array_values($userIds),
@@ -1337,8 +1337,30 @@ class BibleManager {
       'sender_name' => $this->currentUser->getDisplayName(),
       'sender_email' => (string) $this->currentUser->getEmail(),
     ]);
-    $result = $this->run(['send-day-message', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()], 'manage_tasks.py', $input);
-    $this->logger->notice('@user sent a message to the people scheduled on @date: @sent sent, @missed not sent.', [
+    // The attachments wait in the private upload folder only while the tool reads them (it keeps its own copies).
+    $arguments = ['send-day-message', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()];
+    $directory = NULL;
+    if ($files) {
+      $directory = $this->uploadRoot() . '/' . bin2hex(random_bytes(16));
+      if (!mkdir($directory, 0700, TRUE) && !is_dir($directory)) {
+        throw new BibleManagerException('The attachments could not be saved.');
+      }
+    }
+    try {
+      foreach (array_values($files) as $number => $file) {
+        $file->move($directory, 'attachment-' . $number);
+        $arguments[] = '--attachment=' . $directory . '/attachment-' . $number;
+        $arguments[] = '--attachment-name=' . $file->getClientOriginalName();
+      }
+      $result = $this->run($arguments, 'manage_tasks.py', $input);
+    }
+    finally {
+      if ($directory !== NULL) {
+        $this->fileSystem->deleteRecursive($directory);
+      }
+    }
+    $this->logger->notice('@user sent a message to the people scheduled on @date (@files attached): @sent sent, @missed not sent.', [
+      '@files' => count($files),
       '@user' => $this->currentUser->getAccountName(),
       '@date' => $onDate,
       '@sent' => count($result['sent']),

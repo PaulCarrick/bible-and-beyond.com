@@ -126,6 +126,7 @@ from search import (
 import document_import
 import direct_posts
 import head_shots
+import message_files
 import kindle_books
 import site_icons
 from site_settings import get_public_settings, get_settings, is_login_required
@@ -151,7 +152,7 @@ def query_took_too_long(_request: Request, _error: psycopg.errors.QueryCanceled)
 # sign-in and account pages, what the page frame needs (the title, the icons), the links in our emails and
 # Telnyx's webhook. Everything else answers 401. The setting is read at most every few seconds.
 OPEN_WITHOUT_LOGIN = {"/health", "/site-settings", "/contact-settings", "/subscriptions/unsubscribe", "/sms/webhook", "/message-request"}
-OPEN_PREFIXES_WITHOUT_LOGIN = ("/account/", "/site-icon/")
+OPEN_PREFIXES_WITHOUT_LOGIN = ("/account/", "/site-icon/", "/message-file/")
 LOGIN_SETTING_SECONDS = 5
 _login_setting = {"value": False, "read_at": None}
 
@@ -735,6 +736,31 @@ def maps_file(map_id: str, which: Literal["display", "thumbnail"]):
   path, media_type = found
   headers = {"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"}
   return FileResponse(path, media_type=media_type, headers=headers)
+
+
+@app.get("/message-file/{key}/picture.jpg")
+def message_file_picture(key: str):
+  """The picture of a Message a day's text message (MMS; message_files.py): fetched by the text service."""
+  path = message_files.picture_file(key)
+  if path is None:
+    raise HTTPException(status_code=404, detail="This file is no longer here.")
+  return FileResponse(path, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex"})
+
+
+@app.get("/message-file/{key}")
+def message_file_download(key: str):
+  """The files of a Message a day, from the link in its text: the one file, or a .zip of them all. Kept 30 days."""
+  found = message_files.download(key)
+  if found is None:
+    raise HTTPException(status_code=404, detail="These files are no longer here (they are kept for 30 days).")
+  data, media_type, name = found
+  return Response(
+    data, media_type=media_type,
+    headers={
+      "Content-Disposition": f'attachment; filename="{name}"', "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex", "Cache-Control": "private, max-age=3600",
+    },
+  )
 
 
 @app.get("/message-card/{name}")
