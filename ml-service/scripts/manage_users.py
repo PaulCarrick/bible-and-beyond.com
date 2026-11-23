@@ -7,9 +7,9 @@ administrator, and the exit status is not 0.
     manage_users.py list [--query=part-of-an-address-or-name] [--page=1]
     manage_users.py get --id=7
     manage_users.py create [--email=ann@example.com] [--first-name=Ann] [--last-name=Lee] [--phone=...]
-                           [--email-verified] [--phone-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] [--share-lists] [--get-conversation-posts] --password-on-input
+                           [--email-verified] [--phone-verified] [--open-ai-queries] [--use-conversations] [--see-private-prayers] [--use-maps] [--share-lists] [--get-conversation-posts] [--texts] --password-on-input
     manage_users.py update --id=7 [--email=...] [--first-name=...] [--last-name=...] [--phone=...]
-                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no] [--use-maps=yes|no] [--share-lists=yes|no] [--get-conversation-posts=yes|no] [--closed=yes|no] [--phone-verified=yes|no]
+                           [--email-verified=yes|no] [--open-ai-queries=yes|no] [--use-conversations=yes|no] [--see-private-prayers=yes|no] [--use-maps=yes|no] [--share-lists=yes|no] [--get-conversation-posts=yes|no] [--closed=yes|no] [--phone-verified=yes|no] [--texts=yes|no]
                            [--password-on-input]
 
 An empty --first-name=, --last-name= or --phone= on update clears it; leaving the option out keeps it. Without an
@@ -58,6 +58,7 @@ def parse_arguments():
   create.add_argument("--share-lists", action="store_true")
   create.add_argument("--get-conversation-posts", action="store_true")
   create.add_argument("--phone-verified", action="store_true")
+  create.add_argument("--texts", action="store_true")
   create.add_argument("--password-on-input", action="store_true")
   update = commands.add_parser("update")
   update.add_argument("--id", type=int, required=True)
@@ -74,6 +75,7 @@ def parse_arguments():
   update.add_argument("--get-conversation-posts", type=yes_or_no)
   update.add_argument("--closed", type=yes_or_no)
   update.add_argument("--phone-verified", type=yes_or_no)
+  update.add_argument("--texts", type=yes_or_no)
   update.add_argument("--password-on-input", action="store_true")
   return parser.parse_args()
 
@@ -106,6 +108,7 @@ def run(arguments) -> dict:
       phone_verified=arguments.phone_verified,
       share_lists=arguments.share_lists,
       get_conversation_posts=arguments.get_conversation_posts,
+      texts=arguments.texts,
     )
     return {"ok": True, "user": user}
   password = read_password() if arguments.password_on_input else None
@@ -125,6 +128,7 @@ def run(arguments) -> dict:
     get_conversation_posts=arguments.get_conversation_posts,
     closed=arguments.closed,
     phone_verified=arguments.phone_verified,
+    texts=arguments.texts,
   )
   return {"ok": True, "user": user}
 

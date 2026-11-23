@@ -95,7 +95,17 @@ class SiteUserForm extends FormBase {
       '#title' => $this->t('Phone'),
       '#default_value' => $user['phone'] ?? '',
       '#maxlength' => self::PHONE_MAXIMUM,
-      '#description' => $this->t('Optional when there is an email address; needed without one (a US or Canadian cell number, which the account then logs in with). A US number is kept as +1 (555) 123-4567. Changing it turns off this member\'s text messages: only the member can turn them on (on their My account page), since texts need their own consent.'),
+      '#description' => $this->t('Optional when there is an email address; needed without one (a US or Canadian cell number, which the account then logs in with). A US number is kept as +1 (555) 123-4567. Changing it turns off this member\'s text messages unless Texts on is ticked below.'),
+    ];
+    // Texts (sms_opt_in, with Send via SMS; added 2026-11-22 at the owner's request). The member's own consent is
+    // needed: the box says so, and turning it on sends the welcome text that tells them how to stop.
+    $stopped = !empty($user['sms_stopped']) && empty($user['sms_opt_in']);
+    $form['texts'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Texts on (they agreed to get text messages)'),
+      '#default_value' => $user['sms_opt_in'] ?? FALSE,
+      '#description' => $this->t('Sends this member their notices by text (as Send via SMS on their My account page does). Tick it only when they have told you they want texts: carriers require their consent. The phone must be a US or Canadian cell number. Turning it on texts them a welcome message saying how to stop (reply STOP).')
+        . ($stopped ? ' ' . $this->t('<strong>They replied STOP to our texts.</strong> Turn them on again only if they asked; their carrier may still block them until they reply START.') : ''),
     ];
     $form['email_verified'] = [
       '#type' => 'checkbox',
@@ -224,6 +234,7 @@ class SiteUserForm extends FormBase {
     $useMaps = (bool) $form_state->getValue('use_maps');
     $shareLists = (bool) $form_state->getValue('share_lists');
     $getConversationPosts = (bool) $form_state->getValue('get_conversation_posts');
+    $texts = (bool) $form_state->getValue('texts');
     $profile = [
       'first_name' => trim((string) $form_state->getValue('first_name')),
       'last_name' => trim((string) $form_state->getValue('last_name')),
@@ -231,11 +242,11 @@ class SiteUserForm extends FormBase {
     ];
     try {
       if ($userId === NULL) {
-        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts);
+        $user = $this->manager->createSiteUser($email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts, $texts);
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email'] ?: $user['phone']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts, $texts);
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email'] ?: $user['phone']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email'] ?: $user['phone']]));

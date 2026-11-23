@@ -268,3 +268,69 @@ def test_an_email_account_needs_its_email_unless_it_logs_in_with_a_phone():
   user = create_user(f"keep@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False)
   with pytest.raises(UserProblem, match="cell phone number"):
     update_user(user["id"], email="")
+
+
+def texting(user_id):
+  with connect() as connection:
+    return connection.execute(
+      "SELECT sms_opt_in, sms_number, send_via_sms, send_via_email, sms_consent_at IS NOT NULL, sms_stopped_at IS NOT NULL FROM users WHERE id = %s",
+      (user_id,),
+    ).fetchone()
+
+
+@pytest.fixture
+def welcomed(monkeypatch):
+  import site_users
+
+  numbers = []
+  monkeypatch.setattr(site_users, "welcome_text", numbers.append)
+  return numbers
+
+
+def test_an_administrator_can_turn_texts_on_and_off(welcomed):
+  user = create_user(f"ann@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False, phone="555-201-4567", texts=True)
+  assert user["sms_opt_in"] is True
+  assert texting(user["id"]) == (True, "+15552014567", True, True, True, False)
+  assert welcomed == ["+15552014567"]
+
+  # Saving again with texts on (the form always sends the box) sends no second welcome.
+  update_user(user["id"], first_name="Ann", texts=True)
+  assert welcomed == ["+15552014567"]
+
+  off = update_user(user["id"], texts=False)
+  assert off["sms_opt_in"] is False and texting(user["id"])[:4] == (False, "+15552014567", False, True)
+
+  # A member who replied STOP keeps their choice when the box is left unticked (so START brings texts back).
+  with connect() as connection:
+    connection.execute("UPDATE users SET sms_opt_in = false, sms_stopped_at = now(), send_via_sms = true WHERE id = %s", (user["id"],))
+  update_user(user["id"], texts=False)
+  assert texting(user["id"])[2] is True
+  # Ticked again: on, the stop cleared, a welcome text.
+  update_user(user["id"], texts=True)
+  assert texting(user["id"]) == (True, "+15552014567", True, True, True, False) and len(welcomed) == 2
+
+
+def test_texts_need_a_cell_number_and_a_new_number_turns_them_off_unless_ticked(welcomed):
+  with pytest.raises(UserProblem, match="US or Canadian cell number"):
+    create_user(f"bob@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False, phone="", texts=True)
+  user = create_user(f"bob@{DOMAIN}", PASSWORD, email_verified=True, open_ai_queries=False, phone="555-201-4567", texts=True)
+  update_user(user["id"], phone="555-201-9999")  # texts not given: a new number turns them off
+  assert texting(user["id"])[:3] == (False, None, False)
+  moved = update_user(user["id"], phone="555-201-8888", texts=True)
+  assert moved["sms_opt_in"] is True and texting(user["id"])[1] == "+15552018888" and welcomed[-1] == "+15552018888"
+
+
+def test_the_tool_turns_texts_on(welcomed):
+  made = subprocess.run(
+    [sys.executable, str(SCRIPT), "create", f"--email=tool@{DOMAIN}", "--phone=555-201-4567", "--password-on-input"],
+    input=PASSWORD + "\n", capture_output=True, text=True,
+  )
+  user_id = json.loads(made.stdout)["user"]["id"]
+  # The tool runs in its own process, so texting is turned off there: no welcome text is sent.
+  import os
+
+  quiet = {**os.environ, "OUTGOING_SMS": "off"}
+  changed = subprocess.run(
+    [sys.executable, str(SCRIPT), "update", f"--id={user_id}", "--texts=yes"], capture_output=True, text=True, env=quiet
+  )
+  assert json.loads(changed.stdout)["user"]["sms_opt_in"] is True

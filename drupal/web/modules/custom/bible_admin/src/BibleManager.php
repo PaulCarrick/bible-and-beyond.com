@@ -454,7 +454,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone (each may be '').
    */
-  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, bool $phoneVerified = FALSE, bool $shareLists = FALSE, bool $getConversationPosts = FALSE): array {
+  public function createSiteUser(string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, bool $phoneVerified = FALSE, bool $shareLists = FALSE, bool $getConversationPosts = FALSE, bool $texts = FALSE): array {
     // An empty $email: the account logs in with its phone (profile phone), confirmed when $phoneVerified.
     $arguments = ['create', '--email=' . $email, ...$this->profileArguments($profile), '--password-on-input'];
     if ($phoneVerified) {
@@ -481,6 +481,9 @@ class BibleManager {
     if ($getConversationPosts) {
       $arguments[] = '--get-conversation-posts';
     }
+    if ($texts) {
+      $arguments[] = '--texts';
+    }
     $user = $this->run($arguments, 'manage_users.py', $password . "\n")['user'];
     $this->logger->notice('@user added the site account @email.', [
       '@user' => $this->currentUser->getAccountName(),
@@ -495,8 +498,8 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL, ?bool $getConversationPosts = NULL): array {
-    $before = $closed === NULL ? NULL : $this->getSiteUser($userId);
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL, ?bool $getConversationPosts = NULL, ?bool $texts = NULL): array {
+    $before = $closed === NULL && $texts === NULL ? NULL : $this->getSiteUser($userId);
     $arguments = [
       'update',
       '--id=' . $userId,
@@ -520,6 +523,9 @@ class BibleManager {
     if ($getConversationPosts !== NULL) {
       $arguments[] = '--get-conversation-posts=' . ($getConversationPosts ? 'yes' : 'no');
     }
+    if ($texts !== NULL) {
+      $arguments[] = '--texts=' . ($texts ? 'yes' : 'no');
+    }
     $input = NULL;
     if ($password !== '') {
       $arguments[] = '--password-on-input';
@@ -531,7 +537,14 @@ class BibleManager {
       '@email' => $user['email'] ?: $user['phone'],
       '@password' => $password !== '' ? ' (new password)' : '',
     ]);
-    if ($before !== NULL && !empty($before['closed']) !== !empty($user['closed'])) {
+    if ($before !== NULL && !empty($before['sms_opt_in']) !== !empty($user['sms_opt_in'])) {
+      $this->logger->notice('@user turned texts @change for the site account @email.', [
+        '@user' => $this->currentUser->getAccountName(),
+        '@change' => !empty($user['sms_opt_in']) ? 'on' : 'off',
+        '@email' => $user['email'] ?: $user['phone'],
+      ]);
+    }
+    if ($before !== NULL && $closed !== NULL && !empty($before['closed']) !== !empty($user['closed'])) {
       $this->logger->notice('@user @change the site account @email.', [
         '@user' => $this->currentUser->getAccountName(),
         '@change' => !empty($user['closed']) ? 'closed' : 'reopened',

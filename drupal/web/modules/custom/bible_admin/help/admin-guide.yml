@@ -409,8 +409,12 @@ sections:
       <figure><img data-guide="site-users" alt="Site users: search, Add a site user, and a table of accounts with their address (or none, for one that logs in with its phone), name, phone and flags"><figcaption>Site users.</figcaption></figure>
       <p><strong>Add a site user</strong> or <strong>Edit</strong>:</p>
       <ul>
-        <li>The email address (they log in with it), names and phone. Changing the phone turns their text messages off:
-        only the member can turn texts on, on their My account page, as texts need their own agreement.</li>
+        <li>The email address (they log in with it), names and phone. Changing the phone turns their text messages off,
+        unless <em>Texts on</em> is ticked.</li>
+        <li><strong>Texts on (they agreed to get text messages)</strong>: their notices also go by text, as Send via SMS
+        on their My account page does. Tick it only when the member has told you they want texts (carriers require
+        their agreement); the phone must be a US or Canadian cell number, and turning it on texts them a welcome
+        message saying how to stop. If they replied STOP, the form says so: turn it on again only if they asked.</li>
         <li><strong>An email address or a phone number</strong> (or both) is needed. With no email address the
         account logs in with its phone, which must be a US or Canadian cell number, and it is never emailed (the list
         shows "(none: logs in with phone)"). Members can set up such an account themselves on the site; a texted
