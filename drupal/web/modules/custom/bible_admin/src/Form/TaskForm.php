@@ -153,7 +153,7 @@ class TaskForm extends FormBase {
     ];
 
     foreach (['first' => $this->t('First notification'), 'second' => $this->t('Second notification')] as $which => $title) {
-      $form[$which . '_notification'] = GroupEditor::field((string) $title, (string) ($task[$which . '_notification_html'] ?? ''), 4, FALSE);
+      $form[$which . '_notification'] = GroupEditor::field((string) $title, (string) ($task[$which . '_notification_html'] ?? ''), 4, FALSE, (string) $this->t('[FIRST_NAME], [LAST_NAME] and [FULL_NAME] are replaced with the site user’s name (“friend” when the account has no name).'));
       $form[$which . '_notice_days'] = [
         '#type' => 'number',
         '#title' => $this->t('Days before'),
@@ -162,7 +162,7 @@ class TaskForm extends FormBase {
         '#default_value' => $task[$which . '_notice_days'] ?? NULL,
         '#field_suffix' => $this->t('days before the scheduled date'),
         '#description' => $which === 'first'
-          ? $this->t('The first notification is emailed to the site user this many days before each date the task is scheduled for them, at 8:00 AM your time. Leave it empty to send none.')
+          ? $this->t('The first notification is sent to the site user (by email, text or both, as they chose on My account) this many days before each date the task is scheduled for them, at 8:00 AM your time. Leave it empty to send none.')
           : $this->t('Fewer days than the first (1 for the day before, 0 for the day itself). Leave it empty to send none.'),
       ];
     }

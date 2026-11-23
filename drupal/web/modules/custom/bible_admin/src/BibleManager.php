@@ -1278,17 +1278,17 @@ class BibleManager {
   /**
    * Gives a task to a site user on one of its next four dates (Y-m-d).
    */
-  public function addScheduledTask(int $taskId, int $userId, string $onDate): array {
+  public function addScheduledTask(int $taskId, int $userId, string $onDate, array $note = []): array {
     $this->getTask($taskId);
-    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'created_by_name' => $this->currentUser->getDisplayName()]);
+    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'note' => $note, 'created_by_name' => $this->currentUser->getDisplayName()]);
     $schedule = $this->run(['add-schedule', '--id=' . $taskId, '--by=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['schedule'];
     $this->logScheduledTask('scheduled', $schedule);
     return $schedule;
   }
 
-  public function updateScheduledTask(int $scheduleId, int $userId, string $onDate): array {
+  public function updateScheduledTask(int $scheduleId, int $userId, string $onDate, array $note = []): array {
     $this->getScheduledTask($scheduleId);
-    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate]);
+    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'note' => $note]);
     $schedule = $this->run(['update-schedule', '--schedule=' . $scheduleId], 'manage_tasks.py', $input)['schedule'];
     $this->logScheduledTask('changed the schedule of', $schedule);
     return $schedule;

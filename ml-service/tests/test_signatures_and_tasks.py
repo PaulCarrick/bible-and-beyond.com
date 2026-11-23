@@ -382,7 +382,7 @@ def test_each_reminder_goes_once_at_eight_in_the_tasks_time_zone(site_users, mai
   assert "greeter tomorrow" in mailbox[1].get_body(("plain",)).get_content()
   assert scheduled_tasks.send_due(at_utc(2026, 11, 29, 15))["sent"] == 0
   after = scheduled_tasks.get_scheduled(scheduled["id"])
-  assert after["first_notice_result"] == "Sent" and after["second_notice_result"] == "Sent" and len(mailbox) == 2
+  assert after["first_notice_result"] == "Sent by email." and after["second_notice_result"] == "Sent by email." and len(mailbox) == 2
 
 
 def test_a_late_schedule_sends_only_the_second_reminder(site_users, mailbox):
@@ -393,7 +393,7 @@ def test_a_late_schedule_sends_only_the_second_reminder(site_users, mailbox):
   assert (result["sent"], result["skipped"]) == (1, 1) and len(mailbox) == 1
   assert "tomorrow" in mailbox[0].get_body(("plain",)).get_content()
   after = scheduled_tasks.get_scheduled(scheduled["id"])
-  assert after["first_notice_result"].startswith("Skipped") and after["second_notice_result"] == "Sent"
+  assert after["first_notice_result"].startswith("Skipped") and after["second_notice_result"] == "Sent by email."
 
 
 def test_a_new_date_lets_the_reminders_go_again_and_a_passed_date_sends_none(site_users, mailbox):
@@ -418,3 +418,90 @@ def test_an_unconfirmed_address_is_not_emailed(site_users, mailbox):
   scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
   assert scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))["skipped"] == 1 and mailbox == []
   assert "not confirmed" in scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"]
+
+
+def test_the_name_fields_are_filled_in_and_a_missing_name_reads_friend():
+  words = "Hi [FIRST_NAME]! [full_name] / [Last_Name] [OTHER]"
+  assert scheduled_tasks.fill_names(words, "Ruth", "Test") == "Hi Ruth! Ruth Test / Test [OTHER]"
+  assert scheduled_tasks.fill_names(words, None, "") == "Hi friend! friend /  [OTHER]"
+  assert scheduled_tasks.fill_names(words, "", "Test") == "Hi friend! Test / Test [OTHER]"
+  assert scheduled_tasks.fill_names("<p>[FIRST_NAME]</p>", "<b>", None, html=True) == "<p>&lt;b&gt;</p>"
+
+
+def test_a_note_and_the_name_fields_go_in_the_reminder(site_users, mailbox):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(
+    name="Greeter for [FIRST_NAME]", second_notice_days=None,
+    first_notification={"html": "<p>Hi [FIRST_NAME], you greet next week.</p>"},
+  ), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(
+    task["id"], {"user_id": open_id, "on_date": "2026-11-29", "note": {"html": "<p>Bring <em>name tags</em>, [FULL_NAME].</p>"}},
+    OWNER, "Paul", THURSDAY,
+  )
+  assert scheduled["note_text"] == "Bring name tags, [FULL_NAME]." and "<em>name tags</em>" in scheduled["note_html"]
+  # Changing only the person or date (no note given) keeps the note.
+  kept = scheduled_tasks.update_scheduled(scheduled["id"], {"user_id": open_id, "on_date": "2026-11-29"}, THURSDAY)
+  assert kept["note_text"] == scheduled["note_text"]
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  email = mailbox[0]
+  assert email["Subject"] == "Reminder: Greeter for Ruth on Sunday, November 29, 2026"
+  plain = email.get_body(("plain",)).get_content()
+  assert "Hi Ruth, you greet next week.\n\nBring name tags, Ruth Test." in plain
+  assert "<em>name tags</em>, Ruth Test." in email.get_body(("html",)).get_content()
+  # An empty note clears it.
+  cleared = scheduled_tasks.update_scheduled(scheduled["id"], {"user_id": open_id, "on_date": "2026-11-29", "note": {"html": ""}}, THURSDAY)
+  assert cleared["note_html"] == "" and cleared["note_text"] == ""
+
+
+@pytest.fixture
+def texts(monkeypatch):
+  sent = []
+  monkeypatch.setattr(scheduled_tasks.sms, "is_configured", lambda: True)
+  monkeypatch.setattr(scheduled_tasks.sms, "send_text", lambda number, text, media_url=None: sent.append((number, text)) or True)
+  return sent
+
+
+def choose(user_id, by_email, by_text, verified_email=True):
+  with connect() as connection:
+    connection.execute(
+      """UPDATE users SET phone = '+1 (555) 201-4567', phone_is_cell = true, sms_number = '+15552014567', sms_opt_in = %s,
+        send_via_email = %s, send_via_sms = %s, email_verified_at = CASE WHEN %s THEN now() END WHERE id = %s""",
+      (by_text, by_email, by_text, verified_email, user_id),
+    )
+
+
+def test_reminders_follow_the_site_users_delivery_choice(site_users, mailbox, texts):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(first_notification={"text": "Hi [FIRST_NAME], you greet next week."}), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(
+    task["id"], {"user_id": open_id, "on_date": "2026-11-29", "note": {"text": "Bring name tags."}}, OWNER, "Paul", THURSDAY
+  )
+
+  choose(open_id, by_email=False, by_text=True)
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  assert mailbox == [] and len(texts) == 1
+  number, text = texts[0]
+  assert number == "+15552014567"
+  assert "Reminder: Greeter on Sunday, November 29, 2026. Hi Ruth, you greet next week. Bring name tags." in text
+  assert text.endswith("Reply STOP to end texts.")
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"] == "Sent by text."
+
+  choose(open_id, by_email=True, by_text=True)
+  scheduled_tasks.send_due(at_utc(2026, 11, 28, 15))
+  assert len(mailbox) == 1 and len(texts) == 2
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["second_notice_result"] == "Sent by email and text."
+
+
+def test_an_unconfirmed_address_still_gets_the_text(site_users, mailbox, texts):
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(second_notice_days=None), OWNER, "Paul")
+  scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  with connect() as connection:
+    connection.execute(
+      """UPDATE users SET email_verified_at = NULL, phone_verified_at = now(), sms_number = '+15552014567', sms_opt_in = true,
+        phone_is_cell = true, send_via_email = true, send_via_sms = true WHERE id = %s""",
+      (open_id,),
+    )
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  assert mailbox == [] and len(texts) == 1
+  assert scheduled_tasks.get_scheduled(scheduled["id"])["first_notice_result"] == "Sent by text."

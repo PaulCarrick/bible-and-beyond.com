@@ -6,6 +6,7 @@ namespace Drupal\bible_admin\Form;
 
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
+use Drupal\bible_admin\GroupEditor;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -15,6 +16,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Gives a task to a site user on a date (Schedule beside a task), or changes who and when for a scheduled task:
  * two selects, the site user and one of the task's next four dates (a weekly Sunday task offers the next four
  * Sundays; the owner's request, 2026-11-19). Changing one keeps its own date in the list even when it has passed.
+ * An optional Note (the group emails' editor; 2026-11-22) is added under the task's notification in that person's
+ * reminders; [FIRST_NAME], [LAST_NAME] and [FULL_NAME] in it are replaced with their name.
  */
 class ScheduledTaskForm extends FormBase {
 
@@ -86,6 +89,14 @@ class ScheduledTaskForm extends FormBase {
       '#description' => $this->t('The next date the task falls on, or one of the three after it.'),
     ];
 
+    $form['note'] = GroupEditor::field(
+      (string) $this->t('Note'),
+      (string) ($schedule['note_html'] ?? ''),
+      4,
+      FALSE,
+      (string) $this->t('Optional. Added under the task’s notification in this person’s reminder emails and texts. [FIRST_NAME], [LAST_NAME] and [FULL_NAME] are replaced with their name (“friend” when the account has no name); they work in the task’s notifications too.'),
+    );
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $schedule === NULL ? $this->t('Schedule') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -101,10 +112,11 @@ class ScheduledTaskForm extends FormBase {
     $scheduleId = $form_state->get('schedule_id');
     $userId = (int) $form_state->getValue('user_id');
     $onDate = (string) $form_state->getValue('on_date');
+    $note = GroupEditor::value($form_state->getValue('note'));
     try {
       $schedule = $scheduleId === NULL
-        ? $this->manager->addScheduledTask((int) $form_state->get('task_id'), $userId, $onDate)
-        : $this->manager->updateScheduledTask((int) $scheduleId, $userId, $onDate);
+        ? $this->manager->addScheduledTask((int) $form_state->get('task_id'), $userId, $onDate, $note)
+        : $this->manager->updateScheduledTask((int) $scheduleId, $userId, $onDate, $note);
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

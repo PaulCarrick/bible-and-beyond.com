@@ -368,10 +368,14 @@ sections:
       weeks or months counts from its week or month, and a task once a year comes in its month (the last Thursday of
       November: Starting in November, once a year, Last, Thursday).</p>
       <p>The description and the two notifications are written in the editor. Under each notification, <strong>Days
-      before</strong> says when it is emailed to the person a date is scheduled for: for example 7 for a week before
+      before</strong> says when it is sent to the person a date is scheduled for: for example 7 for a week before
       and 1 for the day before (0 is the day itself). The second needs fewer days than the first. It goes at 8:00 AM
       in your time zone (the one on your Drupal account), and replies come to your email address. Leave Days before
-      empty to send no email for that notification.</p>
+      empty to send nothing for that notification.</p>
+      <p>Each reminder goes the way the person chose on their My account page: by email (to a confirmed address), by
+      text, or both. In the notifications, <strong>[FIRST_NAME]</strong>, <strong>[LAST_NAME]</strong> and
+      <strong>[FULL_NAME]</strong> are replaced with the person's name, for example "Hi [FIRST_NAME]," (an account with
+      no name reads "friend").</p>
       <figure><img data-guide="task-edit" alt="Change a task: Communion, its description, How often: monthly on a weekday, every month, First and Sunday ticked, starting November 1, and the first and second notifications, 7 and 1 days before"><figcaption>Communion: every month on the first Sunday, with two reminders.</figcaption></figure>
 
   - id: scheduled-tasks
@@ -381,15 +385,16 @@ sections:
       <p>Who does which task on which date. On the Tasks page, choose <strong>Schedule</strong> beside a task, then
       pick the <strong>site user</strong> and the <strong>date</strong>: the list holds the task's next date and the
       three after it (for a task every week on Sunday, the next four Sundays). Then Schedule. The same person cannot
-      have the same task twice on one date.</p>
+      have the same task twice on one date. The <strong>Note</strong> is optional: words for this person on this date,
+      added under the notification in each of their reminders (the name fields work in it too).</p>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away
-      under <em>Past</em>. <strong>Edit</strong> changes the person or the date (a date already passed stays in the
+      under <em>Past</em>. <strong>Edit</strong> changes the person, the date or the note (a date already passed stays in the
       list as "its date now"); <strong>Remove</strong> takes away that date for that person and keeps the task.
       Deleting a task, or a site user's account, removes its scheduled dates. You see the scheduled dates of your own
       tasks; a Website administrator sees all of them.</p>
-      <p>The <strong>Reminders</strong> column shows the day each reminder goes and how it went: Sent, not sent yet,
-      or why it was not sent (for example an email address not confirmed yet). A reminder goes once. If you schedule a
+      <p>The <strong>Reminders</strong> column shows the day each reminder goes and how it went: Sent by email, by
+      text or both, not sent yet, or why it was not sent (for example an email address not confirmed yet). A reminder goes once. If you schedule a
       date after its first reminder's day, the first goes at once; if the second is due by then too, only the second
       goes. Nothing goes once the date has passed. Changing the person or the date lets the reminders go again.</p>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>

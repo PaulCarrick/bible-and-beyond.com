@@ -13,17 +13,26 @@ the task's time zone (a notice whose days are not set is not sent). Each is clai
 once. One that falls due late (the date was scheduled after its day, or the job was not running) goes at the next
 run; when the second is due too, only the second goes and the first is marked skipped. Nothing goes once the date
 has passed. Changing the date of a scheduled task lets its reminders go again for the new date.
+
+Each reminder follows the site user's own delivery choice (Send via Email / Send via SMS on My account,
+sms.delivery_for_user; the owner's request, 2026-11-22): an email to a confirmed address, a text when they chose
+texts and can be texted, or both. A scheduled task may carry a note (note_html, note_text; migration 066), added under
+the notification. [FIRST_NAME], [LAST_NAME] and [FULL_NAME] (any case) in the notification, the note and the task's
+name are replaced with the site user's name (fill_names); a missing first or full name reads "friend".
 """
 
 import logging
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from email.message import EmailMessage
 from html import escape
 from zoneinfo import ZoneInfo
 
 import admin_tasks
+import sms
 from admin_tasks import TaskProblem
 from contact import MailUnavailable, load_mail_settings, send_email
+from formatted_text import FormattedTextProblem, clean
 from search import connect
 from site_settings import get_public_settings
 
@@ -40,7 +49,7 @@ COLUMNS = """
   COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), COALESCE(u.email, u.phone, ''),
   s.on_date, s.created_by_name, s.created_at, s.updated_at,
   s.first_notice_at, s.first_notice_result, s.second_notice_at, s.second_notice_result,
-  t.first_notice_days, t.second_notice_days
+  t.first_notice_days, t.second_notice_days, s.note_html, s.note_text
 """
 FROM = "admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id"
 
@@ -55,6 +64,7 @@ def _describe(row, today: date) -> dict:
     "second_notice_at": row[14].isoformat() if row[14] else None, "second_notice_result": row[15],
     "first_notice_date": (row[8] - timedelta(days=row[16])).isoformat() if row[16] is not None else None,
     "second_notice_date": (row[8] - timedelta(days=row[17])).isoformat() if row[17] is not None else None,
+    "note_html": row[18], "note_text": row[19],
   }
 
 
@@ -143,6 +153,30 @@ def _check(connection, task: dict, details: dict, today: date, current: date | N
   return user_id, day
 
 
+def _note(details: dict) -> dict:
+  """The optional note, {"html", "text"} cleaned ('' for both when empty), from {"html"} or {"text"}."""
+  try:
+    return clean(details.get("note"), "note", required=False)
+  except FormattedTextProblem as problem:
+    raise TaskProblem(str(problem)) from problem
+
+
+NAME_FIELD = re.compile(r"\[(FIRST_NAME|LAST_NAME|FULL_NAME)\]", re.IGNORECASE)
+
+
+def fill_names(words: str, first_name: str | None, last_name: str | None, html: bool = False) -> str:
+  """[FIRST_NAME], [LAST_NAME] and [FULL_NAME] (any case) replaced with the site user's name. Without a first name
+  [FIRST_NAME] reads "friend"; without any name [FULL_NAME] does too; [LAST_NAME] is then empty."""
+  first = " ".join((first_name or "").split())
+  last = " ".join((last_name or "").split())
+  names = {
+    "FIRST_NAME": first or "friend",
+    "LAST_NAME": last,
+    "FULL_NAME": " ".join(part for part in (first, last) if part) or "friend",
+  }
+  return NAME_FIELD.sub(lambda match: escape(names[match.group(1).upper()]) if html else names[match.group(1).upper()], words)
+
+
 def _taken(connection, task_id: int, user_id: int, day: date, other_than: int | None = None) -> bool:
   return connection.execute(
     "SELECT 1 FROM admin_scheduled_tasks WHERE task_id = %s AND user_id = %s AND on_date = %s AND id <> %s",
@@ -155,35 +189,38 @@ def add_scheduled(task_id: int, details: dict, created_by_uid: int, created_by_n
   task = admin_tasks.get_task(task_id)
   with connect() as connection:
     user_id, day = _check(connection, task, details, today)
+    note = _note(details)
     if _taken(connection, task_id, user_id, day):
       raise TaskProblem("That person already has this task on that date.")
     scheduled_id = connection.execute(
-      """INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, created_by_name)
-      VALUES (%s, %s, %s, %s, %s) RETURNING id""",
-      (task_id, user_id, day, created_by_uid, " ".join((created_by_name or "").split())[:NAME_LIMIT]),
+      """INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, created_by_name, note_html, note_text)
+      VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+      (task_id, user_id, day, created_by_uid, " ".join((created_by_name or "").split())[:NAME_LIMIT], note["html"], note["text"]),
     ).fetchone()[0]
   return get_scheduled(scheduled_id, today)
 
 
 def update_scheduled(scheduled_id: int, details: dict, today: date | None = None) -> dict:
-  """Changes the person or the date (the task stays). Its own date may be kept even if no longer offered."""
+  """Changes the person, the date or the note (the task stays). Its own date may be kept even if no longer offered.
+  Without a "note" in the details the note stays."""
   today = today or date.today()
   scheduled = get_scheduled(scheduled_id, today)
   task = admin_tasks.get_task(scheduled["task_id"])
   with connect() as connection:
     user_id, day = _check(connection, task, details, today, date.fromisoformat(scheduled["on_date"]))
+    note = _note(details) if "note" in details else {"html": scheduled["note_html"], "text": scheduled["note_text"]}
     if _taken(connection, task["id"], user_id, day, scheduled_id):
       raise TaskProblem("That person already has this task on that date.")
     # A new person or date: the reminders go again (to them, for that date).
     changed = user_id != scheduled["user_id"] or day.isoformat() != scheduled["on_date"]
     connection.execute(
-      """UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, updated_at = now(),
+      """UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, note_html = %s, note_text = %s, updated_at = now(),
         first_notice_at = CASE WHEN %s THEN NULL ELSE first_notice_at END,
         first_notice_result = CASE WHEN %s THEN '' ELSE first_notice_result END,
         second_notice_at = CASE WHEN %s THEN NULL ELSE second_notice_at END,
         second_notice_result = CASE WHEN %s THEN '' ELSE second_notice_result END
       WHERE id = %s""",
-      (user_id, day, changed, changed, changed, changed, scheduled_id),
+      (user_id, day, note["html"], note["text"], changed, changed, changed, changed, scheduled_id),
     )
   return get_scheduled(scheduled_id, today)
 
@@ -202,10 +239,24 @@ def _due_moment(on_date: date, days: int, zone: ZoneInfo) -> datetime:
   return datetime.combine(on_date - timedelta(days=days), time(SEND_HOUR), tzinfo=zone).astimezone(timezone.utc)
 
 
+def reminder_words(reminder: dict) -> dict:
+  """The task's name, the notification and the note with the site user's name filled in: {task_name, html, text}."""
+  first, last = reminder.get("first_name"), reminder.get("last_name")
+  html = fill_names(reminder["html"] or "", first, last, html=True)
+  text = fill_names(reminder["text"] or "", first, last)
+  if reminder.get("note_text"):
+    html += fill_names(reminder.get("note_html") or "", first, last, html=True)
+    text = f"{text}\n\n{fill_names(reminder['note_text'], first, last)}" if text else fill_names(reminder["note_text"], first, last)
+  return {"task_name": fill_names(reminder["task_name"], first, last), "html": html, "text": text}
+
+
 def compose_reminder(settings: dict, reminder: dict) -> EmailMessage:
-  """The reminder email: To the site user, Reply-To the task's owner, the notification's words and a short foot."""
+  """The reminder email: To the site user, Reply-To the task's owner, the notification's words, the note and a short
+  foot."""
   title = get_public_settings()["title"]
   day = date_label(reminder["on_date"])
+  words = reminder_words(reminder)
+  reminder = {**reminder, **words}
   email = EmailMessage()
   email["Subject"] = f"Reminder: {reminder['task_name']} on {day}"
   email["From"] = settings["from_address"]
@@ -219,14 +270,27 @@ def compose_reminder(settings: dict, reminder: dict) -> EmailMessage:
   return email
 
 
-def _recipient_problem(address: str | None, confirmed: bool, closed: bool) -> str | None:
+def compose_reminder_text(reminder: dict) -> str:
+  """The reminder as a text (sms.compose adds the site's name and how to stop, and cuts it to fit)."""
+  words = reminder_words(reminder)
+  return sms.compose(f"Reminder: {words['task_name']} on {date_label(reminder['on_date'])}. {words['text']}")
+
+
+def _ways(user_id: int, address: str | None, confirmed: bool, closed: bool) -> tuple[bool, str | None, str | None]:
+  """How this reminder reaches the site user, by their delivery choice: (email it?, the number to text, or the
+  reason it cannot go at all). Email only to a confirmed address."""
   if closed:
-    return "Not sent: the site user closed their account."
+    return False, None, "Not sent: the site user closed their account."
+  with connect() as connection:
+    by_email, number = sms.delivery_for_user(connection, user_id)
+  email_ok = by_email and bool(address) and confirmed
+  if email_ok or number:
+    return email_ok, number, None
   if not address:
-    return "Not sent: the site user's account has no email address."
+    return False, None, "Not sent: the site user's account has no email address, and they cannot be texted."
   if not confirmed:
-    return "Not sent: the site user has not confirmed their email address yet."
-  return None
+    return False, None, "Not sent: the site user has not confirmed their email address yet."
+  return False, None, "Not sent: the site user cannot be reached the way they chose."
 
 
 def _finish(scheduled_id: int, which: str, result: str) -> None:
@@ -259,7 +323,8 @@ def send_due(now: datetime | None = None) -> dict:
         SELECT s.id, s.on_date, s.first_notice_at IS NULL, s.second_notice_at IS NULL,
                t.name, t.timezone, t.owner_name, t.owner_email, t.first_notice_days, t.second_notice_days,
                t.first_notification_html, t.first_notification_text, t.second_notification_html, t.second_notification_text,
-               u.email, (u.email_verified_at IS NOT NULL), u.disabled_at IS NOT NULL
+               u.email, (u.email_verified_at IS NOT NULL), u.disabled_at IS NOT NULL,
+               s.user_id, u.first_name, u.last_name, s.note_html, s.note_text
         FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id
         WHERE s.on_date >= %s
           AND ((s.first_notice_at IS NULL AND t.first_notice_days IS NOT NULL)
@@ -270,7 +335,8 @@ def send_due(now: datetime | None = None) -> dict:
       ).fetchall()
     for row in rows:
       (scheduled_id, on_date, first_open, second_open, task_name, zone_name, owner_name, owner_email,
-       first_days, second_days, first_html, first_text, second_html, second_text, address, confirmed, closed) = row
+       first_days, second_days, first_html, first_text, second_html, second_text, address, confirmed, closed,
+       user_id, first_name, last_name, note_html, note_text) = row
       zone = ZoneInfo(zone_name or "UTC")
       notices = {
         "first": {"open": first_open, "days": first_days, "html": first_html, "text": first_text},
@@ -300,26 +366,45 @@ def send_due(now: datetime | None = None) -> dict:
       notice = notices[which]
       if not _claim(scheduled_id, which, now):
         continue
-      problem = _recipient_problem(address, confirmed, closed)
-      if problem is None and not notice["text"]:
+      by_email, number, problem = _ways(user_id, address, confirmed, closed)
+      if problem is None and not notice["text"] and not note_text:
         problem = "Not sent: the notification has no words."
       if problem is not None:
         _finish(scheduled_id, which, problem)
         result["skipped"] += 1
         continue
-      try:
-        settings = settings or load_mail_settings()
-        send_email(settings, compose_reminder(settings, {
-          "task_name": task_name, "on_date": on_date, "address": address, "owner_name": owner_name,
-          "owner_email": owner_email, "html": notice["html"], "text": notice["text"],
-        }))
-        _finish(scheduled_id, which, "Sent")
+      reminder = {
+        "task_name": task_name, "on_date": on_date, "address": address, "owner_name": owner_name,
+        "owner_email": owner_email, "html": notice["html"], "text": notice["text"],
+        "first_name": first_name, "last_name": last_name, "note_html": note_html, "note_text": note_text,
+      }
+      went, failures = [], []
+      if by_email:
+        try:
+          settings = settings or load_mail_settings()
+          send_email(settings, compose_reminder(settings, reminder))
+          went.append("email")
+        except MailUnavailable as failure:
+          failures.append(f"the email: {failure}")
+        except Exception as failure:  # never stop the run
+          logger.error("Task reminder %s (%s) not emailed: %s", scheduled_id, which, type(failure).__name__)
+          failures.append("the email (the details are in the server's log)")
+      if number:
+        try:
+          if sms.send_text(number, compose_reminder_text(reminder)):
+            went.append("text")
+          else:
+            failures.append("the text")
+        except Exception as failure:  # never stop the run
+          logger.error("Task reminder %s (%s) not texted: %s", scheduled_id, which, type(failure).__name__)
+          failures.append("the text (the details are in the server's log)")
+      if went:
+        outcome = "Sent by " + " and ".join(went)
+        if failures:
+          outcome += "; not sent: " + "; ".join(failures)
+        _finish(scheduled_id, which, outcome + ".")
         result["sent"] += 1
-      except MailUnavailable as problem:
-        _finish(scheduled_id, which, f"Not sent: {problem}")
-        result["failed"] += 1
-      except Exception as problem:  # never stop the run
-        logger.error("Task reminder %s (%s) not sent: %s", scheduled_id, which, type(problem).__name__)
-        _finish(scheduled_id, which, "Not sent (the details are in the server's log).")
+      else:
+        _finish(scheduled_id, which, "Not sent: " + "; ".join(failures) + ".")
         result["failed"] += 1
   return result
