@@ -343,6 +343,10 @@ sections:
       <figure><img data-guide="signatures" alt="Signatures: Add a signature, and a table of two signatures, Formal and Short, with their owner, the start of each and when it was last changed"><figcaption>Signatures.</figcaption></figure>
       <p><strong>Add a signature</strong>, or Edit or Delete one from its Operations. Deleting asks first. The editor
       has the Font, Size, Colour and Highlight buttons, so a name can be in Georgia or a script font, for example.</p>
+      <p>A signature or task belongs to the Drupal account that made it, and a task offers only its owner's
+      signatures. A Website administrator sees an <strong>Owner</strong> list on both forms to give one to someone
+      else (for example one made while logged in as a different account). A task moved to someone sends its reminders
+      in their name, with replies to their address.</p>
       <figure><img data-guide="signature-edit" alt="Change a signature: the name Formal and the signature in the editor, the name in Georgia and dark blue"><figcaption>A signature in the editor.</figcaption></figure>
 
   - id: tasks

@@ -318,11 +318,29 @@ def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
 
 
 def update_task(task_id: int, details: dict) -> dict:
-  """Changes the task; without a "signature_id" in the details its signature stays."""
+  """Changes the task; without a "signature_id" in the details its signature stays. With new_owner_uid (an
+  administrator's Owner choice; 2026-11-23) it moves to that person, with their name, address (owner_email) and
+  time zone as given; a signature that is not theirs is dropped rather than refused."""
   values = _check(details)
   task = get_task(task_id)
-  signature_id = _signature(details.get("signature_id"), task["owner_uid"]) if "signature_id" in details else task["signature_id"]
+  new_owner = details.get("new_owner_uid")
+  owner_uid = int(new_owner) if new_owner is not None else task["owner_uid"]
+  wanted = details.get("signature_id") if "signature_id" in details else task["signature_id"]
+  try:
+    signature_id = _signature(wanted, owner_uid)
+  except TaskProblem:
+    if new_owner is None:
+      raise
+    signature_id = None
   with connect() as connection:
+    if new_owner is not None and owner_uid != task["owner_uid"]:
+      count = connection.execute("SELECT count(*) FROM admin_tasks WHERE owner_uid = %s", (owner_uid,)).fetchone()[0]
+      if count >= MAX_PER_OWNER:
+        raise TaskProblem(f"That person already has {MAX_PER_OWNER} tasks.")
+      connection.execute(
+        "UPDATE admin_tasks SET owner_uid = %s, owner_name = %s WHERE id = %s",
+        (owner_uid, " ".join(str(details.get("new_owner_name") or "").split())[:NAME_LIMIT], task_id),
+      )
     row = connection.execute(
       f"""UPDATE admin_tasks SET
         name = %s, description_html = %s, description_text = %s, repeat = %s, weekday = %s, first_date = %s,

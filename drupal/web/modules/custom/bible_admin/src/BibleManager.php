@@ -1185,17 +1185,40 @@ class BibleManager {
    * Adds a signature (belonging to this user) or changes one. $words is ['html' => ...] from the editor or
    * ['text' => ...] from the plain box (GroupEditor::value); the ML service cleans the HTML.
    */
-  public function saveSignature(?int $signatureId, string $name, array $words): array {
-    $input = $this->groupInput(['name' => $name, 'signature' => $words, 'owner_name' => $this->currentUser->getDisplayName()]);
+  public function saveSignature(?int $signatureId, string $name, array $words, ?int $ownerUid = NULL): array {
+    $owner = $this->chosenOwner($ownerUid);
+    $details = ['name' => $name, 'signature' => $words, 'owner_name' => ($owner ?? $this->currentUser)->getDisplayName()];
     if ($signatureId === NULL) {
-      $signature = $this->run(['create', '--owner=' . (int) $this->currentUser->id()], 'manage_signatures.py', $input)['signature'];
+      $signature = $this->run(['create', '--owner=' . (int) ($owner ?? $this->currentUser)->id()], 'manage_signatures.py', $this->groupInput($details))['signature'];
+      $this->logSignatureOrTask('added', 'signature', $signature);
+      return $signature;
     }
-    else {
-      $this->getSignature($signatureId);
-      $signature = $this->run(['update', '--id=' . $signatureId], 'manage_signatures.py', $input)['signature'];
+    $previous = $this->getSignature($signatureId);
+    $moving = $owner !== NULL && (int) $owner->id() !== (int) $previous['owner_uid'];
+    if ($moving) {
+      $details += ['new_owner_uid' => (int) $owner->id(), 'new_owner_name' => $owner->getDisplayName()];
     }
-    $this->logSignatureOrTask($signatureId === NULL ? 'added' : 'changed', 'signature', $signature);
+    $signature = $this->run(['update', '--id=' . $signatureId], 'manage_signatures.py', $this->groupInput($details))['signature'];
+    $this->logSignatureOrTask($moving ? 'moved to ' . $owner->getAccountName() . ' and changed' : 'changed', 'signature', $signature);
     return $signature;
+  }
+
+  /**
+   * The owner an administrator chose for a signature or task (the Owner select), or NULL when none was chosen.
+   * Only those who administer signatures and tasks may choose one, and only someone who may keep them.
+   */
+  private function chosenOwner(?int $ownerUid): ?AccountInterface {
+    if ($ownerUid === NULL || $ownerUid === (int) $this->currentUser->id()) {
+      return $ownerUid === NULL ? NULL : $this->currentUser;
+    }
+    if (!$this->currentUser->hasPermission('administer signatures and tasks')) {
+      throw new BibleManagerException('Only those who administer signatures and tasks can choose their owner.');
+    }
+    $owner = SignatureTaskOwners::load($ownerUid);
+    if ($owner === NULL || !SignatureTaskOwners::mayOwn($owner)) {
+      throw new BibleManagerException('That person cannot keep signatures and tasks: give them a role that can first.');
+    }
+    return $owner;
   }
 
   public function deleteSignature(int $signatureId): array {
@@ -1235,21 +1258,31 @@ class BibleManager {
    */
   public function saveTask(?int $taskId, array $details): array {
     $previous = $taskId === NULL ? NULL : $this->getTask($taskId);
-    $details += ['owner_name' => $this->currentUser->getDisplayName()];
+    // An administrator's Owner choice (2026-11-23): who makes the task, or who it moves to.
+    $owner = $this->chosenOwner(isset($details['owner_uid']) ? (int) $details['owner_uid'] : NULL);
+    unset($details['owner_uid']);
+    $moving = $owner !== NULL && $previous !== NULL && (int) $owner->id() !== (int) $previous['owner_uid'];
+    $account = $owner ?? $this->currentUser;
+    $details += ['owner_name' => $account->getDisplayName()];
     // The reminders go at 8:00 AM in the owner's time zone, with replies to the owner: taken from the owner's own
-    // account when they save it (an administrator changing someone else's task leaves them as they are).
-    if ($previous === NULL || (int) $previous['owner_uid'] === (int) $this->currentUser->id()) {
-      $details['timezone'] = $this->currentUser->getTimeZone() ?: (string) \Drupal::config('system.date')->get('timezone.default');
-      $details['owner_email'] = (string) $this->currentUser->getEmail();
+    // account when they save it, or when it is made for or moved to someone (an administrator changing someone
+    // else's task otherwise leaves them as they are).
+    $timezone = fn (AccountInterface $person) => $person->getTimeZone() ?: (string) \Drupal::config('system.date')->get('timezone.default');
+    if ($previous === NULL || $moving || (int) $previous['owner_uid'] === (int) $this->currentUser->id()) {
+      $details['timezone'] = $timezone($moving || $previous === NULL ? $account : $this->currentUser);
+      $details['owner_email'] = (string) ($moving || $previous === NULL ? $account : $this->currentUser)->getEmail();
+    }
+    if ($moving) {
+      $details += ['new_owner_uid' => (int) $owner->id(), 'new_owner_name' => $owner->getDisplayName()];
     }
     $input = $this->groupInput($details);
     if ($taskId === NULL) {
-      $task = $this->run(['create', '--owner=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['task'];
+      $task = $this->run(['create', '--owner=' . (int) $account->id()], 'manage_tasks.py', $input)['task'];
     }
     else {
       $task = $this->run(['update', '--id=' . $taskId], 'manage_tasks.py', $input)['task'];
     }
-    $this->logSignatureOrTask($taskId === NULL ? 'added' : 'changed', 'task', $task);
+    $this->logSignatureOrTask($taskId === NULL ? 'added' : ($moving ? 'moved to ' . $owner->getAccountName() . ' and changed' : 'changed'), 'task', $task);
     return $task;
   }
 

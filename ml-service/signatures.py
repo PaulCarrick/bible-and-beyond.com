@@ -74,8 +74,29 @@ def create_signature(details: dict, owner_uid: int, owner_name: str) -> dict:
 
 
 def update_signature(signature_id: int, details: dict) -> dict:
+  """Changes the name and words. With new_owner_uid and new_owner_name (an administrator's Owner choice;
+  2026-11-23) it moves to that person; the old owner's tasks and group schedules that used it lose it (a signature
+  is always its owner's)."""
   name, words = _check(details)
+  new_owner = details.get("new_owner_uid")
   with connect() as connection:
+    if new_owner is not None:
+      new_owner = int(new_owner)
+      count = connection.execute(
+        "SELECT count(*) FROM admin_signatures WHERE owner_uid = %s AND id <> %s", (new_owner, signature_id)
+      ).fetchone()[0]
+      if count >= MAX_PER_OWNER:
+        raise SignatureProblem(f"That person already has {MAX_PER_OWNER} signatures.")
+      connection.execute(
+        "UPDATE admin_signatures SET owner_uid = %s, owner_name = %s WHERE id = %s",
+        (new_owner, " ".join(str(details.get("new_owner_name") or "").split())[:NAME_LIMIT], signature_id),
+      )
+      connection.execute("UPDATE admin_tasks SET signature_id = NULL WHERE signature_id = %s AND owner_uid <> %s", (signature_id, new_owner))
+      connection.execute(
+        """UPDATE group_schedules s SET signature_id = NULL FROM member_groups g
+        WHERE s.group_id = g.id AND s.signature_id = %s AND g.owner_uid <> %s""",
+        (signature_id, new_owner),
+      )
     row = connection.execute(
       f"UPDATE admin_signatures SET name = %s, html = %s, text = %s, updated_at = now() WHERE id = %s RETURNING {COLUMNS}",
       (name, words["html"], words["text"], signature_id),

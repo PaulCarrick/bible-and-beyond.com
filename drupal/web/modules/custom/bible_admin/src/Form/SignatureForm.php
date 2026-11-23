@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\bible_admin\SignatureTaskOwners;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -50,6 +51,18 @@ class SignatureForm extends FormBase {
       '#description' => $this->t('For you to tell your signatures apart, such as “Celebrate Recovery leader”. It is not part of the signature.'),
     ];
     $form['signature'] = GroupEditor::field((string) $this->t('Signature'), (string) ($signature['html'] ?? ''), 6, TRUE);
+    // An administrator chooses whose it is (2026-11-23): a signature or task is only ever used with its owner's.
+    if ($this->currentUser()->hasPermission('administer signatures and tasks')) {
+      $currentOwner = (int) ($signature['owner_uid'] ?? $this->currentUser()->id());
+      $form['owner_uid'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Owner'),
+        '#options' => SignatureTaskOwners::options($currentOwner),
+        '#default_value' => $currentOwner,
+        '#required' => TRUE,
+        '#description' => $this->t('Whose signature this is. Only its owner’s tasks and groups can use it; moving it takes it off the old owner’s tasks and scheduled emails.'),
+      ];
+    }
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $signature === NULL ? $this->t('Add the signature') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -68,6 +81,7 @@ class SignatureForm extends FormBase {
         $signatureId === NULL ? NULL : (int) $signatureId,
         (string) $form_state->getValue('name'),
         GroupEditor::value($form_state->getValue('signature')),
+        $form_state->getValue('owner_uid') ? (int) $form_state->getValue('owner_uid') : NULL,
       );
     }
     catch (BibleManagerException $exception) {

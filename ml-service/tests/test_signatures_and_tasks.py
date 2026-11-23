@@ -631,3 +631,26 @@ def test_schedule_tasks_offers_the_tasks_of_a_date_and_schedules_several_at_once
   with pytest.raises(TaskProblem, match="Choose at least one task"):
     scheduled_tasks.add_many({"on_date": "2026-11-29", "items": []}, OWNER, "Paul", OWNER, THURSDAY)
   assert len(scheduled_tasks.list_scheduled(OWNER)) == before
+
+
+def test_an_administrator_can_move_a_signature_or_a_task_to_another_owner():
+  signature = signatures.create_signature({"name": "Clipboard", "signature": {"text": "Paul"}}, OTHER_OWNER, "admin")
+  task = admin_tasks.create_task(reminder_task(signature_id=signature["id"]), OTHER_OWNER, "admin")
+  # Moving the task alone: the old owner's signature is not the new owner's, so it is dropped (not refused).
+  moved = admin_tasks.update_task(task["id"], reminder_task(
+    new_owner_uid=OWNER, new_owner_name="Paul Carrick", owner_email="paul@example.org", timezone="America/Los_Angeles",
+  ))
+  assert (moved["owner_uid"], moved["owner_name"], moved["owner_email"], moved["timezone"], moved["signature_id"]) == (
+    OWNER, "Paul Carrick", "paul@example.org", "America/Los_Angeles", None,
+  )
+  # Moving the signature too, then choosing it on the task, works.
+  moved_signature = signatures.update_signature(signature["id"], {"name": "Clipboard", "signature": {"text": "Paul"}, "new_owner_uid": OWNER, "new_owner_name": "Paul Carrick"})
+  assert (moved_signature["owner_uid"], moved_signature["owner_name"]) == (OWNER, "Paul Carrick")
+  assert admin_tasks.update_task(task["id"], reminder_task(signature_id=signature["id"]))["signature_id"] == signature["id"]
+  # Without new_owner_uid the owner stays, and another's signature is still refused.
+  other = signatures.create_signature({"name": "Theirs", "signature": {"text": "Ann"}}, OTHER_OWNER, "Ann")
+  with pytest.raises(TaskProblem, match="not one of the task owner's"):
+    admin_tasks.update_task(task["id"], reminder_task(signature_id=other["id"]))
+  # Moving a signature away drops it from its old owner's tasks.
+  signatures.update_signature(signature["id"], {"name": "Clipboard", "signature": {"text": "Paul"}, "new_owner_uid": OTHER_OWNER, "new_owner_name": "Ann"})
+  assert admin_tasks.get_task(task["id"])["signature_id"] is None

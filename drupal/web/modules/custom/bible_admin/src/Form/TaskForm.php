@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\bible_admin\SignatureTaskOwners;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -167,6 +168,19 @@ class TaskForm extends FormBase {
       ];
     }
 
+    // An administrator chooses whose it is (2026-11-23): a signature or task is only ever used with its owner's.
+    if ($this->currentUser()->hasPermission('administer signatures and tasks')) {
+      $currentOwner = (int) ($task['owner_uid'] ?? $this->currentUser()->id());
+      $form['owner_uid'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Owner'),
+        '#options' => SignatureTaskOwners::options($currentOwner),
+        '#default_value' => $currentOwner,
+        '#required' => TRUE,
+        '#description' => $this->t('Whose task this is: its reminders go out in their name, replies go to their address, and they choose its signature. Moving it keeps its scheduled dates; a signature that is not the new owner’s is dropped.'),
+      ];
+    }
+
     // The signature at the foot of the reminder emails (2026-11-23, the owner's request): one of the task owner's
     // signatures, or none. Texts never carry it.
     $ownerUid = $task === NULL ? (int) $this->currentUser()->id() : (int) $task['owner_uid'];
@@ -242,6 +256,7 @@ class TaskForm extends FormBase {
         'first_notice_days' => $this->days($form_state->getValue('first_notice_days')),
         'second_notice_days' => $this->days($form_state->getValue('second_notice_days')),
         'signature_id' => (string) $form_state->getValue('signature_id'),
+        'owner_uid' => $form_state->getValue('owner_uid') ? (int) $form_state->getValue('owner_uid') : NULL,
       ]);
     }
     catch (BibleManagerException $exception) {
