@@ -334,8 +334,13 @@ def compose_reminder(settings: dict, reminder: dict) -> EmailMessage:
   has_signature = bool(reminder.get("signature_text"))
   signature_text = f"\n\n{reminder['signature_text']}" if has_signature else ""
   signature_html = (reminder.get("signature_html") or "") if has_signature else ""
-  email.set_content(f"{reminder['text']}{signature_text}\n\n--\n{foot}\n")
-  email.add_alternative(f"<html><body>{reminder['html']}{signature_html}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  # "Add the “Sent by …” line" on the task (2026-11-23): unticked, the email ends with the words and signature.
+  if reminder.get("show_sent_by", True):
+    email.set_content(f"{reminder['text']}{signature_text}\n\n--\n{foot}\n")
+    email.add_alternative(f"<html><body>{reminder['html']}{signature_html}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  else:
+    email.set_content(f"{reminder['text']}{signature_text}\n")
+    email.add_alternative(f"<html><body>{reminder['html']}{signature_html}</body></html>", subtype="html")
   return email
 
 
@@ -393,7 +398,7 @@ def send_due(now: datetime | None = None) -> dict:
                t.name, t.timezone, t.owner_name, t.owner_email, t.first_notice_days, t.second_notice_days,
                t.first_notification_html, t.first_notification_text, t.second_notification_html, t.second_notification_text,
                u.email, (u.email_verified_at IS NOT NULL), u.disabled_at IS NOT NULL,
-               s.user_id, u.first_name, u.last_name, s.note_html, s.note_text, sg.html, sg.text
+               s.user_id, u.first_name, u.last_name, s.note_html, s.note_text, sg.html, sg.text, t.show_sent_by
         FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id
         LEFT JOIN admin_signatures sg ON sg.id = t.signature_id
         WHERE s.on_date >= %s
@@ -406,7 +411,7 @@ def send_due(now: datetime | None = None) -> dict:
     for row in rows:
       (scheduled_id, on_date, first_open, second_open, task_name, zone_name, owner_name, owner_email,
        first_days, second_days, first_html, first_text, second_html, second_text, address, confirmed, closed,
-       user_id, first_name, last_name, note_html, note_text, signature_html, signature_text) = row
+       user_id, first_name, last_name, note_html, note_text, signature_html, signature_text, show_sent_by) = row
       zone = ZoneInfo(zone_name or "UTC")
       notices = {
         "first": {"open": first_open, "days": first_days, "html": first_html, "text": first_text},
@@ -454,7 +459,7 @@ def send_due(now: datetime | None = None) -> dict:
         "task_name": task_name, "on_date": on_date, "address": address, "owner_name": owner_name,
         "owner_email": owner_email, "html": notice["html"], "text": notice["text"],
         "first_name": first_name, "last_name": last_name, "note_html": note_html, "note_text": note_text,
-        "signature_html": signature_html, "signature_text": signature_text,
+        "signature_html": signature_html, "signature_text": signature_text, "show_sent_by": show_sent_by,
       }
       went, failures = [], []
 

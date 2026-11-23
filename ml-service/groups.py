@@ -446,9 +446,10 @@ def preview_picture(text: str) -> dict:
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
   personal: bool = False, html: str | None = None, schedule: dict | None = None, to_address: str | None = None,
-  signature: dict | None = None,
+  signature: dict | None = None, show_sent_by: bool = True,
 ) -> EmailMessage:
-  """One copy of a group email. Its To is the leader, never the member: send it with send_email(..., [member's
+  """One copy of a group email. show_sent_by: False leaves out the "Sent by … through …" line of the foot
+  ("Add the “Sent by …” line", 2026-11-23); the member's stop links stay. Its To is the leader, never the member: send it with send_email(..., [member's
   address]). token is the member's stop link; None makes the leader's own copy (no stop link; it says how many
   it went to). personal: a message to that one member (email_member, sent at once or at its "Send at" time): only
   the leader's words, with **no foot** (no "Sent by ..." line, no stop link and no one-click header; the owner's
@@ -493,7 +494,9 @@ def compose_email(
     if html is not None:
       html += signature["html"]
   sender = group["owner_name"] or "the group's leader"
-  lines += ["", "--", f"Sent by {sender} to the group “{group['name']}” through {title}: {site}"]
+  lines += ["", "--"]
+  if show_sent_by:
+    lines.append(f"Sent by {sender} to the group “{group['name']}” through {title}: {site}")
   links = []
   if token:
     if schedule:
@@ -576,6 +579,8 @@ def send(
   schedule ({id, label}): sent by a scheduled email, which also skips the members who stopped it or all the
   group's scheduled emails, and gives the others its own stop links (compose_email).
   Returns how many were emailed, texted, skipped (not confirmed yet, or stopped) and failed."""
+  # "Add the “Sent by …” line" (2026-11-23): on unless the leader unticked it.
+  show_sent_by = details.get("show_sent_by", True) is not False
   group = get_group(group_id)
   # A scheduled email's signature ({html, text}; group_schedules), in every copy of it.
   signature = (schedule or {}).get("signature")
@@ -608,7 +613,7 @@ def send(
       if settings is None:
         settings = load_mail_settings()
       # The member is the hidden recipient; the To shows the leader.
-      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html, signature=signature), [address])
+      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html, signature=signature, show_sent_by=show_sent_by), [address])
       bcc.append(address)
 
     try:
@@ -634,7 +639,7 @@ def send(
     try:
       if settings is None:
         settings = load_mail_settings()
-      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html, signature=signature), [group["owner_email"]])
+      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html, signature=signature, show_sent_by=show_sent_by), [group["owner_email"]])
       leader_copy = True
     except Exception as problem:
       logger.error("Group %s leader's copy not sent: %s", group_id, type(problem).__name__)
@@ -651,7 +656,7 @@ def send(
       # A member's copy (their stop code replaced), or the leader's when no member was emailed (texts only).
       copy = compose_email(
         settings, group, STOP_CODE_PLACEHOLDER if bcc else None, subject, text, verse, card, reached,
-        schedule=schedule if bcc else None, html=html, signature=signature,
+        schedule=schedule if bcc else None, html=html, signature=signature, show_sent_by=show_sent_by,
       )
       keep_copy(connection, message_id, copy, bcc, leader_copy)
   return counts
@@ -671,7 +676,10 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
   try:
     settings = load_mail_settings()
     # A code shaped like a member's stop_token that belongs to no one (the stop page says "not valid").
-    email = compose_email(settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule, html=html, signature=(schedule or {}).get("signature"))
+    email = compose_email(
+      settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule, html=html,
+      signature=(schedule or {}).get("signature"), show_sent_by=details.get("show_sent_by", True) is not False,
+    )
     send_email(settings, email, [group["owner_email"]])
   except MailUnavailable as problem:
     raise GroupProblem(f"The test could not be sent: {problem}") from problem

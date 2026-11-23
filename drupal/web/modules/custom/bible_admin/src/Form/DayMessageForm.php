@@ -136,6 +136,15 @@ class DayMessageForm extends FormBase {
         ? $this->t('Added at the foot of the emails (not texts).')
         : $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page, then choose it here.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()]),
     ];
+    // "Add the “Sent by …” line" (2026-11-23, the owner's request): ticked to start; untick it for a message that
+    // should end with your own words (and signature).
+    $form['show_sent_by'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Add the “Sent by …” line at the foot'),
+      '#default_value' => TRUE,
+      '#description' => $this->t('Such as “Sent by you to the people scheduled on Sunday, December 6, through the site.” Untick to leave it out.'),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $this->t('Send'), '#button_type' => 'primary'];
     $form['actions']['cancel'] = [
@@ -204,6 +213,7 @@ class DayMessageForm extends FormBase {
         GroupEditor::value($form_state->getValue('message')),
         (string) $form_state->getValue('signature_id'),
         $this->attachments(),
+        (bool) $form_state->getValue('show_sent_by'),
       );
     }
     catch (BibleManagerException $exception) {

@@ -1327,7 +1327,7 @@ class BibleManager {
   /**
    * Returns sent ([label, how]) and not_sent ([label, why]). The log names the date and how many, never who.
    */
-  public function sendDayMessage(string $onDate, array $userIds, string $subject, array $message, string $signatureId, array $files = []): array {
+  public function sendDayMessage(string $onDate, array $userIds, string $subject, array $message, string $signatureId, array $files = [], bool $showSentBy = TRUE): array {
     $input = $this->groupInput([
       'on_date' => $onDate,
       'user_ids' => array_values($userIds),
@@ -1336,6 +1336,7 @@ class BibleManager {
       'signature_id' => $signatureId,
       'sender_name' => $this->currentUser->getDisplayName(),
       'sender_email' => (string) $this->currentUser->getEmail(),
+      'show_sent_by' => $showSentBy,
     ]);
     // The attachments wait in the private upload folder only while the tool reads them (it keeps its own copies).
     $arguments = ['send-day-message', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()];

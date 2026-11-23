@@ -762,3 +762,25 @@ def test_files_attached_to_a_message_of_a_day(site_users, monkeypatch, tmp_path)
     day_messages.send(details, OWNER, OWNER, [(str(pdf), f"{number}.pdf") for number in range(6)])
   # After 30 days they go.
   assert message_files.remove_old(time.time() + 31 * 86400) >= 1 and client.get(f"/message-file/{key}").status_code == 404
+
+
+def test_the_sent_by_line_can_be_left_out_of_task_reminders_and_day_messages(site_users, mailbox, monkeypatch):
+  import day_messages
+
+  open_id, _ = site_users
+  task = admin_tasks.create_task(reminder_task(second_notice_days=None, show_sent_by=False), OWNER, "Paul")
+  assert task["show_sent_by"] is False
+  assert admin_tasks.update_task(task["id"], reminder_task(second_notice_days=None))["show_sent_by"] is False  # kept when not given
+  scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  scheduled_tasks.send_due(at_utc(2026, 11, 22, 15))
+  plain = mailbox[0].get_body(("plain",)).get_content()
+  assert "You are the greeter next week." in plain and "A reminder of" not in plain and "--" not in plain
+
+  sent = []
+  monkeypatch.setattr(day_messages, "load_mail_settings", lambda: {"from_address": "site@example.test"})
+  monkeypatch.setattr(day_messages, "send_email", lambda settings, email, recipients=None: sent.append(email))
+  details = {"on_date": "2026-11-29", "user_ids": [open_id], "subject": "Sunday", "message": {"text": "See you."}}
+  day_messages.send({**details, "show_sent_by": False}, OWNER, OWNER)
+  day_messages.send(details, OWNER, OWNER)
+  assert "Sent by" not in sent[0].get_body(("plain",)).get_content()
+  assert "Sent by" in sent[1].get_body(("plain",)).get_content()

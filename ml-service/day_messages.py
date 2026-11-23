@@ -96,8 +96,13 @@ def compose(settings: dict, message: dict, person: dict) -> EmailMessage:
   email["To"] = person["address"]
   if message.get("sender_email"):
     email["Reply-To"] = message["sender_email"]
-  email.set_content(f"{text}\n\n--\n{foot}\n")
-  email.add_alternative(f"<html><body>{html}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  # "Add the “Sent by …” line" (2026-11-23): unticked, the email ends with the message (and signature).
+  if message.get("show_sent_by", True):
+    email.set_content(f"{text}\n\n--\n{foot}\n")
+    email.add_alternative(f"<html><body>{html}<hr><p>{escape(foot)}</p></body></html>", subtype="html")
+  else:
+    email.set_content(f"{text}\n")
+    email.add_alternative(f"<html><body>{html}</body></html>", subtype="html")
   # The attached files (message_files.py), each as itself.
   for attachment in message.get("attachments") or []:
     maintype, subtype = attachment["type"].split("/", 1)
@@ -134,6 +139,7 @@ def send(details: dict, sender_uid: int, owner_uid: int | None = None, attachmen
     "signature": _signature(details.get("signature_id"), sender_uid),
     "sender_name": " ".join(str(details.get("sender_name") or "").split())[:200],
     "sender_email": str(details.get("sender_email") or "").strip()[:320],
+    "show_sent_by": details.get("show_sent_by", True) is not False,
   }
   try:
     files = message_files.keep(attachments or [])

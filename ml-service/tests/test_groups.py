@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import accounts
+import group_schedules
 import groups
 import sms
 from groups import GroupProblem
@@ -523,3 +524,25 @@ def test_a_copy_of_an_email_to_one_member_and_none_for_texts_only(outbox):
   empty = new_group("Empty")
   groups.send(empty["id"], "message", {"subject": "Hi", "text": "Hello"}, "dave", pause=0)
   assert groups.list_sent(empty["id"])[0]["has_copy"] is False
+
+
+def test_the_sent_by_line_can_be_left_out(outbox):
+  group = new_group()
+  account("ann")
+  groups.add_member(group["id"], {"email": f"ann@{DOMAIN}"})
+  groups.send(group["id"], "message", {"subject": "Thank you", "text": "Thank you all.", "show_sent_by": False}, "dave", pause=0)
+  member = outbox["emails"][0].get_content()
+  assert "Thank you all." in member and "Sent by" not in member
+  # The member's stop link stays (and its one-click header).
+  assert "To stop messages from this group" in member and outbox["emails"][0]["List-Unsubscribe"]
+  outbox["emails"].clear()
+  groups.send(group["id"], "message", {"subject": "Hello", "text": "Hello."}, "dave", pause=0)
+  assert "Sent by Deacon Dave to the group" in outbox["emails"][0].get_content()  # on unless unticked
+
+  # A scheduled email keeps the choice.
+  schedule = group_schedules.add_schedule(group["id"], {
+    "kind": "message", "subject": "Weekly", "text": "Every week.", "repeat": "weekly", "weekday": 6,
+    "send_time": "09:00", "timezone": "America/Chicago", "show_sent_by": False,
+  }, "dave")
+  assert schedule["show_sent_by"] is False
+  assert group_schedules._details_for(group_schedules._get(schedule["id"], group["id"]))["show_sent_by"] is False

@@ -174,6 +174,15 @@ class GroupScheduleForm extends FormBase {
           : $this->t('The group leader has no signatures yet.')),
     ];
 
+    // "Add the “Sent by …” line" (2026-11-23, the owner's request): ticked to start; untick it for a message that
+    // should end with your own words (and signature).
+    $form['show_sent_by'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Add the “Sent by …” line at the foot'),
+      '#default_value' => (bool) ($schedule['show_sent_by'] ?? TRUE),
+      '#description' => $this->t('Such as “Sent by the leader to the group through the site.” Untick to leave it out of every email this sends. Each member’s stop links stay either way.'),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $schedule === NULL ? $this->t('Schedule it') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -192,6 +201,7 @@ class GroupScheduleForm extends FormBase {
     foreach (['kind', 'subject', 'repeat', 'on_date', 'day_of_month', 'weekday', 'week_of_month', 'send_time', 'timezone', 'signature_id'] as $name) {
       $details[$name] = (string) $form_state->getValue($name);
     }
+    $details['show_sent_by'] = (bool) $form_state->getValue('show_sent_by');
     if ($details['kind'] === 'message') {
       $details += GroupEditor::value($form_state->getValue('message'));
     }

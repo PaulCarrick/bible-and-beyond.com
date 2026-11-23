@@ -205,6 +205,15 @@ class TaskForm extends FormBase {
           : $this->t('The task’s owner has no signatures yet.')),
     ];
 
+    // "Add the “Sent by …” line" (2026-11-23, the owner's request): ticked to start; untick it for a message that
+    // should end with your own words (and signature).
+    $form['show_sent_by'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Add the “Sent by …” line at the foot'),
+      '#default_value' => (bool) ($task['show_sent_by'] ?? TRUE),
+      '#description' => $this->t('Such as “A reminder of “Coffee” on Sunday, November 29, from Paul through the site.” Untick to leave it out of this task’s reminder emails.'),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $task === NULL ? $this->t('Add the task') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -257,6 +266,7 @@ class TaskForm extends FormBase {
         'second_notice_days' => $this->days($form_state->getValue('second_notice_days')),
         'signature_id' => (string) $form_state->getValue('signature_id'),
         'owner_uid' => $form_state->getValue('owner_uid') ? (int) $form_state->getValue('owner_uid') : NULL,
+        'show_sent_by' => (bool) $form_state->getValue('show_sent_by'),
       ]);
     }
     catch (BibleManagerException $exception) {

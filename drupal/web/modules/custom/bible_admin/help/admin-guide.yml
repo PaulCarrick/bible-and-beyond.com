@@ -417,7 +417,9 @@ sections:
       <strong>Subject</strong>, write the <strong>Message</strong> (the name fields work here too) and choose a
       <strong>Signature</strong>, then <strong>Send</strong>. <strong>Attachments</strong> (up to 5 files, 10 MB
       together: PDF, pictures, Word, Excel, PowerPoint or plain text; or paste a copied picture) go with each email; a
-      text gets the first picture and a link to download the files for 30 days. Each person gets it the way they chose
+      text gets the first picture and a link to download the files for 30 days. Untick <strong>Add the “Sent by …” line at
+      the foot</strong> to end the email with your own words; the same box is on a group's Send forms, its scheduled
+      emails and each task (for its reminders). A group email keeps each member's stop links either way. Each person gets it the way they chose
       (email, text or both), and replies come to your email address. The page then says who it reached, and why anyone was not.</p>
       <p>The <strong>Scheduled Task Report</strong> (the button beside Schedule tasks) lists them day by day, like a
       sign-up sheet: choose <em>From</em> and <em>To</em> and press <em>Show</em>; each day with something scheduled has its

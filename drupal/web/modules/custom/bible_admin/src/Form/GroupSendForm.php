@@ -98,6 +98,15 @@ class GroupSendForm extends FormBase {
       ];
     }
 
+    // "Add the “Sent by …” line" (2026-11-23, the owner's request): ticked to start; untick it for a message that
+    // should end with your own words (and signature).
+    $form['show_sent_by'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Add the “Sent by …” line at the foot'),
+      '#default_value' => TRUE,
+      '#description' => $this->t('Such as “Sent by @name to the group “@group” through the site.” Untick to leave it out. Each member’s stop links stay either way.', ['@name' => $group['owner_name'] ?: $this->t('the leader'), '@group' => $group['name']]),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     if ($kind === 'verse') {
       $form['actions']['another'] = [
@@ -167,6 +176,7 @@ class GroupSendForm extends FormBase {
       'picture' => ['subject' => (string) $form_state->getValue('subject'), 'text' => (string) $form_state->getValue('text'), 'card' => $preview['card'] ?? ''],
       default => ['subject' => (string) $form_state->getValue('subject')] + GroupEditor::value($form_state->getValue('text')),
     };
+    $details['show_sent_by'] = (bool) $form_state->getValue('show_sent_by');
     try {
       $counts = $this->manager->sendToGroup($groupId, $kind, $details);
     }

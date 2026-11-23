@@ -102,7 +102,7 @@ def describe(schedule: dict) -> str:
 
 COLUMNS = (
   "id, group_id, kind, subject, text, repeat, on_date, day_of_month, weekday, week_of_month, send_time, timezone, "
-  "next_run_at, last_run_at, last_result, created_by, html, member_id, signature_id"
+  "next_run_at, last_run_at, last_result, created_by, html, member_id, signature_id, show_sent_by"
 )
 
 
@@ -138,6 +138,8 @@ def _public(schedule: dict) -> dict:
     "member_id": schedule["member_id"],
     # The signature chosen for it (migration 057), or None.
     "signature_id": schedule["signature_id"],
+    # Whether its emails end with the "Sent by …" line (migration 070).
+    "show_sent_by": schedule["show_sent_by"],
   }
 
 
@@ -247,7 +249,7 @@ def check(details: dict, now: datetime) -> dict:
 
 FIELDS = (
   "kind", "subject", "text", "html", "repeat", "on_date", "day_of_month", "weekday", "week_of_month", "send_time", "timezone", "next_run_at",
-  "signature_id",
+  "signature_id", "show_sent_by",
 )
 
 
@@ -255,6 +257,7 @@ def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | 
   group = groups.get_group(group_id)
   schedule = check(details, now or datetime.now(timezone.utc))
   schedule["signature_id"] = groups.leader_signature(group, details.get("signature_id"))
+  schedule["show_sent_by"] = details.get("show_sent_by", True) is not False
   with connect() as connection:
     if connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group_id,)).fetchone()[0] >= MAX_SCHEDULES_PER_GROUP:
       raise GroupProblem(f"A group can have at most {MAX_SCHEDULES_PER_GROUP} scheduled messages.")
@@ -271,6 +274,7 @@ def update_schedule(group_id: int, schedule_id: int, details: dict, now: datetim
     raise GroupProblem("A message to one member cannot be changed: remove it and write it again.")
   schedule = check(details, now or datetime.now(timezone.utc))
   schedule["signature_id"] = groups.leader_signature(groups.get_group(group_id), details.get("signature_id"))
+  schedule["show_sent_by"] = details.get("show_sent_by", True) is not False
   with connect() as connection:
     connection.execute(
       f"UPDATE group_schedules SET {', '.join(f'{name} = %s' for name in FIELDS)}, updated_at = now() WHERE id = %s",
@@ -300,6 +304,8 @@ def schedule_member_email(group_id: int, member_id: int, details: dict, created_
     "kind": "message", "subject": groups.member_subject(group, str(details.get("subject") or "")), "text": text, "html": html, "repeat": "once",
     "on_date": on_date, "day_of_month": None, "weekday": None, "week_of_month": None, "send_time": send_time,
     "timezone": str(details["timezone"]), "signature_id": groups.leader_signature(group, details.get("signature_id")),
+    # An email to one member has no foot at all (groups.compose_email, personal).
+    "show_sent_by": True,
   }
   schedule["next_run_at"] = next_occurrence(schedule, now or datetime.now(timezone.utc))
   if schedule["next_run_at"] is None:
@@ -329,6 +335,13 @@ def get_schedule(group_id: int, schedule_id: int) -> dict:
 
 
 def _details_for(schedule: dict) -> dict:
+  details = _details_of_kind(schedule)
+  # Whether its emails end with the "Sent by …" line (migration 070).
+  details["show_sent_by"] = schedule.get("show_sent_by", True) is not False
+  return details
+
+
+def _details_of_kind(schedule: dict) -> dict:
   """What groups.send needs, made at send time: a new random verse card, or the words on a new random picture."""
   if schedule["kind"] == "verse":
     preview = groups.preview_verse()
