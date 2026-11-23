@@ -654,3 +654,51 @@ def test_an_administrator_can_move_a_signature_or_a_task_to_another_owner():
   # Moving a signature away drops it from its old owner's tasks.
   signatures.update_signature(signature["id"], {"name": "Clipboard", "signature": {"text": "Paul"}, "new_owner_uid": OTHER_OWNER, "new_owner_name": "Ann"})
   assert admin_tasks.get_task(task["id"])["signature_id"] is None
+
+
+def test_a_message_to_the_people_of_a_day(site_users, monkeypatch):
+  import day_messages
+
+  open_id, _ = site_users
+  with connect() as connection:
+    other_id = connection.execute(
+      "INSERT INTO users (email, password_hash, first_name, last_name, email_verified_at) VALUES ('scheduled-ann@example.org', 'x', 'Ann', 'Test', now()) RETURNING id"
+    ).fetchone()[0]
+  try:
+    sent = []
+    monkeypatch.setattr(day_messages, "load_mail_settings", lambda: {"from_address": "site@example.test"})
+    monkeypatch.setattr(day_messages, "send_email", lambda settings, email, recipients=None: sent.append(email))
+    monkeypatch.setattr(day_messages, "PAUSE_SECONDS", 0)
+    greeter = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
+    coffee = admin_tasks.create_task(task_details(name="Coffee", weekday=6), OWNER, "Paul")
+    for task, user in ((greeter, open_id), (coffee, open_id), (coffee, other_id)):
+      scheduled_tasks.add_scheduled(task["id"], {"user_id": user, "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+
+    assert [(day["value"], day["people"]) for day in day_messages.dates(OWNER, THURSDAY)] == [("2026-11-29", 2)]
+    people = day_messages.people(date(2026, 11, 29), OWNER)
+    assert [(person["label"].split(" (")[0], person["tasks"]) for person in people] == [("Ann Test", ["Coffee"]), ("Ruth Test", ["Coffee", "Greeter"])]
+    signature = signatures.create_signature({"name": "Paul", "signature": {"text": "Paul, deacon"}}, OWNER, "Paul")
+
+    result = day_messages.send({
+      "on_date": "2026-11-29", "user_ids": [open_id], "subject": "Sunday, [FIRST_NAME]",
+      "message": {"html": "<p>Hi [FIRST_NAME], see you <strong>Sunday</strong>.</p>"}, "signature_id": signature["id"],
+      "sender_name": "Paul Carrick", "sender_email": "leader@example.org",
+    }, OWNER, OWNER)
+    assert result["sent"] == [{"label": "Ruth Test (scheduled-ruth@example.org)", "how": "email"}] and len(sent) == 1
+    email = sent[0]
+    assert email["To"] == "scheduled-ruth@example.org" and email["Reply-To"] == "leader@example.org" and email["Subject"] == "Sunday, Ruth"
+    plain = email.get_body(("plain",)).get_content()
+    assert "Hi Ruth, see you Sunday.\n\nPaul, deacon\n\n--\nSent by Paul Carrick to the people scheduled on Sunday, November 29, 2026" in plain
+    assert "<strong>Sunday</strong>" in email.get_body(("html",)).get_content()
+
+    with pytest.raises(TaskProblem, match="not scheduled on that date"):
+      day_messages.send({"on_date": "2026-11-29", "user_ids": [999999999], "subject": "x", "message": {"text": "x"}}, OWNER, OWNER)
+    with pytest.raises(TaskProblem, match="Tick at least one person"):
+      day_messages.send({"on_date": "2026-11-29", "user_ids": [], "subject": "x", "message": {"text": "x"}}, OWNER, OWNER)
+    with pytest.raises(TaskProblem, match="not one of yours"):
+      day_messages.send({"on_date": "2026-11-29", "user_ids": [open_id], "subject": "x", "message": {"text": "x"}, "signature_id": signature["id"]}, OTHER_OWNER, None)
+    # Another owner sees none of these dates or people.
+    assert day_messages.dates(OTHER_OWNER, THURSDAY) == [] and day_messages.people(date(2026, 11, 29), OTHER_OWNER) == []
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM users WHERE id = %s", (other_id,))

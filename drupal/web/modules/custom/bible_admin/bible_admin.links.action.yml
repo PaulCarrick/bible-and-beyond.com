@@ -67,6 +67,14 @@ bible_admin.scheduled_task_report_action:
   appears_on:
     - bible_admin.scheduled_tasks
 
+# Beside them (2026-11-23, the owner's request): a message to the people of one date.
+bible_admin.day_message_action:
+  route_name: bible_admin.day_message
+  title: 'Message a day'
+  weight: 2
+  appears_on:
+    - bible_admin.scheduled_tasks
+
 bible_admin.external_site_add_action:
   route_name: bible_admin.external_site_add
   title: 'Add a site'

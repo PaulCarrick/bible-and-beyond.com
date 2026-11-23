@@ -17,6 +17,9 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_tasks.py update-schedule --schedule=ID   input {user_id, on_date}
     manage_tasks.py remove-schedule --schedule=ID
     manage_tasks.py day-options --date=YYYY-MM-DD [--owner=UID]   the tasks falling on that date, and the site users
+    manage_tasks.py day-dates [--owner=UID]                 the dates from today on with something scheduled
+    manage_tasks.py day-people --date=YYYY-MM-DD [--owner=UID]   the people scheduled that day, with their tasks
+    manage_tasks.py send-day-message --by=UID [--owner=UID]   input {on_date, user_ids, subject, message, signature_id, sender_name, sender_email}
     manage_tasks.py add-schedules --by=UID [--owner=UID]   input {on_date, created_by_name, items: [{task_id, user_id, note}]}
 """
 
@@ -30,6 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import admin_tasks  # noqa: E402
+import day_messages  # noqa: E402
 import scheduled_tasks  # noqa: E402
 from admin_tasks import TaskProblem  # noqa: E402
 
@@ -48,6 +52,13 @@ def parse_arguments(arguments=None):
   day = commands.add_parser("day-options")
   day.add_argument("--date", required=True)
   day.add_argument("--owner", type=int)
+  commands.add_parser("day-dates").add_argument("--owner", type=int)
+  day_people = commands.add_parser("day-people")
+  day_people.add_argument("--date", required=True)
+  day_people.add_argument("--owner", type=int)
+  message = commands.add_parser("send-day-message")
+  message.add_argument("--by", type=int, required=True)
+  message.add_argument("--owner", type=int)
   many = commands.add_parser("add-schedules")
   many.add_argument("--by", type=int, required=True)
   many.add_argument("--owner", type=int)
@@ -79,6 +90,14 @@ def run(arguments) -> dict:
     return {"ok": True, "schedules": scheduled_tasks.list_scheduled(arguments.owner)}
   if arguments.command == "get-schedule":
     return {"ok": True, "schedule": scheduled_tasks.get_scheduled(arguments.schedule)}
+  if arguments.command == "day-dates":
+    return {"ok": True, "dates": day_messages.dates(arguments.owner)}
+  if arguments.command == "day-people":
+    try:
+      on_date = date.fromisoformat(arguments.date)
+    except ValueError as error:
+      raise TaskProblem("Choose a date.") from error
+    return {"ok": True, "people": day_messages.people(on_date, arguments.owner)}
   if arguments.command == "day-options":
     try:
       on_date = date.fromisoformat(arguments.date)
@@ -88,6 +107,8 @@ def run(arguments) -> dict:
   if arguments.command == "remove-schedule":
     return {"ok": True, "schedule": scheduled_tasks.remove_scheduled(arguments.schedule)}
   details = read_details()
+  if arguments.command == "send-day-message":
+    return {"ok": True, **day_messages.send(details, arguments.by, arguments.owner)}
   if arguments.command == "add-schedules":
     added = scheduled_tasks.add_many(details, arguments.by, str(details.get("created_by_name") or ""), arguments.owner)
     return {"ok": True, "schedules": added}

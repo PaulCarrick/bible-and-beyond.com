@@ -677,6 +677,15 @@ bible_admin.scheduled_tasks:
 
 # The Scheduled task report (2026-11-23, the owner's request, modelled on their paper sign-up sheet): the scheduled
 # tasks between two dates, a section for each day, ready to print.
+# Message a day: a message to the people scheduled on one date (DayMessageForm; 2026-11-23).
+bible_admin.day_message:
+  path: '/admin/scheduled-tasks/message'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\DayMessageForm'
+    _title: 'Message a day'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
 # Schedule tasks: several tasks on one date at once (ScheduleTasksForm; 2026-11-23).
 bible_admin.scheduled_tasks_add:
   path: '/admin/scheduled-tasks/add'

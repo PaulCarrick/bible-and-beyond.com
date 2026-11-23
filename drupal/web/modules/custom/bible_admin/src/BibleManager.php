@@ -1312,6 +1312,42 @@ class BibleManager {
   }
 
   /**
+   * Message a day (day_messages.py): the dates from today on with something scheduled (value, label, people), the
+   * people of one date (id, label, tasks), and sending a message to the people chosen. Each limited to the tasks
+   * this user may see.
+   */
+  public function dayMessageDates(): array {
+    return $this->run(['day-dates', ...$this->ownerArguments()], 'manage_tasks.py')['dates'];
+  }
+
+  public function dayMessagePeople(string $onDate): array {
+    return $this->run(['day-people', '--date=' . $onDate, ...$this->ownerArguments()], 'manage_tasks.py')['people'];
+  }
+
+  /**
+   * Returns sent ([label, how]) and not_sent ([label, why]). The log names the date and how many, never who.
+   */
+  public function sendDayMessage(string $onDate, array $userIds, string $subject, array $message, string $signatureId): array {
+    $input = $this->groupInput([
+      'on_date' => $onDate,
+      'user_ids' => array_values($userIds),
+      'subject' => $subject,
+      'message' => $message,
+      'signature_id' => $signatureId,
+      'sender_name' => $this->currentUser->getDisplayName(),
+      'sender_email' => (string) $this->currentUser->getEmail(),
+    ]);
+    $result = $this->run(['send-day-message', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()], 'manage_tasks.py', $input);
+    $this->logger->notice('@user sent a message to the people scheduled on @date: @sent sent, @missed not sent.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@date' => $onDate,
+      '@sent' => count($result['sent']),
+      '@missed' => count($result['not_sent']),
+    ]);
+    return $result;
+  }
+
+  /**
    * Schedules several tasks on one date at once: $items are [task_id, user_id, note => [text]]. All or none.
    * Returns the scheduled tasks made, each logged like Schedule.
    */
