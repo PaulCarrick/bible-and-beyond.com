@@ -85,12 +85,22 @@ class DayMessageForm extends FormBase {
       '#description' => $this->t('Everyone scheduled that day, with their tasks. Untick anyone to leave out. Each gets it the way they chose on their My account page: by email, text or both.'),
     ];
 
-    $form['subject'] = [
+    // In the part that the date refreshes, and named after the date, so choosing another date gives that date's
+    // subject ("About Sunday, December 6"; the owner's request, 2026-11-23).
+    $subjectKey = 'subject_' . str_replace('-', '', $onDate);
+    $form_state->set('subject_key', $subjectKey);
+    $dayLabel = '';
+    foreach ($dates as $day) {
+      if ($day['value'] === $onDate) {
+        $dayLabel = preg_replace('/,\s*\d{4}$/', '', $day['label']);
+      }
+    }
+    $form['people_box'][$subjectKey] = [
       '#type' => 'textfield',
       '#title' => $this->t('Subject'),
       '#maxlength' => 200,
-      '#default_value' => $this->t('About @day', ['@day' => preg_replace('/,\s*\d{4}$/', '', $dates[0]['label'])]),
-      '#description' => $this->t('A text message starts with it.'),
+      '#default_value' => $this->t('About @day', ['@day' => $dayLabel]),
+      '#description' => $this->t('A text message starts with it. Choosing another date puts that date in it.'),
     ];
     $form['message'] = GroupEditor::field(
       (string) $this->t('Message'),
@@ -146,8 +156,8 @@ class DayMessageForm extends FormBase {
     if (!$this->chosen($form_state)) {
       $form_state->setErrorByName((string) $form_state->get('people_key'), $this->t('Tick at least one person to send it to.'));
     }
-    if (trim((string) $form_state->getValue('subject')) === '') {
-      $form_state->setErrorByName('subject', $this->t('Give the message a subject.'));
+    if (trim((string) $form_state->getValue((string) $form_state->get('subject_key'))) === '') {
+      $form_state->setErrorByName((string) $form_state->get('subject_key'), $this->t('Give the message a subject.'));
     }
     $message = GroupEditor::value($form_state->getValue('message'));
     if (trim(strip_tags((string) ($message['html'] ?? $message['text'] ?? ''))) === '') {
@@ -161,7 +171,7 @@ class DayMessageForm extends FormBase {
       $result = $this->manager->sendDayMessage(
         $onDate,
         $this->chosen($form_state),
-        (string) $form_state->getValue('subject'),
+        (string) $form_state->getValue((string) $form_state->get('subject_key')),
         GroupEditor::value($form_state->getValue('message')),
         (string) $form_state->getValue('signature_id'),
       );
