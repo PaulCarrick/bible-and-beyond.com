@@ -5,7 +5,7 @@
 # picture.
 
 intro: |
-  <p>How to use the pages that run the Bible and Beyond website: the Bibles, books, music and maps on the public
+  <p>How to use the pages that run this website: the Bibles, books, music and maps on the public
   site, the pictures for messages, your groups, the members' accounts and posts, the settings, and backups. Drupal's
   own pages (Content, Structure, Appearance and the like) are not covered here. Each section shows the screen as it
   looks, with made-up people; click a picture to see it full size. You see only the sections for the pages you are
@@ -74,6 +74,7 @@ sections:
       its cover (PNG, JPEG, WebP or GIF, up to 2 MB). Clear <em>Show it on the site</em> to hide one without deleting
       it. Only the link is kept: each reader opens the book with their own Amazon account, so it works for those who
       have it in their own Kindle library, and its words cannot be searched.</p>
+      <figure><img data-guide="kindle-book" alt="Change a Kindle book: title, author, the Kindle link, Show it on the site, and the picture with a preview, Paste a picture and Remove the picture"><figcaption>A Kindle book, with its picture.</figcaption></figure>
       <p><strong>To upload one:</strong> click <em>Upload</em>. A <strong>PDF, Word document or EPUB ebook</strong> can be
       uploaded as it is (its headings, bold, lists and pictures are kept); a scanned PDF is read by text recognition, so
       check its words in the preview. A spreadsheet saved as tab-separated text works too, as the page explains. Give
@@ -320,6 +321,7 @@ sections:
         Only the plain words are sent.</li>
         <li><strong>Go back to the built-in questions</strong> replaces the site's own list (asks first).</li>
       </ul>
+      <figure><img data-guide="faq-questions" alt="FAQ questions: Add a question, About this site, then the built-in questions under their headings, each with Up or Down and a menu with Edit and Delete"><figcaption>FAQ questions, under their headings.</figcaption></figure>
 
   - id: faq-notes
     title: FAQ notes
@@ -399,6 +401,7 @@ sections:
       remove a row, then
       <strong>Schedule</strong>. They are all saved together, or none if one has a problem. The <strong>Note</strong> is optional: words for this person on this date,
       added under the notification in each of their reminders (the name fields work in it too).</p>
+      <figure><img data-guide="schedule-tasks" alt="Schedule tasks: the date Sunday, December 6, the tasks that fall on it (Communion and Greeter) with who has each already and a + button, and a row for Greeter with the site user Mary Sample, a note box and a − button"><figcaption>Schedule tasks: several tasks on one date at once.</figcaption></figure>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away
       under <em>Past</em>; click <em>Date</em>, <em>Task</em> or <em>Site user</em> at the top of a column to sort by it
@@ -421,18 +424,20 @@ sections:
       the foot</strong> to end the email with your own words; the same box is on a group's Send forms, its scheduled
       emails and each task (for its reminders). A group email keeps each member's stop links either way. Each person gets it the way they chose
       (email, text or both), and replies come to your email address. The page then says who it reached, and why anyone was not.</p>
+      <figure><img data-guide="day-message" alt="Message a day: the date with three people, each ticked with their task, the subject About Sunday, December 6, the message in the editor with Hi [FIRST_NAME], Attachments with Paste a picture, the Signature Formal and the Sent by tick box"><figcaption>Message a day.</figcaption></figure>
       <p>The <strong>Scheduled Task Report</strong> (the button beside Schedule tasks) lists them day by day, like a
       sign-up sheet: choose <em>From</em> and <em>To</em> and press <em>Show</em>; each day with something scheduled has its
       own heading and a table of the task, the person's name, the note, their email and their phone. <em>Print</em>
       prints just the report.</p>
+      <figure><img data-guide="task-report" alt="Scheduled Task Report: From and To dates, Show, Print, and Sunday, December 6 with a table of Communion and Greeter: name, notes, email and phone"><figcaption>The Scheduled Task Report.</figcaption></figure>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 
   - id: site-users
     title: Site users
     permissions: ['administer site users']
     body: |
-      <p>The accounts of the public site's visitors (not the people who use these admin pages). Newest first, 50 a
-      page, with a search on the address or name, and for each its phone, whether the address is confirmed, what it is
+      <p>The accounts of the public site's visitors (not the people who use these admin pages). By name, A to Z
+      (click <em>Name</em> or <em>Email</em> at the top of the column to sort by it; again to reverse), 50 a page, with a search on the address or name, and for each its phone, whether the address is confirmed, what it is
       allowed and how many notes it has.</p>
       <figure><img data-guide="site-users" alt="Site users: search, Add a site user, and a table of accounts with their address (or none, for one that logs in with its phone), name, phone and flags"><figcaption>Site users.</figcaption></figure>
       <p><strong>Add a site user</strong> or <strong>Edit</strong>:</p>

@@ -121,7 +121,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
       <p>
         Prefer to watch? The{' '}
         <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
-        is a fifteen-minute narrated tour of the whole site, including the maps, the verse a day and text messages.
+        is a fourteen-minute narrated tour of the whole site, including the maps, the verse a day and text messages.
       </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
@@ -147,8 +147,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           <em>Account settings</em>, <em>My notes</em>, <em>My lists</em> and <em>Log out</em>. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
           the devotionals, the other books, Christian media, maps, questions (the FAQ), today (Verse of the day and
-          Devotional of the day), members (Conversations and the Prayer Wall) and about (this Help page, the tutorial
-          video, Contact and Privacy). The groups start closed to
+          Devotional of the day), members (Conversations, the Prayer Wall and Public lists) and about (this Help page,
+          the tutorial video, Contact, Privacy, the text message terms and the posting policy). When the site&rsquo;s
+          administrators list other websites they use, an <em>External sites</em> group links to them (each opens in a
+          new tab). The groups start closed to
           keep the menu short: a small arrow (▶) beside a group&rsquo;s name shows it is closed. Click the name to open
           it and see its pages (the arrow turns down), and click it again to close it. The group of the page you are on
           opens by itself. On a phone the menu is hidden behind the menu button in the header.
@@ -166,6 +168,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           height={1560}
           alt="The Welcome page with the menu on the left, its groups closed, cards for the Bible, the commentaries, the devotionals, the other books, Christian media and the maps, and the latest Conversations post"
           caption="The Welcome page: the header, the menu on the left (click a group to open it), and a card for each part of the site."
+        />
+        <Screenshot
+          name="account-menu"
+          width={1152}
+          height={560}
+          alt="The account icon at the top right, showing the member's picture, with its menu open: the name and address, Account settings, My notes, My lists and Log out"
+          caption="The account icon's menu, opened by pointing at the icon (or clicking it)."
         />
       </section>
 
@@ -819,8 +828,8 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           name="my-account"
           width={1152}
           height={1240}
-          alt="My account: the phone number with texts and a verse a day chosen and a Save button, then Change your password"
-          caption="My account: your phone, texts and verse a day, and changing your password."
+          alt="My account: Your picture with Choose another picture and Remove the picture, the phone number, how messages are sent, and the verse a day"
+          caption="Account settings: your picture, your phone, how messages are sent and your verse a day."
         />
       </section>
 
@@ -958,8 +967,17 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           your account to share, <em>Share on Public lists</em> puts a list on{' '}
           <PageLink onNavigate={onNavigate} view="publicLists">Public lists</PageLink> (under Members), where everyone
           can see it with your first name and the first letter of your last name; <em>Stop sharing</em> takes it off.
-          On Public lists, a logged-in member can <em>Copy to My lists</em>.
+          On Public lists, a logged-in member can <em>Copy to My lists</em>. Playlists of songs are shared the same
+          way, from <em>Your playlists</em> on the Christian media page: a shared playlist is listed on Public lists
+          too, where anyone can <em>Play</em> it, and <em>Copy link</em> gives an address to send to a friend.
         </p>
+        <Screenshot
+          name="public-lists"
+          width={1152}
+          height={1000}
+          alt="Public lists: a list Verses for a hard week shared by Ruth C., with its four verses, and beside it a shared playlist Evening hymns"
+          caption="Public lists: lists and playlists members chose to share with everyone."
+        />
         <Screenshot
           name="my-lists"
           width={1152}
@@ -1000,6 +1018,14 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             told of the other&rsquo;s replies.
           </li>
           <li>
+            <strong>What not to post.</strong> Posts and replies should not contain profanity, political messages or
+            advertising; the line above the <em>Post it</em> and <em>Post reply</em> buttons says so, and posting means
+            you agree to the <PageLink onNavigate={onNavigate} view="postingPolicy">Posting policy</PageLink>. If the
+            site&rsquo;s administrators have turned it on, each new or changed post and reply is first checked by an AI
+            (Google Gemini); one it finds unsuitable is not saved, and you are told why so you can change it. Private
+            prayer requests are never sent to it.
+          </li>
+          <li>
             <strong>When someone wants to send you posts.</strong> A box at the top of Conversations (and an email or
             text) shows the request: <em>Accept</em> shows their posts, <em>Decline</em> stops them. Change your answer
             any time under <em>Posts sent to you</em> on your Account settings page (<em>Allow</em> or{' '}
@@ -1026,6 +1052,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           height={1000}
           alt="The Conversations page with two posts by two members, one with a reply, and Edit and Delete on the member's own post"
           caption="Conversations: posts by members, newest first, with their replies, and Edit and Delete on your own."
+        />
+        <Screenshot
+          name="send-to-member"
+          width={1152}
+          height={1150}
+          alt="Write a post with Send to set to Ruth Carter only, the note that only the two of them will see it, the posting line, and a Send to Ruth Carter button"
+          caption="Writing a post to one member: choose them under Send to."
+        />
+        <Screenshot
+          name="message-request"
+          width={1152}
+          height={760}
+          alt="Requests to send you posts at the top of Conversations: Daniel Brooks would like to send you posts, with Accept and Decline"
+          caption="When another member first sends you a post, you choose whether to accept posts from them."
         />
       </section>
 

@@ -44,3 +44,18 @@
 .admin-guide-top {
   font-size: 0.875rem;
 }
+
+/* The tutorial video above the contents (AdminGuideController::video). */
+.admin-guide-video {
+  max-width: 62rem;
+  margin: 0 0 2rem;
+}
+
+.admin-guide-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #d3d4d9;
+  border-radius: 6px;
+  background: #000;
+}

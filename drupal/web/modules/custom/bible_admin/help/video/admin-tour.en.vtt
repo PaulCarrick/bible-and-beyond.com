@@ -1,0 +1,177 @@
+WEBVTT
+
+1
+00:00:00.800 --> 00:00:04.624
+This tour shows the administration pages that run the site.
+
+2
+00:00:05.124 --> 00:00:08.110
+You see only the pages your role allows.
+
+3
+00:00:11.048 --> 00:00:15.153
+Everything is in the menu on the left, in alphabetical order.
+
+4
+00:00:20.069 --> 00:00:25.519
+The Admin guide explains every page, with pictures, and this video is there too.
+
+5
+00:00:28.627 --> 00:00:34.088
+The pages of Drupal itself, such as Appearance and Structure, are rarely needed.
+
+6
+00:00:36.878 --> 00:00:41.981
+Bibles lists the translations on the site, with how many verses each has.
+
+7
+00:00:42.497 --> 00:00:47.389
+Upload a Bible as a text file, check the preview, and confirm.
+
+8
+00:00:48.642 --> 00:00:54.858
+A new Bible stays hidden until you publish it, and Hide takes one off the site without deleting it.
+
+9
+00:00:57.617 --> 00:01:02.229
+Commentaries, Devotionals, and Other books all work the same way.
+
+10
+00:01:02.745 --> 00:01:09.831
+Upload a PDF, a Word document, or an ebook, and its headings, lists, and pictures are kept.
+
+11
+00:01:11.100 --> 00:01:17.558
+Edit changes the name, the author, the credit line, and the keywords, without uploading it again.
+
+12
+00:01:22.583 --> 00:01:29.437
+At the foot of the page, Kindle books link to books in Amazon's Kindle reader, each with a picture of its cover.
+
+13
+00:01:32.197 --> 00:01:38.112
+Christian music holds the songs and talks: an MP3 or MP4 each, with its words.
+
+14
+00:01:38.620 --> 00:01:46.730
+Drop several files on the box at the top to upload them all at once. To use a picture you copied, press Paste a picture.
+
+15
+00:01:47.263 --> 00:01:52.086
+A song or album on Spotify can be added too, from its share link.
+
+16
+00:01:52.601 --> 00:01:57.069
+Maps work the same way, each with the Bible verses it goes with.
+
+17
+00:02:04.497 --> 00:02:08.275
+Site users are the accounts of the people who use the site.
+
+18
+00:02:08.779 --> 00:02:12.553
+Click Name or Email at the top of a column to sort the list.
+
+19
+00:02:13.679 --> 00:02:22.867
+Edit an account to confirm its address, or to let it write in Conversations, mark the maps, share lists, or be emailed every new post.
+
+20
+00:02:23.386 --> 00:02:28.276
+Tick, Texts on, only when the member has agreed to get text messages.
+
+21
+00:02:31.031 --> 00:02:38.773
+Conversations and Prayer Wall lists every post, with its real author, even when a request was posted anonymously.
+
+22
+00:02:39.303 --> 00:02:44.707
+Read and delete shows a post with its replies, so you can remove what should not be there.
+
+23
+00:02:47.464 --> 00:02:52.030
+Groups are for the people you look after, such as a care group or a class.
+
+24
+00:02:54.605 --> 00:02:58.590
+Add members from the site's accounts, or people without one.
+
+25
+00:02:59.120 --> 00:03:08.633
+Send a message, a verse card, or a picture message. Each member gets it the way they chose, by email or by text, and replies come to you.
+
+26
+00:03:09.142 --> 00:03:14.475
+Or schedule an email, such as every Tuesday morning, with one of your signatures.
+
+27
+00:03:20.596 --> 00:03:23.964
+Click a member's address to write to that person alone.
+
+28
+00:03:30.907 --> 00:03:34.137
+And the Sent table keeps a copy of every email.
+
+29
+00:03:38.363 --> 00:03:43.849
+Tasks are jobs that come round again, such as communion on the first Sunday of the month.
+
+30
+00:03:44.389 --> 00:03:50.966
+Each task can send the person two reminders, a week and a day before, by email or by text.
+
+31
+00:03:51.474 --> 00:03:59.083
+Schedule tasks fills a whole day at once: choose the date, press plus beside a task, and choose the person.
+
+32
+00:04:01.290 --> 00:04:06.793
+Message a day writes to everyone scheduled on one date, with attachments if you like.
+
+33
+00:04:09.667 --> 00:04:14.094
+And the Scheduled Task Report prints a sign-up sheet, day by day.
+
+34
+00:04:16.863 --> 00:04:22.589
+FAQ questions sets the questions on the FAQ page, in order under their headings.
+
+35
+00:04:23.104 --> 00:04:28.101
+About this site tells the A.I. who your readers are, so its answers fit them.
+
+36
+00:04:28.626 --> 00:04:32.230
+FAQ notes adds your own words under an answer.
+
+37
+00:04:34.962 --> 00:04:40.063
+Site settings has the site's title, its welcome words, and its icons.
+
+38
+00:04:40.588 --> 00:04:44.610
+Login required keeps the whole site for logged-in members.
+
+39
+00:04:45.146 --> 00:04:51.848
+Check posts with A.I. asks Google Gemini to check each post and reply before it is saved.
+
+40
+00:04:52.366 --> 00:04:57.142
+Further down are the email server, and the keys of the outside services.
+
+41
+00:05:05.461 --> 00:05:11.584
+Backup and restore saves the whole site in three zip files, in a folder on your own computer.
+
+42
+00:05:12.111 --> 00:05:17.098
+To restore, choose the zips of one backup, and type RESTORE to confirm.
+
+43
+00:05:19.843 --> 00:05:23.608
+The Admin guide has all of this in writing, with pictures.
+
+44
+00:05:24.108 --> 00:05:25.780
+Thank you for watching.

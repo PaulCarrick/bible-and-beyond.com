@@ -70,3 +70,5 @@ docker/public-data/
 
 # The tutorial video (about 50 MB): kept out of git and copied to the server by hand (see CLAUDE.md)
 frontend/public/tutorial/*.mp4
+# The admin tutorial video, shown on the Admin guide: also copied to each server by hand
+drupal/web/modules/custom/bible_admin/help/video/*.mp4

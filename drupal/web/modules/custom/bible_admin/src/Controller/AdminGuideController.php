@@ -60,11 +60,34 @@ class AdminGuideController extends ControllerBase {
       '#cache' => ['contexts' => ['user.permissions']],
       '#attached' => ['library' => ['bible_admin/admin_guide']],
       'intro' => ['#markup' => Markup::create((string) $guide['intro'])],
+      'video' => ['#markup' => Markup::create($this->video($directory))],
       'contents' => [
         '#markup' => Markup::create('<nav id="admin-guide-contents" class="admin-guide-contents" aria-label="' . $this->t('Contents') . '"><h2>' . $this->t('Contents') . '</h2><ol>' . $contents . '</ol></nav>'),
       ],
       'sections' => ['#markup' => Markup::create($body)],
     ];
+  }
+
+  /**
+   * The narrated tour of these pages (the owner's request, 2026-11-24), above the contents. The MP4 is not in git
+   * (help/video/*.mp4 is ignored, as the public site's tutorial is): copy it to each server by hand. Without it,
+   * nothing is shown. Its captions and poster are in the repository.
+   */
+  private function video(string $directory): string {
+    if (!is_file($directory . '/video/admin-tour.mp4')) {
+      return '';
+    }
+    $base = base_path() . $directory . '/video/';
+    $version = (string) filemtime($directory . '/video/admin-tour.mp4');
+    $captions = is_file($directory . '/video/admin-tour.en.vtt')
+      ? '<track kind="captions" src="' . $base . 'admin-tour.en.vtt?v=' . $version . '" srclang="en" label="English">'
+      : '';
+    $poster = is_file($directory . '/video/admin-tour-poster.webp') ? ' poster="' . $base . 'admin-tour-poster.webp?v=' . $version . '"' : '';
+    return '<section class="admin-guide-video" aria-labelledby="admin-guide-video-heading">'
+      . '<h2 id="admin-guide-video-heading">' . $this->t('Tutorial video') . '</h2>'
+      . '<p>' . $this->t('A narrated tour of these pages, with made-up people. Turn on captions with the CC button.') . '</p>'
+      . '<video controls preload="metadata" playsinline' . $poster . '>'
+      . '<source src="' . $base . 'admin-tour.mp4?v=' . $version . '" type="video/mp4">' . $captions . '</video></section>';
   }
 
 }
