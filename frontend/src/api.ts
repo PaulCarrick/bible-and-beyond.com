@@ -659,6 +659,63 @@ export async function fetchVerseCard(verse: { translation: string; book: number;
   return readJson<DayCard>(await fetch(`${mlServiceUrl}/day-card/verse?${parameters}`))
 }
 
+// Make your own verse card (CustomCardMaker.tsx, on the Verse of the day page; custom_cards.py on the server).
+export interface CardBackground {
+  id: string
+  title: string
+  // The thumbnail's address on the ML service, or null for the plain blue background.
+  thumbnail: string | null
+}
+
+export interface CardVerse {
+  translation: string
+  book: number
+  chapter: number
+  verse: number
+}
+
+export async function fetchCardBackgrounds(): Promise<CardBackground[]> {
+  return (await readJson<{ backgrounds: CardBackground[] }>(await fetch(`${mlServiceUrl}/card-backgrounds`))).backgrounds
+}
+
+export function cardBackgroundAddress(path: string): string {
+  return `${mlServiceUrl}${path}`
+}
+
+export async function fetchCustomCard(verse: CardVerse, background: string, signal: AbortSignal): Promise<DayCard> {
+  const parameters = new URLSearchParams({
+    translation: verse.translation,
+    book: String(verse.book),
+    chapter: String(verse.chapter),
+    verse: String(verse.verse),
+    background,
+  })
+  return readJson<DayCard>(await fetch(`${mlServiceUrl}/day-card/custom?${parameters}`, { signal }))
+}
+
+export async function fetchCardRecipients(): Promise<{ id: number; name: string }[]> {
+  const response = await fetch(`${mlServiceUrl}/card-recipients`, { credentials: 'include' })
+  return (await readJson<{ recipients: { id: number; name: string }[] }>(response)).recipients
+}
+
+export async function sendCustomCard(
+  verse: CardVerse,
+  background: string,
+  to: { recipientId: number } | { email: string },
+): Promise<{ sent_to: string; ways: string[] }> {
+  const response = await fetch(`${mlServiceUrl}/day-card/send`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...verse,
+      background,
+      ...('recipientId' in to ? { recipient_id: to.recipientId } : { email: to.email }),
+    }),
+  })
+  return readJson(response)
+}
+
 // The verse a day (logged-in members): null when the member does not get it.
 export async function fetchVerseSubscription(signal: AbortSignal): Promise<VerseSubscription | null> {
   const response = await fetch(`${mlServiceUrl}/verse-subscription`, { credentials: 'include', signal })

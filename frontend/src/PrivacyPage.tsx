@@ -40,13 +40,13 @@ const outsideServices: { service: string; whatIsSent: ReactNode; when: string }[
   },
   {
     service: 'Telnyx (text messages)',
-    whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, or your verse a day), and with picture messages the address of the picture',
+    whatIsSent: 'Your cell number and a short text (a devotional title, prayer request titles, a reply to your post, your verse a day, or a verse card someone sends you), and with picture messages the address of the picture',
     when: 'Only if you ticked “Send via SMS”; never otherwise',
   },
   {
     service: 'Our email provider',
     whatIsSent: 'Your email address and the message',
-    when: 'Contact messages, account emails, daily devotionals, the verse a day, the prayer list and replies you asked to be emailed',
+    when: 'Contact messages, account emails, daily devotionals, the verse a day, the prayer list, replies you asked to be emailed, and verse cards someone sends you',
   },
 ]
 
@@ -55,7 +55,7 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
   return (
     <div className="welcome privacy-page">
       <h1>Privacy and security</h1>
-      <p className="privacy-updated">Last updated: November 23, 2026</p>
+      <p className="privacy-updated">Last updated: November 26, 2026</p>
       <p>
         {siteTitle} is a non-commercial website. This page explains what we collect, who can see it, and what
         we send to other services.
@@ -134,6 +134,11 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
           owner and administrators. The first time you send to someone, they are told your name and asked whether to
           accept posts from you (by email or text, as they chose); nothing you wrote is shown to them until they
           accept. We keep their answer, and they can change it on their My account page.
+        </li>
+        <li>
+          <strong>A verse card you send</strong> (Make your own card, on Verse of the day) shows the person who gets it
+          your name, and replies go to your email address. When you send it to someone on the site, you see only their
+          name, never their address or number. An address you type is used for that one email and is not kept.
         </li>
         <li>
           <strong>On the Prayer Wall you can choose.</strong> A request posted <em>anonymously</em> shows

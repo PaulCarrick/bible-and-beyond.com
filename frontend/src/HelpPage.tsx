@@ -845,6 +845,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           verse, its reference and its picture are links to the verse on the site, and its text message carries the
           link.
         </p>
+        <p>
+          <strong>Make your own card.</strong> Under the verse of the day, choose a Bible, a verse and a background
+          (each shown as a small picture), and the card appears. <em>Download the card</em> saves it. When you are
+          logged in you can also send it: to someone on this site, chosen by name (they get it the way they chose on
+          their account, by email, text or both), or to any email address you type. The email says it is from you,
+          and replies go to your own email address. You can send up to 20 cards a day.
+        </p>
         <Screenshot
           name="verse-of-the-day"
           width={1152}

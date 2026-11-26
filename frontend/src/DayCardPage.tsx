@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { fetchDayCard } from './api'
 import type { DayCard } from './api'
+import CustomCardMaker from './CustomCardMaker'
+import type { Translation } from './types'
 import { verseAddress, wantsNewTab } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 
 interface DayCardPageProps {
   kind: 'verse' | 'devotional'
+  // The Bibles, for Make your own card (Verse of the day only).
+  translations: Translation[]
   onOpenVerse: (verse: VerseInBible) => void
   onOpenReading: (devotional: string, section: number, unit: number) => void
 }
@@ -19,7 +23,7 @@ interface DayCardPageProps {
 // Download saves exactly what is shown. On the verse, the picture and its reference are links to the verse in the
 // Bible reader (2026-11-16, the owner's request): a plain click opens it here, Ctrl, Cmd or the middle button a
 // new tab, as any link.
-function DayCardPage({ kind, onOpenVerse, onOpenReading }: DayCardPageProps) {
+function DayCardPage({ kind, translations, onOpenVerse, onOpenReading }: DayCardPageProps) {
   const [card, setCard] = useState<DayCard | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -134,6 +138,7 @@ function DayCardPage({ kind, onOpenVerse, onOpenReading }: DayCardPageProps) {
           )}
         </div>
       )}
+      {kind === 'verse' && <CustomCardMaker translations={translations} />}
     </div>
   )
 }

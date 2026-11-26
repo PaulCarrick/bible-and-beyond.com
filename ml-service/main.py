@@ -34,6 +34,7 @@ from accounts import (
   user_for_token,
   verify_email,
 )
+import custom_cards
 import day_cards
 import message_cards
 import saved_lists
@@ -806,6 +807,73 @@ def day_card_devotional(
     return day_cards.devotional_card(day, hour)
   except day_cards.DayCardProblem as problem:
     raise HTTPException(status_code=404, detail=str(problem))
+
+
+# --- Make your own verse card (custom_cards.py, added 2026-11-26) ----------------------------------------------
+
+
+@app.get("/card-backgrounds")
+def card_backgrounds():
+  """The backgrounds a visitor can put a verse card on: the verse a day pictures in use, with thumbnails, and the
+  plain one."""
+  return {"backgrounds": custom_cards.backgrounds()}
+
+
+@app.get("/card-background/{image_id}")
+def card_background(image_id: str):
+  """A background's thumbnail (240 wide), only while the picture is in use."""
+  path = custom_cards.background_thumbnail(image_id)
+  if path is None:
+    raise HTTPException(status_code=404, detail="There is no such background.")
+  return FileResponse(
+    path, media_type="image/webp",
+    headers={"Cache-Control": "public, max-age=2592000", "X-Content-Type-Options": "nosniff"},
+  )
+
+
+@app.get("/day-card/custom")
+def day_card_custom(
+  translation: str = Query(max_length=20),
+  book: int = Query(ge=1, le=66),
+  chapter: int = Query(ge=1, le=150),
+  verse: int = Query(ge=1, le=176),
+  background: str = Query(max_length=60),
+):
+  """The card of a verse the visitor chose, on the background they chose, inline (a data: address)."""
+  try:
+    return custom_cards.preview(translation, book, chapter, verse, background)
+  except custom_cards.CardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.get("/card-recipients")
+def card_recipients(request: Request):
+  """The site users a logged-in member may send a card to, by name only."""
+  user = require_user(request, "Please log in to send a card.")
+  return {"recipients": custom_cards.recipients(user["id"])}
+
+
+class CardSendRequest(BaseModel):
+  translation: str = Field(max_length=20)
+  book: int = Field(ge=1, le=66)
+  chapter: int = Field(ge=1, le=150)
+  verse: int = Field(ge=1, le=176)
+  background: str = Field(max_length=60)
+  recipient_id: int | None = None
+  email: str | None = Field(default=None, max_length=320)
+
+
+@app.post("/day-card/send")
+def day_card_send(body: CardSendRequest, request: Request):
+  """Sends the card to a site user (as they chose: email, text or both) or to an email address. Logged in only."""
+  user = require_user(request, "Please log in to send a card.")
+  try:
+    return custom_cards.send(
+      user, body.translation, body.book, body.chapter, body.verse, body.background,
+      recipient_id=body.recipient_id, email_address=body.email,
+    )
+  except custom_cards.CardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
 
 
 @app.get("/search-maps")

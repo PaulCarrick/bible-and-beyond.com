@@ -23,7 +23,6 @@ from zoneinfo import ZoneInfo
 from accounts import site_link
 from contact import MailUnavailable, load_mail_settings, send_email
 from search import connect
-from site_settings import get_public_settings
 import message_cards
 import sms
 from subscriptions import ATTEMPTS_PER_DAY, EMAILS_PER_RUN, PAUSE_BETWEEN_EMAILS, check_timezone, parse_time
@@ -139,7 +138,6 @@ def verse_link(verse: dict) -> str:
 
 
 def compose_email(settings: dict, address: str, verse: dict, token: str, card=None) -> EmailMessage:
-  title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
   email["Subject"] = f"Your verse for today: {verse['reference']}"
@@ -158,7 +156,8 @@ def compose_email(settings: dict, address: str, verse: dict, token: str, card=No
         f"Read it in context: {verse_link(verse)}",
         "",
         "--",
-        f"Sent by {title}: {site}",
+        # The owner's request, 2026-11-26: every verse we send says where it came from, with a link.
+        message_cards.created_by(),
         f"To stop these emails, open: {site_link('unsubscribe=' + token)}",
       ]
     )

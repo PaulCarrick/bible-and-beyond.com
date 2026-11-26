@@ -216,6 +216,13 @@ def site_address(path: str) -> str:
   return os.environ.get("SITE_URL", "https://freestudy.bible").rstrip("/") + path
 
 
+def created_by() -> str:
+  """The line that ends every verse we send, the verse a day and the cards members make (the owner's request,
+  2026-11-26): "Created by Free Study Bible (https://freestudy.bible)". In the HTML version the address is a link
+  (paragraphs_html)."""
+  return f"Created by {get_public_settings()['title']} ({site_address('')})"
+
+
 def make_card(text: str, caption: str = "", chooser=None, plain_if_none: bool = False) -> MessageCard | None:
   """Draws a card over a picture chosen at random and saves it. None when there is no picture in use (unless
   plain_if_none: then on the plain deep-blue background) or the drawing fails (logged; the message then goes
@@ -225,19 +232,24 @@ def make_card(text: str, caption: str = "", chooser=None, plain_if_none: bool = 
     if chosen is None and not plain_if_none:
       return None
     background = chosen[1] if chosen else plain_background()
-    card = render(background, text, caption)
-    folder = cards_folder()
-    folder.mkdir(parents=True, exist_ok=True)
-    remove_old_cards()
-    name = secrets.token_urlsafe(24) + ".jpg"
-    temporary = folder / f".{name}.new"
-    card.save(temporary, "JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
-    os.chmod(temporary, 0o644)
-    os.replace(temporary, folder / name)
-    return MessageCard(folder / name, site_address(f"/api/message-card/{name}"), f"card-{name[:16]}@bible-and-beyond")
+    return save_card(render(background, text, caption))
   except Exception as problem:
     logger.error("Message card not made: %s", type(problem).__name__)
     return None
+
+
+def save_card(card) -> MessageCard:
+  """Saves a drawn card (a Pillow picture) under a random name, so an email can carry it and a text (MMS) can
+  fetch it from its public address. Cards are deleted after KEEP_DAYS."""
+  folder = cards_folder()
+  folder.mkdir(parents=True, exist_ok=True)
+  remove_old_cards()
+  name = secrets.token_urlsafe(24) + ".jpg"
+  temporary = folder / f".{name}.new"
+  card.save(temporary, "JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
+  os.chmod(temporary, 0o644)
+  os.replace(temporary, folder / name)
+  return MessageCard(folder / name, site_address(f"/api/message-card/{name}"), f"card-{name[:16]}@bible-and-beyond")
 
 
 # --- the email ----------------------------------------------------------------------------------------------
