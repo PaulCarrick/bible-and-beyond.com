@@ -16,6 +16,7 @@ def no_real_site_icons(tmp_path, monkeypatch):
   monkeypatch.setenv("SITE_ICONS_FOLDER", str(tmp_path / "site-icons"))
   monkeypatch.setenv("KINDLE_COVERS_FOLDER", str(tmp_path / "kindle-covers"))
   monkeypatch.setenv("HEAD_SHOTS_FOLDER", str(tmp_path / "head-shots"))
+  monkeypatch.setenv("SAVED_CARDS_FOLDER", str(tmp_path / "saved-cards"))
   monkeypatch.setenv("MESSAGE_FILES_FOLDER", str(tmp_path / "message-files"))
 
 

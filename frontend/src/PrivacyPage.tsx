@@ -107,8 +107,9 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
           and your email address (so they can reply), and is private on the Prayer Wall.
         </li>
         <li>
-          <strong>Your notes, playlists, lists and daily-email choices.</strong> Notes, playlists and the lists of search
-          results you save are private to you.
+          <strong>Your notes, playlists, lists, cards and daily-email choices.</strong> Notes, playlists, the lists of
+          search results you save and the verse cards you make (My cards) are private to you. If you also have an
+          administrator account, a card of yours can be added to the group messages you send from it.
         </li>
         <li>
           <strong>Your notes, pins and routes on the maps,</strong> if an administrator has let your account add them:

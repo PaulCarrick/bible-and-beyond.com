@@ -24,6 +24,7 @@ import { AccountContext } from './AccountContext'
 import { chooseContextTranslation } from './contextTranslation'
 import NotesPage from './NotesPage'
 import MyListsPage from './MyListsPage'
+import MyCardsPage from './MyCardsPage'
 import PublicListsPage from './PublicListsPage'
 import type { SavedListEntry } from './api'
 import ConversationsPage from './ConversationsPage'
@@ -499,6 +500,7 @@ function App() {
           canSetUpAccount={!siteSettings.login_required}
           onShowNotes={() => navigate('notes')}
           onShowLists={() => navigate('lists')}
+          onShowCards={() => navigate('cards')}
           onShowAccount={() => navigate('account')}
           onLogIn={() => navigate('login')}
           onLogOut={() => {
@@ -613,6 +615,7 @@ function App() {
                     navigate('music')
                   }}
                 />}
+              {activeView === 'cards' && <MyCardsPage key={`cards-${user?.id ?? 'logged-out'}`} translations={translations} onNavigate={navigate} />}
               {activeView === 'lists' && <MyListsPage key={`lists-${user?.id ?? 'logged-out'}`} onOpenEntry={openListEntry} onNavigate={navigate} />}
             {activeView === 'unsubscribe' && emailLink && <UnsubscribePage token={emailLink.token} />}
             {activeView === 'messageRequest' && emailLink && <MessageRequestPage token={emailLink.token} onNavigate={navigate} />}

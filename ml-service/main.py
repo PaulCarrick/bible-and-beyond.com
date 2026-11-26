@@ -35,6 +35,7 @@ from accounts import (
   verify_email,
 )
 import custom_cards
+import saved_cards
 import day_cards
 import message_cards
 import saved_lists
@@ -854,13 +855,17 @@ def card_recipients(request: Request):
 
 
 class CardSendRequest(BaseModel):
-  translation: str = Field(max_length=20)
-  book: int = Field(ge=1, le=66)
-  chapter: int = Field(ge=1, le=150)
-  verse: int = Field(ge=1, le=176)
-  background: str = Field(max_length=60)
+  # The card drawn from a verse and background, or saved_card_id: one of the member's saved cards as it was kept.
+  translation: str | None = Field(default=None, max_length=20)
+  book: int | None = Field(default=None, ge=1, le=66)
+  chapter: int | None = Field(default=None, ge=1, le=150)
+  verse: int | None = Field(default=None, ge=1, le=176)
+  background: str | None = Field(default=None, max_length=60)
   recipient_id: int | None = None
   email: str | None = Field(default=None, max_length=320)
+  saved_card_id: int | None = None
+  # The saved card being edited (My cards' Edit): the card sent replaces it.
+  card_id: int | None = None
 
 
 @app.post("/day-card/send")
@@ -868,12 +873,70 @@ def day_card_send(body: CardSendRequest, request: Request):
   """Sends the card to a site user (as they chose: email, text or both) or to an email address. Logged in only."""
   user = require_user(request, "Please log in to send a card.")
   try:
+    if body.saved_card_id is None and None in (body.translation, body.book, body.chapter, body.verse, body.background):
+      raise custom_cards.CardProblem("Choose a verse and a background.")
     return custom_cards.send(
       user, body.translation, body.book, body.chapter, body.verse, body.background,
       recipient_id=body.recipient_id, email_address=body.email,
+      saved_card_id=body.saved_card_id, editing_card_id=body.card_id,
     )
   except custom_cards.CardProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+# --- My cards (saved_cards.py, added 2026-11-26) ---------------------------------------------------------------
+
+
+class CardSaveRequest(BaseModel):
+  translation: str = Field(max_length=20)
+  book: int = Field(ge=1, le=66)
+  chapter: int = Field(ge=1, le=150)
+  verse: int = Field(ge=1, le=176)
+  background: str = Field(max_length=60)
+  card_id: int | None = None
+
+
+@app.post("/saved-cards")
+def saved_cards_save(body: CardSaveRequest, request: Request):
+  """Keeps a card on the member's My cards (the page calls it when they download one); card_id replaces that
+  saved card (Edit)."""
+  user = require_user(request, "Please log in to keep your cards.")
+  try:
+    return {"card": custom_cards.save(user["id"], body.translation, body.book, body.chapter, body.verse, body.background, body.card_id)}
+  except custom_cards.CardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.get("/saved-cards")
+def saved_cards_list(request: Request):
+  user = require_user(request, "Please log in to see your cards.")
+  return {"cards": saved_cards.list_cards(user["id"])}
+
+
+@app.get("/saved-cards/{card_id}/{size}")
+def saved_cards_picture(card_id: int, size: str, request: Request):
+  """A saved card's picture ("image") or thumbnail, to its own member only."""
+  user = require_user(request, "Please log in to see your cards.")
+  if size not in ("image", "thumbnail"):
+    raise HTTPException(status_code=404, detail="Not found.")
+  try:
+    path = saved_cards.card_file(user["id"], card_id, thumbnail=size == "thumbnail")
+  except saved_cards.SavedCardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return FileResponse(
+    path, media_type="image/jpeg",
+    headers={"Cache-Control": "private, max-age=31536000", "X-Content-Type-Options": "nosniff"},
+  )
+
+
+@app.delete("/saved-cards/{card_id}")
+def saved_cards_delete(card_id: int, request: Request):
+  user = require_user(request, "Please log in to see your cards.")
+  try:
+    saved_cards.delete(user["id"], card_id)
+  except saved_cards.SavedCardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  return {"deleted": card_id}
 
 
 @app.get("/search-maps")

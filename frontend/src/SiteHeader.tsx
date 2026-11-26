@@ -18,6 +18,7 @@ interface SiteHeaderProps {
   canSetUpAccount?: boolean
   onShowNotes: () => void
   onShowLists: () => void
+  onShowCards: () => void
   // The My account page (Account settings in the menu).
   onShowAccount: () => void
   onLogIn: () => void
@@ -26,7 +27,7 @@ interface SiteHeaderProps {
 
 // The top of every page: the emblem and the name of the site, on a phone the button for the menu, and at the far
 // right the account icon with its menu (AccountMenu.tsx; it replaced the row of account links on 2026-11-23).
-function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, canSetUpAccount = true, onShowNotes, onShowLists, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
+function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, user, onSetUpAccount, canSetUpAccount = true, onShowNotes, onShowLists, onShowCards, onShowAccount, onLogIn, onLogOut }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -60,6 +61,7 @@ function SiteHeader({ title, iconAddress, isMenuOpen, onToggleMenu, onGoHome, us
         onShowAccount={onShowAccount}
         onShowNotes={onShowNotes}
         onShowLists={onShowLists}
+        onShowCards={onShowCards}
         onLogIn={onLogIn}
         onSetUpAccount={onSetUpAccount}
         onLogOut={onLogOut}

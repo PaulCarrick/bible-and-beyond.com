@@ -63,6 +63,10 @@ def parse_arguments(arguments=None):
   sent_copy = commands.add_parser("sent-copy")
   sent_copy.add_argument("--group", type=int, required=True)
   sent_copy.add_argument("--message", type=int, required=True)
+  # The administrator's own saved verse cards (saved_cards.admin_cards), to attach one to a message.
+  my_cards = commands.add_parser("my-cards")
+  my_cards.add_argument("--drupal-uid", type=int, required=True)
+  my_cards.add_argument("--email", default="")
   commands.add_parser("preview-verse")
   commands.add_parser("preview-picture")
   send = commands.add_parser("send")
@@ -142,6 +146,10 @@ def run(arguments) -> dict:
     return {"ok": True, "schedule": group_schedules.remove_schedule(arguments.group, arguments.schedule)}
   if command == "test-schedule":
     return {"ok": True, **group_schedules.send_test(arguments.group, arguments.schedule)}
+  if command == "my-cards":
+    import saved_cards
+
+    return {"ok": True, **saved_cards.admin_cards(arguments.drupal_uid, arguments.email)}
   if command == "preview-verse":
     return {"ok": True, "preview": groups.preview_verse()}
   if command == "preview-picture":

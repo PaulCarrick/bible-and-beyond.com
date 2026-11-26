@@ -446,7 +446,7 @@ def preview_picture(text: str) -> dict:
 def compose_email(
   settings: dict, group: dict, token: str | None, subject: str, text: str, verse: dict | None, card, reached: int = 0,
   personal: bool = False, html: str | None = None, schedule: dict | None = None, to_address: str | None = None,
-  signature: dict | None = None, show_sent_by: bool = True,
+  signature: dict | None = None, show_sent_by: bool = True, card_attachment: bool = False,
 ) -> EmailMessage:
   """One copy of a group email. show_sent_by: False leaves out the "Sent by … through …" line of the foot
   ("Add the “Sent by …” line", 2026-11-23); the member's stop links stay. Its To is the leader, never the member: send it with send_email(..., [member's
@@ -461,7 +461,8 @@ def compose_email(
   scheduled email only and for all the group's scheduled emails (schedule_stop_link; stop_schedule_with_token),
   and its one-click header stops this scheduled email only. Neither takes the member out of the group.
   signature ({html, text}): the signature chosen for a scheduled email (2026-11-19, the owner's request: "Each
-  schedule can have a different signature"), after the words and before the foot."""
+  schedule can have a different signature"), after the words and before the foot. card_attachment: the card is the
+  leader's saved verse card attached to a message (2026-11-26): shown in the email and attached as a JPEG."""
   title = get_public_settings()["title"]
   site = site_link("").rstrip("?")
   email = EmailMessage()
@@ -521,6 +522,8 @@ def compose_email(
     email.add_alternative(f"<html><body>{html}<hr>{foot}</body></html>", subtype="html")
   if verse:
     message_cards.attach_to_email(email, card, f"{verse['text']} {verse['caption']}", link=verse_a_day.verse_link(verse["verse"]), linked_lines=2)
+  elif card is not None and card_attachment:
+    message_cards.attach_card_file(email, card, text)
   elif card is not None:
     message_cards.attach_to_email(email, card, text)
   return email
@@ -567,8 +570,27 @@ def _prepare(group: dict, kind: str, details: dict) -> tuple:
     else:
       text = _text(details.get("text", ""), "message" if kind == "message" else "words for the picture", MESSAGE_LIMIT if kind == "message" else PICTURE_TEXT_LIMIT)
     words, link = f"{group['name']}: {subject}. {text}", ""
+    if kind == "message" and details.get("saved_card"):
+      card = _saved_card(details)
 
   return subject, text, verse, card, words, link, html
+
+
+def _saved_card(details: dict):
+  """The leader's own saved verse card for a message (details["saved_card"], with details["admin"]: their Drupal
+  uid and email, to find their site account; saved_cards.account_for_admin), copied so a text can fetch it."""
+  import saved_cards
+
+  admin = details.get("admin") or {}
+  try:
+    account = saved_cards.account_for_admin(int(admin.get("uid") or 0), str(admin.get("email") or ""))
+    if account is None:
+      raise GroupProblem("Your Drupal account is not linked to a site account, so it has no saved cards.")
+    return saved_cards.card_for_sending(account["id"], int(details["saved_card"]))
+  except (TypeError, ValueError) as error:
+    raise GroupProblem("That card could not be found.") from error
+  except saved_cards.SavedCardProblem as problem:
+    raise GroupProblem(f"The card could not be attached: {problem}") from problem
 
 
 def send(
@@ -585,6 +607,7 @@ def send(
   # A scheduled email's signature ({html, text}; group_schedules), in every copy of it.
   signature = (schedule or {}).get("signature")
   subject, text, verse, card, words, link, html = _prepare(group, kind, details)
+  card_attachment = kind == "message"
 
   with connect() as connection:
     members = connection.execute(
@@ -613,7 +636,7 @@ def send(
       if settings is None:
         settings = load_mail_settings()
       # The member is the hidden recipient; the To shows the leader.
-      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html, signature=signature, show_sent_by=show_sent_by), [address])
+      send_email(settings, compose_email(settings, group, token, subject, text, verse, card, schedule=schedule, html=html, signature=signature, show_sent_by=show_sent_by, card_attachment=card_attachment), [address])
       bcc.append(address)
 
     try:
@@ -639,7 +662,7 @@ def send(
     try:
       if settings is None:
         settings = load_mail_settings()
-      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html, signature=signature, show_sent_by=show_sent_by), [group["owner_email"]])
+      send_email(settings, compose_email(settings, group, None, subject, text, verse, card, reached, html=html, signature=signature, show_sent_by=show_sent_by, card_attachment=card_attachment), [group["owner_email"]])
       leader_copy = True
     except Exception as problem:
       logger.error("Group %s leader's copy not sent: %s", group_id, type(problem).__name__)
@@ -657,6 +680,7 @@ def send(
       copy = compose_email(
         settings, group, STOP_CODE_PLACEHOLDER if bcc else None, subject, text, verse, card, reached,
         schedule=schedule if bcc else None, html=html, signature=signature, show_sent_by=show_sent_by,
+        card_attachment=card_attachment,
       )
       keep_copy(connection, message_id, copy, bcc, leader_copy)
   return counts
@@ -679,6 +703,7 @@ def send_test(group_id: int, kind: str, details: dict, schedule: dict | None = N
     email = compose_email(
       settings, group, secrets.token_urlsafe(24), subject, text, verse, card, schedule=schedule, html=html,
       signature=(schedule or {}).get("signature"), show_sent_by=details.get("show_sent_by", True) is not False,
+      card_attachment=kind == "message",
     )
     send_email(settings, email, [group["owner_email"]])
   except MailUnavailable as problem:

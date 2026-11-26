@@ -173,6 +173,24 @@ class SiteUserForm extends FormBase {
           : $this->t('A closed account cannot log in and gets no emails or texts; everything in it is kept. Members close their own on My account.'),
       ];
     }
+    // The Drupal administrator account this site account belongs to (added 2026-11-26): the administrator's
+    // saved verse cards (My cards) are offered on a group's Send a message. Without one chosen, a Drupal account
+    // is matched to the site account with the same email address.
+    if ($user !== NULL) {
+      $administrators = [0 => (string) $this->t('- None: matched by email address -')];
+      foreach (\Drupal::entityTypeManager()->getStorage('user')->loadByProperties(['status' => 1]) as $account) {
+        if ($account->id()) {
+          $administrators[(int) $account->id()] = $account->getDisplayName() . ($account->getEmail() ? ' (' . $account->getEmail() . ')' : '');
+        }
+      }
+      $form['drupal_uid'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Drupal administrator account'),
+        '#options' => $administrators,
+        '#default_value' => (int) ($user['drupal_uid'] ?? 0),
+        '#description' => $this->t('The admin account of the same person, if they have one. Their saved verse cards (My cards on the site) can then be attached to a group\'s Send a message. With none chosen, an admin account is matched to the site account with the same email address. One site account for each admin account.'),
+      ];
+    }
     $form['password'] = [
       '#type' => 'password_confirm',
       '#title' => $user === NULL ? $this->t('Password') : $this->t('New password'),
@@ -246,7 +264,7 @@ class SiteUserForm extends FormBase {
         $this->messenger()->addStatus($this->t('Added the account @email.', ['@email' => $user['email'] ?: $user['phone']]));
       }
       else {
-        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts, $texts);
+        $user = $this->manager->updateSiteUser((int) $userId, $email, $password, $emailVerified, $openAiQueries, $useConversations, $seePrivatePrayers, $profile, $useMaps, (bool) $form_state->getValue('closed'), (bool) $form_state->getValue('phone_verified'), $shareLists, $getConversationPosts, $texts, (int) $form_state->getValue('drupal_uid'));
         $this->messenger()->addStatus($password === ''
           ? $this->t('Saved @email.', ['@email' => $user['email'] ?: $user['phone']])
           : $this->t('Saved @email with the new password; it has been logged out everywhere.', ['@email' => $user['email'] ?: $user['phone']]));

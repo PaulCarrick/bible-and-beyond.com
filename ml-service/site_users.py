@@ -11,6 +11,7 @@ import secrets
 import psycopg
 
 import head_shots
+import saved_cards
 
 from accounts import AccountProblem, check_new_password, check_profile, hash_password, normalize_email
 from search import connect
@@ -30,7 +31,7 @@ _COLUMNS = """
   users.use_maps, (SELECT count(*) FROM map_marks WHERE map_marks.user_id = users.id), users.disabled_at,
   users.phone_verified_at IS NOT NULL, users.login_phone, users.share_lists,
   (SELECT count(*) FROM saved_lists WHERE saved_lists.user_id = users.id AND saved_lists.shared_at IS NOT NULL),
-  users.get_conversation_posts
+  users.get_conversation_posts, users.drupal_uid
 """
 
 
@@ -73,6 +74,9 @@ def _describe(row) -> dict:
     "shared_list_count": row[21],
     # Emailed every new Conversations post and reply (conversations.send_new_post_emails; 2026-11-22).
     "get_conversation_posts": row[22],
+    # The Drupal administrator account this site account belongs to (saved_cards.account_for_admin; 2026-11-26),
+    # None when it is matched by email address only.
+    "drupal_uid": row[23],
   }
 
 
@@ -246,8 +250,10 @@ def update_user(
   closed: bool | None = None,
   phone_verified: bool | None = None,
   texts: bool | None = None,
+  drupal_uid: int | None = None,
 ) -> dict:
-  """Changes what is given and leaves the rest. A new password logs the account out everywhere. An empty
+  """Changes what is given and leaves the rest. drupal_uid: the Drupal administrator account this site account
+  belongs to (0 unlinks it; another site account linked to that Drupal account is unlinked). A new password logs the account out everywhere. An empty
   name or phone ("") clears it. closed: False reopens an account its owner closed (it can log in again and get
   emails); True closes it, as the owner's Close my account does but with no email. An empty email ("") leaves the
   account with only its phone: it then logs in with that number (which must be a US or Canadian cell number), and
@@ -338,12 +344,18 @@ def update_user(
       # The stop link of its emails (made once, kept when the box is unticked and ticked again).
       changes.append("conversation_posts_token = COALESCE(conversation_posts_token, %s)")
       values.append(secrets.token_urlsafe(24))
+  if drupal_uid is not None:
+    changes.append("drupal_uid = %s")
+    values.append(drupal_uid or None)
   if closed is not None and closed != current["closed"]:
     changes.append("disabled_at = CASE WHEN %s THEN now() END")
     values.append(closed)
   if changes:
     try:
       with connect() as connection:
+        if drupal_uid:
+          # One site account for each Drupal account.
+          connection.execute("UPDATE users SET drupal_uid = NULL WHERE drupal_uid = %s AND id <> %s", (drupal_uid, user_id))
         connection.execute(f"UPDATE users SET {', '.join(changes)} WHERE id = %s", (*values, user_id))
         if closed:
           connection.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
@@ -372,6 +384,8 @@ def delete_user(user_id: int) -> dict:
   CASCADE)."""
   user = get_user(user_id)
   with connect() as connection:
+    # Their saved cards' pictures (saved_cards.py); the rows go with the account.
+    saved_cards.remove_all(connection, user_id)
     connection.execute("DELETE FROM users WHERE id = %s", (user_id,))
   # Their head shot (head_shots.py) goes too.
   head_shots.path_for(user_id).unlink(missing_ok=True)

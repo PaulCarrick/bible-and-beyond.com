@@ -19,6 +19,7 @@ import time
 from email.message import EmailMessage
 
 import message_cards
+import saved_cards
 import sms
 import verse_images
 from accounts import site_link
@@ -176,18 +177,32 @@ def compose_email(settings: dict, address: str, found: dict, card, sender: dict)
   return email
 
 
+def save(user_id: int, translation: str, book: int, chapter: int, verse: int, background_id: str, card_id: int | None = None) -> dict:
+  """Draws the card and keeps it on the member's My cards (saved_cards.py); card_id: the saved card being edited.
+  The page calls it when a logged-in member downloads a card."""
+  found, picture = _draw(translation, book, chapter, verse, background_id)
+  try:
+    return saved_cards.keep(user_id, found, background_id, picture, card_id)
+  except saved_cards.SavedCardProblem as problem:
+    raise CardProblem(str(problem), problem.status_code)
+
+
 def send(
   sender: dict,
-  translation: str,
-  book: int,
-  chapter: int,
-  verse: int,
-  background_id: str,
+  translation: str | None,
+  book: int | None,
+  chapter: int | None,
+  verse: int | None,
+  background_id: str | None,
   recipient_id: int | None = None,
   email_address: str | None = None,
+  saved_card_id: int | None = None,
+  editing_card_id: int | None = None,
 ) -> dict:
-  """Sends the card to a site user (recipient_id) or an email address. Returns {"sent_to": a name or the address
-  typed, "ways": [...]}."""
+  """Sends the card to a site user (recipient_id) or an email address: the one drawn from the verse and background
+  (and then kept on the sender's My cards, replacing editing_card_id when given), or the sender's saved card
+  saved_card_id as it was kept. Returns {"sent_to": a name or the address typed, "ways": [...], "card": the saved
+  card}."""
   email_address = (email_address or "").strip()
   if (recipient_id is None) == (not email_address):
     raise CardProblem("Choose a site user or type an email address, not both.")
@@ -199,8 +214,20 @@ def send(
     if recipient is None:
       raise CardProblem("That site user cannot be sent a card.")
   _check_limit(sender["id"])
-  found, picture = _draw(translation, book, chapter, verse, background_id)
-  card = message_cards.save_card(picture)
+  if saved_card_id is not None:
+    try:
+      kept = saved_cards.get_card(sender["id"], saved_card_id)
+      card = saved_cards.card_for_sending(sender["id"], saved_card_id)
+    except saved_cards.SavedCardProblem as problem:
+      raise CardProblem(str(problem), problem.status_code)
+    found = {
+      "text": kept["words"], "caption": kept["caption"], "reference": kept["reference"],
+      "verse": {key: kept[key] for key in ("translation", "book", "chapter", "verse")},
+    }
+    picture = None
+  else:
+    found, picture = _draw(translation, book, chapter, verse, background_id)
+    card = message_cards.save_card(picture)
   try:
     settings = load_mail_settings()
   except MailUnavailable:
@@ -216,7 +243,7 @@ def send(
       raise CardProblem("The card could not be sent. Please try again later.", 502)
     _count_send(sender["id"])
     logger.info("Member %s emailed a verse card to an address", sender["id"])
-    return {"sent_to": email_address, "ways": ["email"]}
+    return {"sent_to": email_address, "ways": ["email"], "card": _keep_sent(sender, found, background_id, picture, editing_card_id, saved_card_id)}
 
   with connect() as connection:
     row = connection.execute(
@@ -240,4 +267,18 @@ def send(
     raise CardProblem(f"The card could not be sent to {recipient['name']}. They may not have a confirmed email address or a number for texts.", 502)
   _count_send(sender["id"])
   logger.info("Member %s sent a verse card to member %s (%s)", sender["id"], recipient_id, ", ".join(ways))
-  return {"sent_to": recipient["name"], "ways": ways}
+  return {"sent_to": recipient["name"], "ways": ways, "card": _keep_sent(sender, found, background_id, picture, editing_card_id, saved_card_id)}
+
+
+def _keep_sent(sender: dict, found: dict, background_id, picture, editing_card_id, saved_card_id) -> dict | None:
+  """A card that went is kept on the sender's My cards (a saved card sent again is already there). A failure to
+  keep it never undoes the send."""
+  try:
+    if saved_card_id is not None:
+      kept = saved_cards.get_card(sender["id"], saved_card_id)
+      kept.pop("file_name", None)
+      return kept
+    return saved_cards.keep(sender["id"], found, background_id, picture, editing_card_id)
+  except Exception as problem:
+    logger.error("A sent verse card was not kept: %s", type(problem).__name__)
+    return None

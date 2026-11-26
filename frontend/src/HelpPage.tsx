@@ -850,7 +850,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           (each shown as a small picture), and the card appears. <em>Download the card</em> saves it. When you are
           logged in you can also send it: to someone on this site, chosen by name (they get it the way they chose on
           their account, by email, text or both), or to any email address you type. The email says it is from you,
-          and replies go to your own email address. You can send up to 20 cards a day.
+          and replies go to your own email address. You can send up to 20 cards a day. Every card you download or
+          send while logged in is kept on <strong>My cards</strong> (in the menu of the account icon at the top
+          right), where you can edit it (change its Bible, verse or background), download it again, send it or
+          delete it. The verse of the day picture itself is not kept there.
         </p>
         <Screenshot
           name="verse-of-the-day"

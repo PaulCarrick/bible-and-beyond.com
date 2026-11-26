@@ -3243,6 +3243,59 @@ div.welcome-lead > p {
   }
 }
 
+/* My cards (MyCardsPage.tsx): the member's saved verse cards. */
+.my-cards-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.my-card {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.my-card img {
+  width: 160px;
+  height: auto;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.my-card-details {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.my-card-caption {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.my-card-confirm {
+  margin: 0.5rem 0;
+}
+
+.my-card .custom-card-send {
+  margin-top: 0.75rem;
+}
+
+.my-cards .success {
+  color: #1d7a3a;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .my-cards .success {
+    color: #6fd08f;
+  }
+}
+
 /* "How should we send you messages?": Send via Email and Send via SMS (TextMessageChoices.tsx). */
 .delivery-choices {
   margin: 0.25rem 0 0;

@@ -340,6 +340,27 @@ def attach_to_email(email, card: MessageCard | None, alternative_text: str = "",
     html_part.add_related(card.path.read_bytes(), "image", "jpeg", cid=f"<{card.content_id}>", filename="verse.jpg")
 
 
+def attach_card_file(email, card: MessageCard, alternative_text: str = "") -> None:
+  """A member's saved verse card attached to a group message (saved_cards.py; 2026-11-26): shown in the email's
+  HTML (cid:, above the words; an HTML version is made when the message had none) and attached as a JPEG they can
+  save."""
+  import re
+  from html import escape
+
+  if not email.is_multipart():
+    attach_to_email(email, card, alternative_text)
+  else:
+    html_part = email.get_body(preferencelist=("html",))
+    picture = (
+      f'<p><img src="cid:{card.content_id}" alt="{escape(alternative_text[:300])}" width="540" '
+      'style="max-width:100%;height:auto;border-radius:8px;border:0;"></p>'
+    )
+    content, found = re.subn(r"(<body[^>]*>)", lambda match: match.group(1) + picture, html_part.get_content(), count=1)
+    html_part.set_content(content if found else picture + content, subtype="html")
+    html_part.add_related(card.path.read_bytes(), "image", "jpeg", cid=f"<{card.content_id}>", filename="verse.jpg")
+  email.add_attachment(card.path.read_bytes(), maintype="image", subtype="jpeg", filename="verse-card.jpg")
+
+
 # --- what goes on the card ---------------------------------------------------------------------------------
 
 REFERENCE_LINE = re.compile(r"^[1-3]?\s?[A-Z][A-Za-z. ]+\s\d+:\d+(?:[-–,]\s?\d+)*\.?$")

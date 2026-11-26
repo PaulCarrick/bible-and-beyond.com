@@ -78,6 +78,8 @@ def parse_arguments():
   update.add_argument("--closed", type=yes_or_no)
   update.add_argument("--phone-verified", type=yes_or_no)
   update.add_argument("--texts", type=yes_or_no)
+  # The Drupal administrator account it belongs to (0: none, matched by email address only).
+  update.add_argument("--drupal-uid", type=int)
   update.add_argument("--password-on-input", action="store_true")
   return parser.parse_args()
 
@@ -131,6 +133,7 @@ def run(arguments) -> dict:
     closed=arguments.closed,
     phone_verified=arguments.phone_verified,
     texts=arguments.texts,
+    drupal_uid=arguments.drupal_uid,
   )
   return {"ok": True, "user": user}
 

@@ -698,22 +698,71 @@ export async function fetchCardRecipients(): Promise<{ id: number; name: string 
   return (await readJson<{ recipients: { id: number; name: string }[] }>(response)).recipients
 }
 
+// The card to send: one drawn from a verse and background (cardId: the saved card being edited, which it then
+// replaces), or one of the member's saved cards as it was kept.
+export type CardToSend = { verse: CardVerse; background: string; cardId?: number } | { savedCardId: number }
+
 export async function sendCustomCard(
-  verse: CardVerse,
-  background: string,
+  card: CardToSend,
   to: { recipientId: number } | { email: string },
-): Promise<{ sent_to: string; ways: string[] }> {
+): Promise<{ sent_to: string; ways: string[]; card: SavedCard | null }> {
   const response = await fetch(`${mlServiceUrl}/day-card/send`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      ...verse,
-      background,
+      ...('savedCardId' in card
+        ? { saved_card_id: card.savedCardId }
+        : { ...card.verse, background: card.background, card_id: card.cardId ?? null }),
       ...('recipientId' in to ? { recipient_id: to.recipientId } : { email: to.email }),
     }),
   })
   return readJson(response)
+}
+
+// My cards (saved_cards.py): every card a logged-in member downloads or sends is kept there.
+export interface SavedCard extends CardVerse {
+  id: number
+  background: string
+  reference: string
+  caption: string
+  words: string
+  // Addresses on the ML service, served to the member's own session only.
+  image: string
+  thumbnail: string
+  created_at: string
+}
+
+export function savedCardAddress(path: string): string {
+  return `${mlServiceUrl}${path}`
+}
+
+export async function saveCustomCard(verse: CardVerse, background: string, cardId?: number): Promise<SavedCard> {
+  const response = await fetch(`${mlServiceUrl}/saved-cards`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...verse, background, card_id: cardId ?? null }),
+  })
+  return (await readJson<{ card: SavedCard }>(response)).card
+}
+
+export async function fetchSavedCards(): Promise<SavedCard[]> {
+  const response = await fetch(`${mlServiceUrl}/saved-cards`, { credentials: 'include' })
+  return (await readJson<{ cards: SavedCard[] }>(response)).cards
+}
+
+export async function deleteSavedCard(id: number): Promise<void> {
+  await readJson(await fetch(`${mlServiceUrl}/saved-cards/${id}`, { method: 'DELETE', credentials: 'include' }))
+}
+
+// A saved card's picture as a file to save (fetched with the login cookie, so it works across the ports locally).
+export async function savedCardPicture(card: SavedCard): Promise<Blob> {
+  const response = await fetch(savedCardAddress(card.image), { credentials: 'include' })
+  if (!response.ok) {
+    throw new Error('The card could not be downloaded.')
+  }
+  return response.blob()
 }
 
 // The verse a day (logged-in members): null when the member does not get it.

@@ -498,7 +498,7 @@ class BibleManager {
    * @param array $profile
    *   first_name, last_name and phone; an empty one clears it.
    */
-  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL, ?bool $getConversationPosts = NULL, ?bool $texts = NULL): array {
+  public function updateSiteUser(int $userId, string $email, string $password, bool $emailVerified, bool $openAiQueries, bool $useConversations, bool $seePrivatePrayers, array $profile, bool $useMaps = FALSE, ?bool $closed = NULL, ?bool $phoneVerified = NULL, ?bool $shareLists = NULL, ?bool $getConversationPosts = NULL, ?bool $texts = NULL, ?int $drupalUid = NULL): array {
     $before = $closed === NULL && $texts === NULL ? NULL : $this->getSiteUser($userId);
     $arguments = [
       'update',
@@ -525,6 +525,10 @@ class BibleManager {
     }
     if ($texts !== NULL) {
       $arguments[] = '--texts=' . ($texts ? 'yes' : 'no');
+    }
+    if ($drupalUid !== NULL) {
+      // The Drupal administrator account it belongs to (0: none, matched by email address).
+      $arguments[] = '--drupal-uid=' . max(0, $drupalUid);
     }
     $input = NULL;
     if ($password !== '') {
@@ -1035,6 +1039,18 @@ class BibleManager {
   /**
    * A random well-known verse as a card: card (its saved name), image (a data: address), words, caption, verse.
    */
+  /**
+   * The current administrator's site account (linked on Site users, else the one with their email address) and
+   * its newest saved verse cards, each with a thumbnail as a data: address: {account, cards}.
+   */
+  public function adminSavedCards(): array {
+    return $this->run([
+      'my-cards',
+      '--drupal-uid=' . (int) $this->currentUser->id(),
+      '--email=' . (string) $this->currentUser->getEmail(),
+    ], 'manage_groups.py');
+  }
+
   public function previewGroupVerse(): array {
     return $this->run(['preview-verse'], 'manage_groups.py')['preview'];
   }
@@ -1053,6 +1069,10 @@ class BibleManager {
   public function sendToGroup(int $groupId, string $kind, array $details): array {
     $group = $this->getGroup($groupId);
     $details['sent_by'] = $this->currentUser->getAccountName();
+    // A saved verse card is looked up among the cards of the person sending (their site account; saved_cards.py).
+    if (!empty($details['saved_card'])) {
+      $details['admin'] = ['uid' => (int) $this->currentUser->id(), 'email' => (string) $this->currentUser->getEmail()];
+    }
     $counts = $this->run(['send', '--group=' . $groupId, '--kind=' . $kind], 'manage_groups.py', $this->groupInput($details), self::GROUP_SEND_TIMEOUT_SECONDS)['counts'];
     $this->logger->notice('@user sent a @kind to the group “@name” (@id): @emailed emailed, @texted texted, @skipped skipped, @failed failed.', [
       '@user' => $this->currentUser->getAccountName(),

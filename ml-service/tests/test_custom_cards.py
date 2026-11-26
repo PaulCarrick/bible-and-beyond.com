@@ -119,7 +119,7 @@ def test_a_card_to_a_site_user_goes_their_way_with_the_sender_and_created_by_lin
   register("ann", first_name="Ann", last_name="Smith")
   answer = client.post("/day-card/send", json=card(recipient_id=ruth["id"]))
   assert answer.status_code == 200, answer.text
-  assert answer.json() == {"sent_to": "Ruth Lee", "ways": ["email"]}
+  assert {key: answer.json()[key] for key in ("sent_to", "ways")} == {"sent_to": "Ruth Lee", "ways": ["email"]}
   email = outbox["emails"][0]
   assert email["To"] == f"ruth@{DOMAIN}"
   assert email["Reply-To"] == f"ann@{DOMAIN}"
@@ -152,7 +152,7 @@ def test_a_card_to_a_typed_address_and_the_checks(outbox):
   register("ann", first_name="Ann", last_name="Smith")
   answer = client.post("/day-card/send", json=card(email="friend@example.test"))
   assert answer.status_code == 200, answer.text
-  assert answer.json() == {"sent_to": "friend@example.test", "ways": ["email"]}
+  assert {key: answer.json()[key] for key in ("sent_to", "ways")} == {"sent_to": "friend@example.test", "ways": ["email"]}
   assert outbox["emails"][-1]["To"] == "friend@example.test"
   assert client.post("/day-card/send", json=card(email="not an address")).status_code == 422
   assert client.post("/day-card/send", json=card()).status_code == 422

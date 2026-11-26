@@ -143,7 +143,7 @@ def test_a_backup_is_three_zips_of_one_backup(site):
   assert manifest["backup"] == stems.pop()
   assert manifest["set"] == [path.name for path in paths]
   assert manifest["note"] == "Before the move"
-  assert manifest["counts"] == {"Music files": 2, "Drupal files": 1, "Site icons": 1, "Kindle book pictures": 0, "Head shots": 0, "Pictures of uploaded documents": 0, "Original pages of PDFs": 0, "Map files": 0, "Verse a day picture files": 0}
+  assert manifest["counts"] == {"Music files": 2, "Drupal files": 1, "Site icons": 1, "Kindle book pictures": 0, "Head shots": 0, "Saved cards": 0, "Pictures of uploaded documents": 0, "Original pages of PDFs": 0, "Map files": 0, "Verse a day picture files": 0}
   # The database password went to pg_dump in its environment, not on its command line.
   assert (site["log"] / "pg_dump.password").read_text().strip() == "secret-word"
   assert site_backup.describe()["waiting"] == [{"name": path.name, "size": path.stat().st_size, "part": part} for part, path in zips.items()]

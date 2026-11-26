@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useId, useMemo, useState } from 'react'
 import {
   cardBackgroundAddress,
   fetchBibleChapter,
@@ -6,14 +6,22 @@ import {
   fetchCardBackgrounds,
   fetchCardRecipients,
   fetchCustomCard,
+  saveCustomCard,
   sendCustomCard,
 } from './api'
-import type { CardBackground, CardVerse, DayCard } from './api'
+import type { CardBackground, CardToSend, CardVerse, DayCard, SavedCard } from './api'
 import { AccountContext } from './AccountContext'
 import type { BibleContents, BibleVerse, Translation } from './types'
 
 interface CustomCardMakerProps {
   translations: Translation[]
+  // A saved card being edited (My cards' Edit): the maker starts on it, and saving, downloading or sending the
+  // card replaces it.
+  editing?: SavedCard
+  // A card was kept on My cards (downloaded, sent or saved).
+  onSaved?: (card: SavedCard) => void
+  // Edit only: back to the list (Cancel, or after Save changes).
+  onClose?: () => void
 }
 
 // Where the maker starts: John 3:16 in the BSB (else the first Bible stored here).
@@ -24,20 +32,24 @@ const PLAIN = 'plain'
 // a Bible stored on this site, a verse and a background (the verse a day pictures in use, as thumbnails, or plain
 // blue), see the card, then download it, or (logged in) send it to a site user chosen by name or to an email
 // address. The card is drawn on the server like the Verse of the day (custom_cards.py); sending draws it again
-// there, so what is sent is what was shown.
-function CustomCardMaker({ translations }: CustomCardMakerProps) {
+// there, so what is sent is what was shown. A logged-in member's card is kept on My cards whenever they download or
+// send it (saved_cards.py; the owner's request, 2026-11-26), and My cards opens it here again to edit it.
+function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCardMakerProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const bibles = useMemo(() => translations.filter((translation) => translation.source === 'local'), [translations])
   // The Bible chosen; until one is, the BSB when it is here, else the first one.
-  const [pickedTranslation, setTranslation] = useState('')
+  const [pickedTranslation, setTranslation] = useState(editing?.translation ?? '')
   const translation = pickedTranslation || (bibles.find((bible) => bible.code === 'BSB') ?? bibles[0])?.code || ''
   const [contents, setContents] = useState<BibleContents | null>(null)
-  const [book, setBook] = useState(STARTING_VERSE.book)
-  const [chapter, setChapter] = useState(STARTING_VERSE.chapter)
+  const [book, setBook] = useState(editing?.book ?? STARTING_VERSE.book)
+  const [chapter, setChapter] = useState(editing?.chapter ?? STARTING_VERSE.chapter)
   const [verses, setVerses] = useState<BibleVerse[]>([])
-  const [verse, setVerse] = useState(STARTING_VERSE.verse)
+  const [verse, setVerse] = useState(editing?.verse ?? STARTING_VERSE.verse)
   const [backgrounds, setBackgrounds] = useState<CardBackground[]>([])
-  const [background, setBackground] = useState(PLAIN)
+  const [background, setBackground] = useState(editing?.background ?? PLAIN)
+  // What happened to the card on My cards ("Kept on My cards."), and whether it is being saved.
+  const [keptMessage, setKeptMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   const [card, setCard] = useState<DayCard | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [problem, setProblem] = useState('')
@@ -46,10 +58,14 @@ function CustomCardMaker({ translations }: CustomCardMakerProps) {
     fetchCardBackgrounds()
       .then((found) => {
         setBackgrounds(found)
-        // Start on the first picture, when there is one.
-        setBackground(found[0]?.id ?? PLAIN)
+        // Start on the first picture, when there is one (a card being edited keeps its own).
+        if (!editing) {
+          setBackground(found[0]?.id ?? PLAIN)
+        }
       })
       .catch(() => setBackgrounds([{ id: PLAIN, title: 'Plain blue', thumbnail: null }]))
+    // Once, when the maker opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // The books and chapters of the Bible chosen; a Bible without the book starts at its first.
@@ -135,6 +151,25 @@ function CustomCardMaker({ translations }: CustomCardMakerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chosen?.translation, chosen?.book, chosen?.chapter, chosen?.verse, background])
 
+  // Keeps the card shown on My cards (downloading it, or Save changes when editing).
+  async function keepCard(): Promise<boolean> {
+    if (!user || !chosen) {
+      return false
+    }
+    setIsSaving(true)
+    try {
+      const kept = await saveCustomCard(chosen, background, editing?.id)
+      setKeptMessage(editing ? 'Your changes were saved on My cards.' : 'It is kept on My cards.')
+      onSaved?.(kept)
+      return true
+    } catch (error) {
+      setKeptMessage(`It could not be kept on My cards: ${(error as Error).message}`)
+      return false
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (bibles.length === 0) {
     return null
   }
@@ -146,8 +181,13 @@ function CustomCardMaker({ translations }: CustomCardMakerProps) {
 
   return (
     <section className="custom-card" aria-labelledby="custom-card-heading">
-      <h2 id="custom-card-heading">Make your own card</h2>
-      <p>Choose a Bible, a verse and a background. Then download the card, or send it to someone.</p>
+      <h2 id="custom-card-heading">{editing ? 'Edit your card' : 'Make your own card'}</h2>
+      <p>
+        {editing
+          ? 'Change the Bible, the verse or the background. Save changes, download or send it, and your card on My cards is changed to match.'
+          : 'Choose a Bible, a verse and a background. Then download the card, or send it to someone.'}
+        {!editing && user && ' Every card you download or send is kept on My cards.'}
+      </p>
 
       <div className="custom-card-choices">
         <label>
@@ -246,12 +286,54 @@ function CustomCardMaker({ translations }: CustomCardMakerProps) {
       {card && (
         <>
           <div className="note-actions day-card-actions">
-            <a className="primary-button" href={card.image} download={fileName}>
+            {editing && (
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isSaving || isDrawing}
+                onClick={() => {
+                  void keepCard().then((saved) => {
+                    if (saved) {
+                      onClose?.()
+                    }
+                  })
+                }}
+              >
+                {isSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            )}
+            <a
+              className={editing ? 'secondary-button' : 'primary-button'}
+              href={card.image}
+              download={fileName}
+              onClick={() => void keepCard()}
+            >
               Download the card
             </a>
+            {editing && (
+              <button type="button" className="secondary-button" onClick={onClose}>
+                Cancel
+              </button>
+            )}
           </div>
+          {keptMessage && (
+            <p className="field-hint" role="status">
+              {keptMessage}
+            </p>
+          )}
           {user ? (
-            chosen && <SendCard verse={chosen} background={background} caption={card.caption} />
+            chosen && (
+              <SendCard
+                card={{ verse: chosen, background, cardId: editing?.id }}
+                caption={card.caption}
+                onSent={(kept) => {
+                  if (kept) {
+                    setKeptMessage(editing ? 'Your changes were saved on My cards.' : 'It is kept on My cards.')
+                    onSaved?.(kept)
+                  }
+                }}
+              />
+            )
           ) : (
             <p className="custom-card-login">
               To send the card to someone,{' '}
@@ -268,14 +350,15 @@ function CustomCardMaker({ translations }: CustomCardMakerProps) {
 }
 
 interface SendCardProps {
-  verse: CardVerse
-  background: string
+  card: CardToSend
   caption: string
+  // The card as kept on My cards after it went (null when it could not be kept).
+  onSent?: (card: SavedCard | null) => void
 }
 
 // Send the card: to a site user chosen by name (they get it the way they chose on My account: email, text or
 // both), or to an email address typed in.
-function SendCard({ verse, background, caption }: SendCardProps) {
+export function SendCard({ card, caption, onSent }: SendCardProps) {
   const { user } = useContext(AccountContext)
   const hasEmail = Boolean(user?.email)
   const [mode, setMode] = useState<'member' | 'email'>('member')
@@ -286,6 +369,7 @@ function SendCard({ verse, background, caption }: SendCardProps) {
   const [isSending, setIsSending] = useState(false)
   const [message, setMessage] = useState('')
   const [problem, setProblem] = useState('')
+  const radioName = useId()
 
   useEffect(() => {
     fetchCardRecipients()
@@ -310,9 +394,10 @@ function SendCard({ verse, background, caption }: SendCardProps) {
     }
     setIsSending(true)
     try {
-      const sent = await sendCustomCard(verse, background, mode === 'member' ? { recipientId } : { email: email.trim() })
+      const sent = await sendCustomCard(card, mode === 'member' ? { recipientId } : { email: email.trim() })
       const how = sent.ways.length === 2 ? 'by email and text' : `by ${sent.ways[0]}`
       setMessage(`The card of ${caption} was sent to ${sent.sent_to} ${how}.`)
+      onSent?.(sent.card)
     } catch (error) {
       setProblem((error as Error).message)
     } finally {
@@ -325,11 +410,11 @@ function SendCard({ verse, background, caption }: SendCardProps) {
       <legend>Send the card</legend>
       <div className="custom-card-send-to">
         <label>
-          <input type="radio" name="card-send-to" checked={mode === 'member'} onChange={() => setMode('member')} /> To
+          <input type="radio" name={radioName} checked={mode === 'member'} onChange={() => setMode('member')} /> To
           someone on this site
         </label>
         <label>
-          <input type="radio" name="card-send-to" checked={mode === 'email'} onChange={() => setMode('email')} /> To an
+          <input type="radio" name={radioName} checked={mode === 'email'} onChange={() => setMode('email')} /> To an
           email address
         </label>
       </div>

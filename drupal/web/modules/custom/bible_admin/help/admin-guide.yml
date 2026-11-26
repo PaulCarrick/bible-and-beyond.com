@@ -212,7 +212,11 @@ sections:
       <ul>
         <li><strong>Send a message</strong>: a subject and your words, written in the editor (headings, bold,
         italic, underline, strikethrough, a font, size, text colour and highlight, links, lists and quotations), which
-        the email keeps. No picture. A text is a short version with the words only. A scheduled message, Email a
+        the email keeps. A text is a short version with the words only. <em>Add one of your verse cards</em> lists
+        the cards on My cards of your own account on the site (made with Make your own card on the Verse of the day
+        page); one chosen is shown in the email, attached to it as a picture to save, and sent as a picture text to
+        members who get texts. Your admin account finds your site account by its email address, or by the
+        <em>Drupal administrator account</em> chosen on your Site users entry. A scheduled message, Email a
         member, the group's notes, signatures and tasks use the same editor; the words for a picture stay plain, as
         they are written onto the picture.</li>
         <li><strong>Send a verse card</strong>: a well-known Bible verse chosen at random, written over one of the
@@ -465,6 +469,9 @@ sections:
         <li><em>Get Conversation Posts</em>: emails them every new post and every new reply in Conversations (not
         the Prayer Wall), except their own. It needs a confirmed email address, and each email has a link that turns
         it off again (the box is then unticked here). The list's <em>Gets posts</em> column shows who has it.</li>
+        <li><em>Drupal administrator account</em> (Edit only): the admin account of the same person, when the two have
+        different email addresses. Their saved verse cards (My cards) are then offered on a group's Send a message.
+        With none chosen, an admin account is matched to the site account with its email address.</li>
         <li><em>Gets private prayer requests</em>: for the site's own administrators, whose weekly prayer list email
         then holds the private requests too.</li>
         <li>A password, twice (8 to 128 characters). Left empty when editing, it stays as it is; a new one logs them

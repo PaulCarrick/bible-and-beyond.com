@@ -26,6 +26,7 @@ choose Database (the first two) and Files (the third):
                                              settings screen (site_icons.py), if any
             files/kindle-covers/...          the pictures of the Kindle books (kindle_books.py), if any
             files/head-shots/...             members' head shots (head_shots.py), if any
+            files/saved-cards/...            members' saved verse cards (saved_cards.py), if any
             files/library-images/...         the pictures of PDF and Word uploads (document_import.py)
             files/library-pages/...          the pages of PDFs kept with "Preserve original pages"
             files/maps/...                   the maps as uploaded and the copies the site shows (maps.py)
@@ -72,6 +73,7 @@ import document_import
 import maps
 import verse_images
 import head_shots
+import saved_cards
 import kindle_books
 import site_icons
 from search import connect
@@ -100,6 +102,7 @@ DRUPAL_FILES = "files/drupal/"
 ICONS = "files/icons/"
 KINDLE_COVERS = "files/kindle-covers/"
 HEAD_SHOTS = "files/head-shots/"
+SAVED_CARDS = "files/saved-cards/"
 LIBRARY_IMAGES = "files/library-images/"
 LIBRARY_PAGES = "files/library-pages/"
 MAPS = "files/maps/"
@@ -446,6 +449,7 @@ def _build_files_part(archive: zipfile.ZipFile, scratch: Path, counts: dict, rep
   counts["Site icons"] = _add_folder(archive, site_icons.icons_folder(), ICONS)
   counts["Kindle book pictures"] = _add_folder(archive, kindle_books.covers_folder(), KINDLE_COVERS)
   counts["Head shots"] = _add_folder(archive, head_shots.folder(), HEAD_SHOTS)
+  counts["Saved cards"] = _add_folder(archive, saved_cards.folder(), SAVED_CARDS)
   counts["Pictures of uploaded documents"] = _add_folder(archive, document_import.images_folder(), LIBRARY_IMAGES)
   counts["Original pages of PDFs"] = _add_folder(archive, document_import.pages_folder(), LIBRARY_PAGES)
   counts["Map files"] = _add_folder(archive, maps.maps_folder(), MAPS)
@@ -631,6 +635,8 @@ def _restore_parts(sources: dict, scratch: Path, report):
     _extract_folder(archive, KINDLE_COVERS, kindle_books.covers_folder())
     # Members' head shots, named by account number like the rows the database part brings back.
     _extract_folder(archive, HEAD_SHOTS, head_shots.folder())
+    # Members' saved verse cards (older backups have none).
+    _extract_folder(archive, SAVED_CARDS, saved_cards.folder())
     # Pictures are named by their contents, so those of the backup are added to any already here.
     _extract_folder(archive, LIBRARY_IMAGES, document_import.images_folder())
     # Likewise the kept pages (each PDF's folder is named by its contents).
