@@ -15,6 +15,7 @@ const sections = [
   { id: 'help-getting-around', title: 'Finding your way around' },
   { id: 'help-search-everything', title: 'Search everything' },
   { id: 'help-read-bible', title: 'Reading the Bible' },
+  { id: 'help-listen', title: 'Listening' },
   { id: 'help-verse-menu', title: 'The verse menu' },
   { id: 'help-original-words', title: 'The Hebrew and Greek words' },
   { id: 'help-search-bible', title: 'Searching the Bible' },
@@ -249,6 +250,23 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
         />
       </section>
 
+      <section id="help-listen" tabIndex={-1} className="help-section">
+        <h2>Listening</h2>
+        <p>
+          In <PageLink onNavigate={onNavigate} view="read">Read the Bible</PageLink>, press <strong>▶ Listen</strong>{' '}
+          beside a chapter&rsquo;s name, or choose <em>Listen from here</em> on a verse, to hear it read aloud. The verse
+          being read is highlighted and kept on the screen, and the reading goes on into the next chapter by itself. A
+          bar at the foot of the screen has Pause (then Resume) and Stop, and lets you choose the voice and the speed
+          (both are remembered on this device). Clicking the verse named on the bar brings it back into view. Leaving
+          the page stops the reading.
+        </p>
+        <p>
+          The voice is your device&rsquo;s own, so it sounds different on each computer or phone, and nothing is sent
+          anywhere. The licensed Bibles (NIV, NASB and The Message) are not read in the reader, so they cannot be read
+          aloud.
+        </p>
+      </section>
+
       <section id="help-verse-menu" tabIndex={-1} className="help-section">
         <h2>The verse menu</h2>
         <p>
@@ -257,6 +275,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           menu instead, so you can still copy. The menu has:
         </p>
         <ul className="welcome-tips">
+          <li>
+            <strong>Listen from here</strong>: reads the Bible aloud from this verse (see <em>Listening</em> below).
+          </li>
           <li>
             <strong>Show in Context</strong>: the verse with the verses before and after it.
           </li>

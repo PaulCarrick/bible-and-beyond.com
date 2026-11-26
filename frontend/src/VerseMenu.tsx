@@ -5,7 +5,8 @@ import { openVerseInNewTab, wantsNewTab } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 
 export interface VerseMenuItem {
-  kind: ContextKind
+  // A window to open, or 'listen': read aloud from this verse (the Bible reader; useReadAloud.ts).
+  kind: ContextKind | 'listen'
   label: string
   // Shows the verse itself (Show in Context, Full Chapter), so Shift, Ctrl or Cmd with a click, or the middle
   // button, opens the verse in the Bible reader in a new tab instead.
@@ -21,7 +22,7 @@ interface VerseMenuProps {
   items: VerseMenuItem[]
   // The verse, for the items that can open it in a new tab.
   verse: VerseInBible
-  onChoose: (kind: ContextKind) => void
+  onChoose: (kind: ContextKind | 'listen') => void
   onClose: () => void
 }
 

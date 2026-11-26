@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchBibleChapter, fetchBibleContents } from './api'
 import BackToTopButton from './BackToTop'
 import ContextWindow from './ContextWindow'
+import ReadAloudBar from './ReadAloudBar'
 import { highlightLinked } from './highlight'
 import VerseMenu from './VerseMenu'
 import type { VerseMenuItem } from './VerseMenu'
@@ -9,6 +10,8 @@ import type { BibleChapter, BibleContents, BibleVerse, ContextKind, Destination,
 import { useBackToTop } from './useBackToTop'
 import { chapterKey, useChapterStrip } from './useChapterStrip'
 import { useReaderWindows } from './useReaderWindows'
+import { canReadAloud, useReadAloud } from './useReadAloud'
+import type { ReadingPlace } from './useReadAloud'
 
 interface BibleTabProps {
   translations: Translation[]
@@ -33,6 +36,9 @@ const verseMenuItems: VerseMenuItem[] = [
   { kind: 'commentary', label: 'Commentaries' },
   { kind: 'note', label: 'Notes' },
 ]
+
+// Read aloud from a verse, when the browser can (useReadAloud.ts).
+const listenItem: VerseMenuItem = { kind: 'listen', label: 'Listen from here' }
 
 function verseId(chapter: BibleChapter, verse: BibleVerse) {
   return `verse-${chapter.book_number}-${chapter.chapter}-${verse.verse}`
@@ -74,6 +80,34 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
     fetchBibleChapter(translationRef.current, book, chapter, signal),
   )
   const windows = useReaderWindows(session)
+  // Read aloud (useReadAloud.ts): the verse being read is highlighted and kept in view, and the reading goes on
+  // into the next chapter by itself.
+  const [readingVerse, setReadingVerse] = useState('')
+  const loadedChapters = useRef<BibleChapter[]>([])
+  useEffect(() => {
+    loadedChapters.current = chapters
+  }, [chapters])
+  const readAloud = useReadAloud(
+    (book, chapter) =>
+      Promise.resolve(
+        loadedChapters.current.find((entry) => entry.book_number === book && entry.chapter === chapter) ??
+          fetchBibleChapter(translationRef.current, book, chapter, new AbortController().signal),
+      ),
+    (place: ReadingPlace | null) => {
+      const id = place ? `verse-${place.book}-${place.chapter}-${place.verse}` : ''
+      setReadingVerse(id)
+      if (id) {
+        showVerse(id, false)
+      }
+    },
+  )
+  const stopReading = readAloud.stop
+  // Leaving the reader stops the reading.
+  useEffect(() => {
+    if (isHidden) {
+      stopReading()
+    }
+  }, [isHidden, stopReading])
   const windowIsOpen = windows.isOpen
   // Only Bibles stored on this site can be read a chapter at a time.
   const readable = translations.filter((translation) => translation.source === 'local')
@@ -82,6 +116,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
   // be compared in another Bible; a Bible without it starts at its nearest.
   async function go(newTranslationCode: string, wanted: Target) {
     setErrorMessage('')
+    readAloud.stop()
     try {
       const loaded =
         contents?.translation.code === newTranslationCode
@@ -226,8 +261,26 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
     setMenu(null)
   }
 
-  function chooseFromMenu(kind: ContextKind) {
+  // Brings a verse into view (the one being read: only when it has gone off the screen, so the page does not jump
+  // with every verse).
+  function showVerse(id: string, always: boolean) {
+    const element = document.getElementById(id)
+    if (!element) {
+      return
+    }
+    const box = element.getBoundingClientRect()
+    if (always || box.top < 80 || box.bottom > window.innerHeight - 90) {
+      element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }
+
+  function chooseFromMenu(kind: ContextKind | 'listen') {
     if (menu === null) {
+      return
+    }
+    if (kind === 'listen') {
+      setMenu(null)
+      readAloud.start(menu.chapter, menu.verse.verse)
       return
     }
     const trigger = numberButton(menu.chapter, menu.verse)
@@ -335,6 +388,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
       {chapters.length > 0 && !windowIsOpen && (
         <p className="reader-hint">
           Right-click a verse, or click its number, for Show in Context, Other Translations, Related Verses and more.
+          {canReadAloud() && ' Press ▶ Listen beside a chapter’s name, or choose Listen from here on a verse, to hear it read aloud.'}
         </p>
       )}
       {chapters.length === 0 && !errorMessage && !stripErrorMessage && <p>Loading…</p>}
@@ -361,6 +415,19 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
                   {chapter.book_name} {chapter.chapter}
                 </h2>
                 <span className="browse-commentary-name">{chapter.translation.name}</span>
+                {canReadAloud() && (
+                  <button
+                    type="button"
+                    className="secondary-button small-button read-aloud-start"
+                    onClick={() => readAloud.start(chapter, chapter.verses[0]?.verse ?? 1)}
+                  >
+                    ▶ Listen
+                    <span className="visually-hidden">
+                      {' '}
+                      to {chapter.book_name} {chapter.chapter}
+                    </span>
+                  </button>
+                )}
               </div>
 
               {chapter.verses.map((verse) => (
@@ -368,7 +435,9 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
                   key={verse.verse}
                   id={verseId(chapter, verse)}
                   className={
-                    verseId(chapter, verse) === markedVerse
+                    verseId(chapter, verse) === readingVerse
+                      ? 'bible-verse is-reading'
+                      : verseId(chapter, verse) === markedVerse
                       ? 'bible-verse is-marked'
                       : menu?.chapter === chapter && menu.verse === verse
                         ? 'bible-verse is-menu-target'
@@ -382,7 +451,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
                       id={`${verseId(chapter, verse)}-number`}
                       className="verse-number-button"
                       aria-haspopup="menu"
-                      title="More for this verse: right-click it, or click its number. Show in Context, Full Chapter, Other Translations, Related Verses, Original Words, Commentaries and Notes."
+                      title="More for this verse: right-click it, or click its number. Listen from here, Show in Context, Full Chapter, Other Translations, Related Verses, Original Words, Commentaries and Notes."
                       onClick={(event) => {
                         const box = event.currentTarget.getBoundingClientRect()
                         setMenu({ chapter, verse, x: box.left, y: box.bottom })
@@ -426,7 +495,7 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
           x={menu.x}
           y={menu.y}
           heading={`${menu.chapter.book_name} ${menu.chapter.chapter}:${menu.verse.verse}`}
-          items={verseMenuItems}
+          items={canReadAloud() ? [listenItem, ...verseMenuItems] : verseMenuItems}
           verse={{
             translation: menu.chapter.translation.code,
             book: menu.chapter.book_number,
@@ -437,6 +506,25 @@ function BibleTab({ translations, isHidden, destination }: BibleTabProps) {
           onClose={closeMenu}
         />
       )}
+
+      <ReadAloudBar
+        status={readAloud.status}
+        place={readAloud.place}
+        problem={readAloud.problem}
+        voices={(() => {
+          const language = (chapters[0]?.translation.language || 'en').slice(0, 2).toLowerCase()
+          const matching = readAloud.voices.filter((voice) => voice.lang.toLowerCase().startsWith(language))
+          return matching.length > 0 ? matching : readAloud.voices
+        })()}
+        voiceName={readAloud.voiceName}
+        rate={readAloud.rate}
+        onPause={readAloud.pause}
+        onResume={readAloud.resume}
+        onStop={readAloud.stop}
+        onVoice={readAloud.setVoiceName}
+        onRate={readAloud.setRate}
+        onShowVerse={() => readingVerse && showVerse(readingVerse, true)}
+      />
 
       <BackToTopButton isVisible={isScrolledDown && !windowIsOpen && chapters.length > 0} onClick={scrollToTop} />
 
