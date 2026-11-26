@@ -128,7 +128,7 @@ if touched '^frontend/' || [ ! -d frontend/dist ]; then
     fi
     # The site's title and address go into each page's HTML (scripts/make-page-files.mjs): the address from SITE_URL
     # in ml-service/.env (the ML service's default when unset), the title from the running ML service.
-    SITE_ORIGIN=$(grep -E '^SITE_URL=' ../ml-service/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' ")
+    SITE_ORIGIN=$(grep -E '^SITE_URL=' ../ml-service/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' " || true)
     SITE_ORIGIN=${SITE_ORIGIN:-https://freestudy.bible}
     SITE_NAME=$(curl -s --max-time 10 http://127.0.0.1:8000/site-settings \
       | python3 -c 'import json, sys; print(json.load(sys.stdin).get("title", ""))' 2>/dev/null || true)
