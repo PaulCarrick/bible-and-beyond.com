@@ -61,6 +61,7 @@ import { readVerseAddress } from './verseAddress'
 import type { VerseInBible } from './verseAddress'
 import { addressFor, readPageHistoryState, viewForAddress } from './pageAddress'
 import { settingsForThisDomain } from './domainTitle'
+import { pageTitleFor } from './pageTitle'
 import type { PageHistoryState } from './pageAddress'
 import type { Book, CommentarySource, DevotionalInfo, SiteSettings, Translation } from './types'
 import type { AccountUser, Destination, Note } from './types'
@@ -269,9 +270,12 @@ function App() {
       .finally(() => setIsAccountKnown(true))
   }, [])
 
+  // The tab's title: the page's own name and the site's, as in the HTML each page is sent with (pageInfo.json,
+  // scripts/make-page-files.mjs), so search engines that run the script see the same title.
   useEffect(() => {
-    document.title = siteSettings.title
-  }, [siteSettings.title])
+    const pageTitle = pageTitleFor(activeView)
+    document.title = pageTitle ? `${pageTitle} – ${siteSettings.title}` : siteSettings.title
+  }, [activeView, siteSettings.title])
 
   // "Login required" (Site settings): until a visitor logs in, only the sign-in pages are shown (the API refuses the
   // rest). Logging in then reloads the page, so everything the site lists is loaded for the account.

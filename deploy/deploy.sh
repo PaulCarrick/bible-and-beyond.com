@@ -126,7 +126,14 @@ if touched '^frontend/' || [ ! -d frontend/dist ]; then
     if touched '^frontend/package(-lock)?\.json$' || [ ! -d node_modules ]; then
       npm ci --no-audit --no-fund --loglevel=error
     fi
-    VITE_ML_SERVICE_URL=/api npm run build 2>&1 | grep -E "built in|error" || true
+    # The site's title and address go into each page's HTML (scripts/make-page-files.mjs): the address from SITE_URL
+    # in ml-service/.env (the ML service's default when unset), the title from the running ML service.
+    SITE_ORIGIN=$(grep -E '^SITE_URL=' ../ml-service/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' ")
+    SITE_ORIGIN=${SITE_ORIGIN:-https://freestudy.bible}
+    SITE_NAME=$(curl -s --max-time 10 http://127.0.0.1:8000/site-settings \
+      | python3 -c 'import json, sys; print(json.load(sys.stdin).get("title", ""))' 2>/dev/null || true)
+    SITE_ORIGIN=$SITE_ORIGIN SITE_NAME=$SITE_NAME VITE_ML_SERVICE_URL=/api npm run build 2>&1 \
+      | grep -E "built in|error|page files" || true
   )
 else
   echo "  no changes"

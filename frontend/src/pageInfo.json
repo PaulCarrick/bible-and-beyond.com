@@ -1,0 +1,128 @@
+{
+  "welcome": {
+    "path": "/",
+    "title": "",
+    "description": "A free, non-commercial site for reading and studying the Bible: public-domain Bibles, the Hebrew and Greek behind the English, cross references, classic commentaries, devotionals and more.",
+    "summary": "Read and search public-domain Bibles, see the Hebrew and Greek words behind the English, follow cross references, and read classic commentaries, devotionals and Christian books, all free."
+  },
+  "read": {
+    "path": "/read",
+    "title": "Read the Bible",
+    "description": "Read the Bible online, chapter after chapter, in the Berean Standard Bible, King James Version, American Standard Version, World English Bible and more.",
+    "summary": "Choose a Bible, a book and a chapter and read on, book after book. Each verse opens its context, other translations, related verses, the original Hebrew or Greek words and the commentaries on it."
+  },
+  "bible": {
+    "path": "/search",
+    "title": "Search the Bible",
+    "description": "Search the Bible by words, an exact phrase or a Strong's number, in one or several translations at once, and filter the results by book.",
+    "summary": "Search one or several Bibles for all of your words, any of them or an exact phrase, limit the search to some books, and open each verse in context, in other translations or with its cross references."
+  },
+  "searchAll": {
+    "path": "/search-all",
+    "title": "Search everything",
+    "description": "One search over the Bible, classic commentaries, devotionals, Christian books, music, maps and the Bible FAQ.",
+    "summary": "One search box over the Bible, the commentaries, the devotionals, the other books, the Christian media, the maps and the FAQ, with the best matches of each listed together."
+  },
+  "verseOfTheDay": {
+    "path": "/verse-of-the-day",
+    "title": "Verse of the day",
+    "description": "A Bible verse drawn on a picture, ready to download and share. A new verse each time.",
+    "summary": "A well-known Bible verse drawn on a picture, ready to download and share, with a link to read it in the Bible."
+  },
+  "devotionalOfTheDay": {
+    "path": "/devotional-of-the-day",
+    "title": "Devotional of the day",
+    "description": "Today's reading from a classic daily devotional, drawn on a picture to download and share.",
+    "summary": "Today's reading from a classic daily devotional such as Spurgeon's Morning and Evening or Daily Light on the Daily Path, drawn on a picture, with a link to the whole reading."
+  },
+  "commentary": {
+    "path": "/search-commentaries",
+    "title": "Search the commentaries",
+    "description": "Search classic public-domain Bible commentaries: Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin, Keil and Delitzsch and more.",
+    "summary": "Search the notes of Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin, Keil and Delitzsch and other classic commentaries, and read each note beside its verses."
+  },
+  "browse": {
+    "path": "/browse-commentaries",
+    "title": "Read the commentaries",
+    "description": "Read classic public-domain Bible commentaries verse by verse: Matthew Henry, John Gill, Adam Clarke, Jamieson-Fausset-Brown, John Calvin and more.",
+    "summary": "Choose a commentary, a book and a chapter and read its notes verse by verse, with every Scripture reference a link to the verse."
+  },
+  "devotionals": {
+    "path": "/devotionals",
+    "title": "Read the devotionals",
+    "description": "Read classic Christian devotionals free: Spurgeon's Morning and Evening, Daily Light on the Daily Path, The Imitation of Christ and The Practice of the Presence of God.",
+    "summary": "Classic devotionals to read each day or chapter by chapter, such as Spurgeon's Morning and Evening, Daily Light on the Daily Path, The Imitation of Christ and The Practice of the Presence of God."
+  },
+  "books": {
+    "path": "/books",
+    "title": "Read other books",
+    "description": "Read classic Christian books free, a chapter at a time: Augustine's Confessions, Chesterton's Orthodoxy, Tozer's The Pursuit of God, Wesley's sermons and more.",
+    "summary": "Classic Christian books to read a chapter at a time, such as Augustine's Confessions, Chesterton's Orthodoxy, Tozer's The Pursuit of God, Bunyan's Grace Abounding and Wesley's sermons."
+  },
+  "searchBooks": {
+    "path": "/search-books",
+    "title": "Search other books",
+    "description": "Search classic Christian books by words or an exact phrase and open the chapter where they are found.",
+    "summary": "Search every classic Christian book on the site, or one of them, and open the chapter where the words are found."
+  },
+  "music": {
+    "path": "/music",
+    "title": "Christian media",
+    "description": "Listen to hymns and Christian talks with their words, and make your own playlists.",
+    "summary": "Hymns and Christian talks to listen to or watch, with their words, and playlists of your own."
+  },
+  "searchMusic": {
+    "path": "/search-music",
+    "title": "Search the media",
+    "description": "Search hymns and Christian talks by title, author or words.",
+    "summary": "Search the hymns and talks by their title, their author or their words, and play what you find."
+  },
+  "faq": {
+    "path": "/faq",
+    "title": "Bible questions and answers",
+    "description": "Answers to common questions about the Bible and the Christian faith: salvation, grace, prayer, suffering, the end times and more.",
+    "summary": "Answers to common questions about the Bible and the Christian faith, such as salvation by grace, prayer, suffering, divorce, science and the end times, with links to the verses they cite."
+  },
+  "help": {
+    "path": "/help",
+    "title": "Help",
+    "description": "How to use the site: reading and searching the Bible, the commentaries, devotionals, notes, accounts and more, with pictures.",
+    "summary": "A guide to every part of the site, with pictures: reading and searching the Bible, the original words, the commentaries and devotionals, notes, lists, accounts and emails."
+  },
+  "tutorial": {
+    "path": "/tutorial",
+    "title": "Tutorial video",
+    "description": "A narrated video tour of everything the site offers for reading and studying the Bible.",
+    "summary": "A narrated video tour of the site, from reading and searching the Bible to the commentaries, devotionals, notes and the rest."
+  },
+  "contact": {
+    "path": "/contact",
+    "title": "Contact",
+    "description": "Send a message to the people who run the site.",
+    "summary": "Questions, suggestions or a problem to report: send a message to the people who run the site."
+  },
+  "privacy": {
+    "path": "/privacy",
+    "title": "Privacy",
+    "description": "What the site keeps about you, what is sent to outside services, and the choices you have.",
+    "summary": "What the site keeps about you, what it sends to outside services, and how to change or close your account."
+  },
+  "smsTerms": {
+    "path": "/sms-terms",
+    "title": "Text message terms",
+    "description": "The terms of the site's text messages: how to sign up, what is sent, rates, and how to stop.",
+    "summary": "How members sign up for text messages, what is sent and how often, message and data rates, and how to stop with STOP or get help with HELP."
+  },
+  "postingPolicy": {
+    "path": "/posting-policy",
+    "title": "Posting policy",
+    "description": "The rules for posts and replies on the site's Conversations and Prayer Wall.",
+    "summary": "What posts and replies on Conversations and the Prayer Wall must not contain, how they are reviewed, and who can see them."
+  },
+  "copyright": {
+    "path": "/copyright",
+    "title": "Bible copyright notices",
+    "description": "The copyright notices and credits for the Bibles, data and other works shown on the site.",
+    "summary": "The copyright notices of the licensed Bibles and the credits for the data and works the site uses."
+  }
+}
