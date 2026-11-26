@@ -100,7 +100,7 @@ function MyCardsPage({ translations, onNavigate }: MyCardsPageProps) {
     <div className="welcome my-cards">
       <h1>My cards</h1>
       <p>
-        Every card you download or send from <em>Make your own card</em> is kept here, newest first. Edit one to change
+        The cards you save, download or send from <em>Make your own card</em> are kept here, newest first. Edit one to change
         its verse or background.{' '}
         <button type="button" className="link-button" onClick={() => onNavigate('verseOfTheDay')}>
           Make a new card

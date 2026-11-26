@@ -159,7 +159,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
     setIsSaving(true)
     try {
       const kept = await saveCustomCard(chosen, background, editing?.id)
-      setKeptMessage(editing ? 'Your changes were saved on My cards.' : 'It is kept on My cards.')
+      setKeptMessage(editing ? 'Your changes were saved on My cards.' : 'Saved on My cards.')
       onSaved?.(kept)
       return true
     } catch (error) {
@@ -186,7 +186,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
         {editing
           ? 'Change the Bible, the verse or the background. Save changes, download or send it, and your card on My cards is changed to match.'
           : 'Choose a Bible, a verse and a background. Then download the card, or send it to someone.'}
-        {!editing && user && ' Every card you download or send is kept on My cards.'}
+        {!editing && user && ' Save it to My cards to keep it; every card you download or send is kept there too.'}
       </p>
 
       <div className="custom-card-choices">
@@ -300,6 +300,17 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
                 }}
               >
                 {isSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            )}
+            {!editing && user && (
+              // Keeps the card without downloading or sending it (the owner's request, 2026-11-26).
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isSaving || isDrawing}
+                onClick={() => void keepCard()}
+              >
+                {isSaving ? 'Saving…' : 'Save to My cards'}
               </button>
             )}
             <a
