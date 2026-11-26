@@ -481,6 +481,9 @@ def compose_email(
     email.set_content(text + "\n")
     if html is not None:
       email.add_alternative(f"<html><body>{html}</body></html>", subtype="html")
+    if card is not None:
+      # The leader's saved verse card (2026-11-26): in the email and attached.
+      message_cards.attach_card_file(email, card, text)
     return email
   if token:
     one_click = site.rstrip("/") + "/api/subscriptions/unsubscribe?token=" + (schedule_stop_token(token, schedule["id"]) if schedule else token)
@@ -576,19 +579,42 @@ def _prepare(group: dict, kind: str, details: dict) -> tuple:
   return subject, text, verse, card, words, link, html
 
 
-def _saved_card(details: dict):
-  """The leader's own saved verse card for a message (details["saved_card"], with details["admin"]: their Drupal
-  uid and email, to find their site account; saved_cards.account_for_admin), copied so a text can fetch it."""
+def card_owner(details: dict) -> tuple[int, int] | None:
+  """The saved verse card chosen (details["saved_card"]) and the site account it must belong to: the sender's,
+  found from details["admin"] (their Drupal uid and email; saved_cards.account_for_admin), or, for a scheduled
+  message, details["card_user_id"] (kept when it was set up; never taken from Drupal's input, which the tool strips).
+  (user id, card id), None when no card was chosen; GroupProblem when it is not the sender's."""
   import saved_cards
 
-  admin = details.get("admin") or {}
+  if not details.get("saved_card"):
+    return None
   try:
-    account = saved_cards.account_for_admin(int(admin.get("uid") or 0), str(admin.get("email") or ""))
-    if account is None:
-      raise GroupProblem("Your Drupal account is not linked to a site account, so it has no saved cards.")
-    return saved_cards.card_for_sending(account["id"], int(details["saved_card"]))
+    card_id = int(details["saved_card"])
+    if details.get("card_user_id"):
+      user_id = int(details["card_user_id"])
+    else:
+      admin = details.get("admin") or {}
+      account = saved_cards.account_for_admin(int(admin.get("uid") or 0), str(admin.get("email") or ""))
+      if account is None:
+        raise GroupProblem("Your Drupal account is not linked to a site account, so it has no saved cards.")
+      user_id = account["id"]
+    saved_cards.get_card(user_id, card_id)
   except (TypeError, ValueError) as error:
     raise GroupProblem("That card could not be found.") from error
+  except saved_cards.SavedCardProblem as problem:
+    raise GroupProblem(f"The card could not be attached: {problem}") from problem
+  return user_id, card_id
+
+
+def _saved_card(details: dict):
+  """The sender's own saved verse card for a message (card_owner), copied so a text can fetch it; None without one."""
+  import saved_cards
+
+  owner = card_owner(details)
+  if owner is None:
+    return None
+  try:
+    return saved_cards.card_for_sending(*owner)
   except saved_cards.SavedCardProblem as problem:
     raise GroupProblem(f"The card could not be attached: {problem}") from problem
 
@@ -744,7 +770,7 @@ def signature_words(signature_id: int | None) -> dict | None:
 
 def email_member(
   group_id: int, member_id: int, text: str, sent_by: str, html: str | None = None, subject: str | None = None,
-  signature: dict | None = None,
+  signature: dict | None = None, card=None,
 ) -> dict:
   """A message from the leader to **one member** (the Email link in the group's member list; added 2026-11-17 at
   the owner's request). By email only, to that member alone: From the site, **To the member's own address** (no
@@ -754,7 +780,8 @@ def email_member(
   them too). No leader's copy. Recorded in the group's Sent table as a message "to one member" (never who).
   html (from the Drupal box's editor, CKEditor 5) is cleaned like the contact form's messages
   (contact.check_rich_text: only its allowed tags, links only http(s) or mailto, no attributes) and sent as HTML
-  with a plain-text copy; without it, text is sent as plain text. Returns the member (id, name)."""
+  with a plain-text copy; without it, text is sent as plain text. card: the leader's saved verse card (a
+  message_cards.MessageCard; 2026-11-26), shown in the email and attached. Returns the member (id, name)."""
   text, html = member_message(text, html)
   group = get_group(group_id)
   address, token = member_recipient(group_id, member_id)
@@ -762,7 +789,7 @@ def email_member(
   try:
     settings = load_mail_settings()
     # To the member openly (their address is the To, not a hidden recipient); replies go to the leader.
-    send_email(settings, compose_email(settings, group, token, subject, text, None, None, personal=True, html=html, to_address=address, signature=signature))
+    send_email(settings, compose_email(settings, group, token, subject, text, None, card, personal=True, html=html, to_address=address, signature=signature))
   except MailUnavailable as problem:
     raise GroupProblem(f"The email could not be sent: {problem}") from problem
   except Exception as problem:
@@ -773,7 +800,7 @@ def email_member(
       "INSERT INTO group_messages (group_id, kind, subject, text, sent_by, emailed) VALUES (%s, 'message', %s, %s, %s, 1) RETURNING id",
       (group_id, subject + " (to one member)", text, sent_by),
     ).fetchone()[0]
-    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, None, personal=True, html=html, to_address=address, signature=signature)
+    copy = compose_email(settings, group, STOP_CODE_PLACEHOLDER, subject, text, None, card, personal=True, html=html, to_address=address, signature=signature)
     keep_copy(connection, message_id, copy, [], False)
   member = next(member for member in group["members"] if member["id"] == member_id)
   return {"id": member["id"], "name": member["name"]}

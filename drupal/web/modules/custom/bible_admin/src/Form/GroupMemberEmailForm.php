@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\bible_admin\SavedCardChoice;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -106,6 +107,8 @@ class GroupMemberEmailForm extends FormBase {
           ? $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()])
           : $this->t('The group leader has no signatures yet.')),
     ];
+    // One of the sender's saved verse cards (SavedCardChoice; 2026-11-26).
+    $form['saved_card_box'] = SavedCardChoice::element($this->manager, $form_state);
     $zone = $this->timeZone();
     // Now, to the minute: with seconds the browser would only take times ending in those seconds.
     $now = new DrupalDateTime('now', $zone);
@@ -149,6 +152,7 @@ class GroupMemberEmailForm extends FormBase {
     $details = GroupEditor::value($form_state->getValue('text'));
     $details['subject'] = trim((string) $form_state->getValue('subject'));
     $details['signature_id'] = (string) $form_state->getValue('signature_id');
+    $details['saved_card'] = SavedCardChoice::value($form_state);
     // Up to a minute from now counts as now (the box was opened at "now" and the message written after).
     $sendAt = NULL;
     $when = $form_state->getValue('send_at');

@@ -102,7 +102,8 @@ def describe(schedule: dict) -> str:
 
 COLUMNS = (
   "id, group_id, kind, subject, text, repeat, on_date, day_of_month, weekday, week_of_month, send_time, timezone, "
-  "next_run_at, last_run_at, last_result, created_by, html, member_id, signature_id, show_sent_by"
+  "next_run_at, last_run_at, last_result, created_by, html, member_id, signature_id, show_sent_by, saved_card_id, "
+  "card_user_id"
 )
 
 
@@ -140,6 +141,8 @@ def _public(schedule: dict) -> dict:
     "signature_id": schedule["signature_id"],
     # Whether its emails end with the "Sent by …" line (migration 070).
     "show_sent_by": schedule["show_sent_by"],
+    # A message's saved verse card (migration 072), or None (none chosen, or deleted since).
+    "saved_card_id": schedule["saved_card_id"],
   }
 
 
@@ -249,8 +252,15 @@ def check(details: dict, now: datetime) -> dict:
 
 FIELDS = (
   "kind", "subject", "text", "html", "repeat", "on_date", "day_of_month", "weekday", "week_of_month", "send_time", "timezone", "next_run_at",
-  "signature_id", "show_sent_by",
+  "signature_id", "show_sent_by", "saved_card_id", "card_user_id",
 )
+
+
+def _card(schedule: dict, details: dict) -> None:
+  """The saved verse card chosen for a message (details["saved_card"]; groups.card_owner checks it is the sender's
+  own), kept with the site account it belongs to; none for a verse card or a picture."""
+  owner = groups.card_owner(details) if schedule["kind"] == "message" else None
+  schedule["card_user_id"], schedule["saved_card_id"] = owner if owner else (None, None)
 
 
 def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | None = None) -> dict:
@@ -258,6 +268,7 @@ def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | 
   schedule = check(details, now or datetime.now(timezone.utc))
   schedule["signature_id"] = groups.leader_signature(group, details.get("signature_id"))
   schedule["show_sent_by"] = details.get("show_sent_by", True) is not False
+  _card(schedule, details)
   with connect() as connection:
     if connection.execute("SELECT count(*) FROM group_schedules WHERE group_id = %s", (group_id,)).fetchone()[0] >= MAX_SCHEDULES_PER_GROUP:
       raise GroupProblem(f"A group can have at most {MAX_SCHEDULES_PER_GROUP} scheduled messages.")
@@ -269,12 +280,18 @@ def add_schedule(group_id: int, details: dict, created_by: str, now: datetime | 
 
 
 def update_schedule(group_id: int, schedule_id: int, details: dict, now: datetime | None = None) -> dict:
-  """Replaces a schedule's message and timing; its next time is worked out again from now."""
-  if _get(schedule_id, group_id)["member_id"] is not None:
+  """Replaces a schedule's message and timing; its next time is worked out again from now. The card it already has
+  is kept when it is chosen again, even by someone other than whoever set it up."""
+  existing = _get(schedule_id, group_id)
+  if existing["member_id"] is not None:
     raise GroupProblem("A message to one member cannot be changed: remove it and write it again.")
   schedule = check(details, now or datetime.now(timezone.utc))
   schedule["signature_id"] = groups.leader_signature(groups.get_group(group_id), details.get("signature_id"))
   schedule["show_sent_by"] = details.get("show_sent_by", True) is not False
+  if schedule["kind"] == "message" and existing["saved_card_id"] and str(details.get("saved_card") or "") == str(existing["saved_card_id"]):
+    schedule["saved_card_id"], schedule["card_user_id"] = existing["saved_card_id"], existing["card_user_id"]
+  else:
+    _card(schedule, details)
   with connect() as connection:
     connection.execute(
       f"UPDATE group_schedules SET {', '.join(f'{name} = %s' for name in FIELDS)}, updated_at = now() WHERE id = %s",
@@ -307,6 +324,7 @@ def schedule_member_email(group_id: int, member_id: int, details: dict, created_
     # An email to one member has no foot at all (groups.compose_email, personal).
     "show_sent_by": True,
   }
+  _card(schedule, details)
   schedule["next_run_at"] = next_occurrence(schedule, now or datetime.now(timezone.utc))
   if schedule["next_run_at"] is None:
     raise GroupProblem("That date and time have already passed.")
@@ -349,9 +367,12 @@ def _details_of_kind(schedule: dict) -> dict:
   if schedule["kind"] == "picture":
     preview = groups.preview_picture(schedule["text"])
     return {"subject": schedule["subject"], "text": schedule["text"], "card": preview["card"]}
-  if schedule.get("html"):
-    return {"subject": schedule["subject"], "html": schedule["html"]}
-  return {"subject": schedule["subject"], "text": schedule["text"]}
+  details = {"subject": schedule["subject"], "html": schedule["html"]} if schedule.get("html") else {"subject": schedule["subject"], "text": schedule["text"]}
+  if schedule.get("saved_card_id") and schedule.get("card_user_id"):
+    # The saved verse card chosen, from the account of whoever set it up (migration 072).
+    details["saved_card"] = schedule["saved_card_id"]
+    details["card_user_id"] = schedule["card_user_id"]
+  return details
 
 
 def send_test(group_id: int, schedule_id: int) -> dict:
@@ -397,6 +418,7 @@ def send_due(now: datetime | None = None, pause: float = groups.PAUSE_BETWEEN_ME
             member = groups.email_member(
               schedule["group_id"], schedule["member_id"], schedule["text"], f"schedule ({schedule['created_by']})",
               html=schedule["html"], subject=schedule["subject"], signature=groups.signature_words(schedule["signature_id"]),
+              card=groups._saved_card(_details_of_kind(schedule)),
             )
             outcome = f"Emailed to {member['name'] or 'the member'}"
             result["sent"] += 1

@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\bible_admin\SavedCardChoice;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -88,7 +89,7 @@ class GroupSendForm extends FormBase {
     }
 
     if ($kind === 'message') {
-      $form['saved_card_box'] = $this->savedCardChoice($form_state);
+      $form['saved_card_box'] = SavedCardChoice::element($this->manager, $form_state);
     }
 
     if ($preview) {
@@ -148,85 +149,6 @@ class GroupSendForm extends FormBase {
   }
 
   /**
-   * "Add one of your verse cards": the saved cards of the site account of the person sending (linked to their
-   * admin account on Site users, else the one with their email address), newest first, as a table of radios with
-   * each card's picture; "No card" to start.
-   */
-  protected function savedCardChoice(FormStateInterface $form_state): array {
-    $element = [
-      '#type' => 'details',
-      '#title' => $this->t('Add one of your verse cards'),
-      '#open' => ctype_digit((string) $form_state->getValue('saved_card', '')),
-    ];
-    try {
-      $found = $form_state->get('saved_cards') ?? $this->manager->adminSavedCards();
-      $form_state->set('saved_cards', $found);
-    }
-    catch (BibleManagerException $exception) {
-      $element['problem'] = ['#markup' => $this->t('Your verse cards could not be read: @problem', ['@problem' => $exception->getMessage()])];
-      return $element;
-    }
-    $account = $found['account'] ?? NULL;
-    if ($account === NULL) {
-      $element['#open'] = FALSE;
-      $element['none'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'p',
-        '#value' => $this->t('Your admin account is not linked to an account on the site, so it has no verse cards. Give your site account the same email address as this admin account, or choose this admin account under <em>Drupal administrator account</em> on your Site users entry.'),
-      ];
-      return $element;
-    }
-    $name = $account['name'] . ($account['email'] ? ' (' . $account['email'] . ')' : '');
-    $edit = Url::fromRoute('bible_admin.site_user_edit', ['user_id' => $account['id']]);
-    $element['account'] = [
-      '#type' => 'html_tag',
-      '#tag' => 'p',
-      'label' => ['#markup' => $this->t('Cards on My cards of your site account:') . ' '],
-      'name' => $edit->access() ? ['#type' => 'link', '#title' => $name, '#url' => $edit] : ['#plain_text' => $name],
-    ];
-    if (empty($found['cards'])) {
-      $element['empty'] = [
-        '#type' => 'html_tag',
-        '#tag' => 'p',
-        '#value' => $this->t('You have no cards yet. Make one on the site (Verse of the day > Make your own card); every card you download or send there is kept on My cards.'),
-      ];
-      return $element;
-    }
-    $options = ['none' => ['picture' => '', 'card' => $this->t('No card')]];
-    foreach ($found['cards'] as $card) {
-      $options[(string) $card['id']] = [
-        'picture' => [
-          'data' => [
-            '#type' => 'html_tag',
-            '#tag' => 'img',
-            '#attributes' => [
-              'src' => $card['thumbnail'],
-              'alt' => $card['words'] . ' ' . $card['caption'],
-              'width' => 96,
-              'style' => 'height:auto;display:block;border-radius:6px;',
-            ],
-          ],
-        ],
-        'card' => $card['caption'] . ' · ' . date('M j, Y', strtotime((string) $card['created_at'])),
-      ];
-    }
-    $element['saved_card'] = [
-      '#type' => 'tableselect',
-      '#header' => ['picture' => $this->t('Card'), 'card' => $this->t('Verse')],
-      '#options' => $options,
-      '#multiple' => FALSE,
-      '#default_value' => (string) $form_state->getValue('saved_card', 'none'),
-      '#parents' => ['saved_card'],
-    ];
-    $element['hint'] = [
-      '#type' => 'html_tag',
-      '#tag' => 'p',
-      '#value' => $this->t('The card is shown in the email, attached to it as a picture to save, and sent as a picture text to members who get texts.'),
-    ];
-    return $element;
-  }
-
-  /**
    * Another verse card, or the picture made (again) from the words typed.
    */
   public function makePreview(array &$form, FormStateInterface $form_state): void {
@@ -261,9 +183,8 @@ class GroupSendForm extends FormBase {
       'picture' => ['subject' => (string) $form_state->getValue('subject'), 'text' => (string) $form_state->getValue('text'), 'card' => $preview['card'] ?? ''],
       default => ['subject' => (string) $form_state->getValue('subject')] + GroupEditor::value($form_state->getValue('text')),
     };
-    $savedCard = (string) ($form_state->getValue('saved_card') ?? 'none');
-    if ($kind === 'message' && ctype_digit($savedCard)) {
-      $details['saved_card'] = (int) $savedCard;
+    if ($kind === 'message' && SavedCardChoice::value($form_state) !== NULL) {
+      $details['saved_card'] = SavedCardChoice::value($form_state);
     }
     $details['show_sent_by'] = (bool) $form_state->getValue('show_sent_by');
     try {

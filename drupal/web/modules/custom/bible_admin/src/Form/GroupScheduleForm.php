@@ -7,6 +7,7 @@ namespace Drupal\bible_admin\Form;
 use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\bible_admin\GroupEditor;
+use Drupal\bible_admin\SavedCardChoice;
 use Drupal\Core\Datetime\TimeZoneFormHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -61,7 +62,7 @@ class GroupScheduleForm extends FormBase {
       '#type' => 'radios',
       '#title' => $this->t('What to send'),
       '#options' => [
-        'message' => $this->t('A message (your words, no picture)'),
+        'message' => $this->t('A message (your words, and one of your verse cards if you choose)'),
         'verse' => $this->t('A verse card (a new random verse on a picture each time)'),
         'picture' => $this->t('A picture message (your words on a new random picture each time)'),
       ],
@@ -83,6 +84,8 @@ class GroupScheduleForm extends FormBase {
       '#states' => $what(['message']),
       'message' => GroupEditor::field((string) $this->t('Message'), $isMessage ? (string) (($schedule['html'] ?? '') ?: ($schedule['text'] ?? '')) : '', 8, FALSE),
     ];
+    // One of the sender's saved verse cards (SavedCardChoice; 2026-11-26), for a message.
+    $form['saved_card_box'] = SavedCardChoice::element($this->manager, $form_state, isset($schedule['saved_card_id']) ? (int) $schedule['saved_card_id'] : NULL) + ['#states' => $what(['message'])];
     $form['text'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Words for the picture'),
@@ -204,6 +207,7 @@ class GroupScheduleForm extends FormBase {
     $details['show_sent_by'] = (bool) $form_state->getValue('show_sent_by');
     if ($details['kind'] === 'message') {
       $details += GroupEditor::value($form_state->getValue('message'));
+      $details['saved_card'] = SavedCardChoice::value($form_state);
     }
     else {
       $details['text'] = (string) $form_state->getValue('text');

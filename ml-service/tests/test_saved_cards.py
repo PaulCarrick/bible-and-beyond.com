@@ -21,7 +21,7 @@ from search import connect
 
 PASSWORD = "correct horse battery"
 DOMAIN = "saved-cards-test.example"
-OWNER = 990101
+OWNER = 990201
 JOHN_3_16 = {"translation": "BSB", "book": 43, "chapter": 3, "verse": 16, "background": "plain"}
 TOOL = Path(__file__).resolve().parent.parent / "scripts" / "manage_groups.py"
 client = TestClient(app)
@@ -175,3 +175,94 @@ def test_deleting_an_account_deletes_its_cards_files():
   assert path.exists()
   site_users.delete_user(ann["id"])
   assert not path.exists()
+
+
+def leader_with_a_card_and_a_group():
+  register("dave")
+  card = client.post("/saved-cards", json=JOHN_3_16).json()["card"]
+  register("ann")
+  group = groups.save_group(None, {"name": "Care group"}, OWNER, "Deacon Dave", f"dave@{DOMAIN}")
+  groups.add_member(group["id"], {"email": f"ann@{DOMAIN}"})
+  return card, group
+
+
+ADMIN = {"uid": 7777, "email": f"dave@{DOMAIN}"}
+
+
+def has_card(email):
+  return "cid:" in email.get_body(("html",)).get_content() and any(
+    part.get_filename() == "verse-card.jpg" for part in email.iter_attachments()
+  )
+
+
+def test_a_scheduled_message_keeps_its_card_and_sends_it(outbox):
+  from datetime import datetime, timezone
+
+  import group_schedules
+
+  card, group = leader_with_a_card_and_a_group()
+  details = {"kind": "message", "subject": "Weekly", "text": "Hello.", "repeat": "once", "on_date": "2026-12-01",
+             "send_time": "09:00", "timezone": "UTC", "saved_card": card["id"], "admin": ADMIN}
+  schedule = group_schedules.add_schedule(group["id"], details, "dave", now=datetime(2026, 11, 30, tzinfo=timezone.utc))
+  assert schedule["saved_card_id"] == card["id"]
+  # Someone else's card is refused.
+  with pytest.raises(groups.GroupProblem):
+    group_schedules.add_schedule(group["id"], {**details, "admin": {"uid": 1, "email": "nobody@example.test"}}, "dave", now=datetime(2026, 11, 30, tzinfo=timezone.utc))
+  # A test, then the real one at its time, both with the card.
+  group_schedules.send_test(group["id"], schedule["id"])
+  assert has_card(outbox["emails"][-1])
+  outbox["emails"].clear()
+  assert group_schedules.send_due(now=datetime(2026, 12, 1, 9, 1, tzinfo=timezone.utc), pause=0)["sent"] == 1
+  assert has_card(outbox["emails"][0])
+  # Changed by someone else, its card is kept when chosen again.
+  kept = group_schedules.update_schedule(group["id"], schedule["id"], {**details, "on_date": "2026-12-04", "admin": {"uid": 1, "email": "nobody@example.test"}}, now=datetime(2026, 12, 2, tzinfo=timezone.utc))
+  assert kept["saved_card_id"] == card["id"]
+  # Changed without a card, it has none.
+  later = group_schedules.update_schedule(group["id"], schedule["id"], {**details, "on_date": "2026-12-05", "saved_card": None}, now=datetime(2026, 12, 2, tzinfo=timezone.utc))
+  assert later["saved_card_id"] is None
+
+
+def test_a_deleted_card_leaves_the_scheduled_message_without_it(outbox):
+  from datetime import datetime, timezone
+
+  import group_schedules
+
+  card, group = leader_with_a_card_and_a_group()
+  details = {"kind": "message", "subject": "Weekly", "text": "Hello.", "repeat": "once", "on_date": "2026-12-01",
+             "send_time": "09:00", "timezone": "UTC", "saved_card": card["id"], "admin": ADMIN}
+  group_schedules.add_schedule(group["id"], details, "dave", now=datetime(2026, 11, 30, tzinfo=timezone.utc))
+  with connect() as connection:
+    connection.execute("DELETE FROM saved_cards WHERE id = %s", (card["id"],))
+  assert group_schedules.send_due(now=datetime(2026, 12, 1, 9, 1, tzinfo=timezone.utc), pause=0)["sent"] == 1
+  assert not outbox["emails"][0].is_multipart()
+
+
+def test_an_email_to_one_member_can_carry_a_card_now_or_later(outbox):
+  from datetime import datetime, timezone
+
+  import group_schedules
+
+  card, group = leader_with_a_card_and_a_group()
+  ann = groups.get_group(group["id"])["members"][0]["id"]
+  groups.email_member(group["id"], ann, "", "dave", html="<p>Thinking of you</p>", card=groups._saved_card({"saved_card": card["id"], "admin": ADMIN}))
+  email = outbox["emails"][-1]
+  assert email["To"] == f"ann@{DOMAIN}" and has_card(email)
+  assert "Thinking of you" in email.get_body(("html",)).get_content()
+  later = {"html": "<p>See you</p>", "subject": "Lunch", "on_date": "2026-12-01", "send_time": "10:30", "timezone": "UTC", "saved_card": card["id"], "admin": ADMIN}
+  schedule = group_schedules.schedule_member_email(group["id"], ann, later, "dave", now=datetime(2026, 11, 30, tzinfo=timezone.utc))
+  assert schedule["saved_card_id"] == card["id"]
+  outbox["emails"].clear()
+  assert group_schedules.send_due(now=datetime(2026, 12, 1, 10, 31, tzinfo=timezone.utc), pause=0)["sent"] == 1
+  assert has_card(outbox["emails"][0])
+
+
+def test_the_tool_never_takes_the_cards_account_from_its_caller():
+  card, group = leader_with_a_card_and_a_group()
+  ann = groups.get_group(group["id"])["members"][0]["id"]
+  # Claiming the card's account directly, without being its owner, is refused.
+  answer = subprocess.run(
+    [sys.executable, str(TOOL), "email-member", f"--group={group['id']}", f"--member={ann}"],
+    input=json.dumps({"text": "Hi", "saved_card": card["id"], "card_user_id": card["id"], "admin": {"uid": 1, "email": "nobody@example.test"}}),
+    capture_output=True, text=True,
+  )
+  assert json.loads(answer.stdout)["ok"] is False

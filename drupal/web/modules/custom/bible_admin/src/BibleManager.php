@@ -1015,7 +1015,7 @@ class BibleManager {
     // $message: html (from the editor; the ML service cleans it) or text (the plain box).
     // subject: the box's Subject (the ML service checks it, and uses its own wording when it is empty).
     // signature_id: one of the leader's signatures, or '' for none (the ML service checks it is the leader's).
-    $details = array_intersect_key($message, ['html' => TRUE, 'text' => TRUE, 'subject' => TRUE, 'signature_id' => TRUE]);
+    $details = $this->withCardSender(array_intersect_key($message, ['html' => TRUE, 'text' => TRUE, 'subject' => TRUE, 'signature_id' => TRUE, 'saved_card' => TRUE]));
     $details['sent_by'] = $this->currentUser->getAccountName();
     if ($sendAt !== NULL) {
       $details += array_intersect_key($sendAt, ['on_date' => TRUE, 'send_time' => TRUE, 'timezone' => TRUE]);
@@ -1069,10 +1069,7 @@ class BibleManager {
   public function sendToGroup(int $groupId, string $kind, array $details): array {
     $group = $this->getGroup($groupId);
     $details['sent_by'] = $this->currentUser->getAccountName();
-    // A saved verse card is looked up among the cards of the person sending (their site account; saved_cards.py).
-    if (!empty($details['saved_card'])) {
-      $details['admin'] = ['uid' => (int) $this->currentUser->id(), 'email' => (string) $this->currentUser->getEmail()];
-    }
+    $details = $this->withCardSender($details);
     $counts = $this->run(['send', '--group=' . $groupId, '--kind=' . $kind], 'manage_groups.py', $this->groupInput($details), self::GROUP_SEND_TIMEOUT_SECONDS)['counts'];
     $this->logger->notice('@user sent a @kind to the group “@name” (@id): @emailed emailed, @texted texted, @skipped skipped, @failed failed.', [
       '@user' => $this->currentUser->getAccountName(),
@@ -1094,6 +1091,7 @@ class BibleManager {
   public function addGroupSchedule(int $groupId, array $details): array {
     $group = $this->getGroup($groupId);
     $details['created_by'] = $this->currentUser->getAccountName();
+    $details = $this->withCardSender($details);
     $schedule = $this->run(['add-schedule', '--group=' . $groupId], 'manage_groups.py', $this->groupInput($details))['schedule'];
     $this->logSchedule('scheduled', $schedule, $group);
     return $schedule;
@@ -1116,7 +1114,7 @@ class BibleManager {
 
   public function updateGroupSchedule(int $groupId, int $scheduleId, array $details): array {
     $group = $this->getGroup($groupId);
-    $schedule = $this->run(['update-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py', $this->groupInput($details))['schedule'];
+    $schedule = $this->run(['update-schedule', '--group=' . $groupId, '--schedule=' . $scheduleId], 'manage_groups.py', $this->groupInput($this->withCardSender($details)))['schedule'];
     $this->logSchedule('changed the scheduled', $schedule, $group);
     return $schedule;
   }
@@ -1153,6 +1151,17 @@ class BibleManager {
    * A send to a whole group: up to 500 members, one email at a time.
    */
   private const GROUP_SEND_TIMEOUT_SECONDS = 600;
+
+  /**
+   * With a saved verse card chosen (saved_card), who is sending it: the card is looked up among the cards of their
+   * site account only (saved_cards.account_for_admin).
+   */
+  private function withCardSender(array $details): array {
+    if (!empty($details['saved_card'])) {
+      $details['admin'] = ['uid' => (int) $this->currentUser->id(), 'email' => (string) $this->currentUser->getEmail()];
+    }
+    return $details;
+  }
 
   private function groupInput(array $details): string {
     return json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);

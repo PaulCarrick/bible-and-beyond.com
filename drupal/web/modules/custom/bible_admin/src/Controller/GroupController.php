@@ -87,6 +87,9 @@ class GroupController extends ControllerBase {
         'picture' => $this->t('Picture message: @subject', ['@subject' => $schedule['subject']]),
         default => $this->t('Message: @subject', ['@subject' => $schedule['subject']]),
       };
+      if (!empty($schedule['saved_card_id'])) {
+        $what = $this->t('@what, with a verse card', ['@what' => $what]);
+      }
       if (!empty($schedule['signature_name'])) {
         $what = $this->t('@what, signed “@signature”', ['@what' => $what, '@signature' => $schedule['signature_name']]);
       }

@@ -216,7 +216,9 @@ sections:
         the cards on My cards of your own account on the site (made with Make your own card on the Verse of the day
         page); one chosen is shown in the email, attached to it as a picture to save, and sent as a picture text to
         members who get texts. Your admin account finds your site account by its email address, or by the
-        <em>Drupal administrator account</em> chosen on your Site users entry. A scheduled message, Email a
+        <em>Drupal administrator account</em> chosen on your Site users entry. A scheduled message and Email a
+        member offer the same choice; a scheduled message keeps its card (it goes without it if the card is deleted
+        from My cards first), and the Scheduled list says "with a verse card". A scheduled message, Email a
         member, the group's notes, signatures and tasks use the same editor; the words for a picture stay plain, as
         they are written onto the picture.</li>
         <li><strong>Send a verse card</strong>: a well-known Bible verse chosen at random, written over one of the

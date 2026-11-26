@@ -85,6 +85,8 @@ def read_input() -> dict:
     raise GroupProblem("The details could not be read.") from error
   if not isinstance(details, dict):
     raise GroupProblem("The details could not be read.")
+  # A saved card's account is found from the sender ("admin"), never given by the caller (groups.card_owner).
+  details.pop("card_user_id", None)
   return details
 
 
@@ -126,7 +128,7 @@ def run(arguments) -> dict:
     member = groups.email_member(
       arguments.group, arguments.member, str(details.get("text", "")), str(details.get("sent_by", "")),
       html=str(html) if html is not None else None, subject=str(details.get("subject") or ""),
-      signature=groups.signature_words(signature_id),
+      signature=groups.signature_words(signature_id), card=groups._saved_card(details),
     )
     return {"ok": True, "member": member}
   if command == "restart-schedules":
