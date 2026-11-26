@@ -630,8 +630,11 @@ def send(
   # "Add the “Sent by …” line" (2026-11-23): on unless the leader unticked it.
   show_sent_by = details.get("show_sent_by", True) is not False
   group = get_group(group_id)
-  # A scheduled email's signature ({html, text}; group_schedules), in every copy of it.
+  # A scheduled email's signature ({html, text}; group_schedules), in every copy of it; for one sent now, the one
+  # chosen on Send a message (details["signature_id"], one of the leader's; 2026-11-26).
   signature = (schedule or {}).get("signature")
+  if schedule is None and details.get("signature_id") not in (None, ""):
+    signature = signature_words(leader_signature(group, details.get("signature_id")))
   subject, text, verse, card, words, link, html = _prepare(group, kind, details)
   card_attachment = kind == "message"
 

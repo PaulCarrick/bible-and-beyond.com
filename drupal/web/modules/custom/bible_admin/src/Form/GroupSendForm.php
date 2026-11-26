@@ -105,6 +105,29 @@ class GroupSendForm extends FormBase {
       ];
     }
 
+    // The signature after the words (2026-11-26, the owner's request), as on scheduled emails: one of the group
+    // leader's signatures, or none.
+    $signatures = [];
+    try {
+      foreach ($this->manager->listLeaderSignatures($group) as $signature) {
+        $signatures[(int) $signature['id']] = $signature['name'];
+      }
+    }
+    catch (BibleManagerException $exception) {
+      $this->messenger()->addError($exception->getMessage());
+    }
+    $form['signature_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Signature'),
+      '#options' => ['' => $this->t('- No signature -')] + $signatures,
+      '#default_value' => $form_state->getValue('signature_id', ''),
+      '#description' => $signatures
+        ? $this->t('Added after your words, before the “Sent by …” line.')
+        : ((int) $group['owner_uid'] === (int) $this->currentUser()->id()
+          ? $this->t('You have no signatures yet. Add one on the <a href=":url">Signatures</a> page.', [':url' => Url::fromRoute('bible_admin.signatures')->toString()])
+          : $this->t('The group leader has no signatures yet.')),
+    ];
+
     // "Add the “Sent by …” line" (2026-11-23, the owner's request): ticked to start; untick it for a message that
     // should end with your own words (and signature).
     $form['show_sent_by'] = [
@@ -187,6 +210,7 @@ class GroupSendForm extends FormBase {
       $details['saved_card'] = SavedCardChoice::value($form_state);
     }
     $details['show_sent_by'] = (bool) $form_state->getValue('show_sent_by');
+    $details['signature_id'] = (string) $form_state->getValue('signature_id');
     try {
       $counts = $this->manager->sendToGroup($groupId, $kind, $details);
     }

@@ -504,3 +504,22 @@ def test_an_email_to_one_member_can_have_a_signature_now_or_later(outbox, signat
   outbox["emails"].clear()
   assert group_schedules.send_due(now=datetime(2026, 11, 17, 16, 31, tzinfo=timezone.utc), pause=0)["sent"] == 1
   assert "See you\n\nDeacon Dave\nFirst Church" in outbox["emails"][0].get_body(("plain",)).get_content()
+
+
+def test_a_message_sent_now_can_have_a_signature(outbox, signatures_of_the_leader):
+  formal, _, not_his = signatures_of_the_leader
+  group = group_with_a_member()
+  groups.send(group["id"], "message", {"subject": "Thanksgiving", "html": "<p>Greetings,</p>", "signature_id": str(formal["id"])}, "dave", pause=0)
+  email = outbox["emails"][-1]
+  plain = email.get_body(("plain",)).get_content()
+  # After the words, before the foot.
+  assert plain.index("Deacon Dave\nFirst Church") < plain.index("--")
+  assert "<strong>Deacon Dave</strong>" in email.get_body(("html",)).get_content()
+  # A verse card can have one too, and none is fine.
+  preview = groups.preview_verse()
+  groups.send(group["id"], "verse", {"card": preview["card"], "verse": preview["verse"], "signature_id": str(formal["id"])}, "dave", pause=0)
+  assert "First Church" in outbox["emails"][-1].get_body(("plain",)).get_content()
+  groups.send(group["id"], "message", {"subject": "Hi", "text": "Hello.", "signature_id": ""}, "dave", pause=0)
+  assert "First Church" not in outbox["emails"][-1].get_body(("plain",)).get_content()
+  with pytest.raises(GroupProblem, match="not one of the group leader's"):
+    groups.send(group["id"], "message", {"subject": "Hi", "text": "Hello.", "signature_id": str(not_his["id"])}, "dave", pause=0)
