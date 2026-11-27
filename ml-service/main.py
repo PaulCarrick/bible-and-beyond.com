@@ -36,6 +36,7 @@ from accounts import (
 )
 import custom_cards
 import saved_cards
+import member_task_requests
 import scheduled_tasks
 import day_cards
 import message_cards
@@ -912,6 +913,42 @@ def saved_cards_save(body: CardSaveRequest, request: Request):
 def my_scheduled_tasks(request: Request):
   """The logged-in member's own scheduled tasks (My scheduled tasks): upcoming and the last 60 days."""
   user = require_user(request, "Please log in to see your scheduled tasks.")
+  return scheduled_tasks.member_tasks(user["id"])
+
+
+class TaskRequest(BaseModel):
+  task_id: int
+  on_date: str = Field(max_length=10)
+
+
+@app.get("/scheduled-tasks/offered")
+def offered_scheduled_tasks(request: Request):
+  """The tasks a member of a group may ask for, with their free dates in the next two months."""
+  user = require_user(request, "Please log in to ask for a task.")
+  return member_task_requests.offered(user["id"])
+
+
+@app.post("/scheduled-tasks/mine")
+def request_scheduled_task(body: TaskRequest, request: Request, background: BackgroundTasks):
+  """The member asks for a task on a date: added unconfirmed, and their group leader is emailed (after answering)."""
+  user = require_user(request, "Please log in to ask for a task.")
+  try:
+    added = member_task_requests.request_task(user["id"], body.task_id, body.on_date)
+  except member_task_requests.RequestProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  background.add_task(member_task_requests.tell_leaders, added["notice"])
+  return scheduled_tasks.member_tasks(user["id"])
+
+
+@app.delete("/scheduled-tasks/mine/{scheduled_id}")
+def withdraw_scheduled_task(scheduled_id: int, request: Request, background: BackgroundTasks):
+  """The member takes themselves off one of their own coming tasks; their group leader is emailed."""
+  user = require_user(request, "Please log in to change your tasks.")
+  try:
+    removed = member_task_requests.withdraw(user["id"], scheduled_id)
+  except member_task_requests.RequestProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+  background.add_task(member_task_requests.tell_leaders, removed["notice"])
   return scheduled_tasks.member_tasks(user["id"])
 
 

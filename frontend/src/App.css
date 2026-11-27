@@ -3438,6 +3438,64 @@ div.welcome-lead > p {
   background: rgba(26, 110, 189, 0.07);
 }
 
+.my-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.my-task-add {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin: 1rem 0;
+}
+
+.my-task-add h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.my-task-add-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.my-task-add-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+  flex: 1 1 14rem;
+}
+
+.my-task-add-fields select {
+  font: inherit;
+  font-weight: normal;
+  padding: 0.35rem 0.5rem;
+  max-width: 100%;
+}
+
+.my-task-add-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.my-tasks .success {
+  color: #1d7a3a;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .my-tasks .success {
+    color: #6fd08f;
+  }
+}
+
 .my-tasks-past summary {
   cursor: pointer;
   font-weight: 600;

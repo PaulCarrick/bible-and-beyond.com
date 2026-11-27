@@ -764,6 +764,35 @@ export async function fetchMyScheduledTasks(): Promise<{ upcoming: MemberSchedul
   return readJson<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }>(response)
 }
 
+// A task a member of a group may ask for, with its free dates in the next two months (member_task_requests.offered).
+export interface OfferedTask {
+  id: number
+  name: string
+  dates: { value: string; label: string }[]
+}
+
+export async function fetchOfferedTasks(): Promise<OfferedTask[]> {
+  const response = await fetch(`${mlServiceUrl}/scheduled-tasks/offered`, { credentials: 'include' })
+  return (await readJson<{ tasks: OfferedTask[] }>(response)).tasks
+}
+
+// Asks for a task on a date (added unconfirmed; the group leader is emailed). Answers the member's tasks again.
+export async function requestScheduledTask(taskId: number, onDate: string): Promise<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }> {
+  const response = await fetch(`${mlServiceUrl}/scheduled-tasks/mine`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_id: taskId, on_date: onDate }),
+  })
+  return readJson<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }>(response)
+}
+
+// Takes the member off one of their coming tasks (the group leader is emailed). Answers the member's tasks again.
+export async function withdrawScheduledTask(id: number): Promise<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }> {
+  const response = await fetch(`${mlServiceUrl}/scheduled-tasks/mine/${id}`, { method: 'DELETE', credentials: 'include' })
+  return readJson<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }>(response)
+}
+
 export async function fetchSavedCards(): Promise<SavedCard[]> {
   const response = await fetch(`${mlServiceUrl}/saved-cards`, { credentials: 'include' })
   return (await readJson<{ cards: SavedCard[] }>(response)).cards

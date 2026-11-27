@@ -275,7 +275,14 @@ def update_scheduled(scheduled_id: int, details: dict, today: date | None = None
       WHERE id = %s""",
       (user_id, day, note["html"], note["text"], confirmed, changed, changed, changed, changed, scheduled_id),
     )
-  return get_scheduled(scheduled_id, today)
+  result = get_scheduled(scheduled_id, today)
+  # A leader ticked Confirmed (it was not before): the member is told (member_task_requests.tell_confirmed; the
+  # owner's request, 2026-11-27). "confirmation_notice" says how, for the Drupal message.
+  if result["confirmed"] and not scheduled["confirmed"]:
+    import member_task_requests
+
+    result["confirmation_notice"] = member_task_requests.tell_confirmed(scheduled_id)
+  return result
 
 
 def day_options(on_date: date, owner_uid: int | None = None, today: date | None = None) -> dict:

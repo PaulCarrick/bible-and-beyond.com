@@ -136,6 +136,10 @@ class ScheduledTaskForm extends FormBase {
       '@person' => $schedule['user_label'],
       '@date' => $this->dateLabel($schedule['on_date']),
     ]));
+    // Ticking Confirmed tells the member (member_task_requests.tell_confirmed): say how it went.
+    if (!empty($schedule['confirmation_notice'])) {
+      $this->messenger()->addStatus($this->t('Confirmed. @notice', ['@notice' => $schedule['confirmation_notice']]));
+    }
     $form_state->setRedirect('bible_admin.scheduled_tasks');
   }
 

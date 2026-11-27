@@ -419,7 +419,12 @@ sections:
       public site, a member who is in at least one group (as a site account) finds <em>My scheduled tasks</em> in the
       account menu: their
       tasks from today on (and the last 60 days under Earlier), each with its date, Confirmed or Not confirmed yet,
-      the task's description and their note.</p>
+      the task's description and their note. There they can <strong>ask for a task</strong> (Add a task: one of
+      the tasks of their group leader, on one of its dates in the next two months) and <strong>take themselves off</strong>
+      a coming one (Remove). Either way the group leader is emailed (with the member's address as Reply-To); a request
+      arrives here unconfirmed, with "(on the site)" after their name under Scheduled by. When you tick
+      <em>Confirmed</em> on a task that was not confirmed, the member is emailed that they are confirmed (or texted,
+      if that is how they chose to get messages), and the page says how they were told.</p>
       <figure><img data-guide="schedule-tasks" alt="Schedule tasks: the date Sunday, December 6, the tasks that fall on it (Communion and Greeter) with who has each already and a + button, and a row for Greeter with the site user Mary Sample, a note box and a − button"><figcaption>Schedule tasks: several tasks on one date at once.</figcaption></figure>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away

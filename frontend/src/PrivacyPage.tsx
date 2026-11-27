@@ -114,7 +114,8 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
         <li>
           <strong>Tasks you are scheduled for.</strong> If the site&rsquo;s administrators schedule you for a task on a
           date (and whether it is confirmed), they keep that with your account; you see your own on My scheduled tasks,
-          and the people who set the tasks see them.
+          and the people who set the tasks see them. When you ask for a task or take yourself off one there, your
+          group leader is emailed with your name, email address and phone number, so they can reply.
         </li>
         <li>
           <strong>Your notes, pins and routes on the maps,</strong> if an administrator has let your account add them:
