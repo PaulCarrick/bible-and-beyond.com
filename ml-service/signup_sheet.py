@@ -256,8 +256,17 @@ def notes_paragraphs(html: str) -> list[Paragraph]:
   }
   paragraphs = []
   for markup, kind in reader.blocks:
+    style = styles.get(kind, styles["p"])
+    # The line spacing follows the font size chosen in the editor (a span's size): with only smaller or larger text
+    # in a paragraph, its lines are spaced for that size rather than for the usual 10 pt (2026-11-27: a note set to
+    # "12" in the editor, 9 pt here, kept the 10 pt spacing and still did not fit under the last date).
+    sizes = [float(size) for size in re.findall(r'<font [^>]*size="([0-9.]+)"', markup)]
+    if sizes and kind in ("p", "li"):
+      unsized = re.sub(r'<font [^>]*size="[0-9.]+"[^>]*>.*?</font>', "", markup, flags=re.S)
+      largest = max(sizes + ([style.fontSize] if re.sub(r"<[^>]+>|&nbsp;|\s", "", unsized) else []))
+      style = ParagraphStyle(f"{style.name}-{largest}", parent=style, fontSize=largest, leading=round(largest * 1.3, 1))
     try:
-      paragraphs.append(Paragraph(markup, styles.get(kind, styles["p"])))
+      paragraphs.append(Paragraph(markup, style))
     except Exception:  # Markup reportlab cannot read: keep the words.
       paragraphs.append(Paragraph(escape(unescape(re.sub(r"<[^>]+>", "", markup))), styles["p"]))
   return paragraphs
