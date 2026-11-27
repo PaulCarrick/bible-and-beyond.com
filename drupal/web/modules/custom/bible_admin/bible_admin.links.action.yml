@@ -75,6 +75,14 @@ bible_admin.day_message_action:
   appears_on:
     - bible_admin.scheduled_tasks
 
+# The sign-up sheet PDF (2026-11-27, the owner's request).
+bible_admin.sign_up_sheet_action:
+  route_name: bible_admin.sign_up_sheet
+  title: 'Sign-up sheet'
+  weight: 3
+  appears_on:
+    - bible_admin.scheduled_tasks
+
 bible_admin.external_site_add_action:
   route_name: bible_admin.external_site_add
   title: 'Add a site'

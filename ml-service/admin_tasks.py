@@ -41,7 +41,7 @@ COLUMNS = """
   id, name, description_html, description_text, repeat, weekday, first_date, day_of_month,
   first_notification_html, first_notification_text, second_notification_html, second_notification_text,
   owner_uid, owner_name, created_at, updated_at, first_notice_days, second_notice_days, timezone, owner_email,
-  interval_count, weekdays, weeks_of_month, signature_id, show_sent_by
+  interval_count, weekdays, weeks_of_month, signature_id, show_sent_by, expected_occurrences, sheet_order
 """
 
 
@@ -146,6 +146,9 @@ def _describe(row, today: date | None = None) -> dict:
     "signature_id": row[23],
     # Whether its reminder emails end with the "A reminder of … from …" line (migration 070).
     "show_sent_by": row[24],
+    # The sign-up sheet (migration 074): how many people it expects on each date, and its place within a date.
+    "expected_occurrences": row[25],
+    "sheet_order": row[26],
   }
   task["how_often"] = describe(task)
   task["next_date"] = next_date(task, today or date.today()).isoformat()
@@ -198,6 +201,28 @@ def _check(details: dict) -> dict:
     values["timezone"] = str(details["timezone"])
   values["owner_email"] = None if details.get("owner_email") is None else str(details["owner_email"]).strip()[:320]
   return values
+
+
+MAX_EXPECTED = 20
+MAX_SHEET_ORDER = 999
+
+
+def _sheet_fields(details: dict, current: dict | None = None) -> tuple[int, int]:
+  """Expected occurrences (1 to MAX_EXPECTED, default 1) and sheet order (0 to MAX_SHEET_ORDER, default 0). Left out
+  of the details, a change keeps the task's own."""
+  expected = details.get("expected_occurrences")
+  order = details.get("sheet_order")
+  if expected is None or expected == "":
+    expected = current["expected_occurrences"] if current else 1
+  if order is None or order == "":
+    order = current["sheet_order"] if current else 0
+  checked_expected = _integer(expected, 1, MAX_EXPECTED)
+  if checked_expected is None:
+    raise TaskProblem(f"Expected occurrences must be a whole number from 1 to {MAX_EXPECTED}.")
+  checked_order = _integer(order, 0, MAX_SHEET_ORDER)
+  if checked_order is None:
+    raise TaskProblem(f"The order on the sign-up sheet must be a whole number from 0 to {MAX_SHEET_ORDER}.")
+  return checked_expected, checked_order
 
 
 def _integers(value, low: int, high: int) -> list[int] | None:
@@ -302,6 +327,7 @@ def _signature(value, owner_uid: int) -> int | None:
 
 def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
   values = _check(details)
+  expected, order = _sheet_fields(details)
   signature_id = _signature(details.get("signature_id"), owner_uid)
   with connect() as connection:
     count = connection.execute("SELECT count(*) FROM admin_tasks WHERE owner_uid = %s", (owner_uid,)).fetchone()[0]
@@ -312,10 +338,10 @@ def create_task(details: dict, owner_uid: int, owner_name: str) -> dict:
         name, description_html, description_text, repeat, weekday, first_date, day_of_month,
         first_notification_html, first_notification_text, second_notification_html, second_notification_text,
         first_notice_days, second_notice_days, interval_count, weekdays, weeks_of_month,
-        owner_uid, owner_name, timezone, owner_email, signature_id, show_sent_by
-      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
+        owner_uid, owner_name, timezone, owner_email, signature_id, show_sent_by, expected_occurrences, sheet_order
+      ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {COLUMNS}""",
       (*_parameters(values), owner_uid, " ".join((owner_name or "").split())[:NAME_LIMIT], values["timezone"] or "UTC", values["owner_email"] or "", signature_id,
-       details.get("show_sent_by", True) is not False),
+       details.get("show_sent_by", True) is not False, expected, order),
     ).fetchone()
   return _describe(row)
 
@@ -326,6 +352,7 @@ def update_task(task_id: int, details: dict) -> dict:
   time zone as given; a signature that is not theirs is dropped rather than refused."""
   values = _check(details)
   task = get_task(task_id)
+  expected, order = _sheet_fields(details, task)
   new_owner = details.get("new_owner_uid")
   owner_uid = int(new_owner) if new_owner is not None else task["owner_uid"]
   wanted = details.get("signature_id") if "signature_id" in details else task["signature_id"]
@@ -351,10 +378,10 @@ def update_task(task_id: int, details: dict) -> dict:
         second_notification_html = %s, second_notification_text = %s, first_notice_days = %s,
         second_notice_days = %s, interval_count = %s, weekdays = %s, weeks_of_month = %s,
         timezone = COALESCE(%s, timezone), owner_email = COALESCE(%s, owner_email), signature_id = %s,
-        show_sent_by = %s, updated_at = now()
+        show_sent_by = %s, expected_occurrences = %s, sheet_order = %s, updated_at = now()
       WHERE id = %s RETURNING {COLUMNS}""",
       (*_parameters(values), values["timezone"], values["owner_email"], signature_id,
-       details.get("show_sent_by", task["show_sent_by"]) is not False, task_id),
+       details.get("show_sent_by", task["show_sent_by"]) is not False, expected, order, task_id),
     ).fetchone()
   if row is None:
     raise TaskProblem("That task was not found. It may have been deleted.")

@@ -214,6 +214,32 @@ class TaskForm extends FormBase {
       '#description' => $this->t('Such as “A reminder of “Coffee” on Sunday, November 29, from Paul through the site.” Untick to leave it out of this task’s reminder emails.'),
     ];
 
+    // The sign-up sheet (Scheduled tasks; 2026-11-27, the owner's request).
+    $form['sheet'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Sign-up sheet'),
+      '#open' => TRUE,
+    ];
+    $form['sheet']['expected_occurrences'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Expected occurrences'),
+      '#min' => 1,
+      '#max' => 20,
+      '#step' => 1,
+      '#required' => TRUE,
+      '#default_value' => (int) ($task['expected_occurrences'] ?? 1),
+      '#description' => $this->t('How many people the task needs on each of its dates (2 for “Baked Goods 1” and “Baked Goods 2”). A blank sign-up sheet has that many rows for it, numbered when more than one, and members cannot ask for a date that already has that many.'),
+    ];
+    $form['sheet']['sheet_order'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Order on the sign-up sheet'),
+      '#min' => 0,
+      '#max' => 999,
+      '#step' => 1,
+      '#default_value' => (int) ($task['sheet_order'] ?? 0),
+      '#description' => $this->t('Where the task comes within each date on the sheet: lowest first (1, 2, 3 …); tasks with the same number go by name.'),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $task === NULL ? $this->t('Add the task') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -267,6 +293,8 @@ class TaskForm extends FormBase {
         'signature_id' => (string) $form_state->getValue('signature_id'),
         'owner_uid' => $form_state->getValue('owner_uid') ? (int) $form_state->getValue('owner_uid') : NULL,
         'show_sent_by' => (bool) $form_state->getValue('show_sent_by'),
+        'expected_occurrences' => (int) $form_state->getValue('expected_occurrences'),
+        'sheet_order' => (int) $form_state->getValue('sheet_order'),
       ]);
     }
     catch (BibleManagerException $exception) {

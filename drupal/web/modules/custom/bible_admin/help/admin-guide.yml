@@ -372,7 +372,11 @@ sections:
       a first and a second notification. Only you see your tasks; a Website administrator sees everyone's, with an
       Owner column. The list shows how often each comes round and its next date.</p>
       <figure><img data-guide="tasks" alt="Tasks: Add a task, and a table of Communion (every month on the first Sunday), Greeter (every week on Sunday) and Set up the room (every two weeks on Thursday), each with its next date, and Schedule, Edit and Delete"><figcaption>Tasks.</figcaption></figure>
-      <p><strong>Add a task</strong> (or Edit) and choose how often:</p>
+      <p><strong>Add a task</strong> (or Edit) and choose how often (below). Under <em>Sign-up sheet</em>,
+      <strong>Expected occurrences</strong> is how many people the task needs on each date (2 gives "Baked Goods 1" and
+      "Baked Goods 2" on the sheet, and members cannot ask for a date that already has that many), and
+      <strong>Order on the sign-up sheet</strong> is where it comes within a date (lowest first).</p>
+      <p>How often:</p>
       <ul>
         <li><strong>Weekly</strong>: every week, or every 2 to 8 weeks, on one or more days of the week (every week on
         Sunday and Wednesday; every 3 weeks on Thursday).</li>
@@ -453,6 +457,15 @@ sections:
       sign-up sheet: choose <em>From</em> and <em>To</em> and press <em>Show</em>; each day with something scheduled has its
       own heading and a table of the task, the person's name, the note, their email and their phone. <em>Print</em>
       prints just the report.</p>
+      <p>The <strong>Sign-up sheet</strong> button makes a PDF to print and put out, like a paper sign-up sheet: choose
+      the <strong>Group</strong> (the sheet lists that group leader's tasks), <strong>From</strong> and
+      <strong>To</strong>, a <strong>Title</strong> for the top of each page and, if you like, <strong>Notes</strong>
+      for the foot (shown with no heading, and left off when empty), then <em>Make the PDF</em>. Each date on which
+      any of the tasks falls gets a block with a row for each place: a task that expects two people (its
+      <em>Expected occurrences</em>) has two rows, "Baked Goods 1" and "Baked Goods 2". With <em>Fill in the people
+      scheduled</em> ticked the rows show who is scheduled, with their note, email and phone (and "not confirmed"
+      when they are not yet), then blank rows up to the number expected; unticked, the sheet is blank. The title and
+      notes are remembered for each group.</p>
       <figure><img data-guide="task-report" alt="Scheduled Task Report: From and To dates, Show, Print, and Sunday, December 6 with a table of Communion and Greeter: name, notes, email and phone"><figcaption>The Scheduled Task Report.</figcaption></figure>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 

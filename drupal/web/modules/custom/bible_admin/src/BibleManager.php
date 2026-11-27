@@ -1403,6 +1403,30 @@ class BibleManager {
    * Schedules several tasks on one date at once: $items are [task_id, user_id, note => [text]]. All or none.
    * Returns the scheduled tasks made, each logged like Schedule.
    */
+  /**
+   * The groups for the sign-up sheet (this user's own, or everyone's for an administrator), each with id, name,
+   * owner_name and the title and notes last used for its sheet.
+   */
+  public function signUpSheetGroups(): array {
+    return $this->run(['sheet-groups', ...$this->ownerArguments()], 'manage_tasks.py')['groups'];
+  }
+
+  /**
+   * The sign-up sheet of a group for a period (signup_sheet.py): {pdf (base64), file_name, dates, title}. Its title
+   * and notes are kept on the group for next time.
+   */
+  public function makeSignUpSheet(array $details): array {
+    $sheet = $this->run(['sign-up-sheet', ...$this->ownerArguments()], 'manage_tasks.py', $this->groupInput($details));
+    $this->logger->notice('@user made the @kind sign-up sheet of group @group from @start to @end.', [
+      '@user' => $this->currentUser->getAccountName(),
+      '@kind' => !empty($details['filled']) ? 'filled-in' : 'blank',
+      '@group' => (int) $details['group_id'],
+      '@start' => $details['start'],
+      '@end' => $details['end'],
+    ]);
+    return $sheet;
+  }
+
   public function addScheduledTasks(string $onDate, array $items): array {
     $input = $this->groupInput(['on_date' => $onDate, 'items' => $items, 'created_by_name' => $this->currentUser->getDisplayName()]);
     $schedules = $this->run(['add-schedules', '--by=' . (int) $this->currentUser->id(), ...$this->ownerArguments()], 'manage_tasks.py', $input)['schedules'];

@@ -724,6 +724,15 @@ bible_admin.scheduled_task_report:
   requirements:
     _permission: 'keep signatures and tasks+administer signatures and tasks'
 
+# The sign-up sheet (2026-11-27, the owner's request): a group's sheet for a period as a PDF, blank or filled in.
+bible_admin.sign_up_sheet:
+  path: '/admin/scheduled-tasks/sign-up-sheet'
+  defaults:
+    _form: '\Drupal\bible_admin\Form\SignUpSheetForm'
+    _title: 'Sign-up sheet'
+  requirements:
+    _permission: 'keep signatures and tasks+administer signatures and tasks'
+
 bible_admin.task_schedule:
   path: '/admin/tasks/{task_id}/schedule'
   defaults:

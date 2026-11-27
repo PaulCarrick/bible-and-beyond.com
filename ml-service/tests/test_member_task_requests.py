@@ -17,6 +17,8 @@ LEADER = 990401
 OTHER_OWNER = 990402
 DOMAIN = "task-requests-test.example"
 TODAY = date(2026, 11, 26)  # a Thursday
+SUNDAY = {"name": "Greeter", "description": {"text": "Welcome people"}, "repeat": "weekly", "weekdays": [6],
+          "interval_count": 1, "first_date": "2026-11-01", "owner_email": "dan@example.test"}
 
 
 @pytest.fixture
@@ -45,8 +47,7 @@ def setup(monkeypatch):
       (LEADER,),
     ).fetchone()[0]
     connection.execute("INSERT INTO group_members (group_id, user_id, stop_token) VALUES (%s, %s, 'task-requests-token')", (group, member))
-  sunday = {"name": "Greeter", "description": {"text": "Welcome people"}, "repeat": "weekly", "weekdays": [6],
-            "interval_count": 1, "first_date": "2026-11-01", "owner_email": "dan@example.test"}
+  sunday = SUNDAY
   greeter = admin_tasks.create_task(sunday, LEADER, "Pastor Dan")
   elsewhere = admin_tasks.create_task({**sunday, "name": "Ushers"}, OTHER_OWNER, "Someone else")
   yield {"member": member, "outsider": outsider, "greeter": greeter, "elsewhere": elsewhere, "sent": sent}
@@ -124,3 +125,25 @@ def test_the_endpoints_need_a_login(setup, monkeypatch):
   monkeypatch.setattr(main, "user_for_token", lambda token: {"id": setup["outsider"]})
   answer = client.post("/scheduled-tasks/mine", json={"task_id": setup["greeter"]["id"], "on_date": "2026-12-06"}, cookies={"session": "x"})
   assert answer.status_code == 403
+
+
+def test_a_date_with_as_many_people_as_expected_is_not_offered(setup):
+  with connect() as connection:
+    connection.execute(
+      "INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid) VALUES (%s, %s, '2026-12-06', %s)",
+      (setup["greeter"]["id"], setup["outsider"], LEADER),
+    )
+  days = [day["value"] for day in member_task_requests.offered(setup["member"], TODAY)["tasks"][0]["dates"]]
+  assert "2026-12-06" not in days  # it expects one person (the default) and has one
+  admin_tasks.update_task(setup["greeter"]["id"], {**SUNDAY, "expected_occurrences": 2})
+  days = [day["value"] for day in member_task_requests.offered(setup["member"], TODAY)["tasks"][0]["dates"]]
+  assert "2026-12-06" in days
+  member_task_requests.request_task(setup["member"], setup["greeter"]["id"], "2026-12-06", TODAY)
+  with connect() as connection:
+    third = connection.execute(
+      f"INSERT INTO users (email, password_hash, first_name) VALUES ('ruth@{DOMAIN}', 'x', 'Ruth') RETURNING id"
+    ).fetchone()[0]
+    group_id = connection.execute("SELECT id FROM member_groups WHERE owner_uid = %s", (LEADER,)).fetchone()[0]
+    connection.execute("INSERT INTO group_members (group_id, user_id, stop_token) VALUES (%s, %s, 'task-requests-token-2')", (group_id, third))
+  with pytest.raises(member_task_requests.RequestProblem, match="not offered"):
+    member_task_requests.request_task(third, setup["greeter"]["id"], "2026-12-06", TODAY)

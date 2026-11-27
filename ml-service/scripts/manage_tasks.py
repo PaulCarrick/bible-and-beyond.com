@@ -21,6 +21,8 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_tasks.py day-people --date=YYYY-MM-DD [--owner=UID]   the people scheduled that day, with their tasks
     manage_tasks.py send-day-message --by=UID [--owner=UID]   input {on_date, user_ids, subject, message, signature_id, sender_name, sender_email}
     manage_tasks.py add-schedules --by=UID [--owner=UID]   input {on_date, created_by_name, items: [{task_id, user_id, note}]}
+    manage_tasks.py sheet-groups [--owner=UID]   the groups for the sign-up sheet, with their remembered title and notes
+    manage_tasks.py sign-up-sheet [--owner=UID]  input {group_id, start, end, filled, title, notes}; answers the PDF (base64)
 """
 
 import argparse
@@ -35,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import admin_tasks  # noqa: E402
 import day_messages  # noqa: E402
 import scheduled_tasks  # noqa: E402
+import signup_sheet  # noqa: E402
 from admin_tasks import TaskProblem  # noqa: E402
 
 
@@ -65,6 +68,8 @@ def parse_arguments(arguments=None):
   many = commands.add_parser("add-schedules")
   many.add_argument("--by", type=int, required=True)
   many.add_argument("--owner", type=int)
+  commands.add_parser("sheet-groups").add_argument("--owner", type=int)
+  commands.add_parser("sign-up-sheet").add_argument("--owner", type=int)
   for name in ("get-schedule", "update-schedule", "remove-schedule"):
     commands.add_parser(name).add_argument("--schedule", type=int, required=True)
   return parser.parse_args(arguments)
@@ -87,6 +92,13 @@ def run(arguments) -> dict:
     return {"ok": True, "task": admin_tasks.get_task(arguments.id)}
   if arguments.command == "delete":
     return {"ok": True, "task": admin_tasks.delete_task(arguments.id)}
+  if arguments.command == "sheet-groups":
+    return {"ok": True, "groups": signup_sheet.groups(arguments.owner)}
+  if arguments.command == "sign-up-sheet":
+    try:
+      return {"ok": True, **signup_sheet.make(read_details(), arguments.owner)}
+    except signup_sheet.SheetProblem as problem:
+      raise TaskProblem(str(problem)) from problem
   if arguments.command == "schedule-options":
     return {"ok": True, **scheduled_tasks.options(arguments.id)}
   if arguments.command == "schedules":

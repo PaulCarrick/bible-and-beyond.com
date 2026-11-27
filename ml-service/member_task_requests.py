@@ -2,7 +2,8 @@
 request, 2026-11-27), and the emails that go with it.
 
 - offered(): the tasks a member may ask for (those whose owner leads one of the member's groups) with their dates in
-  the next two months that the member does not already have.
+  the next two months that the member does not already have and that do not already have as many people as the task
+  expects (expected_occurrences).
 - request_task(): adds the member to a task on one of those dates, NOT confirmed. Their group leader is emailed.
 - withdraw(): takes the member off one of their own coming tasks (confirmed or not). Their group leader is emailed.
 - tell_confirmed(): when a leader ticks Confirmed on the Drupal page (scheduled_tasks.update_scheduled), the member
@@ -91,7 +92,18 @@ def _taken_days(connection, user_id: int, task_id: int) -> set[date]:
   return {row[0] for row in rows}
 
 
+def _full_days(connection, task: dict, start: date, end: date) -> set[date]:
+  """The days on which the task already has as many people as it expects (expected_occurrences; migration 074)."""
+  rows = connection.execute(
+    """SELECT on_date FROM admin_scheduled_tasks WHERE task_id = %s AND on_date BETWEEN %s AND %s
+    GROUP BY on_date HAVING count(*) >= %s""",
+    (task["id"], start, end, task.get("expected_occurrences") or 1),
+  ).fetchall()
+  return {row[0] for row in rows}
+
+
 def _dates(task: dict, today: date, taken: set[date]) -> list[date]:
+  """The task's dates from today to two months on, leaving out `taken` (the member's own and the full ones)."""
   end = _months_on(today, MONTHS_AHEAD)
   rule = scheduled_tasks._rule(task)
   days, day = [], today
@@ -125,7 +137,7 @@ def offered(user_id: int, today: date | None = None) -> dict:
     tasks = _offered_tasks(connection, user_id, groups)
     answer = []
     for task in tasks:
-      days = _dates(task, today, _taken_days(connection, user_id, task["id"]))
+      days = _dates(task, today, _taken_days(connection, user_id, task["id"]) | _full_days(connection, task, today, _months_on(today, MONTHS_AHEAD)))
       if days:
         answer.append({
           "id": task["id"],
@@ -151,7 +163,7 @@ def request_task(user_id: int, task_id: int, on_date: str, today: date | None = 
     task = next((each for each in _offered_tasks(connection, user_id, groups) if each["id"] == task_id), None)
     if task is None:
       raise RequestProblem("That task is not one you can ask for.")
-    if day not in _dates(task, today, _taken_days(connection, user_id, task_id)):
+    if day not in _dates(task, today, _taken_days(connection, user_id, task_id) | _full_days(connection, task, today, _months_on(today, MONTHS_AHEAD))):
       raise RequestProblem("That date is not offered for this task (it may have been taken already). Choose another.")
     waiting = connection.execute(
       "SELECT count(*) FROM admin_scheduled_tasks WHERE user_id = %s AND NOT confirmed AND on_date >= %s",
