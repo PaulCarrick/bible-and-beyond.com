@@ -442,8 +442,8 @@ export interface AccountUser {
   use_maps: boolean
   // An administrator allowed this account to share its lists on Public lists; off unless set in Drupal.
   share_lists: boolean
-  // Scheduled tasks given to this account (from 60 days ago on): the menu then offers My scheduled tasks.
-  has_scheduled_tasks?: boolean
+  // A member of at least one group (Drupal Groups): only then does the menu offer My scheduled tasks.
+  in_a_group?: boolean
   // The member's own picture (My account; 2026-11-23): its address on the service (headShotAddress), or null.
   head_shot: string | null
 }

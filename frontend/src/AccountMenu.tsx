@@ -41,7 +41,7 @@ function displayName(user: AccountUser): string {
 
 // The account icon at the far top right (added 2026-11-23 at the owner's request, in place of the row of links): the
 // member's head shot, or the outline of a head and shoulders. Hovering over it with a mouse, or clicking it, opens a
-// menu: Account settings, My notes, My lists, My cards, My scheduled tasks (only for a member who has some) and Log out, or Log in and Set up account for a visitor. Escape, a click
+// menu: Account settings, My notes, My lists, My cards, My scheduled tasks (only for a member of a group) and Log out, or Log in and Set up account for a visitor. Escape, a click
 // elsewhere or choosing an entry closes it.
 function AccountMenu({ user, canSetUpAccount, onShowAccount, onShowNotes, onShowLists, onShowCards, onShowTasks, onLogIn, onSetUpAccount, onLogOut }: AccountMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -156,7 +156,7 @@ function AccountMenu({ user, canSetUpAccount, onShowAccount, onShowNotes, onShow
                 <li>
                   <button type="button" onClick={choose(onShowCards)}>My cards</button>
                 </li>
-                {user.has_scheduled_tasks && (
+                {user.in_a_group && (
                   <li>
                     <button type="button" onClick={choose(onShowTasks)}>My scheduled tasks</button>
                   </li>

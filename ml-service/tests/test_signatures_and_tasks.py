@@ -796,7 +796,7 @@ def test_the_sent_by_line_can_be_left_out_of_task_reminders_and_day_messages(sit
 
 def test_a_member_sees_their_own_scheduled_tasks(site_users, monkeypatch):
   """My scheduled tasks on the site (scheduled_tasks.member_tasks, GET /scheduled-tasks/mine) and the account's
-  has_scheduled_tasks, which shows it in the menu."""
+  in_a_group, which shows it in the menu (a member of at least one group, whether or not they have tasks)."""
   import accounts
   import main
   from fastapi.testclient import TestClient
@@ -806,7 +806,7 @@ def test_a_member_sees_their_own_scheduled_tasks(site_users, monkeypatch):
   def flag(user_id):
     with connect() as connection:
       row = connection.execute(f"SELECT {accounts._USER_COLUMNS} FROM users WHERE id = %s", (user_id,)).fetchone()
-    return accounts._describe_user(row)["has_scheduled_tasks"]
+    return accounts._describe_user(row)["in_a_group"]
 
   assert flag(open_id) is False
   today = date.today()
@@ -820,7 +820,20 @@ def test_a_member_sees_their_own_scheduled_tasks(site_users, monkeypatch):
         "INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, note_html, confirmed) VALUES (%s, %s, %s, %s, %s, %s)",
         (task["id"], open_id, today + timedelta(days=days), OWNER, note, confirmed),
       )
-  assert flag(open_id) is True and flag(closed_id) is False
+  # Scheduled tasks alone do not show the menu entry; being in a group does.
+  assert flag(open_id) is False
+  with connect() as connection:
+    group_id = connection.execute(
+      "INSERT INTO member_groups (name, owner_uid, owner_name) VALUES ('Tasks check group', %s, 'Paul') RETURNING id", (OWNER,)
+    ).fetchone()[0]
+    connection.execute(
+      "INSERT INTO group_members (group_id, user_id, stop_token) VALUES (%s, %s, 'tasks-check-token')", (group_id, open_id)
+    )
+  try:
+    assert flag(open_id) is True and flag(closed_id) is False
+  finally:
+    with connect() as connection:
+      connection.execute("DELETE FROM member_groups WHERE id = %s", (group_id,))
 
   mine = scheduled_tasks.member_tasks(open_id, today)
   assert [each["on_date"] for each in mine["upcoming"]] == [(today + timedelta(days=7)).isoformat()]

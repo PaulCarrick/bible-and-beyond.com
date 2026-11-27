@@ -45,7 +45,7 @@ function TaskItem({ task }: { task: MemberScheduledTask }) {
   )
 }
 
-// My scheduled tasks (in the account icon's menu when the member has some; the owner's request, 2026-11-27): the
+// My scheduled tasks (in the account icon's menu for a member of at least one group; the owner's request, 2026-11-27): the
 // tasks an administrator gave this account on the Drupal Scheduled tasks page (scheduled_tasks.member_tasks), the
 // coming ones soonest first with whether each is confirmed, and those of the last 60 days under Earlier. Read only.
 function MyTasksPage({ onNavigate }: MyTasksPageProps) {
