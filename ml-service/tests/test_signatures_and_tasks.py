@@ -269,6 +269,9 @@ def test_a_task_is_scheduled_changed_and_removed(site_users):
   open_id, _ = site_users
   task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
   scheduled = scheduled_tasks.add_scheduled(task["id"], {"user_id": str(open_id), "on_date": "2026-11-29"}, OWNER, "Paul", THURSDAY)
+  # A new scheduled task is not confirmed (migration 073 set those that existed before to true).
+  assert scheduled["confirmed"] is False
+  assert scheduled_tasks.get_scheduled(scheduled["id"], THURSDAY)["confirmed"] is False
   assert scheduled["task_name"] == "Greeter" and scheduled["user_name"] == "Ruth Test"
   assert scheduled["on_date"] == "2026-11-29" and scheduled["owner_uid"] == OWNER and scheduled["created_by_name"] == "Paul"
   with pytest.raises(TaskProblem, match="already has this task"):

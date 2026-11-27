@@ -50,7 +50,7 @@ COLUMNS = """
   COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), ''), COALESCE(u.email, u.phone, ''),
   s.on_date, s.created_by_name, s.created_at, s.updated_at,
   s.first_notice_at, s.first_notice_result, s.second_notice_at, s.second_notice_result,
-  t.first_notice_days, t.second_notice_days, s.note_html, s.note_text, COALESCE(u.email, ''), COALESCE(u.phone, '')
+  t.first_notice_days, t.second_notice_days, s.note_html, s.note_text, COALESCE(u.email, ''), COALESCE(u.phone, ''), s.confirmed
 """
 FROM = "admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id"
 
@@ -68,6 +68,8 @@ def _describe(row, today: date) -> dict:
     "note_html": row[18], "note_text": row[19],
     # The site user's address and phone, each '' when none (the Scheduled task report shows both).
     "email": row[20], "phone": row[21],
+    # False for a new scheduled task; those that existed when the flag came were set true (migration 073).
+    "confirmed": row[22],
   }
 
 
