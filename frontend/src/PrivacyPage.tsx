@@ -55,7 +55,7 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
   return (
     <div className="welcome privacy-page">
       <h1>Privacy and security</h1>
-      <p className="privacy-updated">Last updated: November 26, 2026</p>
+      <p className="privacy-updated">Last updated: November 27, 2026</p>
       <p>
         {siteTitle} is a non-commercial website. This page explains what we collect, who can see it, and what
         we send to other services.
@@ -110,6 +110,11 @@ function PrivacyPage({ onNavigate, siteTitle }: PrivacyPageProps) {
           <strong>Your notes, playlists, lists, cards and daily-email choices.</strong> Notes, playlists, the lists of
           search results you save and the verse cards you make (My cards) are private to you. If you also have an
           administrator account, a card of yours can be added to the group messages you send from it.
+        </li>
+        <li>
+          <strong>Tasks you are scheduled for.</strong> If the site&rsquo;s administrators schedule you for a task on a
+          date (and whether it is confirmed), they keep that with your account; you see your own on My scheduled tasks,
+          and the people who set the tasks see them.
         </li>
         <li>
           <strong>Your notes, pins and routes on the maps,</strong> if an administrator has let your account add them:

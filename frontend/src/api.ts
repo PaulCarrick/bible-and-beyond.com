@@ -747,6 +747,23 @@ export async function saveCustomCard(verse: CardVerse, background: string, cardI
   return (await readJson<{ card: SavedCard }>(response)).card
 }
 
+// One of the member's own scheduled tasks (scheduled_tasks.member_tasks): the task, its date, whether it is
+// confirmed, who set it, the task's description and the note for them (HTML cleaned on the server).
+export interface MemberScheduledTask {
+  id: number
+  task_name: string
+  on_date: string
+  confirmed: boolean
+  owner_name: string
+  description_html: string
+  note_html: string
+}
+
+export async function fetchMyScheduledTasks(): Promise<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }> {
+  const response = await fetch(`${mlServiceUrl}/scheduled-tasks/mine`, { credentials: 'include' })
+  return readJson<{ upcoming: MemberScheduledTask[]; past: MemberScheduledTask[] }>(response)
+}
+
 export async function fetchSavedCards(): Promise<SavedCard[]> {
   const response = await fetch(`${mlServiceUrl}/saved-cards`, { credentials: 'include' })
   return (await readJson<{ cards: SavedCard[] }>(response)).cards

@@ -182,6 +182,43 @@ def fill_names(words: str, first_name: str | None, last_name: str | None, html: 
   return NAME_FIELD.sub(lambda match: escape(names[match.group(1).upper()]) if html else names[match.group(1).upper()], words)
 
 
+# How far back a member's own list goes (member_tasks), and so whether the menu offers it (accounts.py).
+MEMBER_PAST_DAYS = 60
+
+
+def member_tasks(user_id: int, today: date | None = None) -> dict:
+  """A logged-in member's own scheduled tasks for "My scheduled tasks" on the site (the owner's request, 2026-11-27):
+  "upcoming" (today and later, soonest first) and "past" (the last MEMBER_PAST_DAYS days, latest first). Each has id,
+  task_name, on_date, confirmed, owner_name (who set the task), description_html (the task's description) and
+  note_html (the note for them on that date), with the name fields filled in with the member's name."""
+  today = today or date.today()
+  with connect() as connection:
+    rows = connection.execute(
+      """SELECT s.id, t.name, s.on_date, s.confirmed, t.owner_name, t.description_html, s.note_html,
+                u.first_name, u.last_name
+      FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id JOIN users u ON u.id = s.user_id
+      WHERE s.user_id = %s AND s.on_date >= %s
+      ORDER BY s.on_date, lower(t.name), s.id""",
+      (user_id, today - timedelta(days=MEMBER_PAST_DAYS)),
+    ).fetchall()
+  tasks = [
+    {
+      "id": row[0],
+      "task_name": fill_names(row[1], row[7], row[8]),
+      "on_date": row[2].isoformat(),
+      "confirmed": row[3],
+      "owner_name": row[4],
+      "description_html": fill_names(row[5] or "", row[7], row[8], html=True),
+      "note_html": fill_names(row[6] or "", row[7], row[8], html=True),
+    }
+    for row in rows
+  ]
+  upcoming = [task for task in tasks if task["on_date"] >= today.isoformat()]
+  past = [task for task in tasks if task["on_date"] < today.isoformat()]
+  past.reverse()
+  return {"upcoming": upcoming, "past": past}
+
+
 def _taken(connection, task_id: int, user_id: int, day: date, other_than: int | None = None) -> bool:
   return connection.execute(
     "SELECT 1 FROM admin_scheduled_tasks WHERE task_id = %s AND user_id = %s AND on_date = %s AND id <> %s",

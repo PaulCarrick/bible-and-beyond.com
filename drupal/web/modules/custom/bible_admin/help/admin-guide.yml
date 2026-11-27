@@ -415,7 +415,10 @@ sections:
       added under the notification in each of their reminders (the name fields work in it too).
       <strong>Confirmed</strong>: a new scheduled task starts unconfirmed; tick <em>Confirmed</em> on its Edit page once
       it is settled (for example when the person has said they will do it). The list's <em>Confirmed</em> column says
-      Yes or No, and a click on its header sorts by it.</p>
+      Yes or No, and a click on its header sorts by it; the Scheduled Task Report has a Confirmed column too. On the
+      public site, a member who is scheduled for tasks finds <em>My scheduled tasks</em> in the account menu: their
+      tasks from today on (and the last 60 days under Earlier), each with its date, Confirmed or Not confirmed yet,
+      the task's description and their note.</p>
       <figure><img data-guide="schedule-tasks" alt="Schedule tasks: the date Sunday, December 6, the tasks that fall on it (Communion and Greeter) with who has each already and a + button, and a row for Greeter with the site user Mary Sample, a note box and a − button"><figcaption>Schedule tasks: several tasks on one date at once.</figcaption></figure>
       <figure><img data-guide="task-schedule" alt="Schedule a task: Communion, every month on the first Sunday, the site user Daniel Example and the date, the next first Sunday"><figcaption>Schedule: the person and one of the next four dates.</figcaption></figure>
       <p>The <strong>Scheduled tasks</strong> page lists them by date from today on, with the past ones folded away

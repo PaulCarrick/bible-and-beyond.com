@@ -145,7 +145,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           emblem to return to the <PageLink onNavigate={onNavigate} view="welcome">Welcome</PageLink> page. At the far top
           right is the <strong>account icon</strong> (a circle with a head and shoulders, or your own picture): point at it
           or click it for its menu, <em>Log in</em> and <em>Set up account</em>, or once you are logged in{' '}
-          <em>Account settings</em>, <em>My notes</em>, <em>My lists</em> and <em>Log out</em>. On the left is the{' '}
+          <em>Account settings</em>, <em>My notes</em>, <em>My lists</em>, <em>My cards</em> and <em>Log out</em>, and{' '}
+          <em>My scheduled tasks</em> when you have been scheduled for a task (such as greeting at church): it lists
+          each with its date, whether it is confirmed, what it involves and any note for you. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,
           the devotionals, the other books, Christian media, maps, questions (the FAQ), today (Verse of the day and
           Devotional of the day), members (Conversations, the Prayer Wall and Public lists) and about (this Help page,

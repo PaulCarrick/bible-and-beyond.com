@@ -3368,6 +3368,96 @@ div.welcome-lead > p {
   }
 }
 
+/* My scheduled tasks (MyTasksPage.tsx). */
+.my-tasks-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.my-task {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.my-task-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.my-task-heading h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.my-task-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #a05a00;
+  color: #a05a00;
+  white-space: nowrap;
+}
+
+.my-task-status.is-confirmed {
+  border-color: #1d7a3a;
+  color: #1d7a3a;
+}
+
+.my-task-date {
+  margin: 0.3rem 0 0;
+  font-weight: 600;
+}
+
+.my-task-owner {
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.my-task-text,
+.my-task-note {
+  margin-top: 0.6rem;
+}
+
+.my-task-text p,
+.my-task-note p {
+  margin: 0 0 0.5em;
+}
+
+.my-task-note {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid #1a6ebd;
+  background: rgba(26, 110, 189, 0.07);
+}
+
+.my-tasks-past summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .my-task-status {
+    border-color: #f0b15c;
+    color: #f0b15c;
+  }
+  .my-task-status.is-confirmed {
+    border-color: #6fd08f;
+    color: #6fd08f;
+  }
+  .my-task-note {
+    border-left-color: #6aaef0;
+    background: rgba(106, 174, 240, 0.1);
+  }
+}
+
 /* "How should we send you messages?": Send via Email and Send via SMS (TextMessageChoices.tsx). */
 .delivery-choices {
   margin: 0.25rem 0 0;

@@ -59,12 +59,13 @@
   white-space: pre-line;
 }
 
-/* Column widths like the paper sheet: task, name, notes, email, phone. */
-.scheduled-task-report col.task { width: 20%; }
-.scheduled-task-report col.name { width: 20%; }
-.scheduled-task-report col.notes { width: 22%; }
-.scheduled-task-report col.email { width: 22%; }
-.scheduled-task-report col.phone { width: 16%; }
+/* Column widths like the paper sheet: task, name, notes, email, phone, confirmed. */
+.scheduled-task-report col.task { width: 18%; }
+.scheduled-task-report col.name { width: 18%; }
+.scheduled-task-report col.notes { width: 21%; }
+.scheduled-task-report col.email { width: 20%; }
+.scheduled-task-report col.phone { width: 14%; }
+.scheduled-task-report col.confirmed { width: 9%; }
 
 /* Printing: only the report, with its own title; nothing of Drupal's page around it. */
 @media print {

@@ -33,6 +33,7 @@ const addresses: Record<View, string> = {
   notes: '/notes',
   lists: '/lists',
   cards: '/cards',
+  tasks: '/my-tasks',
   publicLists: '/public-lists',
   conversations: '/conversations',
   prayerWall: '/prayer-wall',

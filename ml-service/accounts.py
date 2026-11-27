@@ -126,7 +126,8 @@ _USER_COLUMNS = """
   COALESCE(users.first_name, ''), COALESCE(users.last_name, ''), COALESCE(users.phone, ''), users.use_conversations,
   users.phone_is_cell, users.sms_opt_in, users.sms_stopped_at IS NOT NULL, users.use_maps,
   users.send_via_email, users.send_via_sms, users.send_multimedia, users.phone_verified_at IS NOT NULL,
-  users.login_phone IS NOT NULL, users.share_lists, users.head_shot_version
+  users.login_phone IS NOT NULL, users.share_lists, users.head_shot_version,
+  EXISTS (SELECT 1 FROM admin_scheduled_tasks st WHERE st.user_id = users.id AND st.on_date >= CURRENT_DATE - 60)
 """
 
 
@@ -161,6 +162,9 @@ def _describe_user(row) -> dict:
     "share_lists": row[17],
     # The member's own picture (head_shots.py; 2026-11-23): its address on this service, or None.
     "head_shot": head_shot_address(row[18]),
+    # Scheduled tasks given to this account on the Drupal Scheduled tasks page, from 60 days ago on
+    # (scheduled_tasks.member_tasks): the menu then offers My scheduled tasks.
+    "has_scheduled_tasks": row[19],
   }
 
 

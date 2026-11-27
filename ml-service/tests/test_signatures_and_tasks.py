@@ -4,7 +4,7 @@ tables: their rows are set aside before each test and put back afterwards."""
 import json
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -792,3 +792,47 @@ def test_the_sent_by_line_can_be_left_out_of_task_reminders_and_day_messages(sit
   day_messages.send(details, OWNER, OWNER)
   assert "Sent by" not in sent[0].get_body(("plain",)).get_content()
   assert "Sent by" in sent[1].get_body(("plain",)).get_content()
+
+
+def test_a_member_sees_their_own_scheduled_tasks(site_users, monkeypatch):
+  """My scheduled tasks on the site (scheduled_tasks.member_tasks, GET /scheduled-tasks/mine) and the account's
+  has_scheduled_tasks, which shows it in the menu."""
+  import accounts
+  import main
+  from fastapi.testclient import TestClient
+
+  open_id, closed_id = site_users
+
+  def flag(user_id):
+    with connect() as connection:
+      row = connection.execute(f"SELECT {accounts._USER_COLUMNS} FROM users WHERE id = %s", (user_id,)).fetchone()
+    return accounts._describe_user(row)["has_scheduled_tasks"]
+
+  assert flag(open_id) is False
+  today = date.today()
+  task = admin_tasks.create_task(
+    {**SUNDAY_TASK, "name": "Greeter for [FIRST_NAME]", "description": {"html": "<p>Welcome people, [FULL_NAME].</p>"}},
+    OWNER, "Paul",
+  )
+  with connect() as connection:
+    for days, note, confirmed in ((7, "<p>Bring the bulletins</p>", True), (-3, "", False), (-90, "", False)):
+      connection.execute(
+        "INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, note_html, confirmed) VALUES (%s, %s, %s, %s, %s, %s)",
+        (task["id"], open_id, today + timedelta(days=days), OWNER, note, confirmed),
+      )
+  assert flag(open_id) is True and flag(closed_id) is False
+
+  mine = scheduled_tasks.member_tasks(open_id, today)
+  assert [each["on_date"] for each in mine["upcoming"]] == [(today + timedelta(days=7)).isoformat()]
+  assert [each["on_date"] for each in mine["past"]] == [(today - timedelta(days=3)).isoformat()]
+  upcoming = mine["upcoming"][0]
+  assert upcoming["task_name"] == "Greeter for Ruth" and upcoming["confirmed"] is True and upcoming["owner_name"] == "Paul"
+  assert "Welcome people, Ruth Test." in upcoming["description_html"] and "Bring the bulletins" in upcoming["note_html"]
+  assert mine["past"][0]["confirmed"] is False
+  assert scheduled_tasks.member_tasks(closed_id, today) == {"upcoming": [], "past": []}
+
+  client = TestClient(main.app)
+  assert client.get("/scheduled-tasks/mine").status_code == 401
+  monkeypatch.setattr(main, "user_for_token", lambda token: {"id": open_id})
+  answer = client.get("/scheduled-tasks/mine", cookies={"session": "x"}).json()
+  assert len(answer["upcoming"]) == 1 and len(answer["past"]) == 1

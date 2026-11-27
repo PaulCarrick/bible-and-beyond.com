@@ -36,6 +36,7 @@ from accounts import (
 )
 import custom_cards
 import saved_cards
+import scheduled_tasks
 import day_cards
 import message_cards
 import saved_lists
@@ -905,6 +906,13 @@ def saved_cards_save(body: CardSaveRequest, request: Request):
     return {"card": custom_cards.save(user["id"], body.translation, body.book, body.chapter, body.verse, body.background, body.card_id)}
   except custom_cards.CardProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
+@app.get("/scheduled-tasks/mine")
+def my_scheduled_tasks(request: Request):
+  """The logged-in member's own scheduled tasks (My scheduled tasks): upcoming and the last 60 days."""
+  user = require_user(request, "Please log in to see your scheduled tasks.")
+  return scheduled_tasks.member_tasks(user["id"])
 
 
 @app.get("/saved-cards")

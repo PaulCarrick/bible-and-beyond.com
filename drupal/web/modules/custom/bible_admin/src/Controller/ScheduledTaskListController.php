@@ -135,6 +135,7 @@ class ScheduledTaskListController extends ControllerBase {
           ['data' => ['#plain_text' => $schedule['note_text']], 'class' => ['scheduled-task-report-notes']],
           ['data' => ['#plain_text' => $schedule['email']]],
           ['data' => ['#plain_text' => $schedule['phone']]],
+          ['data' => ['#plain_text' => !empty($schedule['confirmed']) ? (string) $this->t('Yes') : (string) $this->t('No')]],
         ];
       }
       $build['report']['day_' . $day] = [
@@ -143,8 +144,8 @@ class ScheduledTaskListController extends ControllerBase {
         'heading' => ['#type' => 'html_tag', '#tag' => 'h2', '#value' => $this->longDay($day)],
         'table' => [
           '#type' => 'table',
-          '#header' => [$this->t('Task'), $this->t('Name'), $this->t('Notes'), $this->t('Email'), $this->t('Phone (Text)')],
-          '#colgroups' => [[['class' => ['task']], ['class' => ['name']], ['class' => ['notes']], ['class' => ['email']], ['class' => ['phone']]]],
+          '#header' => [$this->t('Task'), $this->t('Name'), $this->t('Notes'), $this->t('Email'), $this->t('Phone (Text)'), $this->t('Confirmed')],
+          '#colgroups' => [[['class' => ['task']], ['class' => ['name']], ['class' => ['notes']], ['class' => ['email']], ['class' => ['phone']], ['class' => ['confirmed']]]],
           '#rows' => $rows,
         ],
       ];
