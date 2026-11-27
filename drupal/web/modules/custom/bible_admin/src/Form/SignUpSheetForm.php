@@ -17,7 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Sign-up sheet (added 2026-11-27 at the owner's request): a group's sign-up sheet for a period as a PDF, in the
  * layout of the owner's paper "After Church Fellowship Time" form (signup_sheet.py). The rows are the group's own
  * tasks (the Group chosen on each task) on each date they fall on: blank (each task's expected occurrences) or filled in from the scheduled tasks.
- * The title and the notes at the foot (the editor; left off when empty) are remembered for the group.
+ * The title is the group's Description (else its name); the notes at the foot (the editor; left off when empty) are
+ * remembered for the group.
  */
 class SignUpSheetForm extends FormBase {
 
@@ -97,24 +98,23 @@ class SignUpSheetForm extends FormBase {
 
     // The title and notes last used for this group. Named after the group, so choosing another group shows its own.
     $form['group_box'] = ['#type' => 'container', '#attributes' => ['id' => 'sign-up-sheet-group']];
-    $titleKey = 'title_' . $groupId;
     $notesKey = 'notes_' . $groupId;
-    $form_state->set('title_key', $titleKey);
     $form_state->set('notes_key', $notesKey);
-    $form['group_box'][$titleKey] = [
-      '#type' => 'textfield',
+    // The title is the group's Description (2026-11-27, the owner's request), else its name; set on the group.
+    $form['group_box']['title'] = [
+      '#type' => 'item',
       '#title' => $this->t('Title'),
-      '#maxlength' => 120,
-      '#required' => TRUE,
-      '#default_value' => $group['sheet_title'] !== '' ? $group['sheet_title'] : $group['name'],
-      '#description' => $this->t('Across the top of each page, such as “After Church Fellowship Time - Thank you for Serving the Body”.'),
+      '#markup' => '<p>' . $this->t('@title', ['@title' => $group['title']]) . '</p>',
+      '#description' => $this->t('The group’s Description (or its name when it has none). Change it on the group’s <a href=":url">Edit</a> page.', [
+        ':url' => Url::fromRoute('bible_admin.group_edit', ['group_id' => $groupId])->toString(),
+      ]),
     ];
     $form['group_box'][$notesKey] = GroupEditor::field(
       (string) $this->t('Notes'),
       (string) $group['sheet_notes_html'],
       6,
       FALSE,
-      (string) $this->t('Shown at the foot of the sheet with no heading; leave empty for none. The title and the notes are remembered for this group.'),
+      (string) $this->t('Shown at the foot of the sheet with no heading; leave empty for none. The notes are remembered for this group.'),
     );
 
     $form['actions'] = ['#type' => 'actions'];
@@ -146,7 +146,6 @@ class SignUpSheetForm extends FormBase {
         'start' => (string) $form_state->getValue('start'),
         'end' => (string) $form_state->getValue('end'),
         'filled' => (bool) $form_state->getValue('filled'),
-        'title' => (string) $form_state->getValue((string) $form_state->get('title_key')),
         'notes' => GroupEditor::value($form_state->getValue($notesKey)),
       ]);
     }

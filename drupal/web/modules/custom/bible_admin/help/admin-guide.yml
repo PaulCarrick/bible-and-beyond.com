@@ -171,7 +171,7 @@ sections:
       send them. A Group leader sees only the groups they made; a Website administrator sees all of them, with the
       leader of each.</p>
       <figure><img data-guide="groups" alt="Groups: Make a group, and a table of groups with members and last message"><figcaption>Your groups. Click a name to open it.</figcaption></figure>
-      <p><strong>Make a group</strong>: give it a name (it appears in the emails) and, if you like, notes that only you
+      <p><strong>Make a group</strong>: give it a name (it appears in the emails), a one-line <strong>Description</strong> if you like (the title of its sign-up sheet, such as "After Church Fellowship Time - Thank you for Serving the Body"; it shows under the name on the group page) and, if you like, notes that only you
       see. You are its leader, and <strong>replies to its emails come to the email address of your Drupal
       account</strong>.</p>
       <figure><img data-guide="group" alt="A group's page: its notes, who leads it, three send buttons, the Scheduled table (a weekly message signed Formal), the members with names and addresses as links and how each gets messages, and the Sent table"><figcaption>A group's page: send, schedule, members and what was sent.</figcaption></figure>
@@ -461,13 +461,14 @@ sections:
       prints just the report.</p>
       <p>The <strong>Sign-up sheet</strong> button makes a PDF to print and put out, like a paper sign-up sheet: choose
       the <strong>Group</strong> (the sheet lists the tasks whose Group is that group), <strong>From</strong> and
-      <strong>To</strong>, a <strong>Title</strong> for the top of each page and, if you like, <strong>Notes</strong>
+      <strong>To</strong> and, if you like, <strong>Notes</strong>
       for the foot (shown with no heading, and left off when empty), then <em>Make the PDF</em>. Each date on which
       any of the tasks falls gets a block with a row for each place: a task that expects two people (its
       <em>Expected occurrences</em>) has two rows, "Baked Goods 1" and "Baked Goods 2". With <em>Fill in the people
       scheduled</em> ticked the rows show who is scheduled, with their note, email and phone (and "not confirmed"
-      when they are not yet), then blank rows up to the number expected; unticked, the sheet is blank. The title and
-      notes are remembered for each group.</p>
+      when they are not yet), then blank rows up to the number expected; unticked, the sheet is blank. The title at the
+      top of each page is the group's <strong>Description</strong> (set on the group's Edit page; its name when it has
+      none), and the notes are remembered for each group.</p>
       <figure><img data-guide="task-report" alt="Scheduled Task Report: From and To dates, Show, Print, and Sunday, December 6 with a table of Communion and Greeter: name, notes, email and phone"><figcaption>The Scheduled Task Report.</figcaption></figure>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 

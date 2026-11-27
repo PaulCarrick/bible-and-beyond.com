@@ -876,7 +876,7 @@ class BibleManager {
    * administer all groups, moves the group to that Drupal user (who must be able to lead groups): its emails'
    * Reply-To becomes their address.
    */
-  public function saveGroup(?int $groupId, string $name, string|array $description, ?AccountInterface $leader = NULL): array {
+  public function saveGroup(?int $groupId, string $name, string|array $description, ?AccountInterface $leader = NULL, ?string $headline = NULL): array {
     $owner = $this->currentUser;
     $previous = NULL;
     if ($groupId !== NULL) {
@@ -915,6 +915,8 @@ class BibleManager {
       'name' => $name,
       'description' => $notes['text'] ?? '',
       'description_html' => $notes['html'] ?? NULL,
+      // The Description (one line; the sign-up sheet's title). NULL keeps it.
+      'headline' => $headline,
       'owner_name' => $ownerName,
       'owner_email' => $ownerEmail,
     ]))['group'];

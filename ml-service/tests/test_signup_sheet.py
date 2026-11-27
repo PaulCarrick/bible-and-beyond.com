@@ -110,7 +110,17 @@ def test_the_pdf_is_made_and_the_title_and_notes_are_kept(setup):
   assert pdf.startswith(b"%PDF") and made["dates"] == 4
   assert made["file_name"] == "After Church Fellowship Time 2026-12-01 to 2026-12-31.pdf"
   kept = [group for group in signup_sheet.groups(LEADER) if group["id"] == setup["group"]][0]
-  assert kept["sheet_title"] == "After Church Fellowship Time" and "<strong>Thank you!</strong>" in kept["sheet_notes_html"]
+  assert "<strong>Thank you!</strong>" in kept["sheet_notes_html"]
+  # Without a title the sheet takes the group's Description, else its name.
+  assert kept["title"] == "Fellowship"
+  import groups
+  groups.save_group(setup["group"], {"name": "Fellowship", "headline": "  After Church   Fellowship Time "}, LEADER, "Pastor Dan", "")
+  made = signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "notes": {"html": ""}})
+  assert made["title"] == "After Church Fellowship Time"
+  # A change without it keeps it.
+  groups.save_group(setup["group"], {"name": "Fellowship"}, LEADER, "Pastor Dan", "")
+  assert [group for group in signup_sheet.groups(LEADER) if group["id"] == setup["group"]][0]["title"] == "After Church Fellowship Time"
+  assert groups.get_group(setup["group"])["headline"] == "After Church Fellowship Time"
   blank = signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "filled": False, "title": "Sheet", "notes": {"html": ""}})
   assert blank["file_name"].endswith("(blank).pdf")
   assert signup_sheet.notes_paragraphs("") == [] and len(signup_sheet.notes_paragraphs("<p>a</p><p>b</p>")) == 2

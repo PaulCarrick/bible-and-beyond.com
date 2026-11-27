@@ -65,6 +65,14 @@ class GroupForm extends FormBase {
       '#required' => TRUE,
       '#description' => $this->t('Shown in the subject of verse cards and at the foot of every email, such as “Smith family care group”.'),
     ];
+    // The Description (2026-11-27, the owner's request): one line, the title of the group's sign-up sheet.
+    $form['headline'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Description'),
+      '#default_value' => $group['headline'] ?? '',
+      '#maxlength' => 120,
+      '#description' => $this->t('One line, such as “After Church Fellowship Time - Thank you for Serving the Body”. It is the title of the group’s sign-up sheet (Scheduled tasks); with none, the name is used.'),
+    ];
     if ($group !== NULL && $this->currentUser()->hasPermission('administer groups')) {
       $form['leader'] = [
         '#type' => 'select',
@@ -93,7 +101,7 @@ class GroupForm extends FormBase {
     try {
       $leaderId = $form_state->getValue('leader');
       $leader = $leaderId ? $this->entityTypes->getStorage('user')->load((int) $leaderId) : NULL;
-      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), GroupEditor::value($form_state->getValue('description')), $leader);
+      $group = $this->manager->saveGroup($groupId === NULL ? NULL : (int) $groupId, (string) $form_state->getValue('name'), GroupEditor::value($form_state->getValue('description')), $leader, (string) $form_state->getValue('headline'));
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

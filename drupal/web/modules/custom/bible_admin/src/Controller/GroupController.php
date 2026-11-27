@@ -262,6 +262,8 @@ class GroupController extends ControllerBase {
 
     $build = [
       '#cache' => ['max-age' => 0],
+      // The Description (one line; the title of its sign-up sheet), when it has one.
+      'headline' => ($group['headline'] ?? '') === '' ? [] : ['#type' => 'html_tag', '#tag' => 'p', '#value' => $group['headline'], '#attributes' => ['class' => ['group-headline'], 'style' => 'font-size: 1.15em; font-weight: 600;']],
       // The leader's notes: from the editor (cleaned HTML; #markup filters it again), or plain text from before.
       'description' => $group['description'] === '' ? [] : (GroupEditor::isHtml($group['description'])
         ? ['#type' => 'container', '#attributes' => ['class' => ['group-notes']], 'notes' => ['#markup' => $group['description']]]

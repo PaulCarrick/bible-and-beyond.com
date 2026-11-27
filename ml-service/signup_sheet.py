@@ -10,7 +10,8 @@ at the foot.
   to the number expected; someone not confirmed yet is marked so. A long block runs onto the next page.
 - The notes (cleaned HTML from the editor) go at the foot with no label, and are left off when empty.
 
-The title and the notes are kept on the group (member_groups.sheet_title, sheet_notes_html) for next time.
+The title is the group's Description (member_groups.headline, migration 076), else its name; the notes are kept on
+the group (sheet_notes_html) for next time.
 The layout (letter landscape, the yellow Notes and blue Phone columns) is the one the owner approved.
 """
 
@@ -59,22 +60,24 @@ class SheetProblem(Exception):
 
 def _group(connection, group_id: int, owner_uid: int | None) -> dict:
   row = connection.execute(
-    "SELECT id, name, owner_uid, owner_name, sheet_title, sheet_notes_html FROM member_groups WHERE id = %s", (group_id,)
+    "SELECT id, name, owner_uid, owner_name, headline, sheet_notes_html FROM member_groups WHERE id = %s", (group_id,)
   ).fetchone()
   if row is None or (owner_uid is not None and row[2] != owner_uid):
     raise SheetProblem("That group was not found.")
-  return {"id": row[0], "name": row[1], "owner_uid": row[2], "owner_name": row[3], "sheet_title": row[4], "sheet_notes_html": row[5]}
+  return {"id": row[0], "name": row[1], "owner_uid": row[2], "owner_name": row[3], "title": row[4] or row[1], "sheet_notes_html": row[5]}
 
 
 def groups(owner_uid: int | None = None) -> list[dict]:
-  """The groups to choose from (one leader's, or everyone's), by name, each with its remembered title and notes."""
+  """The groups to choose from (one leader's, or everyone's), by name, each with its sheet title (its Description,
+  else its name) and its remembered notes."""
   with connect() as connection:
     rows = connection.execute(
-      """SELECT id, name, owner_uid, owner_name, sheet_title, sheet_notes_html FROM member_groups
+      """SELECT id, name, owner_uid, owner_name, headline, sheet_notes_html FROM member_groups
       WHERE %(owner)s::int IS NULL OR owner_uid = %(owner)s ORDER BY lower(name), id""",
       {"owner": owner_uid},
     ).fetchall()
-  return [{"id": row[0], "name": row[1], "owner_uid": row[2], "owner_name": row[3], "sheet_title": row[4],
+  # title: the group's Description (headline; migration 076), else its name.
+  return [{"id": row[0], "name": row[1], "owner_uid": row[2], "owner_name": row[3], "title": row[4] or row[1],
            "sheet_notes_html": row[5]} for row in rows]
 
 
@@ -383,8 +386,8 @@ def _day(value, what: str) -> date:
 
 def make(details: dict, owner_uid: int | None = None) -> dict:
   """The sheet as {pdf (base64), file_name, dates, title}. details: group_id, start, end (YYYY-MM-DD), filled
-  (true for names), title, notes ({html} or {text}). owner_uid: only that leader's groups (else any). The title and
-  the notes are kept on the group for next time."""
+  (true for names), notes ({html} or {text}), and optionally title (else the group's Description, else its name).
+  owner_uid: only that leader's groups (else any). The notes are kept on the group for next time."""
   try:
     group_id = int(details.get("group_id"))
   except (TypeError, ValueError) as error:
@@ -404,16 +407,14 @@ def make(details: dict, owner_uid: int | None = None) -> dict:
   with connect() as connection:
     group = _group(connection, group_id, owner_uid)
     try:
-      title = one_line(details.get("title") or group["name"], "title", TITLE_LIMIT)
+      title = one_line(details.get("title") or group["title"], "title", TITLE_LIMIT)
     except FormattedTextProblem as problem:
       raise SheetProblem(str(problem)) from problem
     tasks = _tasks(connection, group_id)
     if not tasks:
       raise SheetProblem(f"No tasks belong to the group “{group['name']}” yet. Choose the group on each task’s Edit page (Tasks).")
     people = _people(connection, [task["id"] for task in tasks], start, end) if filled else None
-    connection.execute(
-      "UPDATE member_groups SET sheet_title = %s, sheet_notes_html = %s WHERE id = %s", (title, notes["html"], group_id)
-    )
+    connection.execute("UPDATE member_groups SET sheet_notes_html = %s WHERE id = %s", (notes["html"], group_id))
   dates = sheet_dates(tasks, start, end, people)
   if not dates:
     raise SheetProblem("None of the group's tasks fall in that period.")

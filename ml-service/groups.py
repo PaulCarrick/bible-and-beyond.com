@@ -53,6 +53,8 @@ logger = logging.getLogger("groups")
 
 NAME_LIMIT = 200
 DESCRIPTION_LIMIT = 2_000
+# The Description (headline): one line, the title of the group's sign-up sheet.
+HEADLINE_LIMIT = 120
 SUBJECT_LIMIT = 200
 MESSAGE_LIMIT = 5_000
 # Words on a picture message: more would be too small to read.
@@ -96,13 +98,16 @@ def _describe_group(row) -> dict:
   return {
     "id": row[0], "name": row[1], "description": row[2], "owner_uid": row[3], "owner_name": row[4],
     "owner_email": row[5], "created_at": row[6].isoformat(), "member_count": row[7], "last_sent_at": row[8].isoformat() if row[8] else None,
+    # Its Description (migration 076): one line, the title of its sign-up sheet ('' for none).
+    "headline": row[9],
   }
 
 
 GROUP_COLUMNS = """
   g.id, g.name, g.description, g.owner_uid, g.owner_name, g.owner_email, g.created_at,
   (SELECT count(*) FROM group_members m WHERE m.group_id = g.id),
-  (SELECT max(sent_at) FROM group_messages s WHERE s.group_id = g.id)
+  (SELECT max(sent_at) FROM group_messages s WHERE s.group_id = g.id),
+  g.headline
 """
 
 
@@ -145,21 +150,27 @@ def save_group(
       description = ""
   else:
     description = (details.get("description") or "").strip()[:DESCRIPTION_LIMIT]
+  # The Description (one line; the sign-up sheet's title). Left out of a change, it stays.
+  headline = None
+  if details.get("headline") is not None:
+    headline = " ".join(str(details["headline"]).split())
+    if len(headline) > HEADLINE_LIMIT:
+      raise GroupProblem(f"The description can be up to {HEADLINE_LIMIT} characters.")
   with connect() as connection:
     if group_id is None:
       group_id = connection.execute(
-        "INSERT INTO member_groups (name, description, owner_uid, owner_name, owner_email) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-        (name, description, owner_uid, owner_name, owner_email),
+        "INSERT INTO member_groups (name, description, headline, owner_uid, owner_name, owner_email) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+        (name, description, headline or "", owner_uid, owner_name, owner_email),
       ).fetchone()[0]
     else:
       changed = connection.execute(
         """
-        UPDATE member_groups SET name = %s, description = %s,
+        UPDATE member_groups SET name = %s, description = %s, headline = COALESCE(%s, headline),
           owner_name = CASE WHEN owner_uid = %s THEN %s ELSE owner_name END,
           owner_email = CASE WHEN owner_uid = %s THEN %s ELSE owner_email END
         WHERE id = %s RETURNING id
         """,
-        (name, description, owner_uid, owner_name, owner_uid, owner_email, group_id),
+        (name, description, headline, owner_uid, owner_name, owner_uid, owner_email, group_id),
       ).fetchone()
       if changed is None:
         raise GroupProblem("That group does not exist (it may have been deleted).")
