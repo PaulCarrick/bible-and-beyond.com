@@ -1667,6 +1667,30 @@ class BibleManager {
     return $image;
   }
 
+  /**
+   * Changes a picture's name; its id and files stay as they are.
+   */
+  public function renameVerseImage(string $imageId, string $title): array {
+    $before = $this->getVerseImage($imageId);
+    $image = $this->run(['rename', '--id=' . $imageId, '--title=' . $title], 'manage_verse_images.py')['image'];
+    if ($image['title'] !== $before['title']) {
+      $this->logger->notice('@user renamed the verse a day picture “@old” (@id) to “@title”.', [
+        '@user' => $this->currentUser->getAccountName(),
+        '@old' => $before['title'],
+        '@title' => $image['title'],
+        '@id' => $image['id'],
+      ]);
+    }
+    return $image;
+  }
+
+  /**
+   * A picture with a larger copy (preview, a data: address) for the window on the list.
+   */
+  public function previewVerseImage(string $imageId): array {
+    return $this->run(['preview', '--id=' . $imageId], 'manage_verse_images.py')['image'];
+  }
+
   private function logVerseImage(string $change, array $image): void {
     $this->logger->notice('@user @change the verse a day picture “@title” (@id).', [
       '@user' => $this->currentUser->getAccountName(),

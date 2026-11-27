@@ -95,3 +95,13 @@ scheduled_task_report:
   dependencies:
     - core/drupal
     - core/once
+
+verse_images:
+  js:
+    js/verse-images.js: {}
+  css:
+    component:
+      css/verse-images.css: {}
+  dependencies:
+    - core/drupal
+    - core/once

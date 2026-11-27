@@ -8,11 +8,14 @@ use Drupal\bible_admin\BibleManager;
 use Drupal\bible_admin\BibleManagerException;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * The verse a day pictures (verse_images.py): a drop area for one or many, then each with its thumbnail,
- * "Take out of use" or "Put in use", and Delete. Nothing here is shown on the site.
+ * "Take out of use" or "Put in use", and Delete. Nothing here is shown on the site. The pencil after a name
+ * changes it in place, and a click on a thumbnail shows the picture larger in a window (js/verse-images.js).
  */
 class VerseImageListController extends ControllerBase {
 
@@ -57,12 +60,36 @@ class VerseImageListController extends ControllerBase {
       if (!$image['file_present']) {
         $status = $this->t('@status. The file is missing from the verse images folder.', ['@status' => $status]);
       }
-      $preview = $image['thumbnail']
-        ? ['#type' => 'html_tag', '#tag' => 'img', '#attributes' => ['src' => $image['thumbnail'], 'alt' => '', 'width' => 120, 'loading' => 'lazy', 'style' => 'height:auto;display:block;']]
+      $thumbnail = $image['thumbnail']
+        ? ['#type' => 'html_tag', '#tag' => 'img', '#attributes' => ['src' => $image['thumbnail'], 'alt' => '', 'width' => 120, 'loading' => 'lazy']]
         : ['#plain_text' => '—'];
+      $preview = $image['thumbnail'] && $image['file_present']
+        ? [
+          '#type' => 'html_tag',
+          '#tag' => 'button',
+          '#attributes' => [
+            'type' => 'button',
+            'class' => ['verse-image-enlarge'],
+            'title' => $this->t('Show this picture larger'),
+            'aria-label' => $this->t('Show “@title” larger', ['@title' => $image['title']]),
+            'data-preview-url' => Url::fromRoute('bible_admin.verse_image_preview', ['image_id' => $image['id']])->toString(),
+          ],
+          'image' => $thumbnail,
+        ]
+        : $thumbnail;
+      $name = [
+        '#type' => 'container',
+        '#attributes' => [
+          'class' => ['verse-image-name'],
+          'data-rename-url' => Url::fromRoute('bible_admin.verse_image_rename', ['image_id' => $image['id']])->toString(),
+        ],
+        'title' => ['#type' => 'html_tag', '#tag' => 'span', '#attributes' => ['class' => ['verse-image-title']], '#value' => $image['title']],
+        'id' => ['#type' => 'html_tag', '#tag' => 'small', '#attributes' => ['class' => ['verse-image-id']], '#value' => $image['id']],
+      ];
       $rows[] = [
         ['data' => $preview],
-        ['data' => ['#markup' => $this->t('@title<br><small>@id</small>', ['@title' => $image['title'], '@id' => $image['id']])]],
+        // Sorted by the name itself, not the pencil or the id under it (js/sortable-table.js).
+        ['data' => $name, 'data-sort-value' => $image['title']],
         ['data' => ['#plain_text' => strtoupper(preg_replace('#^image/#', '', $image['media_type']))]],
         ['data' => ['#plain_text' => $image['width'] . ' × ' . $image['height']]],
         // In KB throughout, so the column sorts as numbers (js/sortable-table.js).
@@ -87,11 +114,48 @@ class VerseImageListController extends ControllerBase {
       ],
       '#rows' => $rows,
       // Click a header to sort by it (js/sortable-table.js): again to reverse, a third time to clear.
-      '#attributes' => ['class' => ['bible-admin-sortable']],
-      '#attached' => ['library' => ['bible_admin/sortable_table']],
+      '#attributes' => [
+        'class' => ['bible-admin-sortable', 'verse-images-table'],
+        'data-token-url' => Url::fromRoute('system.csrftoken')->toString(),
+      ],
+      '#attached' => ['library' => ['bible_admin/sortable_table', 'bible_admin/verse_images']],
       '#empty' => $this->t('There are no pictures yet. Drop some on the box above.'),
     ];
     return $build;
+  }
+
+  /**
+   * Saves a new name typed on the list (js/verse-images.js). Answers {ok, title} or {ok: false, error}.
+   */
+  public function rename(Request $request, string $image_id): JsonResponse {
+    try {
+      $image = $this->manager->renameVerseImage($image_id, (string) $request->request->get('title', ''));
+    }
+    catch (BibleManagerException $exception) {
+      return new JsonResponse(['ok' => FALSE, 'error' => $exception->getMessage()], 422);
+    }
+    return new JsonResponse(['ok' => TRUE, 'title' => $image['title']]);
+  }
+
+  /**
+   * The picture's larger copy for the window opened from its thumbnail.
+   */
+  public function preview(string $image_id): JsonResponse {
+    try {
+      $image = $this->manager->previewVerseImage($image_id);
+    }
+    catch (BibleManagerException $exception) {
+      return new JsonResponse(['ok' => FALSE, 'error' => $exception->getMessage()], 422);
+    }
+    $response = new JsonResponse([
+      'ok' => TRUE,
+      'title' => $image['title'],
+      'width' => $image['width'],
+      'height' => $image['height'],
+      'preview' => $image['preview'],
+    ]);
+    $response->setPrivate();
+    return $response;
   }
 
 }

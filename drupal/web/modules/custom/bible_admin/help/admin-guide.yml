@@ -158,6 +158,10 @@ sections:
       as it is uploaded. <em>Take out of use</em> keeps it but stops it being chosen; <em>Delete</em> removes it.
       Calm pictures with space in the middle work best: the words are written over the middle in large white letters
       with a dark outline. Only upload pictures you have the right to use.</p>
+      <p><strong>Changing a name:</strong> click the pencil ✎ after it. The name becomes a box with <em>Save</em> and
+      <em>Cancel</em> beside it (Enter saves, Escape cancels). The id under the name stays as it is.
+      <strong>Seeing a picture larger:</strong> click its thumbnail. It opens in a window over the page with its name;
+      close it with × or Escape, or click outside it.</p>
 
   - id: groups
     title: Groups

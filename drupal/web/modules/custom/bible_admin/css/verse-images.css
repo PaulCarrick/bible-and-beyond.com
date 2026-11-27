@@ -1,0 +1,133 @@
+/* The verse a day pictures list (js/verse-images.js). */
+
+.verse-images-table .verse-image-enlarge {
+  display: block;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  cursor: zoom-in;
+}
+.verse-images-table .verse-image-enlarge:hover,
+.verse-images-table .verse-image-enlarge:focus-visible {
+  border-color: #1a6ebd;
+}
+.verse-images-table .verse-image-enlarge img,
+.verse-images-table td > img {
+  display: block;
+  height: auto;
+}
+
+.verse-image-name .verse-image-id {
+  display: block;
+}
+.verse-image-pencil {
+  margin-left: 0.35em;
+  padding: 0 0.3em;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: #1a6ebd;
+  font-size: 1.05em;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.verse-image-pencil:hover,
+.verse-image-pencil:focus-visible {
+  border-color: #1a6ebd;
+}
+.verse-image-editor {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
+}
+.verse-image-editor input {
+  min-width: 14em;
+  min-height: 2rem;
+  padding: 0.2em 0.5em;
+}
+.verse-image-editor .button {
+  margin: 0;
+}
+.verse-image-rename-message {
+  flex-basis: 100%;
+  color: #b3261e;
+  font-size: 0.9em;
+}
+.verse-image-rename-message:empty {
+  display: none;
+}
+
+/* The window opened from a thumbnail: over the page, like the word and verse windows on the site. */
+body.verse-image-window-open {
+  overflow: hidden;
+}
+.verse-image-window-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+.verse-image-window {
+  display: flex;
+  flex-direction: column;
+  max-width: min(1100px, 100%);
+  max-height: 100%;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.verse-image-window-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.6rem 0.6rem 1rem;
+  border-bottom: 1px solid #ddd;
+}
+.verse-image-window-header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+}
+.verse-image-window-close {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #999;
+  border-radius: 8px;
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.verse-image-window-close:hover,
+.verse-image-window-close:focus-visible {
+  background: #eef4fb;
+  border-color: #1a6ebd;
+}
+.verse-image-window-body {
+  min-width: min(20rem, 80vw);
+  min-height: 6rem;
+  padding: 1rem;
+  overflow: auto;
+}
+.verse-image-window-body img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 10rem);
+  margin: 0 auto;
+}
+.verse-image-window-foot {
+  margin: 0;
+  padding: 0 1rem 0.8rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+.verse-image-window-foot:empty {
+  display: none;
+}

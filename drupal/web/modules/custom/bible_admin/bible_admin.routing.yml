@@ -377,6 +377,27 @@ bible_admin.verse_images:
   requirements:
     _permission: 'administer bibles'
 
+# Changing a picture's name in place on the list (js/verse-images.js): POST only, with the CSRF header.
+bible_admin.verse_image_rename:
+  path: '/admin/verse-images/rename/{image_id}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\VerseImageListController::rename'
+  methods: [POST]
+  requirements:
+    _permission: 'administer bibles'
+    _csrf_request_header_token: 'TRUE'
+    image_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
+# A larger copy of a picture for the window opened from its thumbnail (made on request, never kept).
+bible_admin.verse_image_preview:
+  path: '/admin/verse-images/preview/{image_id}'
+  defaults:
+    _controller: '\Drupal\bible_admin\Controller\VerseImageListController::preview'
+  methods: [GET]
+  requirements:
+    _permission: 'administer bibles'
+    image_id: '[a-z0-9][a-z0-9-]{1,48}[a-z0-9]'
+
 bible_admin.verse_image_change:
   path: '/admin/verse-images/{action}/{image_id}'
   defaults:

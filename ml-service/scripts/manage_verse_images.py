@@ -7,6 +7,8 @@ Every command prints one JSON object. On success it has "ok": true. On failure i
     manage_verse_images.py list                      every picture, newest first, each with a thumbnail (data:)
     manage_verse_images.py get --id=ID
     manage_verse_images.py upload FILE --name=ORIGINAL-NAME --id=ID --title=TITLE
+    manage_verse_images.py preview --id=ID           the picture with a larger copy (data:) to show it enlarged
+    manage_verse_images.py rename --id=ID --title=TITLE   a new name; the id and the files stay
     manage_verse_images.py use --id=ID               back in the random choice
     manage_verse_images.py unuse --id=ID             kept, but left out of the random choice
     manage_verse_images.py delete --id=ID            the picture and its files
@@ -33,7 +35,10 @@ def parse_arguments(arguments=None):
   upload.add_argument("--name", required=True)
   upload.add_argument("--id", required=True)
   upload.add_argument("--title", required=True)
-  for command in ("get", "use", "unuse", "delete"):
+  rename = commands.add_parser("rename")
+  rename.add_argument("--id", required=True)
+  rename.add_argument("--title", required=True)
+  for command in ("get", "preview", "use", "unuse", "delete"):
     commands.add_parser(command).add_argument("--id", required=True)
   return parser.parse_args(arguments)
 
@@ -51,6 +56,10 @@ def run(arguments) -> dict:
     if image is None:
       raise ImageProblem("That picture does not exist (it may have been deleted).")
     return {"ok": True, "image": image}
+  if arguments.command == "preview":
+    return {"ok": True, "image": verse_images.preview(arguments.id)}
+  if arguments.command == "rename":
+    return {"ok": True, "image": verse_images.rename(arguments.id, arguments.title)}
   if arguments.command in ("use", "unuse"):
     return {"ok": True, "image": verse_images.set_in_use(arguments.id, arguments.command == "use")}
   return {"ok": True, "image": verse_images.delete(arguments.id)}

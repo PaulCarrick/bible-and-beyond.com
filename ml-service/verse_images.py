@@ -180,6 +180,42 @@ def set_in_use(image_id: str, in_use: bool) -> dict:
   return get_image(image_id)
 
 
+PREVIEW_SIZE = 1600
+
+
+def preview(image_id: str) -> dict:
+  """The picture with a larger copy (at most PREVIEW_SIZE pixels on its longer side, WebP) as a data: address, for
+  the enlarged view on the Drupal page. Made from the file each time and never kept or served: the pictures are not
+  public."""
+  found = get_image(image_id)
+  if found is None:
+    raise ImageProblem("That picture does not exist (it may have been deleted).")
+  path = images_folder() / found["file_name"]
+  if not path.is_file():
+    raise ImageProblem("The picture's file is missing from the verse images folder.")
+  from io import BytesIO
+
+  from PIL import Image, ImageOps
+
+  with Image.open(path) as opened:
+    picture = ImageOps.exif_transpose(opened).convert("RGB")
+  picture.thumbnail((PREVIEW_SIZE, PREVIEW_SIZE), Image.LANCZOS)
+  buffer = BytesIO()
+  picture.save(buffer, "WEBP", quality=82)
+  found["preview"] = "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode()
+  return found
+
+
+def rename(image_id: str, title: str) -> dict:
+  """Changes a picture's name (its title); the id and the files stay as they are."""
+  title = check_title(title)
+  with connect() as connection:
+    changed = connection.execute("UPDATE verse_images SET title = %s WHERE id = %s RETURNING id", (title, image_id)).fetchone()
+  if changed is None:
+    raise ImageProblem("That picture does not exist (it may have been deleted).")
+  return get_image(image_id)
+
+
 def delete(image_id: str) -> dict:
   """Deletes a picture and its files."""
   found = get_image(image_id)

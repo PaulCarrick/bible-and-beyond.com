@@ -109,6 +109,33 @@ def test_out_of_use_pictures_are_never_chosen_and_delete_removes_the_files(tmp_p
     verse_images.set_in_use("test-vi-a", True)
 
 
+def test_a_picture_can_be_renamed_and_keeps_its_id_and_files(tmp_path):
+  verse_images.upload(picture(tmp_path), "a.jpg", "test-vi-a", "Sunrise")
+  renamed = verse_images.rename("test-vi-a", "  Sunrise   over the lake ")
+  assert renamed["title"] == "Sunrise over the lake" and renamed["id"] == "test-vi-a" and renamed["file_present"]
+  assert (verse_images.images_folder() / "test-vi-a.jpg").is_file()
+  with pytest.raises(ImageProblem):
+    verse_images.rename("test-vi-a", "   ")
+  assert verse_images.get_image("test-vi-a")["title"] == "Sunrise over the lake"
+  with pytest.raises(ImageProblem, match="does not exist"):
+    verse_images.rename("test-vi-gone", "New")
+
+
+def test_a_preview_is_a_larger_copy_made_on_request(tmp_path):
+  verse_images.upload(picture(tmp_path, size=(3000, 2000)), "big.jpg", "test-vi-big", "Big")
+  shown = verse_images.preview("test-vi-big")
+  assert shown["preview"].startswith("data:image/webp;base64,")
+  import base64
+  from io import BytesIO
+
+  with Image.open(BytesIO(base64.b64decode(shown["preview"].split(",", 1)[1]))) as copy:
+    assert copy.size == (1600, 1067)
+  assert sorted(path.name for path in verse_images.images_folder().iterdir() if path.name.startswith("test-vi-big")) == [
+    "test-vi-big-thumbnail.webp", "test-vi-big.jpg"]
+  with pytest.raises(ImageProblem, match="does not exist"):
+    verse_images.preview("test-vi-gone")
+
+
 def run_tool(*arguments, environment):
   completed = subprocess.run([sys.executable, str(TOOL), *arguments], capture_output=True, text=True, env=environment)
   return completed.returncode, json.loads(completed.stdout)
@@ -123,6 +150,11 @@ def test_the_tool(tmp_path):
   assert code == 0 and answer["image"]["id"] == "test-vi-tool"
   code, answer = run_tool("list", environment=environment)
   assert any(each["id"] == "test-vi-tool" and each["thumbnail"] for each in answer["images"])
+  code, answer = run_tool("rename", "--id=test-vi-tool", "--title=Morning sky", environment=environment)
+  assert code == 0 and answer["image"]["title"] == "Morning sky"
+  code, answer = run_tool("rename", "--id=test-vi-tool", "--title=Sunrise", environment=environment)
+  code, answer = run_tool("preview", "--id=test-vi-tool", environment=environment)
+  assert code == 0 and answer["image"]["preview"].startswith("data:image/webp")
   code, answer = run_tool("unuse", "--id=test-vi-tool", environment=environment)
   assert answer["image"]["in_use"] is False
   code, answer = run_tool("upload", str(path), "--name=sunrise.jpg", "--id=test-vi-tool", "--title=Again", environment=environment)
