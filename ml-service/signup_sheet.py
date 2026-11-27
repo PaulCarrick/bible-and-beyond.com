@@ -10,8 +10,8 @@ at the foot.
   to the number expected; someone not confirmed yet is marked so. A long block runs onto the next page.
 - The notes (cleaned HTML from the editor) go at the foot with no label, and are left off when empty.
 
-The title is the group's Description (member_groups.headline, migration 076), else its name; the notes are kept on
-the group (sheet_notes_html) for next time.
+The title is the group's Description (member_groups.headline, migration 076), else its name. The notes are kept for
+next time only when "Save this note" is ticked (save_notes), for this report and group (report_notes, migration 077).
 The layout (letter landscape, the yellow Notes and blue Phone columns) is the one the owner approved.
 """
 
@@ -57,10 +57,15 @@ class SheetProblem(Exception):
 
 # --- the data ---------------------------------------------------------------------------------------------
 
+# The notes saved for this report and group (report_notes, migration 077), '' when none.
+REPORT = "sign_up_sheet"
+_SAVED_NOTES = f"""COALESCE((SELECT n.notes_html FROM report_notes n WHERE n.report = '{REPORT}' AND n.group_id = g.id), '')"""
+
+
 
 def _group(connection, group_id: int, owner_uid: int | None) -> dict:
   row = connection.execute(
-    "SELECT id, name, owner_uid, owner_name, headline, sheet_notes_html FROM member_groups WHERE id = %s", (group_id,)
+    f"SELECT id, name, owner_uid, owner_name, headline, {_SAVED_NOTES} FROM member_groups g WHERE id = %s", (group_id,)
   ).fetchone()
   if row is None or (owner_uid is not None and row[2] != owner_uid):
     raise SheetProblem("That group was not found.")
@@ -72,7 +77,7 @@ def groups(owner_uid: int | None = None) -> list[dict]:
   else its name) and its remembered notes."""
   with connect() as connection:
     rows = connection.execute(
-      """SELECT id, name, owner_uid, owner_name, headline, sheet_notes_html FROM member_groups
+      f"""SELECT id, name, owner_uid, owner_name, headline, {_SAVED_NOTES} FROM member_groups g
       WHERE %(owner)s::int IS NULL OR owner_uid = %(owner)s ORDER BY lower(name), id""",
       {"owner": owner_uid},
     ).fetchall()
@@ -386,8 +391,9 @@ def _day(value, what: str) -> date:
 
 def make(details: dict, owner_uid: int | None = None) -> dict:
   """The sheet as {pdf (base64), file_name, dates, title}. details: group_id, start, end (YYYY-MM-DD), filled
-  (true for names), notes ({html} or {text}), and optionally title (else the group's Description, else its name).
-  owner_uid: only that leader's groups (else any). The notes are kept on the group for next time."""
+  (true for names), notes ({html} or {text}), save_notes (true keeps the notes for this report and group next
+  time; an empty note then clears them), and optionally title (else the group's Description, else its name).
+  owner_uid: only that leader's groups (else any)."""
   try:
     group_id = int(details.get("group_id"))
   except (TypeError, ValueError) as error:
@@ -414,7 +420,12 @@ def make(details: dict, owner_uid: int | None = None) -> dict:
     if not tasks:
       raise SheetProblem(f"No tasks belong to the group “{group['name']}” yet. Choose the group on each task’s Edit page (Tasks).")
     people = _people(connection, [task["id"] for task in tasks], start, end) if filled else None
-    connection.execute("UPDATE member_groups SET sheet_notes_html = %s WHERE id = %s", (notes["html"], group_id))
+    if details.get("save_notes") is True:
+      connection.execute(
+        """INSERT INTO report_notes (report, group_id, notes_html) VALUES (%s, %s, %s)
+        ON CONFLICT (report, group_id) DO UPDATE SET notes_html = EXCLUDED.notes_html, updated_at = now()""",
+        (REPORT, group_id, notes["html"]),
+      )
   dates = sheet_dates(tasks, start, end, people)
   if not dates:
     raise SheetProblem("None of the group's tasks fall in that period.")

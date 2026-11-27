@@ -468,7 +468,9 @@ sections:
       scheduled</em> ticked the rows show who is scheduled, with their note, email and phone (and "not confirmed"
       when they are not yet), then blank rows up to the number expected; unticked, the sheet is blank. The title at the
       top of each page is the group's <strong>Description</strong> (set on the group's Edit page; its name when it has
-      none), and the notes are remembered for each group.</p>
+      none). Tick <strong>Save this note</strong> to have the notes come up again next time you make that group's
+      sheet; unticked, they go on that PDF only. Saved notes belong to the sign-up sheet of that group, not to other
+      reports.</p>
       <figure><img data-guide="task-report" alt="Scheduled Task Report: From and To dates, Show, Print, and Sunday, December 6 with a table of Communion and Greeter: name, notes, email and phone"><figcaption>The Scheduled Task Report.</figcaption></figure>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 

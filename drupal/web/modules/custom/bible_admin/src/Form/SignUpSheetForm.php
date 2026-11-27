@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
  * layout of the owner's paper "After Church Fellowship Time" form (signup_sheet.py). The rows are the group's own
  * tasks (the Group chosen on each task) on each date they fall on: blank (each task's expected occurrences) or filled in from the scheduled tasks.
  * The title is the group's Description (else its name); the notes at the foot (the editor; left off when empty) are
- * remembered for the group.
+ * kept for next time only when Save this note is ticked, for this report and group (report_notes).
  */
 class SignUpSheetForm extends FormBase {
 
@@ -114,8 +114,15 @@ class SignUpSheetForm extends FormBase {
       (string) $group['sheet_notes_html'],
       6,
       FALSE,
-      (string) $this->t('Shown at the foot of the sheet with no heading; leave empty for none. The notes are remembered for this group.'),
+      (string) $this->t('Shown at the foot of the sheet with no heading; leave empty for none.'),
     );
+    // Saved only when asked (2026-11-27, the owner's request), for this report and group (report_notes).
+    $form['group_box']['save_notes'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Save this note'),
+      '#default_value' => FALSE,
+      '#description' => $this->t('Ticked: these notes come up again next time you make this group’s sign-up sheet (an empty note clears the saved one). Unticked: they go on this PDF only. Other reports are not affected.'),
+    ];
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $this->t('Make the PDF')];
@@ -147,6 +154,7 @@ class SignUpSheetForm extends FormBase {
         'end' => (string) $form_state->getValue('end'),
         'filled' => (bool) $form_state->getValue('filled'),
         'notes' => GroupEditor::value($form_state->getValue($notesKey)),
+        'save_notes' => (bool) $form_state->getValue('save_notes'),
       ]);
     }
     catch (BibleManagerException $exception) {

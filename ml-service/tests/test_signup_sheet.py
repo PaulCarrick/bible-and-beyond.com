@@ -104,13 +104,21 @@ def test_a_filled_sheet_has_the_people_and_blank_rows_up_to_the_number(setup):
 
 
 def test_the_pdf_is_made_and_the_title_and_notes_are_kept(setup):
-  made = signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "filled": True,
+  # Not saved unless asked.
+  signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "notes": {"html": "<p>This time only</p>"}})
+  assert [group for group in signup_sheet.groups(LEADER) if group["id"] == setup["group"]][0]["sheet_notes_html"] == ""
+  made = signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "filled": True, "save_notes": True,
                             "title": "After Church Fellowship Time", "notes": {"html": "<p><strong>Thank you!</strong> Bring food by 9:45.</p><ul><li>One</li></ul>"}})
   pdf = base64.b64decode(made["pdf"])
   assert pdf.startswith(b"%PDF") and made["dates"] == 4
   assert made["file_name"] == "After Church Fellowship Time 2026-12-01 to 2026-12-31.pdf"
   kept = [group for group in signup_sheet.groups(LEADER) if group["id"] == setup["group"]][0]
   assert "<strong>Thank you!</strong>" in kept["sheet_notes_html"]
+  # Kept for this report only, and a later sheet without saving leaves them.
+  with connect() as connection:
+    assert connection.execute("SELECT report FROM report_notes WHERE group_id = %s", (setup["group"],)).fetchall() == [("sign_up_sheet",)]
+  signup_sheet.make({"group_id": setup["group"], "start": "2026-12-01", "end": "2026-12-31", "notes": {"html": "<p>Other</p>"}})
+  assert "<strong>Thank you!</strong>" in [g for g in signup_sheet.groups(LEADER) if g["id"] == setup["group"]][0]["sheet_notes_html"]
   # Without a title the sheet takes the group's Description, else its name.
   assert kept["title"] == "Fellowship"
   import groups
