@@ -184,6 +184,7 @@ class ScheduledTaskListController extends ControllerBase {
         ['data' => ['#plain_text' => $this->formatDay($schedule['on_date'])], 'data-sort-value' => $schedule['on_date']],
         ['data' => ['#plain_text' => $schedule['task_name']]],
         ['data' => ['#plain_text' => $schedule['user_label']]],
+        ['data' => ['#plain_text' => !empty($schedule['confirmed']) ? (string) $this->t('Yes') : (string) $this->t('No')]],
         ['data' => $this->reminders($schedule)],
       ];
       if ($showOwner) {
@@ -197,6 +198,7 @@ class ScheduledTaskListController extends ControllerBase {
       ['data' => $this->t('Date'), 'data-sort-default' => $dateOrder],
       $this->t('Task'),
       $this->t('Site user'),
+      $this->t('Confirmed'),
       ['data' => $this->t('Reminders'), 'data-no-sort' => ''],
     ];
     if ($showOwner) {

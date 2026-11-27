@@ -97,6 +97,13 @@ class ScheduledTaskForm extends FormBase {
       (string) $this->t('Optional. Added under the task’s notification in this person’s reminder emails and texts. [FIRST_NAME], [LAST_NAME] and [FULL_NAME] are replaced with their name (“friend” when the account has no name); they work in the task’s notifications too.'),
     );
 
+    $form['confirmed'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Confirmed'),
+      '#default_value' => !empty($schedule['confirmed']),
+      '#description' => $this->t('Tick this once it is confirmed, for example when the person has said they will do it. A new scheduled task starts unconfirmed.'),
+    ];
+
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = ['#type' => 'submit', '#value' => $schedule === NULL ? $this->t('Schedule') : $this->t('Save')];
     $form['actions']['cancel'] = [
@@ -113,10 +120,11 @@ class ScheduledTaskForm extends FormBase {
     $userId = (int) $form_state->getValue('user_id');
     $onDate = (string) $form_state->getValue('on_date');
     $note = GroupEditor::value($form_state->getValue('note'));
+    $confirmed = (bool) $form_state->getValue('confirmed');
     try {
       $schedule = $scheduleId === NULL
-        ? $this->manager->addScheduledTask((int) $form_state->get('task_id'), $userId, $onDate, $note)
-        : $this->manager->updateScheduledTask((int) $scheduleId, $userId, $onDate, $note);
+        ? $this->manager->addScheduledTask((int) $form_state->get('task_id'), $userId, $onDate, $note, $confirmed)
+        : $this->manager->updateScheduledTask((int) $scheduleId, $userId, $onDate, $note, $confirmed);
     }
     catch (BibleManagerException $exception) {
       $this->messenger()->addError($exception->getMessage());

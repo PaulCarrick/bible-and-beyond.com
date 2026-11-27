@@ -1434,17 +1434,24 @@ class BibleManager {
   /**
    * Gives a task to a site user on one of its next four dates (Y-m-d).
    */
-  public function addScheduledTask(int $taskId, int $userId, string $onDate, array $note = []): array {
+  public function addScheduledTask(int $taskId, int $userId, string $onDate, array $note = [], bool $confirmed = FALSE): array {
     $this->getTask($taskId);
-    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'note' => $note, 'created_by_name' => $this->currentUser->getDisplayName()]);
+    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'note' => $note, 'confirmed' => $confirmed, 'created_by_name' => $this->currentUser->getDisplayName()]);
     $schedule = $this->run(['add-schedule', '--id=' . $taskId, '--by=' . (int) $this->currentUser->id()], 'manage_tasks.py', $input)['schedule'];
     $this->logScheduledTask('scheduled', $schedule);
     return $schedule;
   }
 
-  public function updateScheduledTask(int $scheduleId, int $userId, string $onDate, array $note = []): array {
+  /**
+   * Changes the person, date, note and, when given, the confirmed flag (NULL keeps it).
+   */
+  public function updateScheduledTask(int $scheduleId, int $userId, string $onDate, array $note = [], ?bool $confirmed = NULL): array {
     $this->getScheduledTask($scheduleId);
-    $input = $this->groupInput(['user_id' => $userId, 'on_date' => $onDate, 'note' => $note]);
+    $details = ['user_id' => $userId, 'on_date' => $onDate, 'note' => $note];
+    if ($confirmed !== NULL) {
+      $details['confirmed'] = $confirmed;
+    }
+    $input = $this->groupInput($details);
     $schedule = $this->run(['update-schedule', '--schedule=' . $scheduleId], 'manage_tasks.py', $input)['schedule'];
     $this->logScheduledTask('changed the schedule of', $schedule);
     return $schedule;

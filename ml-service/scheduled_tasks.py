@@ -189,6 +189,13 @@ def _taken(connection, task_id: int, user_id: int, day: date, other_than: int | 
   ).fetchone() is not None
 
 
+def _confirmed(value) -> bool:
+  """The confirmed flag from the details: true for True, 1 or "1", "yes", "true"; anything else false."""
+  if isinstance(value, str):
+    return value.strip().lower() in ("1", "yes", "true", "on")
+  return value is True or value == 1
+
+
 def add_scheduled(task_id: int, details: dict, created_by_uid: int, created_by_name: str, today: date | None = None) -> dict:
   today = today or date.today()
   task = admin_tasks.get_task(task_id)
@@ -198,34 +205,38 @@ def add_scheduled(task_id: int, details: dict, created_by_uid: int, created_by_n
     if _taken(connection, task_id, user_id, day):
       raise TaskProblem("That person already has this task on that date.")
     scheduled_id = connection.execute(
-      """INSERT INTO admin_scheduled_tasks (task_id, user_id, on_date, created_by_uid, created_by_name, note_html, note_text)
-      VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
-      (task_id, user_id, day, created_by_uid, " ".join((created_by_name or "").split())[:NAME_LIMIT], note["html"], note["text"]),
+      """INSERT INTO admin_scheduled_tasks
+        (task_id, user_id, on_date, created_by_uid, created_by_name, note_html, note_text, confirmed)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+      (task_id, user_id, day, created_by_uid, " ".join((created_by_name or "").split())[:NAME_LIMIT], note["html"], note["text"],
+       _confirmed(details.get("confirmed"))),
     ).fetchone()[0]
   return get_scheduled(scheduled_id, today)
 
 
 def update_scheduled(scheduled_id: int, details: dict, today: date | None = None) -> dict:
   """Changes the person, the date or the note (the task stays). Its own date may be kept even if no longer offered.
-  Without a "note" in the details the note stays."""
+  Without a "note" in the details the note stays, and without "confirmed" the confirmed flag stays."""
   today = today or date.today()
   scheduled = get_scheduled(scheduled_id, today)
   task = admin_tasks.get_task(scheduled["task_id"])
   with connect() as connection:
     user_id, day = _check(connection, task, details, today, date.fromisoformat(scheduled["on_date"]))
     note = _note(details) if "note" in details else {"html": scheduled["note_html"], "text": scheduled["note_text"]}
+    confirmed = _confirmed(details["confirmed"]) if "confirmed" in details else scheduled["confirmed"]
     if _taken(connection, task["id"], user_id, day, scheduled_id):
       raise TaskProblem("That person already has this task on that date.")
     # A new person or date: the reminders go again (to them, for that date).
     changed = user_id != scheduled["user_id"] or day.isoformat() != scheduled["on_date"]
     connection.execute(
-      """UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, note_html = %s, note_text = %s, updated_at = now(),
+      """UPDATE admin_scheduled_tasks SET user_id = %s, on_date = %s, note_html = %s, note_text = %s, confirmed = %s,
+        updated_at = now(),
         first_notice_at = CASE WHEN %s THEN NULL ELSE first_notice_at END,
         first_notice_result = CASE WHEN %s THEN '' ELSE first_notice_result END,
         second_notice_at = CASE WHEN %s THEN NULL ELSE second_notice_at END,
         second_notice_result = CASE WHEN %s THEN '' ELSE second_notice_result END
       WHERE id = %s""",
-      (user_id, day, note["html"], note["text"], changed, changed, changed, changed, scheduled_id),
+      (user_id, day, note["html"], note["text"], confirmed, changed, changed, changed, changed, scheduled_id),
     )
   return get_scheduled(scheduled_id, today)
 
