@@ -58,7 +58,10 @@ class SignUpSheetForm extends FormBase {
         ? $this->t('@group (led by @leader)', ['@group' => $group['name'], '@leader' => $group['owner_name']])
         : $group['name'];
     }
-    $groupId = (int) ($form_state->getValue('group_id') ?? array_key_first($byId));
+    // The group: the one posted, else the one in the address (?group=, set when the Group list is changed), else the
+    // first. Changing the group reloads the page rather than swapping the notes editor by AJAX: an editor swapped in
+    // by AJAX did not send what was typed in it (found 2026-11-27, the owner's notes arrived empty).
+    $groupId = (int) ($form_state->getValue('group_id') ?? $this->getRequest()->query->get('group') ?? array_key_first($byId));
     if (!isset($byId[$groupId])) {
       $groupId = (int) array_key_first($byId);
     }
@@ -73,7 +76,10 @@ class SignUpSheetForm extends FormBase {
       '#options' => $options,
       '#default_value' => $groupId,
       '#required' => TRUE,
-      '#ajax' => ['callback' => '::refreshGroup', 'wrapper' => 'sign-up-sheet-group', 'event' => 'change'],
+      '#attributes' => [
+        'onchange' => "window.location.href = window.location.pathname + '?group=' + encodeURIComponent(this.value);",
+      ],
+      '#description' => $this->t('Choosing another group reloads the page with that group’s title and saved notes.'),
     ];
     $today = new \DateTimeImmutable('today');
     $form['period'] = ['#type' => 'container', '#attributes' => ['class' => ['container-inline']]];
@@ -96,9 +102,9 @@ class SignUpSheetForm extends FormBase {
       '#description' => $this->t('Ticked: each date lists the people scheduled (with their notes, email and phone), then blank rows up to the number each task expects; someone not confirmed yet is marked so. Unticked: a blank sheet, each task with as many rows as it expects.'),
     ];
 
-    // The title and notes last used for this group. Named after the group, so choosing another group shows its own.
+    // The title and the notes saved for this group.
     $form['group_box'] = ['#type' => 'container', '#attributes' => ['id' => 'sign-up-sheet-group']];
-    $notesKey = 'notes_' . $groupId;
+    $notesKey = 'notes';
     $form_state->set('notes_key', $notesKey);
     // The title is the group's Description (2026-11-27, the owner's request), else its name; set on the group.
     $form['group_box']['title'] = [
@@ -133,10 +139,6 @@ class SignUpSheetForm extends FormBase {
       '#attributes' => ['class' => ['button']],
     ];
     return $form;
-  }
-
-  public function refreshGroup(array &$form, FormStateInterface $form_state): array {
-    return $form['group_box'];
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
