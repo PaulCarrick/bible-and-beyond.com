@@ -361,7 +361,7 @@ class _Sheet:
     bottom = NOTES_BOTTOM
     total = sum(paragraph.wrap(width, HEIGHT)[1] + paragraph.style.spaceAfter for paragraph in paragraphs)
     room_on_new_page = HEIGHT - MARGIN - TITLE_GAP - bottom
-    first = paragraphs[0].wrap(width, HEIGHT)[1] + 12
+    first = paragraphs[0].wrap(width, HEIGHT)[1]
     # Kept together: notes that fit on a page of their own but not here go to the next page whole.
     if self.y - first < bottom or (self.y - total < bottom and total <= room_on_new_page):
       self.new_page()
