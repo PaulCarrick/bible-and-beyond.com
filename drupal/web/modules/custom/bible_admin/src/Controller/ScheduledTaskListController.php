@@ -73,6 +73,25 @@ class ScheduledTaskListController extends ControllerBase {
     if ($to->format('Y-m-d') < $from->format('Y-m-d')) {
       [$from, $to] = [$to, $from];
     }
+    // The Group filter (2026-11-27, the owner's request): all groups, one group's tasks, or the tasks of no group.
+    // The groups offered are this user's own, or everyone's for an administrator.
+    $groupNames = [];
+    try {
+      foreach ($this->manager->signUpSheetGroups() as $group) {
+        $groupNames[(string) $group['id']] = $group['name'];
+      }
+    }
+    catch (BibleManagerException) {
+    }
+    $chosenGroup = (string) $request->query->get('group', '');
+    if ($chosenGroup !== 'none' && !isset($groupNames[$chosenGroup])) {
+      $chosenGroup = '';
+    }
+    $groupOptions = [['value' => '', 'label' => (string) $this->t('All groups'), 'selected' => $chosenGroup === '']];
+    foreach ($groupNames as $id => $name) {
+      $groupOptions[] = ['value' => $id, 'label' => $name, 'selected' => $chosenGroup === (string) $id];
+    }
+    $groupOptions[] = ['value' => 'none', 'label' => (string) $this->t('Tasks with no group'), 'selected' => $chosenGroup === 'none'];
     $build = [
       '#cache' => ['max-age' => 0],
       '#attached' => ['library' => ['bible_admin/scheduled_task_report']],
@@ -81,6 +100,7 @@ class ScheduledTaskListController extends ControllerBase {
         '#template' => '<form method="get" class="scheduled-task-report-filters">'
           . '<label>{{ from_label }}<input type="date" name="from" value="{{ from }}"></label>'
           . '<label>{{ to_label }}<input type="date" name="to" value="{{ to }}"></label>'
+          . '<label>{{ group_label }}<select name="group">{% for option in groups %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label>'
           . '<button type="submit" class="button">{{ show }}</button>'
           . '<button type="button" class="button button--primary" data-print-report>{{ print }}</button>'
           . '<a href="{{ back_url }}">{{ back }}</a>'
@@ -90,6 +110,8 @@ class ScheduledTaskListController extends ControllerBase {
           'to_label' => $this->t('To'),
           'from' => $from->format('Y-m-d'),
           'to' => $to->format('Y-m-d'),
+          'group_label' => $this->t('Group'),
+          'groups' => $groupOptions,
           'show' => $this->t('Show'),
           'print' => $this->t('Print'),
           'back' => $this->t('Back to the scheduled tasks'),
@@ -100,7 +122,9 @@ class ScheduledTaskListController extends ControllerBase {
         '#type' => 'container',
         '#attributes' => ['class' => ['scheduled-task-report']],
         // Shown only when printing, since the page's own title is not printed.
-        'title' => ['#type' => 'html_tag', '#tag' => 'h1', '#value' => $this->t('Scheduled Task Report'), '#attributes' => ['class' => ['scheduled-task-report-title']]],
+        'title' => ['#type' => 'html_tag', '#tag' => 'h1', '#value' => $chosenGroup === ''
+          ? $this->t('Scheduled Task Report')
+          : $this->t('Scheduled Task Report: @group', ['@group' => $chosenGroup === 'none' ? $this->t('tasks with no group') : $groupNames[$chosenGroup]]), '#attributes' => ['class' => ['scheduled-task-report-title']]],
       ],
     ];
     try {
@@ -112,6 +136,10 @@ class ScheduledTaskListController extends ControllerBase {
     }
     $days = [];
     foreach ($schedules as $schedule) {
+      $groupOfTask = isset($schedule['group_id']) ? (string) $schedule['group_id'] : '';
+      if ($chosenGroup === 'none' ? $groupOfTask !== '' : ($chosenGroup !== '' && $groupOfTask !== $chosenGroup)) {
+        continue;
+      }
       if ($schedule['on_date'] >= $from->format('Y-m-d') && $schedule['on_date'] <= $to->format('Y-m-d')) {
         $days[$schedule['on_date']][] = $schedule;
       }

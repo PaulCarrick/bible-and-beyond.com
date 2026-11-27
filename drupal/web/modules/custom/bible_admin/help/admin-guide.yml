@@ -456,7 +456,8 @@ sections:
       (email, text or both), and replies come to your email address. The page then says who it reached, and why anyone was not.</p>
       <figure><img data-guide="day-message" alt="Message a day: the date with three people, each ticked with their task, the subject About Sunday, December 6, the message in the editor with Hi [FIRST_NAME], Attachments with Paste a picture, the Signature Formal and the Sent by tick box"><figcaption>Message a day.</figcaption></figure>
       <p>The <strong>Scheduled Task Report</strong> (the button beside Schedule tasks) lists them day by day, like a
-      sign-up sheet: choose <em>From</em> and <em>To</em> and press <em>Show</em>; each day with something scheduled has its
+      sign-up sheet: choose <em>From</em>, <em>To</em> and, if you like, a <em>Group</em> (one group's tasks, or the
+      tasks with no group; All groups to start) and press <em>Show</em>; each day with something scheduled has its
       own heading and a table of the task, the person's name, the note, their email and their phone. <em>Print</em>
       prints just the report.</p>
       <p>The <strong>Sign-up sheet</strong> button makes a PDF to print and put out, like a paper sign-up sheet: choose

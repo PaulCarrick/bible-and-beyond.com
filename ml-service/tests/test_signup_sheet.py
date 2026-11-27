@@ -62,6 +62,10 @@ def setup():
 def test_a_task_keeps_its_group(setup):
   baked = admin_tasks.get_task(setup["baked"]["id"])
   assert baked["group_id"] == setup["group"]
+  # Each scheduled task carries its task's group (the Scheduled Task Report's Group filter).
+  import scheduled_tasks
+  groups_of_baked = {each["group_id"] for each in scheduled_tasks.list_scheduled(LEADER) if each["task_id"] == baked["id"]}
+  assert groups_of_baked == {setup["group"]}
   assert admin_tasks.update_task(baked["id"], {**SUNDAY, "name": "Baked Goods"})["group_id"] == setup["group"]
   assert admin_tasks.update_task(baked["id"], {**SUNDAY, "name": "Baked Goods", "group_id": ""})["group_id"] is None
   with pytest.raises(admin_tasks.TaskProblem, match="group was not found"):
