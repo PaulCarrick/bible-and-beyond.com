@@ -43,6 +43,15 @@ class TaskListController extends ControllerBase {
       return $build;
     }
     $showOwner = $this->currentUser()->hasPermission('administer signatures and tasks');
+    // The group of each task (2026-11-27): its name, from the groups this user may see.
+    $groupNames = [];
+    try {
+      foreach ($this->manager->signUpSheetGroups() as $group) {
+        $groupNames[(int) $group['id']] = $group['name'];
+      }
+    }
+    catch (BibleManagerException) {
+    }
 
     $rows = [];
     foreach ($tasks as $task) {
@@ -55,6 +64,7 @@ class TaskListController extends ControllerBase {
       if ($showOwner) {
         $row[] = ['data' => ['#plain_text' => $task['owner_name']]];
       }
+      $row[] = ['data' => ['#plain_text' => empty($task['group_id']) ? (string) $this->t('None') : ($groupNames[(int) $task['group_id']] ?? (string) $this->t('Another leader’s group'))]];
       $row[] = ['data' => ['#plain_text' => $task['how_often']]];
       $row[] = ['data' => ['#plain_text' => $this->formatDay($task['next_date'])]];
       $row[] = ['data' => ['#plain_text' => $task['preview']]];
@@ -66,6 +76,7 @@ class TaskListController extends ControllerBase {
     if ($showOwner) {
       $header[] = $this->t('Owner');
     }
+    $header[] = $this->t('Group');
     $header[] = $this->t('How often');
     $header[] = $this->t('Next');
     $header[] = $this->t('Description');

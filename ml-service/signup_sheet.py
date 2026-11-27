@@ -2,8 +2,8 @@
 Church Fellowship Time" form: a title, then one block per date with a row per place to fill, and the leader's notes
 at the foot.
 
-- The tasks are the group leader's (admin_tasks.owner_uid = member_groups.owner_uid), in their sheet order then by
-  name. A date gets a block when any of them falls on it.
+- The tasks are the group's own (admin_tasks.group_id, migration 075; a task with no group is on no sheet), in their
+  sheet order then by name. A date gets a block when any of them falls on it, by each task's own recurrence.
 - Blank: each task has as many rows as it expects (expected_occurrences), numbered when more than one ("Baked Goods
   1", "Baked Goods 2").
 - Filled in: the people scheduled (admin_scheduled_tasks) with their name, note, email and phone, then blank rows up
@@ -78,9 +78,9 @@ def groups(owner_uid: int | None = None) -> list[dict]:
            "sheet_notes_html": row[5]} for row in rows]
 
 
-def _tasks(connection, owner_uid: int) -> list[dict]:
+def _tasks(connection, group_id: int) -> list[dict]:
   ids = [row[0] for row in connection.execute(
-    "SELECT id FROM admin_tasks WHERE owner_uid = %s ORDER BY sheet_order, lower(name), id", (owner_uid,)
+    "SELECT id FROM admin_tasks WHERE group_id = %s ORDER BY sheet_order, lower(name), id", (group_id,)
   ).fetchall()]
   tasks = [admin_tasks.get_task(task_id) for task_id in ids]
   for task in tasks:
@@ -407,16 +407,16 @@ def make(details: dict, owner_uid: int | None = None) -> dict:
       title = one_line(details.get("title") or group["name"], "title", TITLE_LIMIT)
     except FormattedTextProblem as problem:
       raise SheetProblem(str(problem)) from problem
-    tasks = _tasks(connection, group["owner_uid"])
+    tasks = _tasks(connection, group_id)
     if not tasks:
-      raise SheetProblem(f"{group['owner_name'] or 'The group leader'} has no tasks yet. Add them on the Tasks page first.")
+      raise SheetProblem(f"No tasks belong to the group “{group['name']}” yet. Choose the group on each task’s Edit page (Tasks).")
     people = _people(connection, [task["id"] for task in tasks], start, end) if filled else None
     connection.execute(
       "UPDATE member_groups SET sheet_title = %s, sheet_notes_html = %s WHERE id = %s", (title, notes["html"], group_id)
     )
   dates = sheet_dates(tasks, start, end, people)
   if not dates:
-    raise SheetProblem("None of the group leader's tasks fall in that period.")
+    raise SheetProblem("None of the group's tasks fall in that period.")
   sheet = _Sheet(title)
   for day, rows in dates:
     sheet.block(day, rows, not filled)

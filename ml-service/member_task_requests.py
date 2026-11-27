@@ -1,7 +1,7 @@
 """Members asking for a task, and taking themselves off one, from My scheduled tasks on the site (the owner's
 request, 2026-11-27), and the emails that go with it.
 
-- offered(): the tasks a member may ask for (those whose owner leads one of the member's groups) with their dates in
+- offered(): the tasks a member may ask for (those of the groups they are in: admin_tasks.group_id) with their dates in
   the next two months that the member does not already have and that do not already have as many people as the task
   expects (expected_occurrences).
 - request_task(): adds the member to a task on one of those dates, NOT confirmed. Their group leader is emailed.
@@ -9,8 +9,8 @@ request, 2026-11-27), and the emails that go with it.
 - tell_confirmed(): when a leader ticks Confirmed on the Drupal page (scheduled_tasks.update_scheduled), the member
   is told, by email (or by text when that is the only way they chose and can be reached).
 
-"The leader" is the leader of the member's group (member_groups.owner_name, owner_email): the group whose leader owns
-the task, or, when the task was set by someone else, the leader of each group the member is in.
+"The leader" is the leader of the task's group (member_groups.owner_name, owner_email); for a task with no group
+(one an administrator scheduled them for), the leader of each group the member is in.
 """
 
 import logging
@@ -72,10 +72,11 @@ def _groups(connection, user_id: int) -> list[dict]:
   return [{"id": row[0], "name": row[1], "owner_uid": row[2], "owner_name": row[3], "owner_email": row[4]} for row in rows]
 
 
-def _leaders(groups: list[dict], task_owner_uid: int) -> list[dict]:
-  """Who to tell about a task: the leaders of the member's groups who own it, else every leader of their groups.
-  One entry per address (a leader of two groups is told once); leaders without an address are left out."""
-  chosen = [group for group in groups if group["owner_uid"] == task_owner_uid] or groups
+def _leaders(groups: list[dict], task_group_id: int | None) -> list[dict]:
+  """Who to tell about a task: the leader of the task's group, else (a task with no group, or of a group the member
+  is not in) every leader of their groups. One entry per address (a leader of two groups is told once); leaders
+  without an address are left out."""
+  chosen = [group for group in groups if group["id"] == task_group_id] or groups
   leaders, seen = [], set()
   for group in chosen:
     address = (group["owner_email"] or "").strip()
@@ -121,10 +122,11 @@ def _dates(task: dict, today: date, taken: set[date]) -> list[date]:
 
 
 def _offered_tasks(connection, user_id: int, groups: list[dict]) -> list[dict]:
-  owners = sorted({group["owner_uid"] for group in groups})
-  if not owners:
+  """The tasks of the member's groups (admin_tasks.group_id); a task with no group is offered to nobody."""
+  group_ids = {group["id"] for group in groups}
+  if not group_ids:
     return []
-  return [task for task in admin_tasks.list_tasks() if task["owner_uid"] in owners]
+  return [task for task in admin_tasks.list_tasks() if task["group_id"] in group_ids]
 
 
 def offered(user_id: int, today: date | None = None) -> dict:
@@ -179,7 +181,7 @@ def request_task(user_id: int, task_id: int, on_date: str, today: date | None = 
   return {
     "scheduled": scheduled_tasks.get_scheduled(scheduled_id, today),
     "notice": {"kind": "request", "member": member, "task_name": task["name"], "on_date": day.isoformat(),
-               "leaders": _leaders(groups, task["owner_uid"])},
+               "leaders": _leaders(groups, task["group_id"])},
   }
 
 
@@ -189,7 +191,7 @@ def withdraw(user_id: int, scheduled_id: int, today: date | None = None) -> dict
   with connect() as connection:
     member = _member(connection, user_id)
     row = connection.execute(
-      """SELECT s.on_date, s.confirmed, t.name, t.owner_uid FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id
+      """SELECT s.on_date, s.confirmed, t.name, t.group_id FROM admin_scheduled_tasks s JOIN admin_tasks t ON t.id = s.task_id
       WHERE s.id = %s AND s.user_id = %s""",
       (scheduled_id, user_id),
     ).fetchone()

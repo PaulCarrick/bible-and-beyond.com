@@ -217,8 +217,30 @@ class TaskForm extends FormBase {
     // The sign-up sheet (Scheduled tasks; 2026-11-27, the owner's request).
     $form['sheet'] = [
       '#type' => 'details',
-      '#title' => $this->t('Sign-up sheet'),
+      '#title' => $this->t('Group and sign-up sheet'),
       '#open' => TRUE,
+    ];
+    // The group the task belongs to (2026-11-27, the owner's request): only that group's sign-up sheet lists it,
+    // and only its members can ask for it on My scheduled tasks. Your own groups, or everyone's for an administrator.
+    $groupOptions = [];
+    try {
+      foreach ($this->manager->signUpSheetGroups() as $group) {
+        $groupOptions[(int) $group['id']] = $group['name'];
+      }
+    }
+    catch (BibleManagerException) {
+    }
+    if (!empty($task['group_id']) && !isset($groupOptions[(int) $task['group_id']])) {
+      $groupOptions[(int) $task['group_id']] = $this->t('The group chosen before');
+    }
+    $form['sheet']['group_id'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Group'),
+      '#options' => ['' => $this->t('- No group -')] + $groupOptions,
+      '#default_value' => !empty($task['group_id']) ? (int) $task['group_id'] : '',
+      '#description' => $groupOptions
+        ? $this->t('The group this task is for. Only that group’s sign-up sheet lists it, and only its members can ask for it on My scheduled tasks. With no group it is on no sheet and offered to no one.')
+        : $this->t('You have no groups yet. Make one on the <a href=":url">Groups</a> page, then choose it here.', [':url' => Url::fromRoute('bible_admin.groups')->toString()]),
     ];
     $form['sheet']['expected_occurrences'] = [
       '#type' => 'number',
@@ -295,6 +317,7 @@ class TaskForm extends FormBase {
         'show_sent_by' => (bool) $form_state->getValue('show_sent_by'),
         'expected_occurrences' => (int) $form_state->getValue('expected_occurrences'),
         'sheet_order' => (int) $form_state->getValue('sheet_order'),
+        'group_id' => $form_state->getValue('group_id') !== '' ? (int) $form_state->getValue('group_id') : NULL,
       ]);
     }
     catch (BibleManagerException $exception) {

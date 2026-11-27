@@ -148,7 +148,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           <em>Account settings</em>, <em>My notes</em>, <em>My lists</em>, <em>My cards</em> and <em>Log out</em>, and{' '}
           <em>My scheduled tasks</em> if you are in a group (such as your church&rsquo;s greeters): it lists the tasks
           you are scheduled for, each with its date, whether it is confirmed, what it involves and any note for you.
-          There, <em>Add a task</em> lets you ask for one of your group leader&rsquo;s tasks on one of its dates in the
+          There, <em>Add a task</em> lets you ask for one of your group&rsquo;s tasks on one of its dates in the
           next two months (it shows as not confirmed until the leader confirms it, and you are emailed then), and{' '}
           <em>Remove</em> takes you off a coming one. Your group leader is emailed either way. On the left is the{' '}
           <strong>menu</strong>: Welcome and Search everything at the top, then groups for the Bible, the commentaries,

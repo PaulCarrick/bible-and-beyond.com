@@ -15,8 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Sign-up sheet (added 2026-11-27 at the owner's request): a group's sign-up sheet for a period as a PDF, in the
- * layout of the owner's paper "After Church Fellowship Time" form (signup_sheet.py). The rows are the group leader's
- * tasks on each date they fall on: blank (each task's expected occurrences) or filled in from the scheduled tasks.
+ * layout of the owner's paper "After Church Fellowship Time" form (signup_sheet.py). The rows are the group's own
+ * tasks (the Group chosen on each task) on each date they fall on: blank (each task's expected occurrences) or filled in from the scheduled tasks.
  * The title and the notes at the foot (the editor; left off when empty) are remembered for the group.
  */
 class SignUpSheetForm extends FormBase {
@@ -42,7 +42,7 @@ class SignUpSheetForm extends FormBase {
     }
     if (!$groups) {
       $form['none'] = [
-        '#markup' => '<p>' . $this->t('You have no groups yet. Make one on the <a href=":url">Groups</a> page; the sheet lists the tasks of the group’s leader.', [
+        '#markup' => '<p>' . $this->t('You have no groups yet. Make one on the <a href=":url">Groups</a> page, then choose it as the Group of its tasks.', [
           ':url' => Url::fromRoute('bible_admin.groups')->toString(),
         ]) . '</p>',
       ];
@@ -64,7 +64,7 @@ class SignUpSheetForm extends FormBase {
     $group = $byId[$groupId];
 
     $form['intro'] = [
-      '#markup' => '<p>' . $this->t('A sign-up sheet to print: one block for each date in the period on which any of the group leader’s tasks falls, with a row for each place to fill. Set how many places a task has (Expected occurrences) and its place in the list on the task’s Edit page.') . '</p>',
+      '#markup' => '<p>' . $this->t('A sign-up sheet to print: one block for each date in the period on which any of the group’s tasks falls (by each task’s own recurrence), with a row for each place to fill. A task is on a group’s sheet when that group is chosen as its Group; set that, how many places it has (Expected occurrences) and its place in the list on the task’s Edit page.') . '</p>',
     ];
     $form['group_id'] = [
       '#type' => 'select',

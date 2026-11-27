@@ -48,8 +48,9 @@ def setup(monkeypatch):
     ).fetchone()[0]
     connection.execute("INSERT INTO group_members (group_id, user_id, stop_token) VALUES (%s, %s, 'task-requests-token')", (group, member))
   sunday = SUNDAY
-  greeter = admin_tasks.create_task(sunday, LEADER, "Pastor Dan")
-  elsewhere = admin_tasks.create_task({**sunday, "name": "Ushers"}, OTHER_OWNER, "Someone else")
+  greeter = admin_tasks.create_task({**sunday, "group_id": group}, LEADER, "Pastor Dan")
+  # Owned by the same leader but with no group: offered to nobody.
+  elsewhere = admin_tasks.create_task({**sunday, "name": "Ushers"}, LEADER, "Pastor Dan")
   yield {"member": member, "outsider": outsider, "greeter": greeter, "elsewhere": elsewhere, "sent": sent}
   clear()
 
@@ -135,7 +136,7 @@ def test_a_date_with_as_many_people_as_expected_is_not_offered(setup):
     )
   days = [day["value"] for day in member_task_requests.offered(setup["member"], TODAY)["tasks"][0]["dates"]]
   assert "2026-12-06" not in days  # it expects one person (the default) and has one
-  admin_tasks.update_task(setup["greeter"]["id"], {**SUNDAY, "expected_occurrences": 2})
+  admin_tasks.update_task(setup["greeter"]["id"], {**SUNDAY, "expected_occurrences": 2})  # keeps its group
   days = [day["value"] for day in member_task_requests.offered(setup["member"], TODAY)["tasks"][0]["dates"]]
   assert "2026-12-06" in days
   member_task_requests.request_task(setup["member"], setup["greeter"]["id"], "2026-12-06", TODAY)
