@@ -250,17 +250,21 @@ SUNDAY_TASK = task_details(name="Greeter", weekday=6)
 THURSDAY = date(2026, 11, 19)
 
 
-def test_the_options_are_the_next_four_dates_and_the_open_accounts(site_users):
+def test_the_options_are_the_dates_of_the_next_two_months_and_the_open_accounts(site_users):
   open_id, closed_id = site_users
   task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
   offered = scheduled_tasks.options(task["id"], THURSDAY)
-  assert [day["value"] for day in offered["dates"]] == ["2026-11-22", "2026-11-29", "2026-12-06", "2026-12-13"]
+  # Every Sunday to two months on (2026-11-28: Dec 27, five weeks out, was not offered when it was the next four).
+  assert [day["value"] for day in offered["dates"]] == [
+    "2026-11-22", "2026-11-29", "2026-12-06", "2026-12-13", "2026-12-20", "2026-12-27", "2027-01-03", "2027-01-10", "2027-01-17",
+  ]
   assert offered["dates"][0]["label"] == "Sunday, November 22, 2026"
   user_ids = [user["id"] for user in offered["users"]]
   assert open_id in user_ids and closed_id not in user_ids
   assert {"id": open_id, "label": "Ruth Test (scheduled-ruth@example.org)"} in offered["users"]
   every_two_weeks = admin_tasks.create_task(task_details(interval_count=2, first_date="2026-11-05"), OWNER, "Paul")
-  assert [day["value"] for day in scheduled_tasks.options(every_two_weeks["id"], THURSDAY)["dates"]] == ["2026-11-19", "2026-12-03", "2026-12-17", "2026-12-31"]
+  assert [day["value"] for day in scheduled_tasks.options(every_two_weeks["id"], THURSDAY)["dates"]] == ["2026-11-19", "2026-12-03", "2026-12-17", "2026-12-31", "2027-01-14"]
+  # A monthly task still offers at least its next four dates, though they run past two months.
   monthly = admin_tasks.create_task(task_details(repeat="monthly_day", day_of_month=31, first_date="2026-11-01"), OWNER, "Paul")
   assert [day["value"] for day in scheduled_tasks.options(monthly["id"], date(2027, 1, 1))["dates"]] == ["2027-01-31", "2027-02-28", "2027-03-31", "2027-04-30"]
 
@@ -300,10 +304,12 @@ def test_a_schedule_is_refused_without_a_good_person_or_date(site_users):
     scheduled_tasks.add_scheduled(task["id"], {"on_date": "2026-11-22"}, OWNER, "Paul", THURSDAY)
   with pytest.raises(TaskProblem, match="closed"):
     scheduled_tasks.add_scheduled(task["id"], {"user_id": closed_id, "on_date": "2026-11-22"}, OWNER, "Paul", THURSDAY)
-  with pytest.raises(TaskProblem, match="next 4 dates"):
+  with pytest.raises(TaskProblem, match="next 2 months"):
     scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-11-23"}, OWNER, "Paul", THURSDAY)
-  with pytest.raises(TaskProblem, match="next 4 dates"):
-    scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-12-20"}, OWNER, "Paul", THURSDAY)
+  with pytest.raises(TaskProblem, match="next 2 months"):
+    scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2027-01-24"}, OWNER, "Paul", THURSDAY)
+  # Five weeks out is within two months.
+  assert scheduled_tasks.add_scheduled(task["id"], {"user_id": open_id, "on_date": "2026-12-27"}, OWNER, "Paul", THURSDAY)["on_date"] == "2026-12-27"
 
 
 def test_deleting_the_task_or_the_account_removes_its_schedules(site_users):
@@ -319,7 +325,7 @@ def test_the_schedule_commands_of_the_tool(site_users):
   open_id, _ = site_users
   task = admin_tasks.create_task(SUNDAY_TASK, OWNER, "Paul")
   status, answer = run_tool("manage_tasks.py", ["schedule-options", f"--id={task['id']}"])
-  assert status == 0 and len(answer["dates"]) == 4 and answer["task"]["name"] == "Greeter"
+  assert status == 0 and len(answer["dates"]) >= 8 and answer["task"]["name"] == "Greeter"
   day = answer["dates"][1]["value"]
   status, answer = run_tool("manage_tasks.py", ["add-schedule", f"--id={task['id']}", f"--by={OWNER}"], {"user_id": open_id, "on_date": day, "created_by_name": "Paul"})
   assert status == 0 and answer["schedule"]["on_date"] == day
@@ -327,7 +333,7 @@ def test_the_schedule_commands_of_the_tool(site_users):
   status, answer = run_tool("manage_tasks.py", ["schedules", f"--owner={OWNER}"])
   assert status == 0 and [item["id"] for item in answer["schedules"]] == [schedule_id]
   status, answer = run_tool("manage_tasks.py", ["update-schedule", f"--schedule={schedule_id}"], {"user_id": open_id, "on_date": "2000-01-02"})
-  assert status == 1 and "next 4 dates" in answer["error"]
+  assert status == 1 and "next 2 months" in answer["error"]
   status, answer = run_tool("manage_tasks.py", ["remove-schedule", f"--schedule={schedule_id}"])
   assert status == 0
 
@@ -617,7 +623,8 @@ def test_schedule_tasks_offers_the_tasks_of_a_date_and_schedules_several_at_once
   offered = scheduled_tasks.day_options(date(2026, 11, 29), OWNER, THURSDAY)
   assert [task["name"] for task in offered["tasks"]] == ["Coffee", "Greeter"]  # not Thursday's, not another owner's
   assert offered["label"] == "Sunday, November 29, 2026" and open_id in [user["id"] for user in offered["users"]]
-  assert scheduled_tasks.day_options(date(2027, 3, 7), OWNER, THURSDAY)["tasks"] == []  # beyond the next four Sundays
+  assert [task["name"] for task in scheduled_tasks.day_options(date(2026, 12, 27), OWNER, THURSDAY)["tasks"]] == ["Coffee", "Greeter"]
+  assert scheduled_tasks.day_options(date(2027, 3, 7), OWNER, THURSDAY)["tasks"] == []  # beyond two months
 
   added = scheduled_tasks.add_many({"on_date": "2026-11-29", "items": [
     {"task_id": greeter["id"], "user_id": open_id, "note": {"text": "cookies"}},

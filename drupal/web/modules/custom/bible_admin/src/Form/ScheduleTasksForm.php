@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Schedule tasks (added 2026-11-23 at the owner's request): several tasks on one date at once. Choose the date; the
- * tasks that fall on it (among their next four dates) are listed, each with + to add a row for it (several rows for
+ * tasks that fall on it (among their dates up to two months out) are listed, each with + to add a row for it (several rows for
  * the same task when it needs several people); each row chooses its site user and an optional note, and − removes
  * it. The list and the rows follow the choices by AJAX (with an Update the list button
  * when JavaScript is off). All are scheduled together, or none if one has a problem.
@@ -68,7 +68,7 @@ class ScheduleTasksForm extends FormBase {
     }
     if (!$options['tasks']) {
       $form['choices']['message'] = [
-        '#markup' => '<p>' . $this->t('No task falls on @day among its next four dates. Choose another date, or add or change a task on the <a href=":tasks">Tasks</a> page.', [
+        '#markup' => '<p>' . $this->t('No task falls on @day in the next two months. Choose another date, or add or change a task on the <a href=":tasks">Tasks</a> page.', [
           '@day' => $options['label'],
           ':tasks' => Url::fromRoute('bible_admin.tasks')->toString(),
         ]) . '</p>',

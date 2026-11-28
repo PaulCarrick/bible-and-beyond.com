@@ -14,7 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Gives a task to a site user on a date (Schedule beside a task), or changes who and when for a scheduled task:
- * two selects, the site user and one of the task's next four dates (a weekly Sunday task offers the next four
+ * two selects, the site user and one of the task's dates up to two months out (a weekly Sunday task offers about nine
  * Sundays; the owner's request, 2026-11-19). Changing one keeps its own date in the list even when it has passed.
  * An optional Note (the group emails' editor; 2026-11-22) is added under the task's notification in that person's
  * reminders; [FIRST_NAME], [LAST_NAME] and [FULL_NAME] in it are replaced with their name.

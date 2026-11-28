@@ -1325,7 +1325,7 @@ class BibleManager {
   }
 
   /**
-   * What the Schedule form offers for a task this user may see: task, dates (its next four, each value Y-m-d and
+   * What the Schedule form offers for a task this user may see: task, dates (up to two months out, at least its next four, each value Y-m-d and
    * label) and users (the site's open accounts, each id and label).
    */
   public function taskScheduleOptions(int $taskId): array {
@@ -1458,7 +1458,7 @@ class BibleManager {
   }
 
   /**
-   * Gives a task to a site user on one of its next four dates (Y-m-d).
+   * Gives a task to a site user on one of its dates up to two months out (Y-m-d).
    */
   public function addScheduledTask(int $taskId, int $userId, string $onDate, array $note = [], bool $confirmed = FALSE): array {
     $this->getTask($taskId);

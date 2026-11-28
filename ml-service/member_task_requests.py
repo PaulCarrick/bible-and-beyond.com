@@ -43,10 +43,7 @@ class RequestProblem(Exception):
 
 
 def _months_on(day: date, months: int) -> date:
-  month_index = day.month - 1 + months
-  year, month = day.year + month_index // 12, month_index % 12 + 1
-  last = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
-  return date(year, month, min(day.day, last))
+  return scheduled_tasks.months_on(day, months)
 
 
 def _member(connection, user_id: int) -> dict:

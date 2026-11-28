@@ -1,8 +1,10 @@
 """Scheduled tasks (added 2026-11-19 at the owner's request): a task (admin_tasks.py) given to a site account on one
 of the task's dates, kept in admin_scheduled_tasks (migration 055).
 
-The date is chosen from the task's next OCCURRENCES dates, the first on or after today (a weekly Sunday task offers
-the next four Sundays). Changing a scheduled task may keep its own date even when that is no longer among them.
+The date is chosen from the task's dates from today to MONTHS_AHEAD months on, and at least its next OCCURRENCES
+(schedule_dates: a weekly Sunday task offers about nine Sundays, a monthly one at least four months; the owner asked on
+2026-11-28 for two months, after Dec 27 was not offered on Nov 28 as the fifth Sunday). Changing a scheduled task may
+keep its own date even when that is no longer among them.
 
 A scheduled task belongs with its task: Drupal lets whoever may see the task see and change it (owner_uid is the
 task's owner). The Drupal "Scheduled tasks" page and Schedule beside each task run scripts/manage_tasks.py.
@@ -40,6 +42,32 @@ from site_settings import get_public_settings
 logger = logging.getLogger(__name__)
 
 OCCURRENCES = 4
+# How far ahead a task can be scheduled (at least OCCURRENCES dates even when they run further).
+MONTHS_AHEAD = 2
+
+
+def months_on(day: date, months: int) -> date:
+  """The same day `months` months on (the last day of a shorter month)."""
+  month_index = day.month - 1 + months
+  year, month = day.year + month_index // 12, month_index % 12 + 1
+  last = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
+  return date(year, month, min(day.day, last))
+
+
+def schedule_dates(rule: dict, today: date) -> list[date]:
+  """The dates a task can be scheduled on: from today to MONTHS_AHEAD months on, and at least its next OCCURRENCES."""
+  end = months_on(today, MONTHS_AHEAD)
+  days, day = [], today
+  while True:
+    try:
+      day = admin_tasks.next_date(rule, day)
+    except TaskProblem:
+      break
+    if day > end and len(days) >= OCCURRENCES:
+      break
+    days.append(day)
+    day += timedelta(days=1)
+  return days
 SEND_HOUR = 8
 LOCK_NUMBER = 7281005
 NOTICES = ("first", "second")
@@ -109,9 +137,9 @@ def list_users() -> list[dict]:
 
 
 def options(task_id: int, today: date | None = None) -> dict:
-  """What the Schedule form offers: the task, its next OCCURRENCES dates ({value, label}) and the site users."""
+  """What the Schedule form offers: the task, its dates ({value, label}; schedule_dates) and the site users."""
   task = admin_tasks.get_task(task_id)
-  days = admin_tasks.next_dates(_rule(task), today or date.today(), OCCURRENCES)
+  days = schedule_dates(_rule(task), today or date.today())
   return {
     "task": task,
     "dates": [{"value": day.isoformat(), "label": date_label(day)} for day in days],
@@ -154,9 +182,8 @@ def _check(connection, task: dict, details: dict, today: date, current: date | N
     day = date.fromisoformat(str(details.get("on_date") or ""))
   except ValueError as error:
     raise TaskProblem("Choose the date.") from error
-  allowed = admin_tasks.next_dates(_rule(task), today, OCCURRENCES)
-  if day not in allowed and day != current:
-    raise TaskProblem(f"Choose one of the task's next {OCCURRENCES} dates.")
+  if day not in schedule_dates(_rule(task), today) and day != current:
+    raise TaskProblem(f"Choose one of the task's dates in the next {MONTHS_AHEAD} months.")
   return user_id, day
 
 
@@ -289,11 +316,11 @@ def update_scheduled(scheduled_id: int, details: dict, today: date | None = None
 
 def day_options(on_date: date, owner_uid: int | None = None, today: date | None = None) -> dict:
   """What "Schedule tasks" offers for one date (2026-11-23): the tasks (of one owner, or all) that fall on it among
-  their next OCCURRENCES dates, each with who already has it that day, and the site users."""
+  their dates (schedule_dates), each with who already has it that day, and the site users."""
   today = today or date.today()
   tasks = []
   for task in admin_tasks.list_tasks(owner_uid):
-    if on_date in admin_tasks.next_dates(_rule(task), today, OCCURRENCES):
+    if on_date in schedule_dates(_rule(task), today):
       tasks.append({"id": task["id"], "name": task["name"], "owner_uid": task["owner_uid"], "owner_name": task["owner_name"]})
   taken: dict[int, list[str]] = {}
   if tasks:
