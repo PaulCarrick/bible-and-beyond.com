@@ -80,6 +80,12 @@ interface HelpPageProps {
   hasMusic?: boolean
   // The maps section shows only when a map is published.
   hasMaps?: boolean
+  // Whether any commentary is published (its section is left out when none is).
+  hasCommentaries?: boolean
+  // Login required (Site settings): the site is for members only, and only administrators set up accounts.
+  loginRequired?: boolean
+  // Whether the Apostles' Creed is among the other books (its paragraph and picture are left out otherwise).
+  hasApostlesCreed?: boolean
   // The site's name as this domain shows it (Site settings, or domainTitle.ts).
   siteTitle: string
 }
@@ -87,7 +93,7 @@ interface HelpPageProps {
 // The user guide: every feature of the site with a screenshot, then where the texts come from (with the notices
 // and credits that go with them). The screenshots are in public/help/; the owner's address in them is replaced
 // by you@example.com.
-function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false, siteTitle }: HelpPageProps) {
+function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false, hasCommentaries = true, loginRequired = false, hasApostlesCreed = true, siteTitle }: HelpPageProps) {
   const [copyrights, setCopyrights] = useState<Copyright[]>([])
   const localBibles = translations.filter((translation) => translation.source === 'local').map((translation) => translation.code)
   const licensed = translations
@@ -111,6 +117,16 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
   return (
     <div className="welcome help-page">
       <h1>Help</h1>
+      {loginRequired ? (
+        <p>
+          {siteTitle} is for its members: you log in with the account the site&rsquo;s administrators set up for you
+          (ask them if you do not have one yet). Once logged in you can read and search everything on it, write your
+          own notes, have a devotional or a Bible verse sent to you each day (by email, and by text message if you
+          like), make music playlists, keep lists of search results and verse cards, and ask to be allowed to write in
+          Conversations and on the Prayer Wall. This guide shows each part of the site. Click a picture to see it full
+          size.
+        </p>
+      ) : (
       <p>
         {siteTitle} is free. You can read and search everything on it without an account and without logging in.
         If you set up an account and log in, you can also write your own notes, have a devotional or a Bible verse sent
@@ -119,19 +135,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
         Prayer Wall, or to mark the maps with your own pins, routes and notes. This guide shows each part of the site.
         Click a picture to see it full size.
       </p>
+      )}
       <p>
         Prefer to watch? The{' '}
         <PageLink onNavigate={onNavigate} view="tutorial">tutorial video</PageLink>{' '}
-        is a fourteen-minute narrated tour of the whole site, including the maps, the verse a day and text messages.
+        is a narrated tour of the whole site, with your account, the verse a day and text messages.
       </p>
 
       <nav className="help-contents" aria-label="Contents of this guide">
         <h2>Contents</h2>
         <ol>
-          {sections.filter((section) => (hasMusic || section.id !== 'help-music') && (hasMaps || section.id !== 'help-maps')).map((section) => (
+          {sections.filter((section) => (hasMusic || section.id !== 'help-music') && (hasMaps || section.id !== 'help-maps') && (hasCommentaries || section.id !== 'help-commentaries')).map((section) => (
             <li key={section.id}>
               <button type="button" className="link-button" onClick={() => goToSection(section.id)}>
-                {section.title}
+                {loginRequired && section.id === 'help-accounts' ? 'Your account' : section.title}
               </button>
             </li>
           ))}
@@ -181,6 +198,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           height={560}
           alt="The account icon at the top right, showing the member's picture, with its menu open: the name and address, Account settings, My notes, My lists and Log out"
           caption="The account icon's menu, opened by pointing at the icon (or clicking it)."
+        />
+        <Screenshot
+          name="my-tasks"
+          width={1152}
+          height={1000}
+          alt="My scheduled tasks: Add a task with Scripture reading chosen and its dates, then Greeter on a Sunday (Confirmed, with a note) and Coffee and fellowship two weeks later (Not confirmed yet), each with Remove"
+          caption="My scheduled tasks (for members of a group): your coming tasks, and Add a task to ask for another."
         />
       </section>
 
@@ -270,6 +294,13 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           anywhere. The licensed Bibles (NIV, NASB and The Message) are not read in the reader, so they cannot be read
           aloud.
         </p>
+        <Screenshot
+          name="read-aloud"
+          width={1152}
+          height={900}
+          alt="Psalm 23 being read aloud: verse 1 highlighted, and the bar at the foot with the verse named, Resume, Stop, Voice and Speed"
+          caption="Listening to Psalm 23: the verse being read is highlighted, and the bar at the foot has Pause, Stop, the voice and the speed."
+        />
       </section>
 
       <section id="help-verse-menu" tabIndex={-1} className="help-section">
@@ -439,39 +470,41 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
         />
       </section>
 
-      <section id="help-commentaries" tabIndex={-1} className="help-section">
-        <h2>Commentaries</h2>
-        <p>
-          <PageLink onNavigate={onNavigate} view="browse">Read the commentaries</PageLink> opens a list of the commentaries, each with what it
-          covers. Choose a book and a chapter on any of them and press <em>Read</em>. In the reader you can scroll on
-          from chapter to chapter, choose a verse to go to its note, or switch to another commentary at the same place
-          to compare them. Each note has <em>Show in Context</em> and <em>Other Commentaries</em> links, and every
-          Scripture reference in a note is a link to that verse. <em>All commentaries</em>, at the start of the
-          choosers, takes you back to the list.
-        </p>
-        <Screenshot
-          name="read-commentaries"
-          width={1152}
-          height={1225}
-          alt="The list of commentaries, each with a book and chapter chooser and a Read button"
-          caption="Read the commentaries: pick a book and chapter in any commentary and press Read."
-        />
-        <p>
-          <PageLink onNavigate={onNavigate} view="commentary">Search the commentaries</PageLink> finds words in the notes of every commentary
-          (or one you choose). Words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo; and
-          &ldquo;loving&rdquo;. The best matches come first; click the <em>Verse</em> heading to list them in Bible
-          order instead. Each result shows the words around the match, with <em>Read the note</em> (the whole note),{' '}
-          <em>Show in Context</em> (the verse) and <em>Notes</em> (your own notes on it). The same book limits and
-          filters as in Search the Bible are in Search Options.
-        </p>
-        <Screenshot
-          name="search-commentaries"
-          width={1152}
-          height={1631}
-          alt="Commentary search results for love, best matches first, with the search options open"
-          caption="Searching the commentaries for “love”: 7,695 notes, best matches first."
-        />
-      </section>
+      {hasCommentaries && (
+        <section id="help-commentaries" tabIndex={-1} className="help-section">
+          <h2>Commentaries</h2>
+          <p>
+            <PageLink onNavigate={onNavigate} view="browse">Read the commentaries</PageLink> opens a list of the commentaries, each with what it
+            covers. Choose a book and a chapter on any of them and press <em>Read</em>. In the reader you can scroll on
+            from chapter to chapter, choose a verse to go to its note, or switch to another commentary at the same place
+            to compare them. Each note has <em>Show in Context</em> and <em>Other Commentaries</em> links, and every
+            Scripture reference in a note is a link to that verse. <em>All commentaries</em>, at the start of the
+            choosers, takes you back to the list.
+          </p>
+          <Screenshot
+            name="read-commentaries"
+            width={1152}
+            height={1225}
+            alt="The list of commentaries, each with a book and chapter chooser and a Read button"
+            caption="Read the commentaries: pick a book and chapter in any commentary and press Read."
+          />
+          <p>
+            <PageLink onNavigate={onNavigate} view="commentary">Search the commentaries</PageLink> finds words in the notes of every commentary
+            (or one you choose). Words match in any form, so &ldquo;love&rdquo; also finds &ldquo;loved&rdquo; and
+            &ldquo;loving&rdquo;. The best matches come first; click the <em>Verse</em> heading to list them in Bible
+            order instead. Each result shows the words around the match, with <em>Read the note</em> (the whole note),{' '}
+            <em>Show in Context</em> (the verse) and <em>Notes</em> (your own notes on it). The same book limits and
+            filters as in Search the Bible are in Search Options.
+          </p>
+          <Screenshot
+            name="search-commentaries"
+            width={1152}
+            height={1631}
+            alt="Commentary search results for love, best matches first, with the search options open"
+            caption="Searching the commentaries for “love”: 7,695 notes, best matches first."
+          />
+        </section>
+      )}
 
       <section id="help-devotionals" tabIndex={-1} className="help-section">
         <h2>Devotionals and daily emails</h2>
@@ -556,22 +589,26 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           alt="Search results for love in the other books, each with Read this chapter"
           caption="Searching the other books for “love”: 376 passages."
         />
-        <p>
-          Among them is <em>The Apostles’ Creed</em>, the ancient statement of the Christian faith. Each of its
-          statements is a link to a Bible verse it is drawn from, though it reads as ordinary text: rest the pointer on
-          a statement to see which verse, and click it to read the verse in context (with Shift, Ctrl or Cmd, in a new
-          tab).
-        </p>
-        <Screenshot
-          name="apostles-creed"
-          width={1152}
-          height={1010}
-          alt="The Apostles’ Creed in the book reader, with a tooltip reading Show Luke 1:35 in context over a statement"
-          caption="The Apostles’ Creed: the pointer on “who was conceived by the Holy Spirit” shows its verse."
-        />
+        {hasApostlesCreed && (
+          <>
+            <p>
+              Among them is <em>The Apostles’ Creed</em>, the ancient statement of the Christian faith. Each of its
+              statements is a link to a Bible verse it is drawn from, though it reads as ordinary text: rest the pointer on
+              a statement to see which verse, and click it to read the verse in context (with Shift, Ctrl or Cmd, in a new
+              tab).
+            </p>
+            <Screenshot
+              name="apostles-creed"
+              width={1152}
+              height={1010}
+              alt="The Apostles’ Creed in the book reader, with a tooltip reading Show Luke 1:35 in context over a statement"
+              caption="The Apostles’ Creed: the pointer on “who was conceived by the Holy Spirit” shows its verse."
+            />
+          </>
+        )}
         <p>
           Every book also has an address of its own that opens it directly, such as{' '}
-          <em>{window.location.host}/books?book=apostles-creed</em>, for a bookmark or to share.
+          <em>{window.location.host}/books?book={hasApostlesCreed ? 'apostles-creed' : 'the-book-id'}</em>, for a bookmark or to share.
         </p>
       </section>
 
@@ -775,13 +812,23 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
       </section>
 
       <section id="help-accounts" tabIndex={-1} className="help-section">
-        <h2>Accounts (optional)</h2>
+        <h2>{loginRequired ? 'Your account' : 'Accounts (optional)'}</h2>
+        {loginRequired ? (
+          <p>
+            Everything on {siteTitle} needs you to be logged in. The site&rsquo;s administrators set up each account:
+            if you do not have one, press <em>No account yet? Email us to ask for one</em> on the log-in page. With it you
+            can write notes, make playlists, save lists of search results, receive a devotional, a verse a day or the
+            prayer list by email, by text or both and, on request, write in Conversations and on the Prayer Wall.
+          </p>
+        ) : (
         <p>
           You do not need an account to read or search anything. An account lets you write notes, make playlists, save lists of search results,
           receive a devotional, a verse a day or the prayer list by email, by text or both and, on request,
           ask your own questions in the FAQ, write in Conversations and on the Prayer Wall, and mark the maps.
         </p>
+        )}
         <ul className="welcome-tips">
+          {!loginRequired && (
           <li>
             <strong>Setting one up.</strong> Click <PageLink onNavigate={onNavigate} view="register">Set up account</PageLink> at the top of
             the page and enter your email address and a password twice (at least 8 characters). Your first
@@ -796,6 +843,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             </button>
             ). You are logged in at once.
           </li>
+          )}
           <li>
             <strong>Confirming your address.</strong> We email you a link; click it within three days. Notes work
             straight away, but the daily emails need a confirmed address. If the email does not come, the reminder at
@@ -843,6 +891,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
             <PageLink onNavigate={onNavigate} view="privacy">Privacy</PageLink> page says what is kept and why.
           </li>
         </ul>
+        {!loginRequired && (
         <Screenshot
           name="sign-up"
           width={1152}
@@ -850,6 +899,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           alt="The Set up account form with a phone number, the cell number and text message boxes ticked, and Send me a verse a day ticked with a time and time zone"
           caption="Setting up an account, with texts and a verse a day chosen."
         />
+        )}
         <Screenshot
           name="my-account"
           width={1152}
@@ -888,6 +938,20 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           height={1080}
           alt="Verse of the day: a Bible verse written over a photograph, with Download the picture, Show another and Read it in the Bible"
           caption="Verse of the day (Today in the menu): a new verse over a photograph each time."
+        />
+        <Screenshot
+          name="make-card"
+          width={1152}
+          height={1500}
+          alt="Make your own card: the Bible, book, chapter and verse chosen, five backgrounds to pick from, the card for John 3:16, Save to My cards, Download the card, and Send the card"
+          caption="Make your own card, under the verse of the day: choose a verse and a background, then save, download or send it."
+        />
+        <Screenshot
+          name="my-cards"
+          width={1152}
+          height={900}
+          alt="My cards: two saved verse cards, each with its picture, its verse and the date, and Edit, Download, Send and Delete"
+          caption="My cards (in the account icon's menu): the cards you made, to edit, download, send or delete."
         />
         <p>
           <strong>A verse a day.</strong> Tick <em>Send me a verse a day</em> when you set up your account, or later on{' '}

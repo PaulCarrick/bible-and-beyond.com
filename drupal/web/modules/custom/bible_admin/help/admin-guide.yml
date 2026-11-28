@@ -472,7 +472,9 @@ sections:
       none). Tick <strong>Save this note</strong> to have the notes come up again next time you make that group's
       sheet; unticked, they go on that PDF only. Saved notes belong to the sign-up sheet of that group, not to other
       reports.</p>
-      <figure><img data-guide="task-report" alt="Scheduled Task Report: From and To dates, Show, Print, and Sunday, December 6 with a table of Communion and Greeter: name, notes, email and phone"><figcaption>The Scheduled Task Report.</figcaption></figure>
+      <figure><img data-guide="task-report" alt="Scheduled Task Report: From, To and Group, Show, Print, and Sunday, December 6 with a table of Greeter and Communion: name, notes, email, phone and Confirmed"><figcaption>The Scheduled Task Report.</figcaption></figure>
+      <figure><img data-guide="sign-up-sheet" alt="Sign-up sheet: the Tuesday care group chosen, its Description as the title, From and To, Fill in the people scheduled ticked, notes in the editor, Save this note, and Make the PDF"><figcaption>The Sign-up sheet form.</figcaption></figure>
+      <figure><img data-guide="sign-up-sheet-pdf" alt="The sign-up sheet PDF: the title, then a block for each Sunday with Greeter and Communion rows, the people scheduled filled in with their email and phone, blank rows to fill, and the notes at the foot"><figcaption>The sign-up sheet it makes, ready to print.</figcaption></figure>
       <figure><img data-guide="scheduled-tasks" alt="Scheduled tasks: Greeter for Daniel Example and Communion for Ruth Example, with the Reminders column: Communion's first reminder Sent and its second not sent yet"><figcaption>Scheduled tasks, with how each reminder went.</figcaption></figure>
 
   - id: site-users
