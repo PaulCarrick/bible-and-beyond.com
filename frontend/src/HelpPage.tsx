@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { fetchCopyrights } from './api'
 import MusicLicenceNote from './MusicLicenceNote'
+import { siteMedia } from './siteMedia'
 import type { Copyright, Translation } from './types'
 import type { View } from './views'
 
@@ -37,7 +38,7 @@ const sections = [
 ]
 
 interface ScreenshotProps {
-  // A file in public/help/, without ".webp".
+  // A file in public/help/ (or the site's own folder, siteMedia.ts), without ".webp".
   name: string
   width: number
   height: number
@@ -47,7 +48,8 @@ interface ScreenshotProps {
 
 // A screenshot of the site, which opens full size in a new tab when clicked.
 function Screenshot({ name, width, height, alt, caption }: ScreenshotProps) {
-  const source = `/help/${name}.webp`
+  // A site with pictures of its own (siteMedia.ts) has them in a folder of its own.
+  const source = `${siteMedia().helpFolder}/${name}.webp`
   return (
     <figure className="help-figure">
       <a href={source} target="_blank" rel="noopener" aria-label={`${alt} (opens the full-size picture in a new tab)`}>
