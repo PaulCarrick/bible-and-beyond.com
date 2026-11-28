@@ -35,6 +35,9 @@ LINE_SPACING = 1.22
 JPEG_QUALITY = 86
 KEEP_DAYS = 7
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32,64}\.jpg$")
+# Between the words of a member's own message (custom_cards.py), where a line of it ends: the card starts a new line
+# there. split() never gives a word that is a line break, so it cannot be mistaken for one.
+LINE_BREAK = "\n"
 
 
 @dataclass
@@ -71,6 +74,10 @@ def _font(size: int, bold: bool = True):
 def _wrap(words: list[str], font, width: int) -> list[str]:
   lines, line = [], ""
   for word in words:
+    if word == LINE_BREAK:
+      lines.append(line)
+      line = ""
+      continue
     trial = f"{line} {word}".strip()
     if line and font.getlength(trial) > width:
       lines.append(line)
@@ -82,10 +89,23 @@ def _wrap(words: list[str], font, width: int) -> list[str]:
   return lines
 
 
-def fit_text(text: str, width: int, height: int) -> tuple[int, list[str]]:
+def _words(text: str, keep_line_breaks: bool = False) -> list[str]:
+  """The words of the text; with keep_line_breaks, a LINE_BREAK where each line of it ends (a blank line gives two,
+  so the card keeps the gap)."""
+  if not keep_line_breaks:
+    return text.split()
+  words: list[str] = []
+  for number, line in enumerate(text.strip().split("\n")):
+    if number:
+      words.append(LINE_BREAK)
+    words += line.split()
+  return words
+
+
+def fit_text(text: str, width: int, height: int, keep_line_breaks: bool = False) -> tuple[int, list[str]]:
   """The largest size (and its lines) at which the words fit the box; at the smallest size, as many words as fit
-  followed by "…"."""
-  words = text.split()
+  followed by "…". keep_line_breaks: the text's own lines start new lines on the card (a member's own message)."""
+  words = _words(text, keep_line_breaks)
   for size in range(LARGEST_SIZE, SMALLEST_SIZE - 1, -4):
     font = _font(size)
     lines = _wrap(words, font, width)
@@ -150,9 +170,11 @@ def plain_background():
   return column.resize((WIDTH, HEIGHT))
 
 
-def render(background, text: str, caption: str = ""):
+def render(background, text: str, caption: str = "", keep_line_breaks: bool = False):
   """The card as a Pillow picture: the background (a file's path, or a Pillow picture) covering it, darkened a
-  little, the words as large as fit, the caption (a reference) under them, and the site's name at the foot."""
+  little, the words as large as fit, the caption (a reference) under them, and the site's name at the foot.
+  keep_line_breaks: the text's own lines and blank lines are kept (a member's own message, custom_cards.py); otherwise
+  the words run on as one paragraph."""
   from PIL import Image
 
   if isinstance(background, Image.Image):
@@ -168,7 +190,7 @@ def render(background, text: str, caption: str = ""):
   footer_font = _font(40, bold=False)
   caption_height = round(64 * 1.6) if caption else 0
   room = HEIGHT - 2 * MARGIN - caption_height - 80
-  size, lines = fit_text(" ".join(text.split()), WIDTH - 2 * MARGIN, room)
+  size, lines = fit_text(text, WIDTH - 2 * MARGIN, room, keep_line_breaks)
   font = _font(size)
   line_height = round(size * LINE_SPACING)
   block = len(lines) * line_height + caption_height
@@ -306,11 +328,20 @@ def paragraphs_html(text: str) -> str:
   return "\n".join(html_parts)
 
 
-def attach_to_email(email, card: MessageCard | None, alternative_text: str = "", link: str | None = None, linked_lines: int = 0) -> None:
+def attach_to_email(
+  email,
+  card: MessageCard | None,
+  alternative_text: str = "",
+  link: str | None = None,
+  linked_lines: int = 0,
+  lead_html: str | None = None,
+) -> None:
   """Adds an HTML version to a plain-text email (set_content already called), the plain part kept for mail
   programs that want it. With a card, the picture comes first (inline, cid:). With a link, the picture and the
   first linked_lines lines of the text (the verse and its reference) are links to it (the owner's request,
-  2026-11-16: the verse a link to the verse on the site). Every web address in the rest is a link too."""
+  2026-11-16: the verse a link to the verse on the site). Every web address in the rest is a link too.
+  lead_html: HTML already cleaned that takes the place of those first linked_lines lines (a member's own message
+  on a verse card, with its formatting)."""
   from html import escape
 
   lines = email.get_content().split("\n")
@@ -324,11 +355,12 @@ def attach_to_email(email, card: MessageCard | None, alternative_text: str = "",
     if link:
       picture = f'<a href="{escape(link)}">{picture}</a>'
     picture = f"<p>{picture}</p>"
-  lead_html = "".join(
-    f'<p style="margin:0 0 4px;font-size:18px;"><a href="{escape(link)}" style="color:#1d3f8a;">{escape(line)}</a></p>'
-    for line in lead
-    if line.strip() and link
-  )
+  if lead_html is None:
+    lead_html = "".join(
+      f'<p style="margin:0 0 4px;font-size:18px;"><a href="{escape(link)}" style="color:#1d3f8a;">{escape(line)}</a></p>'
+      for line in lead
+      if line.strip() and link
+    )
   email.add_alternative(
     f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:16px;font-family:Georgia,serif;">
 {picture}{lead_html}<div style="max-width:640px;">{paragraphs_html(rest)}</div>

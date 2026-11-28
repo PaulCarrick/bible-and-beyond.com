@@ -3,8 +3,9 @@ from "Make your own card" (custom_cards.py) is kept on their My cards page, wher
 card maker again; saving changes that card), download it, send it and delete it. A group leader can attach one of
 their own saved cards to a group's Send a message in the Drupal admin (groups.py).
 
-- One card per member for each verse and background (saving the same again moves it to the top); MAX_CARDS a
-  member, the oldest dropped past that.
+- One card per member for each verse, background and own message (saving the same again moves it to the top; a
+  card with the member's own message, message_html, is another card from the verse alone); MAX_CARDS a member, the
+  oldest dropped past that.
 - The picture is kept as drawn (data/saved-cards/<random>.jpg, SAVED_CARDS_FOLDER overrides the folder), with a
   THUMBNAIL-wide copy, so a card still shows after its background is taken out of use. They are served only to the
   member's own session (GET /saved-cards/{id}/image), never in a database, and deleted with the card or the account.
@@ -23,7 +24,7 @@ from search import connect
 
 MAX_CARDS = 500
 THUMBNAIL = 240
-_FIELDS = "id, translation, book, chapter, verse, background_id, reference, caption, words, file_name, created_at"
+_FIELDS = "id, translation, book, chapter, verse, background_id, reference, caption, words, file_name, created_at, message_html"
 
 
 class SavedCardProblem(Exception):
@@ -61,6 +62,8 @@ def _describe(row) -> dict:
     "image": f"/saved-cards/{row[0]}/image?v={version}",
     "thumbnail": f"/saved-cards/{row[0]}/thumbnail?v={version}",
     "created_at": row[10].isoformat(),
+    # The member's own message as cleaned HTML (it is the card's words), or None for the verse's own words.
+    "message_html": row[11],
   }
 
 
@@ -84,10 +87,11 @@ def _remove_files(file_name: str) -> None:
 
 
 def keep(user_id: int, found: dict, background_id: str, picture, card_id: int | None = None) -> dict:
-  """Keeps a drawn card (found: custom_cards' verse, picture: the Pillow card) for the member. card_id: the saved
-  card being edited, which this replaces; otherwise the member's card of that verse and background is replaced, or
-  a new one made. Returns the card."""
+  """Keeps a drawn card (found: custom_cards' verse, with message_html when the member wrote their own message;
+  picture: the Pillow card) for the member. card_id: the saved card being edited, which this replaces; otherwise the
+  member's card of that verse, background and message is replaced, or a new one made. Returns the card."""
   verse = found["verse"]
+  message_html = found.get("message_html")
   key = (verse["translation"], verse["book"], verse["chapter"], verse["verse"], background_id)
   name = _write_files(picture)
   old_files = []
@@ -98,11 +102,11 @@ def keep(user_id: int, found: dict, background_id: str, picture, card_id: int | 
         if row is None:
           raise SavedCardProblem("That card is not one of yours.")
         old_files.append(row[0])
-      # Another card of the same verse and background goes: the member keeps one of each.
+      # Another card of the same verse, background and message goes: the member keeps one of each.
       clash = connection.execute(
         """SELECT id, file_name FROM saved_cards WHERE user_id = %s AND translation = %s AND book = %s AND chapter = %s
-           AND verse = %s AND background_id = %s""",
-        (user_id, *key),
+           AND verse = %s AND background_id = %s AND message_html IS NOT DISTINCT FROM %s""",
+        (user_id, *key, message_html),
       ).fetchone()
       if clash and clash[0] != card_id:
         if card_id is None:
@@ -110,17 +114,17 @@ def keep(user_id: int, found: dict, background_id: str, picture, card_id: int | 
         else:
           connection.execute("DELETE FROM saved_cards WHERE id = %s", (clash[0],))
         old_files.append(clash[1])
-      values = (*key, found["reference"], found["caption"], found["text"], name)
+      values = (*key, found["reference"], found["caption"], found["text"], name, message_html)
       if card_id is None:
         row = connection.execute(
-          f"""INSERT INTO saved_cards (user_id, translation, book, chapter, verse, background_id, reference, caption, words, file_name)
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {_FIELDS}""",
+          f"""INSERT INTO saved_cards (user_id, translation, book, chapter, verse, background_id, reference, caption, words, file_name, message_html)
+              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {_FIELDS}""",
           (user_id, *values),
         ).fetchone()
       else:
         row = connection.execute(
           f"""UPDATE saved_cards SET translation = %s, book = %s, chapter = %s, verse = %s, background_id = %s,
-              reference = %s, caption = %s, words = %s, file_name = %s, created_at = now()
+              reference = %s, caption = %s, words = %s, file_name = %s, message_html = %s, created_at = now()
               WHERE id = %s AND user_id = %s RETURNING {_FIELDS}""",
           (*values, card_id, user_id),
         ).fetchone()

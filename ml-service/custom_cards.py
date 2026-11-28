@@ -10,6 +10,10 @@ thumbnails, or the plain deep blue), sees the card, and downloads it or sends it
   they have one, and ends with the "Created by" line. Addresses are never shown to the sender or logged.
 - The card is saved like a picture message's (message_cards.save_card: a random name, deleted after a week), as
   an email carries it inline and a text fetches it from its address.
+- "Add my own message" (added 2026-11-28 at the owner's request): the member's own words, written in the rich text
+  editor, take the place of the verse's words on the card (the reference stays under them). The HTML is cleaned
+  with the contact form's allowlist (contact.check_rich_text); the card shows its text, line by line, and the email
+  shows the cleaned HTML with its formatting.
 """
 
 import base64
@@ -23,7 +27,7 @@ import saved_cards
 import sms
 import verse_images
 from accounts import site_link
-from contact import EMAIL_LIMIT, EMAIL_PATTERN, MailUnavailable, load_mail_settings, send_email
+from contact import EMAIL_LIMIT, EMAIL_PATTERN, ContactProblem, MailUnavailable, check_rich_text, load_mail_settings, send_email
 from day_cards import find_verse
 from search import connect
 from site_settings import get_public_settings
@@ -32,6 +36,10 @@ logger = logging.getLogger("custom_cards")
 
 PLAIN = "plain"
 SENDS_PER_DAY = 20
+# A member's own message: the most HTML taken from the editor, and the most words (as plain text) that still fit the
+# card at a size that reads (past that the card would cut it with "…").
+MESSAGE_HTML_LIMIT = 20000
+MESSAGE_TEXT_LIMIT = 500
 _sends: dict[int, list[float]] = {}
 
 
@@ -84,16 +92,34 @@ def _background(background_id: str):
 # --- the card -----------------------------------------------------------------------------------------------
 
 
-def _draw(translation: str, book: int, chapter: int, verse: int, background_id: str):
+def clean_message(message_html: str | None) -> dict | None:
+  """A member's own message for the card, cleaned ({"html", "text"}), or None when there is none."""
+  if message_html is None:
+    return None
+  try:
+    return check_rich_text(message_html, MESSAGE_HTML_LIMIT, MESSAGE_TEXT_LIMIT, "message")
+  except ContactProblem as problem:
+    raise CardProblem(str(problem))
+
+
+def _draw(translation: str, book: int, chapter: int, verse: int, background_id: str, message_html: str | None = None):
+  """The verse (with "text" the words on the card: the member's own message when there is one, and "message_html"
+  that message cleaned, else None) and the card drawn."""
   found = find_verse(translation, book, chapter, verse)
   if found is None:
     raise CardProblem("That verse was not found in a Bible on this site.", 404)
-  return found, message_cards.render(_background(background_id), found["text"], found["caption"])
+  message = clean_message(message_html)
+  found = {**found, "message_html": None}
+  if message:
+    found.update(text=message["text"], message_html=message["html"])
+  card = message_cards.render(_background(background_id), found["text"], found["caption"], keep_line_breaks=bool(message))
+  return found, card
 
 
-def preview(translation: str, book: int, chapter: int, verse: int, background_id: str) -> dict:
-  """The card as it will look, inline (a data: address), with the verse's words and caption."""
-  found, card = _draw(translation, book, chapter, verse, background_id)
+def preview(translation: str, book: int, chapter: int, verse: int, background_id: str, message_html: str | None = None) -> dict:
+  """The card as it will look, inline (a data: address), with its words (the verse's, or the member's own message)
+  and caption."""
+  found, card = _draw(translation, book, chapter, verse, background_id, message_html)
   buffer = io.BytesIO()
   card.save(buffer, "JPEG", quality=message_cards.JPEG_QUALITY, optimize=True, progressive=True)
   return {
@@ -149,10 +175,17 @@ def verse_link(verse: dict) -> str:
   return site_link(f"read={verse['translation']}&book={verse['book']}&chapter={verse['chapter']}&verse={verse['verse']}")
 
 
+def _what_was_sent(found: dict) -> str:
+  """"a verse", or "a card" when the member wrote their own message on it."""
+  return "a card" if found.get("message_html") else "a verse"
+
+
 def compose_email(settings: dict, address: str, found: dict, card, sender: dict) -> EmailMessage:
+  """The card's email: the words (the verse, or the member's own message) and the reference, which link to the
+  verse, the card inline, and the Created by line. A message keeps its formatting in the HTML version."""
   name = _sender_name(sender)
   email = EmailMessage()
-  email["Subject"] = f"{name} sent you a verse: {found['reference']}"
+  email["Subject"] = f"{name} sent you {_what_was_sent(found)}: {found['reference']}"
   email["From"] = settings["from_address"]
   email["To"] = address
   if sender.get("email"):
@@ -173,14 +206,38 @@ def compose_email(settings: dict, address: str, found: dict, card, sender: dict)
     )
     + "\n"
   )
-  message_cards.attach_to_email(email, card, f"{found['text']} {found['caption']}", link=verse_link(found["verse"]), linked_lines=2)
+  link = verse_link(found["verse"])
+  if found.get("message_html"):
+    from html import escape
+
+    # The message as written (cleaned) and the reference as a link to the verse, in place of the plain lines.
+    lead_html = (
+      f'<div style="max-width:640px;font-size:18px;line-height:1.5;">{found["message_html"]}</div>'
+      f'<p style="margin:0 0 4px;font-size:18px;"><a href="{escape(link)}" style="color:#1d3f8a;">{escape(found["caption"])}</a></p>'
+    )
+    message_cards.attach_to_email(
+      email, card, f"{found['text']} {found['caption']}", link=link,
+      linked_lines=len(found["text"].split("\n")) + 1, lead_html=lead_html,
+    )
+  else:
+    message_cards.attach_to_email(email, card, f"{found['text']} {found['caption']}", link=link, linked_lines=2)
   return email
 
 
-def save(user_id: int, translation: str, book: int, chapter: int, verse: int, background_id: str, card_id: int | None = None) -> dict:
-  """Draws the card and keeps it on the member's My cards (saved_cards.py); card_id: the saved card being edited.
-  The page calls it when a logged-in member downloads a card."""
-  found, picture = _draw(translation, book, chapter, verse, background_id)
+def save(
+  user_id: int,
+  translation: str,
+  book: int,
+  chapter: int,
+  verse: int,
+  background_id: str,
+  card_id: int | None = None,
+  message_html: str | None = None,
+) -> dict:
+  """Draws the card (with the member's own message when given) and keeps it on the member's My cards
+  (saved_cards.py); card_id: the saved card being edited. The page calls it when a logged-in member downloads a
+  card."""
+  found, picture = _draw(translation, book, chapter, verse, background_id, message_html)
   try:
     return saved_cards.keep(user_id, found, background_id, picture, card_id)
   except saved_cards.SavedCardProblem as problem:
@@ -198,10 +255,11 @@ def send(
   email_address: str | None = None,
   saved_card_id: int | None = None,
   editing_card_id: int | None = None,
+  message_html: str | None = None,
 ) -> dict:
   """Sends the card to a site user (recipient_id) or an email address: the one drawn from the verse and background
-  (and then kept on the sender's My cards, replacing editing_card_id when given), or the sender's saved card
-  saved_card_id as it was kept. Returns {"sent_to": a name or the address typed, "ways": [...], "card": the saved
+  (with the member's own message when given, and then kept on the sender's My cards, replacing editing_card_id when
+  given), or the sender's saved card saved_card_id as it was kept. Returns {"sent_to": a name or the address typed, "ways": [...], "card": the saved
   card}."""
   email_address = (email_address or "").strip()
   if (recipient_id is None) == (not email_address):
@@ -223,10 +281,11 @@ def send(
     found = {
       "text": kept["words"], "caption": kept["caption"], "reference": kept["reference"],
       "verse": {key: kept[key] for key in ("translation", "book", "chapter", "verse")},
+      "message_html": kept["message_html"],
     }
     picture = None
   else:
-    found, picture = _draw(translation, book, chapter, verse, background_id)
+    found, picture = _draw(translation, book, chapter, verse, background_id, message_html)
     card = message_cards.save_card(picture)
   try:
     settings = load_mail_settings()
@@ -256,7 +315,7 @@ def send(
       raise MailUnavailable("no confirmed address or no email here")
     send_email(settings, compose_email(settings, address, found, card, sender))
 
-  words = f"{_sender_name(sender)} sent you a verse: {found['caption']}: {found['text']}"
+  words = f"{_sender_name(sender)} sent you {_what_was_sent(found)}: {found['caption']}: {found['text']}"
   try:
     sent = sms.deliver(recipient_id, send_the_email, words, verse_link(found["verse"]), card)
   except Exception as problem:

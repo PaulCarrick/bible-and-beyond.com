@@ -1,4 +1,4 @@
-import { useContext, useEffect, useId, useMemo, useState } from 'react'
+import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   cardBackgroundAddress,
   fetchBibleChapter,
@@ -11,6 +11,8 @@ import {
 } from './api'
 import type { CardBackground, CardToSend, CardVerse, DayCard, SavedCard } from './api'
 import { AccountContext } from './AccountContext'
+import RichTextEditor from './RichTextEditor'
+import type { RichTextEditorHandle } from './RichTextEditor'
 import type { BibleContents, BibleVerse, Translation } from './types'
 
 interface CustomCardMakerProps {
@@ -34,6 +36,8 @@ const PLAIN = 'plain'
 // address. The card is drawn on the server like the Verse of the day (custom_cards.py); sending draws it again
 // there, so what is sent is what was shown. A logged-in member's card is kept on My cards whenever they download or
 // send it (saved_cards.py; the owner's request, 2026-11-26), and My cards opens it here again to edit it.
+// "Add my own message" (the owner's request, 2026-11-28), beside the verse: a rich text editor whose words take the
+// place of the verse's on the card (the reference stays under them); the server cleans the HTML.
 function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCardMakerProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const bibles = useMemo(() => translations.filter((translation) => translation.source === 'local'), [translations])
@@ -53,6 +57,22 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
   const [card, setCard] = useState<DayCard | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [problem, setProblem] = useState('')
+  // "Add my own message": whether it is ticked, and the message as HTML from the editor ('' while it is empty).
+  const [hasOwnMessage, setHasOwnMessage] = useState(Boolean(editing?.message_html))
+  const [messageHtml, setMessageHtml] = useState(editing?.message_html ?? '')
+  const messageEditorReference = useRef<RichTextEditorHandle>(null)
+  const messageLabelId = useId()
+  // The message the card is drawn with: none until something is written, or when the box is unticked.
+  const ownMessage = hasOwnMessage && messageHtml ? messageHtml : undefined
+
+  // When the editor opens, it starts with the message written so far (or the saved card's, when editing).
+  useEffect(() => {
+    if (hasOwnMessage && messageHtml) {
+      messageEditorReference.current?.setHtml(messageHtml)
+    }
+    // Only when the box is ticked: while typing, the editor holds the message itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOwnMessage])
 
   useEffect(() => {
     fetchCardBackgrounds()
@@ -120,7 +140,8 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
     ? { translation, book, chapter, verse }
     : null
 
-  // The preview, drawn again whenever a choice changes (a moment later, so quick changes make one picture).
+  // The preview, drawn again whenever a choice changes (a moment later, so quick changes make one picture; a little
+  // longer while a message is being typed).
   useEffect(() => {
     if (!chosen) {
       return
@@ -128,7 +149,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       setIsDrawing(true)
-      fetchCustomCard(chosen, background, controller.signal)
+      fetchCustomCard(chosen, background, controller.signal, ownMessage)
         .then((found) => {
           setCard(found)
           setProblem('')
@@ -143,13 +164,13 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
             setIsDrawing(false)
           }
         })
-    }, 250)
+    }, ownMessage ? 600 : 250)
     return () => {
       window.clearTimeout(timer)
       controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chosen?.translation, chosen?.book, chosen?.chapter, chosen?.verse, background])
+  }, [chosen?.translation, chosen?.book, chosen?.chapter, chosen?.verse, background, ownMessage])
 
   // Keeps the card shown on My cards (downloading it, or Save changes when editing).
   async function keepCard(): Promise<boolean> {
@@ -158,7 +179,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
     }
     setIsSaving(true)
     try {
-      const kept = await saveCustomCard(chosen, background, editing?.id)
+      const kept = await saveCustomCard(chosen, background, editing?.id, ownMessage)
       setKeptMessage(editing ? 'Your changes were saved on My cards.' : 'Saved on My cards.')
       onSaved?.(kept)
       return true
@@ -184,8 +205,8 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
       <h2 id="custom-card-heading">{editing ? 'Edit your card' : 'Make your own card'}</h2>
       <p>
         {editing
-          ? 'Change the Bible, the verse or the background. Save changes, download or send it, and your card on My cards is changed to match.'
-          : 'Choose a Bible, a verse and a background. Then download the card, or send it to someone.'}
+          ? 'Change the Bible, the verse, your message or the background. Save changes, download or send it, and your card on My cards is changed to match.'
+          : 'Choose a Bible, a verse and a background, or write your own message in place of the verse. Then download the card, or send it to someone.'}
         {!editing && user && ' Save it to My cards to keep it; every card you download or send is kept there too.'}
       </p>
 
@@ -244,7 +265,33 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
             ))}
           </select>
         </label>
+        <label className="custom-card-own-message">
+          <input
+            type="checkbox"
+            checked={hasOwnMessage}
+            onChange={(event) => setHasOwnMessage(event.target.checked)}
+          />{' '}
+          Add my own message
+        </label>
       </div>
+
+      {hasOwnMessage && (
+        <div className="custom-card-message">
+          <p id={messageLabelId} className="field-hint">
+            Your message takes the place of the verse's words on the card; the reference stays under it. Up to 500
+            characters. A new line in your message starts a new line on the card.
+          </p>
+          <RichTextEditor
+            ref={messageEditorReference}
+            placeholder="Write your message here"
+            labelledBy={messageLabelId}
+            onChange={() => {
+              const editor = messageEditorReference.current
+              setMessageHtml(editor && !editor.isEmpty() ? editor.getHtml() : '')
+            }}
+          />
+        </div>
+      )}
 
       <fieldset className="custom-card-backgrounds">
         <legend>Background</legend>
@@ -335,7 +382,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
           {user ? (
             chosen && (
               <SendCard
-                card={{ verse: chosen, background, cardId: editing?.id }}
+                card={{ verse: chosen, background, cardId: editing?.id, message: ownMessage }}
                 caption={card.caption}
                 onSent={(kept) => {
                   if (kept) {

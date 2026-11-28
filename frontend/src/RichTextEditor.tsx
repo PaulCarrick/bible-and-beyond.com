@@ -18,14 +18,22 @@ interface RichTextEditorProps {
   placeholder: string
   // Names the editor for people who cannot see it.
   labelledBy: string
+  // Called after each change the person makes (the verse card maker redraws its preview).
+  onChange?: () => void
 }
 
 // The editor used for the contact message and for notes: Quill, with the toolbar of bold, italic, strike,
 // link, heading, quote, code, lists, undo and redo.
-function RichTextEditor({ ref, placeholder, labelledBy }: RichTextEditorProps) {
+function RichTextEditor({ ref, placeholder, labelledBy, onChange }: RichTextEditorProps) {
   const toolbarReference = useRef<HTMLDivElement>(null)
   const editorReference = useRef<HTMLDivElement>(null)
   const quillReference = useRef<Quill | null>(null)
+  // The latest onChange, so Quill's listener (added once) always calls the current one.
+  const onChangeReference = useRef(onChange)
+
+  useEffect(() => {
+    onChangeReference.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     if (quillReference.current || !editorReference.current || !toolbarReference.current) {
@@ -35,6 +43,11 @@ function RichTextEditor({ ref, placeholder, labelledBy }: RichTextEditorProps) {
       theme: 'snow',
       modules: { toolbar: toolbarReference.current, history: { delay: 1000, maxStack: 100 } },
       placeholder,
+    })
+    quillReference.current.on('text-change', (_delta, _oldContents, source) => {
+      if (source === 'user') {
+        onChangeReference.current?.()
+      }
     })
   }, [placeholder])
 

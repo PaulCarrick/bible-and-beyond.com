@@ -3220,6 +3220,23 @@ div.welcome-lead > p {
   min-width: 0;
 }
 
+/* "Add my own message", beside the verse: the box and its words on one line, level with the selects. */
+.custom-card-choices label.custom-card-own-message {
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-end;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+}
+
+.custom-card-message {
+  margin: 0 0 1rem;
+}
+
+.custom-card-message .field-hint {
+  margin-top: 0;
+}
+
 .custom-card-backgrounds,
 .custom-card-send {
   border: 1px solid var(--border);

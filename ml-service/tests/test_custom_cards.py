@@ -12,6 +12,7 @@ from PIL import Image
 
 import accounts
 import custom_cards
+import message_cards
 import sms
 import verse_a_day
 import verse_images
@@ -182,3 +183,98 @@ def test_the_verse_a_day_email_ends_with_the_created_by_line(outbox):
   lines = plain.rstrip().split("\n")
   assert lines[-2].startswith("Created by ") and lines[-2].endswith("(https://site.example)")
   assert lines[-1].startswith("To stop these emails")
+
+
+# --- "Add my own message" (added 2026-11-28) ---------------------------------------------------------------
+
+MESSAGE = (
+  '<p onclick="steal()">Happy <strong>birthday</strong>, Ruth!</p>'
+  '<p>Love, <em>Ann</em> <a href="javascript:alert(1)">click</a></p>'
+  "<script>alert('no')</script><img src=x onerror=alert(1)>"
+)
+MESSAGE_TEXT = "Happy birthday, Ruth!\n\nLove, Ann click"
+
+
+def test_the_card_keeps_the_line_breaks_of_a_message_and_runs_a_verse_on():
+  size, lines = message_cards.fit_text("Happy birthday!\n\nLove, Ann", 2000, 900, keep_line_breaks=True)
+  assert lines == ["Happy birthday!", "", "Love, Ann"]
+  size, lines = message_cards.fit_text("Happy birthday!\n\nLove, Ann", 2000, 900)
+  assert lines == ["Happy birthday! Love, Ann"]
+  # A message too long for the card is still cut with "…".
+  size, lines = message_cards.fit_text("word\n" * 400, 900, 900, keep_line_breaks=True)
+  assert size == message_cards.SMALLEST_SIZE and lines[-1].endswith("…")
+
+
+def test_the_preview_shows_the_message_cleaned_in_place_of_the_verse():
+  answer = client.post("/day-card/custom", json=card(message=MESSAGE))
+  assert answer.status_code == 200, answer.text
+  body = answer.json()
+  assert body["words"] == MESSAGE_TEXT
+  assert body["caption"] == "John 3:16 (BSB)" and body["verse"] == JOHN_3_16
+  assert body["image"].startswith("data:image/jpeg;base64,")
+  # Without a message the card is the verse, as before (and the GET preview is unchanged).
+  assert client.post("/day-card/custom", json=card()).json()["words"].startswith("For God so loved the world")
+  assert client.get("/day-card/custom", params=card()).json()["words"].startswith("For God so loved the world")
+
+
+def test_an_empty_or_too_long_message_is_refused():
+  empty = client.post("/day-card/custom", json=card(message="<p><br></p>"))
+  assert empty.status_code == 422 and "write something" in empty.json()["detail"]
+  long = client.post("/day-card/custom", json=card(message="<p>" + "word " * 200 + "</p>"))
+  assert long.status_code == 422 and str(custom_cards.MESSAGE_TEXT_LIMIT) in long.json()["detail"]
+
+
+def test_a_card_with_a_message_is_emailed_with_its_formatting_and_nothing_unsafe(outbox):
+  ruth = register("ruth", first_name="Ruth", last_name="Lee")
+  register("ann", first_name="Ann", last_name="Smith")
+  answer = client.post("/day-card/send", json=card(recipient_id=ruth["id"], message=MESSAGE))
+  assert answer.status_code == 200, answer.text
+  email = outbox["emails"][0]
+  assert email["Subject"] == "Ann Smith sent you a card: John 3:16"
+  plain = email.get_body(("plain",)).get_content()
+  assert plain.startswith(MESSAGE_TEXT + "\nJohn 3:16 (BSB)\n")
+  assert "For God so loved" not in plain
+  html = email.get_body(("html",)).get_content()
+  assert "<strong>birthday</strong>" in html and "<em>Ann</em>" in html
+  for unsafe in ("<script", "onclick", "onerror", "javascript:", "<img src=x"):
+    assert unsafe not in html
+  # The reference is still a link to the verse.
+  assert ">John 3:16 (BSB)</a>" in html and "read=BSB&amp;book=43" in html
+  # It is kept on My cards with its message, ready to edit.
+  kept = answer.json()["card"]
+  assert kept["words"] == MESSAGE_TEXT and "<strong>birthday</strong>" in kept["message_html"]
+  assert "onclick" not in kept["message_html"]
+
+
+def test_a_card_with_a_message_by_text_says_card(outbox):
+  ruth = register("ruth", first_name="Ruth", last_name="Lee", phone="(555) 201-4567", phone_is_cell=True, send_via_sms=True)
+  with connect() as connection:
+    connection.execute("UPDATE users SET send_via_email = false WHERE id = %s", (ruth["id"],))
+  register("ann", first_name="Ann", last_name="Smith")
+  answer = client.post("/day-card/send", json=card(recipient_id=ruth["id"], message="<p>Thinking of you</p>"))
+  assert answer.status_code == 200, answer.text
+  (number, text, media_url) = outbox["texts"][-1]
+  assert "Ann Smith sent you a card: John 3:16 (BSB): Thinking of you" in text and media_url
+
+
+def test_my_cards_keep_one_card_for_each_message(outbox):
+  register("ann", first_name="Ann", last_name="Smith")
+  save = lambda **extra: client.post("/saved-cards", json=card(**extra))
+  plain_verse = save().json()["card"]
+  assert plain_verse["message_html"] is None
+  with_message = save(message="<p>Happy birthday</p>").json()["card"]
+  assert with_message["id"] != plain_verse["id"] and with_message["words"] == "Happy birthday"
+  # The same message again replaces that card; another message is another card.
+  assert save(message="<p>Happy birthday</p>").json()["card"]["id"] == with_message["id"]
+  other = save(message="<p>Get well soon</p>").json()["card"]
+  cards = client.get("/saved-cards").json()["cards"]
+  assert {saved["id"] for saved in cards} == {plain_verse["id"], with_message["id"], other["id"]}
+  # Edit: the message changed on that card, the verse's own card untouched.
+  edited = save(message="<p>Happy <em>belated</em> birthday</p>", card_id=with_message["id"]).json()["card"]
+  assert edited["id"] == with_message["id"] and edited["message_html"] == "<p>Happy <em>belated</em> birthday</p>"
+  # Sending the saved card sends its message.
+  sent = client.post("/day-card/send", json={"saved_card_id": edited["id"], "email": "friend@example.test"})
+  assert sent.status_code == 200, sent.text
+  email = outbox["emails"][-1]
+  assert email["Subject"] == "Ann Smith sent you a card: John 3:16"
+  assert "<em>belated</em>" in email.get_body(("html",)).get_content()

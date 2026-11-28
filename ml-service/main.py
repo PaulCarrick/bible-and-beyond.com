@@ -849,6 +849,29 @@ def day_card_custom(
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 
 
+# The HTML of a member's own message as it comes from the editor; custom_cards cleans it and checks its length.
+MESSAGE_FIELD = Field(default=None, max_length=2 * custom_cards.MESSAGE_HTML_LIMIT)
+
+
+class CardPreviewRequest(BaseModel):
+  translation: str = Field(max_length=20)
+  book: int = Field(ge=1, le=66)
+  chapter: int = Field(ge=1, le=150)
+  verse: int = Field(ge=1, le=176)
+  background: str = Field(max_length=60)
+  # "Add my own message": its words take the place of the verse's on the card.
+  message: str | None = MESSAGE_FIELD
+
+
+@app.post("/day-card/custom")
+def day_card_custom_with_message(body: CardPreviewRequest):
+  """The card with the visitor's own message in place of the verse's words (too long for a query string)."""
+  try:
+    return custom_cards.preview(body.translation, body.book, body.chapter, body.verse, body.background, body.message)
+  except custom_cards.CardProblem as problem:
+    raise HTTPException(status_code=problem.status_code, detail=str(problem))
+
+
 @app.get("/card-recipients")
 def card_recipients(request: Request):
   """The site users a logged-in member may send a card to, by name only."""
@@ -868,6 +891,8 @@ class CardSendRequest(BaseModel):
   saved_card_id: int | None = None
   # The saved card being edited (My cards' Edit): the card sent replaces it.
   card_id: int | None = None
+  # "Add my own message": its words take the place of the verse's on the card.
+  message: str | None = MESSAGE_FIELD
 
 
 @app.post("/day-card/send")
@@ -880,7 +905,7 @@ def day_card_send(body: CardSendRequest, request: Request):
     return custom_cards.send(
       user, body.translation, body.book, body.chapter, body.verse, body.background,
       recipient_id=body.recipient_id, email_address=body.email,
-      saved_card_id=body.saved_card_id, editing_card_id=body.card_id,
+      saved_card_id=body.saved_card_id, editing_card_id=body.card_id, message_html=body.message,
     )
   except custom_cards.CardProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
@@ -896,6 +921,7 @@ class CardSaveRequest(BaseModel):
   verse: int = Field(ge=1, le=176)
   background: str = Field(max_length=60)
   card_id: int | None = None
+  message: str | None = MESSAGE_FIELD
 
 
 @app.post("/saved-cards")
@@ -904,7 +930,11 @@ def saved_cards_save(body: CardSaveRequest, request: Request):
   saved card (Edit)."""
   user = require_user(request, "Please log in to keep your cards.")
   try:
-    return {"card": custom_cards.save(user["id"], body.translation, body.book, body.chapter, body.verse, body.background, body.card_id)}
+    return {
+      "card": custom_cards.save(
+        user["id"], body.translation, body.book, body.chapter, body.verse, body.background, body.card_id, body.message
+      )
+    }
   except custom_cards.CardProblem as problem:
     raise HTTPException(status_code=problem.status_code, detail=str(problem))
 

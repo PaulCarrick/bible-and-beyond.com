@@ -682,7 +682,23 @@ export function cardBackgroundAddress(path: string): string {
   return `${mlServiceUrl}${path}`
 }
 
-export async function fetchCustomCard(verse: CardVerse, background: string, signal: AbortSignal): Promise<DayCard> {
+// message: the visitor's own message ("Add my own message"), as HTML from the editor; its words take the place of
+// the verse's on the card (cleaned on the server). It is sent in the body, as it can be too long for an address.
+export async function fetchCustomCard(
+  verse: CardVerse,
+  background: string,
+  signal: AbortSignal,
+  message?: string,
+): Promise<DayCard> {
+  if (message) {
+    const response = await fetch(`${mlServiceUrl}/day-card/custom`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...verse, background, message }),
+      signal,
+    })
+    return readJson<DayCard>(response)
+  }
   const parameters = new URLSearchParams({
     translation: verse.translation,
     book: String(verse.book),
@@ -699,8 +715,11 @@ export async function fetchCardRecipients(): Promise<{ id: number; name: string 
 }
 
 // The card to send: one drawn from a verse and background (cardId: the saved card being edited, which it then
-// replaces), or one of the member's saved cards as it was kept.
-export type CardToSend = { verse: CardVerse; background: string; cardId?: number } | { savedCardId: number }
+// replaces; message: the member's own message in place of the verse's words), or one of the member's saved cards as
+// it was kept.
+export type CardToSend =
+  | { verse: CardVerse; background: string; cardId?: number; message?: string }
+  | { savedCardId: number }
 
 export async function sendCustomCard(
   card: CardToSend,
@@ -713,7 +732,7 @@ export async function sendCustomCard(
     body: JSON.stringify({
       ...('savedCardId' in card
         ? { saved_card_id: card.savedCardId }
-        : { ...card.verse, background: card.background, card_id: card.cardId ?? null }),
+        : { ...card.verse, background: card.background, card_id: card.cardId ?? null, message: card.message ?? null }),
       ...('recipientId' in to ? { recipient_id: to.recipientId } : { email: to.email }),
     }),
   })
@@ -727,6 +746,8 @@ export interface SavedCard extends CardVerse {
   reference: string
   caption: string
   words: string
+  // The member's own message as cleaned HTML (the card's words are its text), or null for the verse's own words.
+  message_html: string | null
   // Addresses on the ML service, served to the member's own session only.
   image: string
   thumbnail: string
@@ -737,12 +758,17 @@ export function savedCardAddress(path: string): string {
   return `${mlServiceUrl}${path}`
 }
 
-export async function saveCustomCard(verse: CardVerse, background: string, cardId?: number): Promise<SavedCard> {
+export async function saveCustomCard(
+  verse: CardVerse,
+  background: string,
+  cardId?: number,
+  message?: string,
+): Promise<SavedCard> {
   const response = await fetch(`${mlServiceUrl}/saved-cards`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...verse, background, card_id: cardId ?? null }),
+    body: JSON.stringify({ ...verse, background, card_id: cardId ?? null, message: message ?? null }),
   })
   return (await readJson<{ card: SavedCard }>(response)).card
 }
