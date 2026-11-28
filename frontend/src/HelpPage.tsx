@@ -924,8 +924,10 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           link.
         </p>
         <p>
-          <strong>Make your own card.</strong> Under the verse of the day, choose a Bible, a verse and a background
-          (each shown as a small picture), and the card appears. To write your own words instead of the verse's,
+          <strong>Make your own card.</strong> The Verse of the day page has two sections, <em>Verse of the day</em>{' '}
+          (open when the page opens) and <em>Make your own card</em>; click a heading to open it, and the other closes.
+          In Make your own card the card is shown at the top: choose a Bible, a verse and a background (each shown as a
+          small picture) under it, and the card changes to match. To write your own words instead of the verse's,
           tick <em>Add my own message</em> beside the verse and write in the box that opens; the reference stays under
           your message, and a new line in it starts a new line on the card (up to 500 characters). Bold, italics and
           links show in the email. <em>Download the card</em> saves it. When you are
@@ -949,7 +951,7 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           width={1152}
           height={1500}
           alt="Make your own card: the Bible, book, chapter and verse chosen, five backgrounds to pick from, the card for John 3:16, Save to My cards, Download the card, and Send the card"
-          caption="Make your own card, under the verse of the day: choose a verse and a background, then save, download or send it."
+          caption="Make your own card, the second section of the Verse of the day page: choose a verse and a background, then save, download or send it."
         />
         <Screenshot
           name="my-cards"

@@ -23,11 +23,18 @@ interface DayCardPageProps {
 // Download saves exactly what is shown. On the verse, the picture and its reference are links to the verse in the
 // Bible reader (2026-11-16, the owner's request): a plain click opens it here, Ctrl, Cmd or the middle button a
 // new tab, as any link.
+// On the verse page the two parts are sections that open and close (2026-11-28, the owner's request): Verse of
+// the day starts open and Make your own card closed; opening one closes the other, and a click on the open one's
+// heading closes it. Both stay mounted (the closed one hidden), so the picture is fetched at once and the maker
+// keeps its choices while closed. The page is mounted only while shown, so each visit starts on Verse of the day.
+type VerseSection = 'verse' | 'card' | null
+
 function DayCardPage({ kind, translations, onOpenVerse, onOpenReading }: DayCardPageProps) {
   const [card, setCard] = useState<DayCard | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [request, setRequest] = useState(0)
+  const [openSection, setOpenSection] = useState<VerseSection>('verse')
 
   const load = useCallback(
     (signal: AbortSignal) => {
@@ -87,9 +94,8 @@ function DayCardPage({ kind, translations, onOpenVerse, onOpenReading }: DayCard
     )
   }
 
-  return (
-    <div className="day-card-page">
-      <h1>{title}</h1>
+  const dayCard = (
+    <>
       <p className="day-card-intro">
         {kind === 'verse'
           ? 'A well-known Bible verse, chosen at random, on a picture you can download and share.'
@@ -138,7 +144,49 @@ function DayCardPage({ kind, translations, onOpenVerse, onOpenReading }: DayCard
           )}
         </div>
       )}
-      {kind === 'verse' && <CustomCardMaker translations={translations} />}
+    </>
+  )
+
+  if (kind !== 'verse') {
+    return (
+      <div className="day-card-page">
+        <h1>{title}</h1>
+        {dayCard}
+      </div>
+    )
+  }
+
+  // One heading button of the verse page's sections, with the sidebar's small triangle.
+  function sectionHeading(section: 'verse' | 'card', label: string) {
+    const isOpen = openSection === section
+    return (
+      <h2 className="day-card-section-heading">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={`day-card-section-${section}`}
+          onClick={() => setOpenSection(isOpen ? null : section)}
+        >
+          <span className="side-nav-arrow" aria-hidden="true">
+            ▶
+          </span>
+          {label}
+        </button>
+      </h2>
+    )
+  }
+
+  return (
+    <div className="day-card-page">
+      <h1>{title}</h1>
+      {sectionHeading('verse', 'Verse of the day')}
+      <div id="day-card-section-verse" className="day-card-section" hidden={openSection !== 'verse'}>
+        {dayCard}
+      </div>
+      {sectionHeading('card', 'Make your own card')}
+      <div id="day-card-section-card" className="day-card-section" hidden={openSection !== 'card'}>
+        <CustomCardMaker translations={translations} showHeading={false} />
+      </div>
     </div>
   )
 }

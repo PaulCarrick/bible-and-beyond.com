@@ -3185,12 +3185,60 @@ div.welcome-lead > p {
   text-decoration: none;
 }
 
-/* Make your own card (CustomCardMaker.tsx), at the foot of the Verse of the day page. */
+/* Make your own card (CustomCardMaker.tsx), on My cards' Edit and in the Verse of the day page's second section. */
 .custom-card {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
   max-width: 760px;
+}
+
+/* Inside a section of the Verse of the day page the heading button above it is the divider. */
+.custom-card.is-in-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* The two sections of the Verse of the day page (DayCardPage.tsx), each opened and closed by its heading. */
+.day-card-section-heading {
+  margin: 1.25rem 0 0;
+  max-width: 760px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.2rem;
+}
+
+.day-card-section-heading button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-h, var(--text));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.day-card-section-heading button:hover,
+.day-card-section-heading button:focus-visible {
+  background: var(--accent-bg);
+}
+
+.day-card-section-heading .side-nav-arrow {
+  width: 12px;
+  font-size: 11px;
+}
+
+.day-card-section-heading button[aria-expanded='true'] .side-nav-arrow {
+  transform: rotate(90deg);
+}
+
+.day-card-section {
+  padding-top: 1rem;
 }
 
 .custom-card-choices {

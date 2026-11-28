@@ -24,13 +24,15 @@ interface CustomCardMakerProps {
   onSaved?: (card: SavedCard) => void
   // Edit only: back to the list (Cancel, or after Save changes).
   onClose?: () => void
+  // False inside the Verse of the day page's sections, whose heading button already says "Make your own card".
+  showHeading?: boolean
 }
 
 // Where the maker starts: John 3:16 in the BSB (else the first Bible stored here).
 const STARTING_VERSE = { book: 43, chapter: 3, verse: 16 }
 const PLAIN = 'plain'
 
-// Make your own card (added 2026-11-26 at the owner's request), at the foot of the Verse of the day page: choose
+// Make your own card (added 2026-11-26 at the owner's request), the second section of the Verse of the day page: choose
 // a Bible stored on this site, a verse and a background (the verse a day pictures in use, as thumbnails, or plain
 // blue), see the card, then download it, or (logged in) send it to a site user chosen by name or to an email
 // address. The card is drawn on the server like the Verse of the day (custom_cards.py); sending draws it again
@@ -38,7 +40,7 @@ const PLAIN = 'plain'
 // send it (saved_cards.py; the owner's request, 2026-11-26), and My cards opens it here again to edit it.
 // "Add my own message" (the owner's request, 2026-11-28), beside the verse: a rich text editor whose words take the
 // place of the verse's on the card (the reference stays under them); the server cleans the HTML.
-function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCardMakerProps) {
+function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading = true }: CustomCardMakerProps) {
   const { user, onNavigate } = useContext(AccountContext)
   const bibles = useMemo(() => translations.filter((translation) => translation.source === 'local'), [translations])
   // The Bible chosen; until one is, the BSB when it is here, else the first one.
@@ -201,14 +203,83 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
     : 'verse-card.jpg'
 
   return (
-    <section className="custom-card" aria-labelledby="custom-card-heading">
-      <h2 id="custom-card-heading">{editing ? 'Edit your card' : 'Make your own card'}</h2>
+    <section
+      className={showHeading ? 'custom-card' : 'custom-card is-in-section'}
+      aria-labelledby={showHeading ? 'custom-card-heading' : undefined}
+    >
+      {showHeading && <h2 id="custom-card-heading">{editing ? 'Edit your card' : 'Make your own card'}</h2>}
       <p>
         {editing
           ? 'Change the Bible, the verse, your message or the background. Save changes, download or send it, and your card on My cards is changed to match.'
           : 'Choose a Bible, a verse and a background, or write your own message in place of the verse. Then download the card, or send it to someone.'}
         {!editing && user && ' Save it to My cards to keep it; every card you download or send is kept there too.'}
       </p>
+
+      {problem && (
+        <p className="error" role="alert">
+          {problem}
+        </p>
+      )}
+
+      {card && (
+        <figure className={isDrawing ? 'day-card is-loading' : 'day-card'}>
+          <img src={card.image} alt={`${card.words} ${card.caption}`} width={540} height={675} />
+          <figcaption>{card.caption}</figcaption>
+        </figure>
+      )}
+      {!card && isDrawing && <p>Making the card…</p>}
+
+      {card && (
+        <>
+          <div className="note-actions day-card-actions">
+            {editing && (
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isSaving || isDrawing}
+                onClick={() => {
+                  void keepCard().then((saved) => {
+                    if (saved) {
+                      onClose?.()
+                    }
+                  })
+                }}
+              >
+                {isSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            )}
+            {!editing && user && (
+              // Keeps the card without downloading or sending it (the owner's request, 2026-11-26).
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isSaving || isDrawing}
+                onClick={() => void keepCard()}
+              >
+                {isSaving ? 'Saving…' : 'Save to My cards'}
+              </button>
+            )}
+            <a
+              className={editing ? 'secondary-button' : 'primary-button'}
+              href={card.image}
+              download={fileName}
+              onClick={() => void keepCard()}
+            >
+              Download the card
+            </a>
+            {editing && (
+              <button type="button" className="secondary-button" onClick={onClose}>
+                Cancel
+              </button>
+            )}
+          </div>
+          {keptMessage && (
+            <p className="field-hint" role="status">
+              {keptMessage}
+            </p>
+          )}
+        </>
+      )}
 
       <div className="custom-card-choices">
         <label>
@@ -316,69 +387,8 @@ function CustomCardMaker({ translations, editing, onSaved, onClose }: CustomCard
         </div>
       </fieldset>
 
-      {problem && (
-        <p className="error" role="alert">
-          {problem}
-        </p>
-      )}
-
-      {card && (
-        <figure className={isDrawing ? 'day-card is-loading' : 'day-card'}>
-          <img src={card.image} alt={`${card.words} ${card.caption}`} width={540} height={675} />
-          <figcaption>{card.caption}</figcaption>
-        </figure>
-      )}
-      {!card && isDrawing && <p>Making the card…</p>}
-
       {card && (
         <>
-          <div className="note-actions day-card-actions">
-            {editing && (
-              <button
-                type="button"
-                className="primary-button"
-                disabled={isSaving || isDrawing}
-                onClick={() => {
-                  void keepCard().then((saved) => {
-                    if (saved) {
-                      onClose?.()
-                    }
-                  })
-                }}
-              >
-                {isSaving ? 'Saving…' : 'Save changes'}
-              </button>
-            )}
-            {!editing && user && (
-              // Keeps the card without downloading or sending it (the owner's request, 2026-11-26).
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={isSaving || isDrawing}
-                onClick={() => void keepCard()}
-              >
-                {isSaving ? 'Saving…' : 'Save to My cards'}
-              </button>
-            )}
-            <a
-              className={editing ? 'secondary-button' : 'primary-button'}
-              href={card.image}
-              download={fileName}
-              onClick={() => void keepCard()}
-            >
-              Download the card
-            </a>
-            {editing && (
-              <button type="button" className="secondary-button" onClick={onClose}>
-                Cancel
-              </button>
-            )}
-          </div>
-          {keptMessage && (
-            <p className="field-hint" role="status">
-              {keptMessage}
-            </p>
-          )}
           {user ? (
             chosen && (
               <SendCard
