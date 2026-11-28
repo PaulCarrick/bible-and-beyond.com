@@ -210,7 +210,8 @@ def test_the_preview_shows_the_message_cleaned_in_place_of_the_verse():
   assert answer.status_code == 200, answer.text
   body = answer.json()
   assert body["words"] == MESSAGE_TEXT
-  assert body["caption"] == "John 3:16 (BSB)" and body["verse"] == JOHN_3_16
+  # Nothing of the verse is shown on a card with a message (the verse is still sent back, as the card's place).
+  assert body["caption"] == "" and body["verse"] == JOHN_3_16
   assert body["image"].startswith("data:image/jpeg;base64,")
   # Without a message the card is the verse, as before (and the GET preview is unchanged).
   assert client.post("/day-card/custom", json=card()).json()["words"].startswith("For God so loved the world")
@@ -230,16 +231,16 @@ def test_a_card_with_a_message_is_emailed_with_its_formatting_and_nothing_unsafe
   answer = client.post("/day-card/send", json=card(recipient_id=ruth["id"], message=MESSAGE))
   assert answer.status_code == 200, answer.text
   email = outbox["emails"][0]
-  assert email["Subject"] == "Ann Smith sent you a card: John 3:16"
+  assert email["Subject"] == "Ann Smith sent you a card"
   plain = email.get_body(("plain",)).get_content()
-  assert plain.startswith(MESSAGE_TEXT + "\nJohn 3:16 (BSB)\n")
-  assert "For God so loved" not in plain
+  assert plain.startswith(MESSAGE_TEXT + "\n\nAnn Smith made this card for you")
+  assert "For God so loved" not in plain and "John 3:16" not in plain and "Read it in context" not in plain
   html = email.get_body(("html",)).get_content()
   assert "<strong>birthday</strong>" in html and "<em>Ann</em>" in html
   for unsafe in ("<script", "onclick", "onerror", "javascript:", "<img src=x"):
     assert unsafe not in html
-  # The reference is still a link to the verse.
-  assert ">John 3:16 (BSB)</a>" in html and "read=BSB&amp;book=43" in html
+  # Nothing of the verse: no reference, and neither the picture nor the words link to it.
+  assert "John 3:16" not in html and "read=BSB" not in html
   # It is kept on My cards with its message, ready to edit.
   kept = answer.json()["card"]
   assert kept["words"] == MESSAGE_TEXT and "<strong>birthday</strong>" in kept["message_html"]
@@ -254,7 +255,8 @@ def test_a_card_with_a_message_by_text_says_card(outbox):
   answer = client.post("/day-card/send", json=card(recipient_id=ruth["id"], message="<p>Thinking of you</p>"))
   assert answer.status_code == 200, answer.text
   (number, text, media_url) = outbox["texts"][-1]
-  assert "Ann Smith sent you a card: John 3:16 (BSB): Thinking of you" in text and media_url
+  assert "Ann Smith sent you a card: Thinking of you" in text and media_url
+  assert "John 3:16" not in text and "read=BSB" not in text
 
 
 def test_my_cards_keep_one_card_for_each_message(outbox):
@@ -264,6 +266,7 @@ def test_my_cards_keep_one_card_for_each_message(outbox):
   assert plain_verse["message_html"] is None
   with_message = save(message="<p>Happy birthday</p>").json()["card"]
   assert with_message["id"] != plain_verse["id"] and with_message["words"] == "Happy birthday"
+  assert with_message["caption"] == "" and plain_verse["caption"] == "John 3:16 (BSB)"
   # The same message again replaces that card; another message is another card.
   assert save(message="<p>Happy birthday</p>").json()["card"]["id"] == with_message["id"]
   other = save(message="<p>Get well soon</p>").json()["card"]
@@ -276,5 +279,7 @@ def test_my_cards_keep_one_card_for_each_message(outbox):
   sent = client.post("/day-card/send", json={"saved_card_id": edited["id"], "email": "friend@example.test"})
   assert sent.status_code == 200, sent.text
   email = outbox["emails"][-1]
-  assert email["Subject"] == "Ann Smith sent you a card: John 3:16"
+  assert email["Subject"] == "Ann Smith sent you a card"
   assert "<em>belated</em>" in email.get_body(("html",)).get_content()
+  assert "John 3:16" not in email.get_body(("html",)).get_content()
+  assert "John 3:16" not in email.get_body(("plain",)).get_content()

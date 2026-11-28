@@ -928,8 +928,9 @@ function HelpPage({ translations, onNavigate, hasMusic = false, hasMaps = false,
           (open when the page opens) and <em>Make your own card</em>; click a heading to open it, and the other closes.
           In Make your own card the card is shown at the top: choose a Bible, a verse and a background (each shown as a
           small picture) under it, and the card changes to match. To write your own words instead of the verse's,
-          tick <em>Add my own message</em> beside the verse and write in the box that opens; the reference stays under
-          your message, and a new line in it starts a new line on the card (up to 500 characters). Bold, italics and
+          tick <em>Add my own message</em> and write in the box that opens; the Bible and verse choices are then
+          hidden, as a card with your own message has no verse on it (no reference on the card, in the email or the
+          text). A new line in it starts a new line on the card (up to 500 characters). Bold, italics and
           links show in the email. <em>Download the card</em> saves it. When you are
           logged in you can also send it: to someone on this site, chosen by name (they get it the way they chose on
           their account, by email, text or both), or to any email address you type. The email says it is from you,

@@ -111,7 +111,9 @@ def _draw(translation: str, book: int, chapter: int, verse: int, background_id: 
   message = clean_message(message_html)
   found = {**found, "message_html": None}
   if message:
-    found.update(text=message["text"], message_html=message["html"])
+    # A card with the member's own message carries nothing of the verse (the owner's rule, 2026-11-28): no caption
+    # on the card, in the email or the text. The verse is still kept (the saved card's place), never shown.
+    found.update(text=message["text"], message_html=message["html"], caption="")
   card = message_cards.render(_background(background_id), found["text"], found["caption"], keep_line_breaks=bool(message))
   return found, card
 
@@ -175,28 +177,37 @@ def verse_link(verse: dict) -> str:
   return site_link(f"read={verse['translation']}&book={verse['book']}&chapter={verse['chapter']}&verse={verse['verse']}")
 
 
-def _what_was_sent(found: dict) -> str:
-  """"a verse", or "a card" when the member wrote their own message on it."""
-  return "a card" if found.get("message_html") else "a verse"
-
-
 def compose_email(settings: dict, address: str, found: dict, card, sender: dict) -> EmailMessage:
-  """The card's email: the words (the verse, or the member's own message) and the reference, which link to the
-  verse, the card inline, and the Created by line. A message keeps its formatting in the HTML version."""
+  """The card's email: the verse and its reference, which link to the verse, the card inline, and the Created by
+  line. A card with the member's own message has nothing of the verse: the message (with its formatting in the
+  HTML version), no reference and no link to the verse."""
   name = _sender_name(sender)
+  title = get_public_settings()["title"]
   email = EmailMessage()
-  email["Subject"] = f"{name} sent you {_what_was_sent(found)}: {found['reference']}"
+  if found.get("message_html"):
+    email["Subject"] = f"{name} sent you a card"
+  else:
+    email["Subject"] = f"{name} sent you a verse: {found['reference']}"
   email["From"] = settings["from_address"]
   email["To"] = address
   if sender.get("email"):
     email["Reply-To"] = sender["email"]
+  if found.get("message_html"):
+    email.set_content(
+      "\n".join([found["text"], "", f"{name} made this card for you on {title}.", "", "--", message_cards.created_by()]) + "\n"
+    )
+    lead_html = f'<div style="max-width:640px;font-size:18px;line-height:1.5;">{found["message_html"]}</div>'
+    message_cards.attach_to_email(
+      email, card, found["text"], link=None, linked_lines=len(found["text"].split("\n")), lead_html=lead_html,
+    )
+    return email
   email.set_content(
     "\n".join(
       [
         found["text"],
         found["caption"],
         "",
-        f"{name} made this card for you on {get_public_settings()['title']}.",
+        f"{name} made this card for you on {title}.",
         "",
         f"Read it in context: {verse_link(found['verse'])}",
         "",
@@ -206,21 +217,7 @@ def compose_email(settings: dict, address: str, found: dict, card, sender: dict)
     )
     + "\n"
   )
-  link = verse_link(found["verse"])
-  if found.get("message_html"):
-    from html import escape
-
-    # The message as written (cleaned) and the reference as a link to the verse, in place of the plain lines.
-    lead_html = (
-      f'<div style="max-width:640px;font-size:18px;line-height:1.5;">{found["message_html"]}</div>'
-      f'<p style="margin:0 0 4px;font-size:18px;"><a href="{escape(link)}" style="color:#1d3f8a;">{escape(found["caption"])}</a></p>'
-    )
-    message_cards.attach_to_email(
-      email, card, f"{found['text']} {found['caption']}", link=link,
-      linked_lines=len(found["text"].split("\n")) + 1, lead_html=lead_html,
-    )
-  else:
-    message_cards.attach_to_email(email, card, f"{found['text']} {found['caption']}", link=link, linked_lines=2)
+  message_cards.attach_to_email(email, card, f"{found['text']} {found['caption']}", link=verse_link(found["verse"]), linked_lines=2)
   return email
 
 
@@ -315,9 +312,12 @@ def send(
       raise MailUnavailable("no confirmed address or no email here")
     send_email(settings, compose_email(settings, address, found, card, sender))
 
-  words = f"{_sender_name(sender)} sent you {_what_was_sent(found)}: {found['caption']}: {found['text']}"
+  if found.get("message_html"):
+    words, link = f"{_sender_name(sender)} sent you a card: {found['text']}", ""
+  else:
+    words, link = f"{_sender_name(sender)} sent you a verse: {found['caption']}: {found['text']}", verse_link(found["verse"])
   try:
-    sent = sms.deliver(recipient_id, send_the_email, words, verse_link(found["verse"]), card)
+    sent = sms.deliver(recipient_id, send_the_email, words, link, card)
   except Exception as problem:
     logger.error("Verse card to member %s not sent: %s", recipient_id, type(problem).__name__)
     raise CardProblem(f"The card could not be sent to {recipient['name']}. They may not have a confirmed email address or a number for texts.", 502)

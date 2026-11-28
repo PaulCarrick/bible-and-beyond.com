@@ -198,9 +198,12 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
   }
   const books = contents?.books ?? []
   const chapters = books.find((entry) => entry.number === book)?.chapters ?? []
-  const fileName = card
+  // A card with the member's own message has no caption (nothing of the verse is on it): "my-card.jpg".
+  const fileName = card?.caption
     ? `${card.caption.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.jpg`
-    : 'verse-card.jpg'
+    : card
+      ? 'my-card.jpg'
+      : 'verse-card.jpg'
 
   return (
     <section
@@ -223,8 +226,8 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
 
       {card && (
         <figure className={isDrawing ? 'day-card is-loading' : 'day-card'}>
-          <img src={card.image} alt={`${card.words} ${card.caption}`} width={540} height={675} />
-          <figcaption>{card.caption}</figcaption>
+          <img src={card.image} alt={`${card.words} ${card.caption}`.trim()} width={540} height={675} />
+          {card.caption && <figcaption>{card.caption}</figcaption>}
         </figure>
       )}
       {!card && isDrawing && <p>Making the card…</p>}
@@ -282,7 +285,8 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
       )}
 
       <div className="custom-card-choices">
-        <label>
+        {/* With "Add my own message" the card has nothing of the verse, so its choosers are hidden. */}
+        <label hidden={hasOwnMessage}>
           Bible
           <select value={translation} onChange={(event) => setTranslation(event.target.value)}>
             {bibles.map((bible) => (
@@ -292,7 +296,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
             ))}
           </select>
         </label>
-        <label>
+        <label hidden={hasOwnMessage}>
           Book
           <select
             value={book}
@@ -310,7 +314,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
             ))}
           </select>
         </label>
-        <label>
+        <label hidden={hasOwnMessage}>
           Chapter
           <select
             value={chapter}
@@ -326,7 +330,7 @@ function CustomCardMaker({ translations, editing, onSaved, onClose, showHeading 
             ))}
           </select>
         </label>
-        <label className="custom-card-verse">
+        <label className="custom-card-verse" hidden={hasOwnMessage}>
           Verse
           <select value={verse} onChange={(event) => setVerse(Number(event.target.value))}>
             {verses.map((entry) => (
@@ -464,7 +468,9 @@ export function SendCard({ card, caption, onSent }: SendCardProps) {
     try {
       const sent = await sendCustomCard(card, mode === 'member' ? { recipientId } : { email: email.trim() })
       const how = sent.ways.length === 2 ? 'by email and text' : `by ${sent.ways[0]}`
-      setMessage(`The card of ${caption} was sent to ${sent.sent_to} ${how}.`)
+      setMessage(
+        caption ? `The card of ${caption} was sent to ${sent.sent_to} ${how}.` : `Your card was sent to ${sent.sent_to} ${how}.`,
+      )
       onSent?.(sent.card)
     } catch (error) {
       setProblem((error as Error).message)

@@ -57,7 +57,8 @@ def _describe(row) -> dict:
     "verse": row[4],
     "background": row[5],
     "reference": row[6],
-    "caption": row[7],
+    # A card with the member's own message has no caption (nothing of the verse is shown on it).
+    "caption": "" if row[11] else row[7],
     "words": row[8],
     "image": f"/saved-cards/{row[0]}/image?v={version}",
     "thumbnail": f"/saved-cards/{row[0]}/thumbnail?v={version}",

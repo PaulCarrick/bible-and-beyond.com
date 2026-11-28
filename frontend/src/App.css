@@ -3256,6 +3256,11 @@ div.welcome-lead > p {
   font-weight: 600;
 }
 
+/* The verse's choosers, hidden while "Add my own message" is ticked (display: flex above would show them). */
+.custom-card-choices label[hidden] {
+  display: none;
+}
+
 .custom-card-choices select,
 .custom-card-send-fields select,
 .custom-card-send-fields input {

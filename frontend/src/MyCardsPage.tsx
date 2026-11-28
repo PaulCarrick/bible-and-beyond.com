@@ -44,7 +44,9 @@ function MyCardsPage({ translations, onNavigate }: MyCardsPageProps) {
       const address = URL.createObjectURL(picture)
       const link = document.createElement('a')
       link.href = address
-      link.download = `${card.caption.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.jpg`
+      link.download = card.caption
+        ? `${card.caption.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.jpg`
+        : 'my-card.jpg'
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -118,13 +120,20 @@ function MyCardsPage({ translations, onNavigate }: MyCardsPageProps) {
           <li key={card.id} className="my-card">
             <img
               src={savedCardAddress(card.thumbnail)}
-              alt={`${card.words} ${card.caption}`}
+              alt={card.message_html ? card.words : `${card.words} ${card.caption}`}
               width={240}
               height={300}
               loading="lazy"
             />
             <div className="my-card-details">
-              <p className="my-card-caption">{card.caption}</p>
+              {/* A card with your own message has nothing of the verse: the start of its words instead. */}
+              <p className="my-card-caption">
+                {card.message_html
+                  ? card.words.length > 60
+                    ? `${card.words.slice(0, 60).trimEnd()}…`
+                    : card.words
+                  : card.caption}
+              </p>
               <p className="field-hint">
                 {new Date(card.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
               </p>

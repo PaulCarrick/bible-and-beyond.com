@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\bible_admin;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
@@ -60,6 +61,8 @@ final class SavedCardChoice {
         ];
       }
       foreach ($found['cards'] ?? [] as $card) {
+        // A card with the member's own message has no caption: it is named by the start of its words.
+        $name = $card['caption'] !== '' ? $card['caption'] : Unicode::truncate((string) $card['words'], 40, TRUE, TRUE);
         $options[(string) $card['id']] = [
           'picture' => [
             'data' => [
@@ -67,13 +70,13 @@ final class SavedCardChoice {
               '#tag' => 'img',
               '#attributes' => [
                 'src' => $card['thumbnail'],
-                'alt' => $card['words'] . ' ' . $card['caption'],
+                'alt' => trim($card['words'] . ' ' . $card['caption']),
                 'width' => 96,
                 'style' => 'height:auto;display:block;border-radius:6px;',
               ],
             ],
           ],
-          'card' => $card['caption'] . ' · ' . date('M j, Y', strtotime((string) $card['created_at'])),
+          'card' => $name . ' · ' . date('M j, Y', strtotime((string) $card['created_at'])),
         ];
       }
     }
